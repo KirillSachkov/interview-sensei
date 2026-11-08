@@ -1,4 +1,3 @@
-import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { createServer } from "node:net";
@@ -6,6 +5,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { describe, expect, it, onTestFinished } from "vitest";
+
+import { startProcess } from "./process-under-test.ts";
 
 const mainScript = path.join(import.meta.dirname, "main.ts");
 
@@ -34,56 +35,20 @@ async function occupiedPort(): Promise<number> {
 }
 
 /** Runs the server's entry point as `node src/main.ts` on the data directory, by default on a free port. */
-function runServer(dataDirectory: string, port = 0) {
-  const child = spawn(process.execPath, [mainScript], {
-    env: { ...process.env, INTERVIEW_SENSEI_DATA_DIR: dataDirectory, SERVER_PORT: String(port) },
-    stdio: ["ignore", "pipe", "pipe"],
+function startMain(dataDirectory: string, port = 0) {
+  const main = startProcess(mainScript, {
+    env: { INTERVIEW_SENSEI_DATA_DIR: dataDirectory, SERVER_PORT: String(port) },
   });
-  const exited = once(child, "exit");
-  onTestFinished(async () => {
-    if (child.exitCode === null && child.signalCode === null) {
-      child.kill("SIGKILL");
-      await exited;
-    }
-  });
-  let stdout = "";
-  let stderr = "";
-  child.stdout.on("data", (chunk: Buffer) => {
-    stdout += chunk.toString();
-  });
-  child.stderr.on("data", (chunk: Buffer) => {
-    stderr += chunk.toString();
-  });
-  return {
-    pid: child.pid,
-    listening: async () => {
-      while (!stdout.includes("Server listening")) {
-        if (child.exitCode !== null) {
-          throw new Error(`The server exited with code ${child.exitCode}: ${stderr}`);
-        }
-        // oxlint-disable-next-line eslint/no-await-in-loop -- waits for the next output chunk
-        await Promise.race([once(child.stdout, "data"), exited]);
-      }
-    },
-    stop: async () => {
-      child.kill("SIGTERM");
-      await exited;
-      return child.exitCode;
-    },
-    exit: async () => {
-      await exited;
-      return { code: child.exitCode, stderr };
-    },
-  };
+  return { ...main, listening: () => main.output(/Server listening/u) };
 }
 
 describe("server process", () => {
   it("creates the data directory and leaves a dump without the lock when it stops", async () => {
     const dataDirectory = path.join(await temporaryDirectory(), "data");
-    const server = runServer(dataDirectory);
+    const server = startMain(dataDirectory);
     await server.listening();
 
-    await expect(server.stop()).resolves.toBe(0);
+    await expect(server.stop()).resolves.toMatchObject({ code: 0 });
 
     await expect(readdir(dataDirectory)).resolves.toStrictEqual([
       "database",
@@ -93,10 +58,10 @@ describe("server process", () => {
 
   it("refuses a second server on the same data directory with a clear message", async () => {
     const dataDirectory = await temporaryDirectory();
-    const first = runServer(dataDirectory);
+    const first = startMain(dataDirectory);
     await first.listening();
 
-    const second = runServer(dataDirectory);
+    const second = startMain(dataDirectory);
 
     const { code, stderr } = await second.exit();
 
@@ -108,7 +73,7 @@ describe("server process", () => {
   it("closes the data directory and exits with code 1 when the port is taken", async () => {
     const dataDirectory = await temporaryDirectory();
     const port = await occupiedPort();
-    const server = runServer(dataDirectory, port);
+    const server = startMain(dataDirectory, port);
 
     const { code, stderr } = await server.exit();
 

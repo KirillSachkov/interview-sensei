@@ -6,8 +6,10 @@ import path from "node:path";
 import { openBrowser, opensBrowser } from "./browser.ts";
 import { runServer } from "./run-server.ts";
 
-// The output of `pnpm build` in apps/web; Node runs this file from the repository checkout.
-const webDirectory = path.join(import.meta.dirname, "..", "..", "web", "dist");
+// The output of `pnpm build` in apps/web; Node runs this file from the repository checkout. Tests
+// pass another built web app in INTERVIEW_SENSEI_WEB_DIR.
+const webDirectory =
+  process.env.INTERVIEW_SENSEI_WEB_DIR ?? path.join(import.meta.dirname, "..", "..", "web", "dist");
 
 /** The web app is built when its index.html exists. */
 async function isBuilt(): Promise<boolean> {
@@ -20,12 +22,14 @@ async function isBuilt(): Promise<boolean> {
 }
 
 if (await isBuilt()) {
-  const browser = opensBrowser({ args: process.argv.slice(2), env: process.env });
+  const shouldOpenBrowser = opensBrowser({ args: process.argv.slice(2), env: process.env });
   await runServer({
     webDirectory,
+    // Request logs would bury the URL line; the terminal keeps only warnings and errors.
+    logLevel: "warn",
     onListening: (url) => {
       process.stdout.write(`Interview Sensei: ${url}\n`);
-      if (browser) {
+      if (shouldOpenBrowser) {
         openBrowser(url);
       }
     },
