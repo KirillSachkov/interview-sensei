@@ -7,6 +7,7 @@ import type { PgliteDatabase } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 
 import type { Clock, Timer } from "../time/index.ts";
+import { lockDataDirectory } from "./data-directory-lock.ts";
 
 /** The application database. Each slice queries only the tables of its own Postgres schema. */
 export type Database = PgliteDatabase;
@@ -33,13 +34,10 @@ export interface Storage {
   readonly close: () => Promise<void>;
 }
 
-export async function openStorage(options: StorageOptions): Promise<Storage> {
-  await mkdir(options.dataDirectory, { recursive: true, mode: 0o700 });
-  const client = await PGlite.create(path.join(options.dataDirectory, "database"));
-  const database = drizzle({ client });
+async function migrateSlices(database: Database, migrations: readonly SliceMigrations[]) {
   // Slices migrate one at a time, in the order given, so a failure names the slice and stops the start.
   /* oxlint-disable eslint/no-await-in-loop -- sequential by design, see above */
-  for (const slice of options.migrations) {
+  for (const slice of migrations) {
     await migrate(database, {
       migrationsFolder: slice.folder,
       migrationsSchema: slice.schema,
@@ -47,12 +45,50 @@ export async function openStorage(options: StorageOptions): Promise<Storage> {
     });
   }
   /* oxlint-enable eslint/no-await-in-loop */
+}
+
+/** Opens and migrates the database; on a failure, closes it and releases the lock. */
+async function openMigratedClient(
+  options: StorageOptions,
+  unlock: () => Promise<void>,
+): Promise<PGlite> {
+  try {
+    const client = await PGlite.create(path.join(options.dataDirectory, "database"));
+    try {
+      await migrateSlices(drizzle({ client }), options.migrations);
+      return client;
+    } catch (error) {
+      await client.close();
+      throw error;
+    }
+  } catch (error) {
+    await unlock();
+    throw error;
+  }
+}
+
+/**
+ * Opens the data directory for this process: creates it on the first start, takes its lock,
+ * opens PGlite and applies the migrations of every slice. Rejects with DataDirectoryInUseError
+ * when another running process holds the directory.
+ */
+export async function openStorage(options: StorageOptions): Promise<Storage> {
+  await mkdir(options.dataDirectory, { recursive: true, mode: 0o700 });
+  const unlock = await lockDataDirectory(options.dataDirectory, options.clock);
+  const client = await openMigratedClient(options, unlock);
+  const shutDown = async () => {
+    try {
+      await client.close();
+    } finally {
+      await unlock();
+    }
+  };
   let closing: Promise<void> | undefined = undefined;
   return {
-    database,
+    database: drizzle({ client }),
     // Both the server's shutdown and its entry point may close the storage; it closes once.
     close: async () => {
-      closing ??= client.close();
+      closing ??= shutDown();
       await closing;
     },
   };

@@ -1,6 +1,10 @@
+import { spawn } from "node:child_process";
+import { once } from "node:events";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+
+import { pathToFileURL } from "node:url";
 
 import { sql } from "drizzle-orm";
 import { describe, expect, it, onTestFinished } from "vitest";
@@ -66,6 +70,42 @@ async function open(
   return storage;
 }
 
+// Opens the storage in another Node process, which holds it until the test kills the process.
+const holderScript = `
+const { openStorage } = await import(${JSON.stringify(pathToFileURL(path.join(import.meta.dirname, "index.ts")).href)});
+const { systemClock, systemTimer } = await import(${JSON.stringify(pathToFileURL(path.join(import.meta.dirname, "../time/index.ts")).href)});
+await openStorage({ dataDirectory: process.argv[1], clock: systemClock, timer: systemTimer, migrations: [] });
+console.log("ready");
+setInterval(() => {}, 60_000);
+`;
+
+async function holdInAnotherProcess(dataDirectory: string) {
+  const holder = spawn(
+    process.execPath,
+    ["--input-type=module", "-e", holderScript, dataDirectory],
+    {
+      stdio: ["ignore", "pipe", "inherit"],
+    },
+  );
+  const exited = once(holder, "exit");
+  onTestFinished(async () => {
+    if (holder.exitCode === null && holder.signalCode === null) {
+      holder.kill("SIGKILL");
+      await exited;
+    }
+  });
+  const firstOutput: unknown[] = await once(holder.stdout, "data");
+  expect(String(firstOutput[0])).toBe("ready\n");
+  return {
+    pid: holder.pid,
+    /** Ends the process without any cleanup, as a crash or power loss would. */
+    crash: async () => {
+      holder.kill("SIGKILL");
+      await exited;
+    },
+  };
+}
+
 describe(openStorage, () => {
   it("creates the data directory on the first start", async () => {
     const parent = await temporaryDirectory();
@@ -102,5 +142,39 @@ describe(openStorage, () => {
 
     const { rows } = await second.database.execute(sql`SELECT text, author FROM notes.notes`);
     expect(rows).toStrictEqual([{ text: "goroutines", author: "candidate" }]);
+  });
+
+  it("refuses a second start on the same data directory and keeps the first one working", async () => {
+    const dataDirectory = await temporaryDirectory();
+    const first = await open(dataDirectory);
+
+    await expect(open(dataDirectory)).rejects.toThrow(
+      `Каталог данных ${dataDirectory} уже занят другим запуском Interview Sensei (PID ${process.pid}). ` +
+        "Остановите его или задайте другой каталог в переменной INTERVIEW_SENSEI_DATA_DIR.",
+    );
+    const { rows } = await first.database.execute(
+      sql`SELECT count(*)::int AS count FROM notes.notes`,
+    );
+    expect(rows).toStrictEqual([{ count: 0 }]);
+  });
+
+  it("refuses to start while another process holds the data directory", async () => {
+    const dataDirectory = await temporaryDirectory();
+    const holder = await holdInAnotherProcess(dataDirectory);
+
+    await expect(open(dataDirectory)).rejects.toThrow(`(PID ${holder.pid})`);
+  });
+
+  it("starts after the process that held the data directory crashed", async () => {
+    const dataDirectory = await temporaryDirectory();
+    const holder = await holdInAnotherProcess(dataDirectory);
+    await holder.crash();
+
+    const storage = await open(dataDirectory);
+
+    const { rows } = await storage.database.execute(
+      sql`SELECT count(*)::int AS count FROM notes.notes`,
+    );
+    expect(rows).toStrictEqual([{ count: 0 }]);
   });
 });
