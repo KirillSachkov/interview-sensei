@@ -22,15 +22,23 @@ export async function temporaryDirectory(): Promise<string> {
 
 /**
  * Builds the server with the fake agent on the data directory and listens on a free port of the
- * host, loopback by default: the agent reaches the session's MCP address over real HTTP. `stop` closes it early.
+ * host, `127.0.0.1` by default: the agent reaches the session's MCP address over real HTTP.
+ * `allowedOrigins` goes to buildServer. `stop` closes it early.
  */
-export async function startServer(dataDirectory: string, host = "127.0.0.1") {
+export async function startServer(
+  dataDirectory: string,
+  {
+    host = "127.0.0.1",
+    allowedOrigins = [],
+  }: { host?: string; allowedOrigins?: readonly string[] } = {},
+) {
   const server = await buildServer({
     clock: { now: () => new Date(fixedTime) },
     // Dumps and agent timeouts are not under test here; the timer never runs a task.
     timer: { repeat: () => () => {}, after: () => () => {} },
     dataDirectory,
     fakeAgent: true,
+    allowedOrigins,
   });
   let closed: Promise<void> | null = null;
   const stop = async () => {
@@ -84,10 +92,24 @@ export function messages(view: SessionView) {
 
 export const isIdle = (view: SessionView) => view.status === "idle";
 
+/**
+ * The Host and Origin of the app's own page on the server, as the Candidate's browser sends them.
+ * The server refuses other hosts and origins.
+ */
+export function browserHeaders(server: FastifyInstance): { host: string; origin: string } {
+  const [address] = server.addresses();
+  if (address === undefined) {
+    throw new Error("The server does not listen");
+  }
+  const host = `${address.family === "IPv6" ? "[::1]" : "127.0.0.1"}:${address.port}`;
+  return { host, origin: `http://${host}` };
+}
+
 async function startChat(server: FastifyInstance): Promise<string> {
   const response = await server.inject({
     method: "POST",
     url: "/api/sessions",
+    headers: browserHeaders(server),
     payload: { kind: "service-chat", agent: "fake" },
   });
   expect(response.statusCode).toBe(201);
@@ -101,7 +123,7 @@ async function openEvents(server: FastifyInstance, sessionId: string) {
   let received = Promise.withResolvers<null>();
   const socket = await server.injectWS(
     `/api/sessions/${sessionId}/events`,
-    {},
+    { headers: browserHeaders(server) },
     {
       onInit: (ws) => {
         ws.on("message", (data: Buffer) => {

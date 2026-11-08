@@ -56,6 +56,7 @@ The fake agent streams a reply in chunks; the prompt `/wait` waits for a cancel,
 A new fake session starts in the mode `candidate-mode`, which stands for the Candidate's own mode; `/mode` replies with the current mode and `/meta` with the `_meta` of `session/new`.
 `/env` replies with the names of the fake agent's environment variables.
 In-process API tests listen on a free loopback port: the agent reaches the session's MCP address over real HTTP.
+They send the page's `Host` and `Origin` from `browserHeaders` in `chat-test-support.ts`: the server refuses others.
 `INTERVIEW_SENSEI_FAKE_AGENT_MODE=silent` makes it a hung agent; `ignore-sigterm` makes it ignore SIGTERM.
 
 ## Ports

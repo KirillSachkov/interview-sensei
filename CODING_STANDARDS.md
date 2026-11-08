@@ -27,6 +27,15 @@ Technical ports such as `Clock` live in `src/shared/`; application code may use 
 Slices never import each other. `src/shared/` is technical and never imports slices.
 When a slice needs another slice, it defines a port in its `domain/`, and the server passes the other slice in; `agent-sessions` gets `agent-runtime` and `mcp-gateway` this way.
 
+### Local requests
+
+The server listens only on `127.0.0.1`, `::1` or `localhost`; `run-server.ts` refuses any other `SERVER_HOST` (#23).
+`acceptLocalRequestsOnly` in `apps/server/src/local-requests.ts` answers 403 to a request from another site.
+Every request needs a loopback `Host` with the server's port, so DNS rebinding fails.
+Requests other than GET and HEAD, WebSocket upgrades and requests with an `Origin` need the server's own loopback origin.
+Only `pnpm dev` adds the Vite dev server's origin, through `allowedOrigins` in `main.ts`; the Vite proxy sets the server's `Host`.
+The MCP addresses skip this check and keep the MCP SDK's own `Host` and `Origin` checks.
+
 ### MCP tools
 
 `mcp-gateway` gives each AgentSession its own MCP address, `/mcp/<secret token>`, with the tool set of its session kind.

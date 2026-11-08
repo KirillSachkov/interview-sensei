@@ -1,16 +1,15 @@
-import { fastifyWebsocket } from "@fastify/websocket";
 import { agentSessionsMigrations } from "@interview-sensei/core/agent-sessions";
-import type { AgentSessions } from "@interview-sensei/core/agent-sessions";
 import { checkHealth } from "@interview-sensei/core/health";
 import { openStorage } from "@interview-sensei/core/storage";
 import type { UserEnvironment } from "@interview-sensei/core/agent-runtime";
-import type { SliceMigrations, Storage } from "@interview-sensei/core/storage";
+import type { SliceMigrations } from "@interview-sensei/core/storage";
 import type { Clock, Timer } from "@interview-sensei/core/time";
 import { fastify } from "fastify";
 import type { FastifyInstance } from "fastify";
 
 import { registerAgentSessionRoutes } from "./agent-session-routes.ts";
 import { composeAgentSessions } from "./compose-agent-sessions.ts";
+import { prepare } from "./lifecycle.ts";
 import { registerWebApp } from "./web-app.ts";
 
 /**
@@ -41,25 +40,11 @@ export interface ServerDependencies {
   userEnvironment?: UserEnvironment;
   /** The built web app to serve beside `/api`; `pnpm dev` serves the web app from Vite instead. */
   webDirectory?: string;
-}
-
-/** Ends sessions of the last run and registers the shutdown order and the WebSocket plugin. */
-async function prepare(server: FastifyInstance, storage: Storage, sessions: AgentSessions) {
-  // Agents stop and their sessions end before the final dump closes the database.
-  server.addHook("onClose", async () => {
-    try {
-      await sessions.close();
-    } finally {
-      await storage.close();
-    }
-  });
-  try {
-    await sessions.endInterrupted();
-    await server.register(fastifyWebsocket);
-  } catch (error) {
-    await storage.close();
-    throw error;
-  }
+  /**
+   * Browser origins besides the server's own that may change state or open a WebSocket: only the
+   * Vite dev server of `pnpm dev`. See acceptLocalRequestsOnly.
+   */
+  allowedOrigins?: readonly string[];
 }
 
 /**
@@ -76,6 +61,7 @@ export async function buildServer({
   fakeAgent = false,
   userEnvironment,
   webDirectory,
+  allowedOrigins = [],
 }: ServerDependencies): Promise<FastifyInstance> {
   const server = fastify({
     logger: logLevel === undefined ? false : { level: logLevel },
@@ -99,7 +85,7 @@ export async function buildServer({
     fakeAgent,
     userEnvironment,
   });
-  await prepare(server, storage, sessions);
+  await prepare(server, { storage, sessions, allowedOrigins });
   server.get("/api/health", () => checkHealth(clock));
   registerAgentSessionRoutes(server, {
     runtime,

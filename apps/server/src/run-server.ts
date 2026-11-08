@@ -16,6 +16,8 @@ interface RunOptions {
   onListening?: (url: string) => void;
   /** The lowest level of the JSON logs on standard output; `info` logs every request. */
   logLevel?: LogLevel;
+  /** Browser origins besides the server's own; see ServerDependencies. */
+  allowedOrigins?: readonly string[];
 }
 
 /** A start failure the Candidate can fix: the message replaces the stack trace. */
@@ -43,14 +45,24 @@ async function listen(server: FastifyInstance, host: string, port: number): Prom
   }
 }
 
-async function start({ webDirectory, onListening, logLevel = "info" }: RunOptions): Promise<void> {
-  // Local application: listen on the loopback interface only.
-  const host = process.env.SERVER_HOST ?? "127.0.0.1";
+/** The SERVER_HOST to listen on; a local application listens on the loopback interface only. */
+function loopbackHost(env: NodeJS.ProcessEnv): string {
+  const host = env.SERVER_HOST ?? "127.0.0.1";
   if (!isLoopbackHost(host)) {
     throw new StartError(
       `SERVER_HOST=${host} не loopback-адрес. Сервер слушает только 127.0.0.1, ::1 или localhost.`,
     );
   }
+  return host;
+}
+
+async function start({
+  webDirectory,
+  onListening,
+  logLevel = "info",
+  allowedOrigins = [],
+}: RunOptions): Promise<void> {
+  const host = loopbackHost(process.env);
   const port = Number(process.env.SERVER_PORT ?? "4310");
   const server = await buildServer({
     clock: systemClock,
@@ -64,6 +76,7 @@ async function start({ webDirectory, onListening, logLevel = "info" }: RunOption
     // Tests and manual checks without a subscription; the Candidate's agents need no variable.
     fakeAgent: process.env.INTERVIEW_SENSEI_FAKE_AGENT === "1",
     userEnvironment: { home: homedir(), env: process.env },
+    allowedOrigins,
     ...(webDirectory === undefined ? {} : { webDirectory }),
   });
   for (const signal of ["SIGINT", "SIGTERM"] as const) {

@@ -49,6 +49,8 @@ describe("agents API", () => {
     const response = await server.inject({
       method: "POST",
       url: "/api/sessions",
+      // The server does not listen: in process the page's origin is inject's default host.
+      headers: { origin: "http://localhost" },
       payload: { kind: "service-chat", agent: "codex" },
     });
 

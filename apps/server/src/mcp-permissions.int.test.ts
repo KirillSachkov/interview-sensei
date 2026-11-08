@@ -170,7 +170,7 @@ describe("mcp and permissions", () => {
   });
 
   it("gives the agent an IPv6 loopback MCP address when the server listens on ::1", async () => {
-    const { server } = await startServer(await temporaryDirectory(), "::1");
+    const { server } = await startServer(await temporaryDirectory(), { host: "::1" });
     const { url } = await chatWithMcpUrl(server);
 
     const [address] = server.addresses();
@@ -179,7 +179,7 @@ describe("mcp and permissions", () => {
   });
 
   it("gives the agent an IPv4 loopback MCP address when the server listens on localhost", async () => {
-    const { server } = await startServer(await temporaryDirectory(), "localhost");
+    const { server } = await startServer(await temporaryDirectory(), { host: "localhost" });
     const { url } = await chatWithMcpUrl(server);
 
     const ports = new Set(server.addresses().map((address) => address.port));

@@ -22,7 +22,10 @@ export default defineConfig({
     strictPort: true,
     // The browser calls same-origin /api; the dev server forwards it to the server, so no CORS
     // and no server URL is built into the bundle.
-    // `ws` forwards the WebSocket of an agent session too.
-    proxy: { "/api": { target: `http://127.0.0.1:${serverPort}`, ws: true } },
+    // `ws` forwards the WebSocket of an agent session too. The server takes only its own Host, so
+    // `changeOrigin` sets it; the server allows the dev server's Origin, which stays as it is.
+    proxy: {
+      "/api": { target: `http://127.0.0.1:${serverPort}`, ws: true, changeOrigin: true },
+    },
   },
 });

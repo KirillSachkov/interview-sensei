@@ -43,7 +43,8 @@ async function appUrl(launch: ReturnType<typeof startProcess>): Promise<string> 
 async function startChat(url: string): Promise<string> {
   const response = await fetch(new URL("api/sessions", url), {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    // The page of the served app; the server refuses other origins.
+    headers: { "content-type": "application/json", origin: new URL(url).origin },
     body: JSON.stringify({ kind: "service-chat", agent: "fake" }),
   });
   const body: unknown = await response.json();
@@ -57,6 +58,7 @@ async function startChat(url: string): Promise<string> {
 function openEvents(url: string, sessionId: string): WebSocket {
   const socket = new WebSocket(
     new URL(`api/sessions/${sessionId}/events`, url.replace("http", "ws")),
+    { headers: { origin: new URL(url).origin } },
   );
   onTestFinished(() => {
     socket.close();

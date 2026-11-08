@@ -6,6 +6,7 @@ import { buildServer } from "./server.ts";
 
 import {
   agentTexts,
+  browserHeaders,
   fakeReply,
   fixedTime,
   isIdle,
@@ -52,6 +53,8 @@ async function startChatDuringShutdown(dataDirectory: string) {
   const starting = server.inject({
     method: "POST",
     url: "/api/sessions",
+    // The server does not listen: in process the page's origin is inject's default host.
+    headers: { origin: "http://localhost" },
     payload: { kind: "service-chat", agent: "fake" },
   });
   await reached;
@@ -83,7 +86,11 @@ describe("service chat", () => {
   it("lists the fake agent as available", async () => {
     const { server } = await startServer(await temporaryDirectory());
 
-    const response = await server.inject({ method: "GET", url: "/api/agents" });
+    const response = await server.inject({
+      method: "GET",
+      url: "/api/agents",
+      headers: browserHeaders(server),
+    });
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toStrictEqual([{ agent: "fake", available: true }]);
@@ -187,11 +194,19 @@ describe("service chat", () => {
 
     const { server } = await startServer(dataDirectory);
 
-    const list = await server.inject({ method: "GET", url: "/api/sessions" });
+    const list = await server.inject({
+      method: "GET",
+      url: "/api/sessions",
+      headers: browserHeaders(server),
+    });
     expect(list.json()).toStrictEqual([
       { id: sessionId, kind: "service-chat", agent: "fake", status: "ended", createdAt: fixedTime },
     ]);
-    const session = await server.inject({ method: "GET", url: `/api/sessions/${sessionId}` });
+    const session = await server.inject({
+      method: "GET",
+      url: `/api/sessions/${sessionId}`,
+      headers: browserHeaders(server),
+    });
     expect(session.json<SessionView>()).toMatchObject({ id: sessionId, status: "ended" });
     expect(messages(session.json<SessionView>())).toStrictEqual([
       { type: "candidate_message", text: "Привет" },
@@ -205,6 +220,7 @@ describe("service chat", () => {
     const response = await server.inject({
       method: "GET",
       url: "/api/sessions/00000000-0000-4000-8000-000000000000",
+      headers: browserHeaders(server),
     });
 
     expect(response.statusCode).toBe(404);
@@ -221,7 +237,11 @@ describe("service chat", () => {
       message: "Сервер завершает работу и не начинает новые чаты.",
     });
     const { server: restarted } = await startServer(dataDirectory);
-    const list = await restarted.inject({ method: "GET", url: "/api/sessions" });
+    const list = await restarted.inject({
+      method: "GET",
+      url: "/api/sessions",
+      headers: browserHeaders(restarted),
+    });
     expect(list.json()).toStrictEqual([]);
   });
 });
