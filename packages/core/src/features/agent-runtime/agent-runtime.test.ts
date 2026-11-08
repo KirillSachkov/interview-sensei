@@ -32,13 +32,13 @@ const ourToolCall: AgentUpdate = {
 
 /** Starts the fake agent through an in-memory launcher and returns the agent's side of ACP. */
 async function startAgent() {
-  let agentSide: SessionRequest | undefined;
+  const launched = Promise.withResolvers<SessionRequest>();
   const turn = Promise.withResolvers<{ type: "ended"; stopReason: string }>();
   const runtime = createAgentRuntime({
     agents: ["fake"],
     installation: { nodeExecutable: "node", fakeAgentScript: "fake-agent.ts" },
     launch: (_recipe, session) => {
-      agentSide = session;
+      launched.resolve(session);
       return Promise.resolve({
         acpSessionId: "acp-1",
         prompt: async () => turn.promise,
@@ -53,12 +53,9 @@ async function startAgent() {
     mcpServer: { name: ourServer, url: "http://127.0.0.1:1/mcp" },
     onUpdate: () => {},
     onExit: () => {},
-    onPermission: async () => candidateAnswer,
+    onPermission: () => Promise.resolve(candidateAnswer),
   });
-  if (agentSide === undefined) {
-    throw new Error("The runtime did not launch the agent");
-  }
-  const session = agentSide;
+  const session = await launched.promise;
   return {
     announce: (update: AgentUpdate) => {
       session.onUpdate(update);

@@ -50,14 +50,6 @@ describe("automatic answer to a permission request", () => {
     ).toStrictEqual(allowed);
   });
 
-  it("allows once a marked request whose announced tool call carries no marker", () => {
-    expect(answer({ request: marked(ourServer), announced: bare })).toStrictEqual(allowed);
-  });
-
-  it("leaves to the Candidate an unmarked request with no announced tool call", () => {
-    expect(answer({ request: bare })).toBeNull();
-  });
-
   it("leaves to the Candidate a request whose marker names a foreign server", () => {
     expect(answer({ request: marked("interview-sensei") })).toBeNull();
     expect(answer({ request: bare, announced: marked("other-server") })).toBeNull();
@@ -97,5 +89,15 @@ describe("automatic answer to a permission request", () => {
   it("leaves to the Candidate a request of an agent kind it does not know", () => {
     // An agent kind that a later ticket adds before it teaches the rule its fields.
     expect(answer({ agent: "claude-code", request: marked(ourServer) })).toBeNull();
+  });
+});
+
+describe("automatic answer when a tool call carries no marker", () => {
+  it("allows once a marked request whose announced tool call carries no marker", () => {
+    expect(answer({ request: marked(ourServer), announced: bare })).toStrictEqual(allowed);
+  });
+
+  it("leaves to the Candidate an unmarked request with no announced tool call", () => {
+    expect(answer({ request: bare })).toBeNull();
   });
 });

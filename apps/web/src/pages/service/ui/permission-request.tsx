@@ -33,12 +33,12 @@ export function PermissionRequest({
       <p>
         <strong>Агент просит разрешение:</strong> {entry.title ?? "действие без описания"}
       </p>
-      {entry.input !== null ? (
+      {entry.input === null ? null : (
         // The title is the agent's display text and may mislead; the command shows what it runs.
         <p>
           Команда или аргументы агента: <code>{entry.input}</code>
         </p>
-      ) : null}
+      )}
       {waiting ? (
         <p>
           {entry.options.map((option) => (
