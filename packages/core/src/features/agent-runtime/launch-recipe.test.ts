@@ -227,12 +227,13 @@ describe("agent environment", () => {
     UNSET: undefined,
   };
 
-  it("keeps the Candidate's variables and API keys but drops those that defeat isolation", () => {
+  it("keeps the Candidate's variables, API keys and Claude configuration directory but drops those that defeat isolation", () => {
     expect(agentEnvironment(candidate, {})).toStrictEqual({
       PATH: "/usr/bin",
       HOME: "/home/candidate",
       ANTHROPIC_API_KEY: "sk-ant-candidate",
       OPENAI_API_KEY: "sk-candidate",
+      CLAUDE_CONFIG_DIR: "/home/candidate/.claude-work",
     });
   });
 

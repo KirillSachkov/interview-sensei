@@ -241,11 +241,12 @@ describe("acp launcher", () => {
     const reply = await replyTo(await launched, updates, "/env");
     const names: unknown = JSON.parse(reply.replace(/^env: /u, ""));
 
-    expect(names).toStrictEqual(expect.arrayContaining(["PATH", "ANTHROPIC_API_KEY"]));
+    expect(names).toStrictEqual(
+      expect.arrayContaining(["PATH", "ANTHROPIC_API_KEY", "CLAUDE_CONFIG_DIR"]),
+    );
     for (const name of [
       "OPENCODE_CONFIG",
       "OPENCODE_CONFIG_DIR",
-      "CLAUDE_CONFIG_DIR",
       "CODEX_HOME",
       "INTERVIEW_SENSEI_DATA_DIR",
     ]) {

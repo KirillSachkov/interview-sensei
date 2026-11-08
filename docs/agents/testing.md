@@ -38,7 +38,8 @@ Tests never call real agents: they need subscriptions.
 Tests use the fake ACP agent instead: `buildServer({ fakeAgent: true })` in process, `INTERVIEW_SENSEI_FAKE_AGENT=1` for `src/main.ts`.
 With the fake agent the server offers only it and never looks into the real home.
 Without it the server offers Claude Code, Codex and OpenCode from `userEnvironment`; `run-server.ts` passes the real home and env.
-The agent gets `userEnvironment.env` without `OPENCODE_CONFIG`, `OPENCODE_CONFIG_DIR`, `CLAUDE_CONFIG_DIR`, `CODEX_HOME` and `INTERVIEW_SENSEI_*`; the recipe's variables go over it.
+The agent gets `userEnvironment.env` without `OPENCODE_CONFIG`, `OPENCODE_CONFIG_DIR`, `CODEX_HOME` and `INTERVIEW_SENSEI_*`; the recipe's variables go over it.
+`CLAUDE_CONFIG_DIR` passes unchanged: Claude Code keeps its login in that directory.
 The fake agent gets an empty environment plus its recipe's variables.
 API keys stay: the Candidate chose them. With `ANTHROPIC_API_KEY` set, Claude Code bills the API instead of the subscription.
 Tests that check the real agents' availability pass a temporary directory as `userEnvironment.home` and PATH, and start no real agent.

@@ -219,13 +219,10 @@ export function launchRecipe(request: LaunchRequest): LaunchRecipe {
  * Variables of the Candidate's environment that would point an agent at the Candidate's own
  * config instead of the recipe's, or tell it about this server. API keys stay: the Candidate
  * chose them. With `ANTHROPIC_API_KEY` set, Claude Code bills the API instead of the subscription.
+ * `CLAUDE_CONFIG_DIR` stays as well: Claude Code keeps its login there, and isolation comes from
+ * `settingSources: []`, not from another directory.
  */
-const isolationBreakers = new Set([
-  "OPENCODE_CONFIG",
-  "OPENCODE_CONFIG_DIR",
-  "CLAUDE_CONFIG_DIR",
-  "CODEX_HOME",
-]);
+const isolationBreakers = new Set(["OPENCODE_CONFIG", "OPENCODE_CONFIG_DIR", "CODEX_HOME"]);
 const ownPrefix = "INTERVIEW_SENSEI_";
 
 /** The agent's environment: the Candidate's without the isolation breakers, then the recipe's. */
