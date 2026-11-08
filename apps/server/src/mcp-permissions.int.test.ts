@@ -126,6 +126,18 @@ describe("mcp and permissions", () => {
     expect(permissionRequests(stopped)).toMatchObject([{ answer: { outcome: "cancelled" } }]);
   });
 
+  it("answers cancelled at once to a permission request that comes after the turn", async () => {
+    const { server } = await startServer(await temporaryDirectory());
+    const { events } = await readyChat(server);
+
+    events.send({ type: "prompt", text: "/late" });
+
+    const answered = await events.waitFor(
+      (view) => lastAgentText(view) === "Поздний запрос: cancelled",
+    );
+    expect(permissionRequests(answered)).toStrictEqual([]);
+  });
+
   it("refuses an answer to a request that no longer waits", async () => {
     const { server } = await startServer(await temporaryDirectory());
     const { events } = await readyChat(server);

@@ -39,6 +39,7 @@ Tests use the fake ACP agent instead: `buildServer({ fakeAgent: true })` in proc
 The fake agent streams a reply in chunks; the prompt `/wait` waits for a cancel, `/fail` answers with a JSON-RPC error, and `/crash` exits with code 1.
 `/brief` calls `get_brief` on the session's MCP address after a permission request that the server allows by itself.
 `/permission` asks permission for a foreign tool and replies with the Candidate's choice; `/mcp` replies with the session's MCP server name and address.
+`/late` asks permission after its turn ends and sends the outcome it gets, which is `cancelled`.
 In-process API tests listen on a free loopback port: the agent reaches the session's MCP address over real HTTP.
 `INTERVIEW_SENSEI_FAKE_AGENT_MODE=silent` makes it a hung agent; `ignore-sigterm` makes it ignore SIGTERM.
 

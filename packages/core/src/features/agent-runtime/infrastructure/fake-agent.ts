@@ -9,6 +9,8 @@
 //   replies «Фейковый агент прочитал brief: <brief>». The server allows the call by itself.
 // - `/permission` asks permission for a foreign shell command whose title names the session's MCP
 //   server and tool, then replies with the chosen option: «Фейковый агент получил ответ: «<name>»».
+// - `/late` ends the turn, then asks permission for a foreign command outside any turn and sends
+//   «Поздний запрос: <outcome>» when the answer comes.
 // - `/mcp` replies with the session's MCP server: «MCP: <name> <url>».
 // - Any other text gets the reply «Фейковый агент получил: «<text>»» in several chunks.
 //
@@ -163,6 +165,24 @@ async function askForeignTool(client: AgentContext, sessionId: string) {
   );
 }
 
+// The late request waits this long after the turn ends, so the client has finished the turn.
+const latePauseMs = 300;
+
+/** Ends the turn at once; the permission request follows after the turn. */
+function askAfterTurn(client: AgentContext, sessionId: string) {
+  void (async () => {
+    await delay(latePauseMs);
+    const outcome = await askPermission(client, sessionId, {
+      toolCallId: randomUUID(),
+      title: "touch late.txt",
+      kind: "execute",
+      rawInput: { command: "touch late.txt" },
+    });
+    await sendChunk(client, sessionId, `Поздний запрос: ${outcome.outcome}`);
+  })();
+  return Promise.resolve({ stopReason: "end_turn" as const });
+}
+
 /** The prompts that do more than echo; each returns the turn's stop reason. */
 const commands = new Map<
   string,
@@ -178,6 +198,7 @@ const commands = new Map<
   ["/wait", waitForCancel],
   ["/brief", readBrief],
   ["/permission", askForeignTool],
+  ["/late", askAfterTurn],
   [
     "/mcp",
     async (client, sessionId) => {

@@ -87,8 +87,17 @@ export async function record(session: LiveSession, event: SessionEvent): Promise
   await session.written;
 }
 
-/** Records the request and waits for the Candidate's answer. */
-function askCandidate(session: LiveSession, request: PermissionRequest): Promise<PermissionAnswer> {
+/**
+ * Records the request and waits for the Candidate's answer. Without an agent or a turn nobody can
+ * answer it later, so the agent gets `cancelled` at once.
+ */
+async function askCandidate(
+  session: LiveSession,
+  request: PermissionRequest,
+): Promise<PermissionAnswer> {
+  if (session.agent === null || !session.turnActive) {
+    return { outcome: "cancelled" };
+  }
   const requestId = randomUUID();
   const answered = Promise.withResolvers<PermissionAnswer>();
   session.permissions.set(requestId, {
