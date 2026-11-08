@@ -1,0 +1,5 @@
+pnpm-lock.yaml
+apps/web/src/app/route-tree.gen.ts
+# Prose keeps its authored layout; Prettier formats code and configs.
+*.md
+.agents/

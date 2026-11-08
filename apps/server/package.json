@@ -1,0 +1,25 @@
+{
+  "name": "@interview-sensei/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/main.ts",
+    "start": "node src/main.ts",
+    "lint": "oxlint",
+    "boundaries": "depcruise src --output-type err-long",
+    "test": "vitest run --passWithNoTests",
+    "test:unit": "vitest run --project unit --passWithNoTests",
+    "test:integration": "vitest run --project integration"
+  },
+  "dependencies": {
+    "@interview-sensei/core": "workspace:*",
+    "fastify": "5.12.7"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "dependency-cruiser": "18.7.0",
+    "typescript": "7.0.2",
+    "vitest": "5.0.5"
+  }
+}

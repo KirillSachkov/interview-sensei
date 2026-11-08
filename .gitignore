@@ -2,3 +2,11 @@
 __pycache__/
 *.pyc
 .scratch/
+
+# Dependencies, build output and test reports
+node_modules/
+dist/
+*.tsbuildinfo
+playwright-report/
+test-results/
+*.log

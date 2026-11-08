@@ -1,0 +1,9 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  "workspaces": {
+    ".": {
+      // Workspace dependency-cruiser configs extend it; knip does not follow `extends` there.
+      "entry": ["config/dependency-cruiser/base.cjs"],
+    },
+  },
+}

@@ -1,0 +1,22 @@
+{
+  "name": "@interview-sensei/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./health": "./src/features/health/index.ts",
+    "./time": "./src/shared/time/index.ts"
+  },
+  "scripts": {
+    "lint": "oxlint",
+    "boundaries": "depcruise src --output-type err-long",
+    "test": "vitest run --passWithNoTests",
+    "test:unit": "vitest run --project unit --passWithNoTests"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "dependency-cruiser": "18.7.0",
+    "typescript": "7.0.2",
+    "vitest": "5.0.5"
+  }
+}

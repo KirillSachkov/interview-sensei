@@ -1,0 +1,33 @@
+{
+  "name": "interview-sensei",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.16.1",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @interview-sensei/server --filter @interview-sensei/web dev",
+    "check": "pnpm format:check && pnpm lint && pnpm boundaries && pnpm knip",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "pnpm --recursive --if-present lint",
+    "boundaries": "pnpm --recursive --if-present boundaries",
+    "knip": "knip",
+    "test": "pnpm --recursive --if-present test",
+    "test:unit": "pnpm --recursive --if-present test:unit",
+    "test:integration": "pnpm --recursive --if-present test:integration",
+    "test:e2e": "pnpm --filter @interview-sensei/e2e test",
+    "verify": "pnpm check && pnpm test && pnpm test:e2e && python3 scripts/check.py"
+  },
+  "prettier": {
+    "printWidth": 100
+  },
+  "devDependencies": {
+    "knip": "6.44.1",
+    "oxlint": "1.90.0",
+    "oxlint-tsgolint": "7.0.2005",
+    "prettier": "3.9.10"
+  }
+}

@@ -1,0 +1,153 @@
+{
+  "$schema": "../../node_modules/oxlint/configuration_schema.json",
+  "plugins": ["eslint", "typescript", "unicorn", "oxc", "import", "promise", "vitest"],
+  "jsPlugins": ["./plugins/interview-sensei.mjs"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "error",
+    "pedantic": "error",
+    "style": "error"
+  },
+  "rules": {
+    // Selected restriction rules.
+    "eslint/no-alert": "error",
+    "eslint/no-div-regex": "error",
+    "eslint/no-empty": "error",
+    "eslint/no-eq-null": "error",
+    "eslint/no-param-reassign": "error",
+    "eslint/no-proto": "error",
+    "eslint/no-regex-spaces": "error",
+    "eslint/no-sequences": "error",
+    "eslint/no-var": "error",
+    "eslint/unicode-bom": "error",
+    "import/no-amd": "error",
+    "import/no-commonjs": "error",
+    "import/no-cycle": "error",
+    "import/no-dynamic-require": "error",
+    "import/no-webpack-loader-syntax": "error",
+    "oxc/bad-bitwise-operator": "error",
+    "oxc/no-const-enum": "error",
+    "promise/spec-only": "error",
+    "typescript/no-dynamic-delete": "error",
+    "typescript/no-empty-object-type": "error",
+    "typescript/no-explicit-any": "error",
+    "typescript/no-import-type-side-effects": "error",
+    "typescript/no-invalid-void-type": "error",
+    "typescript/no-namespace": "error",
+    "typescript/no-non-null-asserted-nullish-coalescing": "error",
+    "typescript/no-non-null-assertion": "error",
+    "typescript/no-require-imports": "error",
+    "typescript/no-var-requires": "error",
+    "typescript/prefer-literal-enum-member": "error",
+    "typescript/use-unknown-in-catch-callback-variable": "error",
+    "unicorn/no-abusive-eslint-disable": "error",
+    "unicorn/no-document-cookie": "error",
+    "unicorn/no-length-as-slice-end": "error",
+    "unicorn/no-magic-array-flat-depth": "error",
+    "unicorn/no-useless-error-capture-stack-trace": "error",
+    "unicorn/prefer-modern-math-apis": "error",
+    "unicorn/prefer-module": "error",
+    "unicorn/prefer-node-protocol": "error",
+    "unicorn/prefer-number-properties": "error",
+
+    // Suppression comments: a disable directive needs a reason after `--` (plugins/interview-sensei.mjs),
+    // `@ts-ignore` is banned, `@ts-expect-error` needs a description.
+    "interview-sensei/require-disable-reason": "error",
+
+    // Code reads the current time from the injected Clock (packages/core/src/shared/time), so tests can fix it.
+    "interview-sensei/no-current-time": "error",
+    "typescript/ban-ts-comment": [
+      "error",
+      {
+        "ts-ignore": true,
+        "ts-nocheck": true,
+        "ts-check": false,
+        "ts-expect-error": "allow-with-description",
+        "minimumDescriptionLength": 10
+      }
+    ],
+    "typescript/prefer-ts-expect-error": "error",
+
+    // Tests: no focused or disabled tests, every test asserts.
+    "vitest/no-focused-tests": "error",
+    "vitest/no-disabled-tests": "error",
+    "vitest/expect-expect": "error",
+    // vitest/prefer-describe-function-title asks for `describe(fn, ...)`; the title is then a function.
+    "vitest/valid-title": ["error", { "allowArguments": true }],
+
+    // Rule options.
+    // Type-only imports stay separate (import/consistent-type-specifier-style, typescript/no-import-type-side-effects).
+    "eslint/no-duplicate-imports": ["error", { "allowSeparateTypeImports": true }],
+    "eslint/func-style": ["error", "declaration", { "allowArrowFunctions": true }],
+    // A void call in an arrow shorthand (`() => logger.warn(...)`) is the idiomatic event callback.
+    "typescript/no-confusing-void-expression": ["error", { "ignoreArrowShorthand": true }],
+
+    // Disabled rules. Each one contradicts another enabled rule or the stack's idioms.
+    // Named exports are the convention: module public APIs and slice index.ts files re-export by name.
+    "import/no-named-export": "off",
+    "import/prefer-default-export": "off",
+    // Exports stay next to their declarations, which keeps related code together.
+    "import/group-exports": "off",
+    "import/exports-last": "off",
+    // Key order carries meaning: configuration groups and response shapes.
+    "eslint/sort-keys": "off",
+    // Import order has no effect on behaviour, and oxlint cannot fix declaration order automatically.
+    "eslint/sort-imports": "off",
+    // Library types (Fastify, React props) are mutable, so almost no parameter can comply.
+    "typescript/prefer-readonly-parameter-types": "off",
+    // One declaration per statement reads and diffs better than combined declarations.
+    "eslint/one-var": "off",
+    // Ports, limits and exit codes are clearer as literals next to their call.
+    "eslint/no-magic-numbers": "off",
+    // Comments often start with a code identifier (`tsx`, `fetch`) that must keep its case.
+    "eslint/capitalized-comments": "off",
+    // Ternaries are idiomatic in expressions and JSX; eslint/no-nested-ternary still limits them.
+    "eslint/no-ternary": "off",
+    // null is part of JSON, SQL results and React APIs.
+    "unicorn/no-null": "off",
+    // Wrapping a callback API (timers, events) needs a promise constructor; promise/param-names keeps it readable.
+    "promise/avoid-new": "off",
+    // typescript/require-await reports the same problem with type information; one report is enough.
+    "eslint/require-await": "off",
+    // Schemas and route definitions nest calls by design.
+    "unicorn/max-nested-calls": "off",
+    // Applies to test files only; in source files it flags ordinary top-level module code.
+    "vitest/require-hook": "off",
+    // Vitest runs without globals, so tests import its functions; vitest/prefer-importing-vitest-globals stays on.
+    "vitest/no-importing-vitest-globals": "off",
+    // vitest/expect-expect already rejects a test without assertions; expect.hasAssertions() in every test adds noise.
+    "vitest/prefer-expect-assertions": "off",
+    // Integration tests start and stop the server in hooks.
+    "vitest/no-hooks": "off",
+    // Contradict vitest/prefer-strict-boolean-matchers, which asks for the exact toBe(true) and toBe(false).
+    "vitest/prefer-to-be-truthy": "off",
+    "vitest/prefer-to-be-falsy": "off",
+    // Contradicts vitest/prefer-called-once, which asks for toHaveBeenCalledOnce().
+    "vitest/prefer-called-times": "off"
+  },
+  "overrides": [
+    {
+      // CommonJS config files of tools that do not load ES modules (dependency-cruiser, pnpm).
+      "files": ["**/*.cjs"],
+      "rules": {
+        "import/no-commonjs": "off",
+        "unicorn/prefer-module": "off"
+      }
+    },
+    {
+      // A describe callback holds all cases of one behaviour; its length follows the number of cases.
+      "files": ["**/*.test.ts", "**/*.test.tsx"],
+      "rules": {
+        "eslint/max-lines-per-function": "off"
+      }
+    },
+    {
+      // The system clock reads the real time; tests control time through the Clock.
+      "files": ["**/shared/time/system-clock.ts", "**/*.test.ts", "**/*.test.tsx"],
+      "rules": {
+        "interview-sensei/no-current-time": "off"
+      }
+    }
+  ]
+}

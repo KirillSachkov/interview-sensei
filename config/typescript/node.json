@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./base.json",
+  "compilerOptions": {
+    "target": "ES2024",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2024"],
+    "types": ["node"],
+    // Node runs the sources directly by stripping types: imports name the .ts file, and only
+    // erasable syntax is allowed (no enums, namespaces or parameter properties).
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true
+  }
+}
