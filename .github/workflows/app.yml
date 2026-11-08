@@ -1,4 +1,4 @@
-# Application checks beside the harness checks (harness.yml). Real agents never run here: they
+# Application checks beside the harness checks (check.yml). Real agents never run here: they
 # need subscriptions. Repository protection settings are not implied by these jobs.
 name: App checks
 
