@@ -10,6 +10,7 @@ Run every command from the repository root after `pnpm install --frozen-lockfile
 - `pnpm test:unit` or `pnpm test:integration`: one Vitest project.
 - `pnpm build`: the web app into `apps/web/dist`; the server runs from its sources and needs no build.
 - `pnpm test:e2e`: `pnpm build`, then Playwright in Chromium against the `interview-sensei` command that it starts itself.
+  Only the root script builds first; `pnpm --filter @interview-sensei/e2e test:e2e` tests the existing `apps/web/dist`.
 - `pnpm verify`: `pnpm check`, `pnpm test`, `pnpm test:e2e` and `python3 scripts/check.py` in order.
 - `python3 scripts/check.py`: local Markdown links/anchors, own skill identity and invocation metadata, directory hashes, package skill links and client pointers.
 - `git diff --check`: whitespace errors in the change.
@@ -62,8 +63,11 @@ To check the built app by hand, run `pnpm build`, then the same variables with `
 ## Launch command
 
 `interview-sensei` (`apps/server/src/launch.ts`) serves `apps/web/dist` beside `/api` and prints the URL.
+It logs only warnings and errors, so the URL line stays visible; `pnpm dev` logs every request.
+On a wildcard host such as `0.0.0.0` or `::`, the URL uses the loopback address.
 Without a built web app, it exits with code 1 and asks for `pnpm build`.
-It opens the URL with `open` on macOS, `start` on Windows and `xdg-open` elsewhere.
+`INTERVIEW_SENSEI_WEB_DIR` replaces `apps/web/dist` in tests.
+It opens the URL with `open` on macOS, `rundll32 url.dll,FileProtocolHandler` on Windows and `xdg-open` elsewhere.
 Tests and CI turn the browser off with `--no-browser` or `INTERVIEW_SENSEI_NO_BROWSER=1`.
 
 ## CI
