@@ -1,0 +1,22 @@
+{
+  "$schema": "../../node_modules/oxlint/configuration_schema.json",
+  "extends": ["../../config/oxlint/react.json"],
+  // Options apply only in the root config of a run, so each workspace sets them.
+  "options": {
+    "typeAware": true,
+    "typeCheck": true,
+    "denyWarnings": true,
+    "reportUnusedDisableDirectives": "error"
+  },
+  "overrides": [
+    {
+      // The generated route tree stays in the run so that the compiler checks it; its style is the
+      // generator's. Start Vite to regenerate it instead of editing.
+      "files": ["src/app/route-tree.gen.ts"],
+      "rules": {
+        "typescript/consistent-indexed-object-style": "off",
+        "unicorn/no-abusive-eslint-disable": "off"
+      }
+    }
+  ]
+}

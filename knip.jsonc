@@ -5,5 +5,13 @@
       // Workspace dependency-cruiser configs extend it; knip does not follow `extends` there.
       "entry": ["config/dependency-cruiser/base.cjs"],
     },
+    "apps/web": {
+      // Steiger has no knip plugin; `pnpm boundaries` loads this config.
+      "entry": ["steiger.config.ts"],
+      "ignoreIssues": {
+        // The router plugin decides what the generated route tree exports.
+        "src/**/*.gen.ts": ["exports", "types"],
+      },
+    },
   },
 }
