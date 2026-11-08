@@ -25,7 +25,7 @@ Install the Playwright browser once with `pnpm --filter @interview-sensei/e2e ex
 | ----------- | ------------------------------------- | -------------------------------------------------------------------- |
 | unit        | `src/**/*.test.ts` next to the code; core domain tests at the slice root | Pure functions; no I/O, no server. `domain-is-pure` keeps tests out of `domain/`. |
 | integration | `apps/server/src/**/*.int.test.ts`    | The server in process through its HTTP API, or `src/main.ts` and `src/launch.ts` as processes. |
-| integration | `packages/core/src/**/*.int.test.ts`  | Core technical code on real PGlite in a temporary data directory.    |
+| integration | `packages/core/src/**/*.int.test.ts`  | Core technical code on real infrastructure: PGlite, files, agent discovery and the fake ACP agent as a process, in temporary directories. |
 | e2e         | `e2e/tests/*.test.ts`                 | The real browser against the built app that `interview-sensei` serves. |
 
 Test external behavior at the public boundary, not implementation details.
@@ -38,17 +38,11 @@ Tests never call real agents: they need subscriptions.
 Tests use the fake ACP agent instead: `buildServer({ fakeAgent: true })` in process, `INTERVIEW_SENSEI_FAKE_AGENT=1` for `src/main.ts`.
 With the fake agent the server offers only it and never looks into the real home.
 Without it the server offers Claude Code, Codex and OpenCode from `userEnvironment`; `run-server.ts` passes the real home and env.
-The agent gets `userEnvironment.env` without `OPENCODE_CONFIG`, `OPENCODE_CONFIG_DIR`, `CODEX_HOME` and `INTERVIEW_SENSEI_*`; the recipe's variables go over it.
-`CLAUDE_CONFIG_DIR` passes unchanged: Claude Code keeps its login in that directory.
+[Storage](../../CODING_STANDARDS.md#storage) in the coding standards owns what the agents get from that environment.
 The fake agent gets an empty environment plus its recipe's variables.
-API keys stay: the Candidate chose them. With `ANTHROPIC_API_KEY` set, Claude Code bills the API instead of the subscription.
 Tests that check the real agents' availability pass a temporary directory as `userEnvironment.home` and PATH, and start no real agent.
 Launch recipes are pure: unit tests give them made-up paths, and nothing touches the disk.
-The OpenCode model comes from `config.json`, `opencode.json` and `opencode.jsonc` in `$XDG_CONFIG_HOME/opencode` or `~/.config/opencode`.
 Unit tests give `opencodeModelSettings` made-up texts; a missing or invalid file gives no model.
-The recipe passes the copied `provider` entries in `OPENCODE_CONFIG_CONTENT`, which has no file location.
-So a relative `{file:...}` in such an entry may not resolve; `~/` and absolute paths do.
-The recipe drops `OPENCODE_CONFIG`, so it ignores a model that the Candidate chose only in that file.
 The fake agent streams a reply in chunks; the prompt `/wait` waits for a cancel, `/fail` answers with a JSON-RPC error, and `/crash` exits with code 1.
 `/brief` calls `get_brief` on the session's MCP address after a permission request that the server allows by itself.
 `/permission` asks permission for a foreign tool and replies with the Candidate's choice; `/mcp` replies with the session's MCP server name and address.
@@ -66,8 +60,7 @@ They send the page's `Host` and `Origin` from `browserHeaders` in `chat-test-sup
 `pnpm test:e2e` uses port 4320; set `E2E_SERVER_PORT` to change it.
 A server on a taken port exits with code 1 and a message that names the port.
 Give each worktree its own ports when several run at once.
-`SERVER_HOST` takes only `127.0.0.1` (the default), `::1` or `localhost` (#23).
-Any other host, `0.0.0.0` and `::` included, makes the server exit with code 1 before it opens the data directory.
+`SERVER_HOST` takes only loopback hosts; [local requests](../../CODING_STANDARDS.md#local-requests) owns the rule.
 
 ## Data directory
 
@@ -76,6 +69,7 @@ The server keeps all data in `~/.interview-sensei`; the `INTERVIEW_SENSEI_DATA_D
 `pnpm test:e2e` uses `e2e/.data`, which Git ignores; its webServer command empties it before each run.
 Each agent session works in its own directory under `sessions/` in the data directory.
 The agents' own homes and configs live under `agents/` in the data directory, with symlinks to the Candidate's `auth.json`.
+Claude Code is the exception (#24): it keeps the Candidate's config directory and writes its own state there.
 One running server owns a data directory: a second server on it exits with code 1 and an error message.
 Give each worktree its own data directory when several servers run at once.
 

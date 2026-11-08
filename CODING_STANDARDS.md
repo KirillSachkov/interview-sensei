@@ -30,7 +30,8 @@ A new session kind in `agent-sessions` needs a launch recipe in `agent-runtime` 
 
 ### Local requests
 
-The server listens only on `127.0.0.1`, `::1` or `localhost`; `run-server.ts` refuses any other `SERVER_HOST` (#23).
+The server listens only on `127.0.0.1` (the default), `::1` or `localhost` (#23).
+For any other `SERVER_HOST`, `0.0.0.0` and `::` included, `run-server.ts` exits with code 1 before it opens the data directory.
 `acceptLocalRequestsOnly` in `apps/server/src/local-requests.ts` answers 403 to a request from another site.
 Every request needs a loopback `Host` with the server's port, so DNS rebinding fails.
 Requests other than GET and HEAD, WebSocket upgrades and requests with an `Origin` need the server's own loopback origin.
@@ -72,9 +73,19 @@ Other workspaces reach core only through the subpaths in `packages/core/package.
 Only the server opens the data directory (ADR-0002); `packages/core/src/shared/storage` holds the lock, PGlite, migrations and dumps.
 The application writes only inside the data directory.
 It never writes into the Candidate's agent directories, such as `~/.claude`, `~/.codex` or `~/.config/opencode`: it only checks the login there and links to `auth.json`.
+Claude Code is the exception, approved by the owner in #24.
+It keeps the Candidate's config directory, `CLAUDE_CONFIG_DIR` or `~/.claude`, because it ties the Keychain login to it.
+So Claude Code writes its own state there; the recipe isolates it with `settingSources: []` and `persistSession: false`.
 It reads one thing more there: the OpenCode recipe takes `model`, `small_model` and their `provider` entries from the Candidate's global OpenCode config.
 `opencodeModelSettings` in `agent-runtime/domain/opencode-settings.ts` picks them; other keys, such as `mcp`, `permission` or `instructions`, never reach the agent.
 The server never logs or journals that config.
+The model comes from `config.json`, `opencode.json` and `opencode.jsonc` in `$XDG_CONFIG_HOME/opencode` or `~/.config/opencode`.
+The recipe passes the copied `provider` entries in `OPENCODE_CONFIG_CONTENT`, which has no file location.
+So a relative `{file:...}` in such an entry may not resolve; `~/` and absolute paths do.
+The recipe drops `OPENCODE_CONFIG`, so it ignores a model that the Candidate chose only in that file.
+The agent gets the Candidate's env without `OPENCODE_CONFIG`, `OPENCODE_CONFIG_DIR`, `CODEX_HOME` and `INTERVIEW_SENSEI_*`; the recipe's variables go over it.
+`agentEnvironment` in `launch-recipe.ts` filters it. `CLAUDE_CONFIG_DIR` passes unchanged.
+API keys stay: the Candidate chose them. With `ANTHROPIC_API_KEY` set, Claude Code bills the API instead of the subscription.
 Launch recipes in `agent-runtime/domain/launch-recipe.ts` put every directory, file and link into the data directory; their unit tests check it.
 `prepareRecipe` refuses a recipe path outside the data directory or through a link inside it, and never removes a directory.
 A slice that stores data owns a Postgres schema named after it, with its Drizzle tables and drizzle-kit migrations in `infrastructure/`.

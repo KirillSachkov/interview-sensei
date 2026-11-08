@@ -1,8 +1,8 @@
 import { defineConfig } from "vitest/config";
 
 // Unit tests sit next to the code as `*.test.ts`: pure functions of the feature slices, no I/O.
-// Integration tests are `*.int.test.ts`: they run technical code on real infrastructure in
-// process, such as PGlite in a temporary data directory.
+// Integration tests are `*.int.test.ts`: they run technical code on real infrastructure, such as
+// PGlite, files and the fake ACP agent as a process, in temporary directories.
 export default defineConfig({
   test: {
     // Several agents run tests on one machine at the same time.
@@ -21,7 +21,8 @@ export default defineConfig({
         test: {
           name: "integration",
           include: ["src/**/*.int.test.ts"],
-          // Each test starts PGlite, which takes about a second and longer under parallel load.
+          // Each test starts PGlite or an agent process, which takes about a second and longer under
+          // parallel load.
           testTimeout: 30_000,
         },
       },
