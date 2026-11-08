@@ -21,6 +21,7 @@ Shared settings live in `config/`: TypeScript, oxlint with the project plugin, a
 
 A feature slice has the layers `domain/`, `application/` and `infrastructure/`; create a layer when it gets code.
 `domain/` is plain TypeScript and imports only the `domain/` of its own feature.
+`domain-is-pure` checks test files too, so unit tests of domain code sit at the slice root.
 `application/` uses domain ports and receives infrastructure as parameters.
 Technical ports such as `Clock` live in `src/shared/`; application code may use them too.
 Slices never import each other. `src/shared/` is technical and never imports slices.

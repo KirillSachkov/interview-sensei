@@ -1,8 +1,10 @@
+// Unit tests of the session/update reducer. They sit at the slice root: domain-is-pure keeps
+// even test imports such as vitest out of domain/.
 import { describe, expect, it } from "vitest";
 
-import type { AgentSession } from "./agent-session.ts";
-import type { SessionEvent } from "./session-event.ts";
-import { replay } from "./session-view.ts";
+import type { AgentSession } from "./domain/agent-session.ts";
+import type { SessionEvent } from "./domain/session-event.ts";
+import { replay } from "./domain/session-view.ts";
 
 const session: AgentSession = {
   id: "session-1",

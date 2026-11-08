@@ -4,9 +4,9 @@ export type ChatEntry =
   | { readonly id: string; readonly type: "agent_message"; readonly text: string }
   | { readonly id: string; readonly type: "turn_interrupted"; readonly stopReason: string };
 
-export type SessionStatus = "starting" | "idle" | "working" | "failed" | "ended";
+type SessionStatus = "starting" | "idle" | "working" | "failed" | "ended";
 
-export type SessionFailure =
+type SessionFailure =
   | {
       readonly reason: "agent_exited";
       readonly exitCode: number | null;
