@@ -44,7 +44,7 @@ export function liveSession(
 
 async function write(session: LiveSession, event: SessionEvent): Promise<void> {
   const { repository, clock } = session.dependencies;
-  const status = statusAfter(session.view.status, { id: 0, event });
+  const status = statusAfter(session.view.status, event);
   const recorded = await repository.append({
     sessionId: session.view.id,
     event,

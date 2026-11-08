@@ -2,7 +2,7 @@
 // Written for this project; the store of @acp-components/core (MIT) served only as a reference.
 import type { AgentSession, ChatEntry, SessionStatus, SessionView } from "./agent-session.ts";
 import { isLive } from "./agent-session.ts";
-import type { AgentUpdate, RecordedEvent } from "./session-event.ts";
+import type { AgentUpdate, RecordedEvent, SessionEvent } from "./session-event.ts";
 
 /** The view of a session before its first journal entry. */
 export function emptyView(session: AgentSession): SessionView {
@@ -10,7 +10,7 @@ export function emptyView(session: AgentSession): SessionView {
 }
 
 /** The status after the event, the same rule for the live session and for the stored one. */
-export function statusAfter(status: SessionStatus, { event }: RecordedEvent): SessionStatus {
+export function statusAfter(status: SessionStatus, event: SessionEvent): SessionStatus {
   switch (event.type) {
     case "session_started":
     case "turn_ended":
@@ -111,7 +111,7 @@ function entriesAfter(
 export function applyEvent(view: SessionView, recorded: RecordedEvent): SessionView {
   return {
     ...view,
-    status: statusAfter(view.status, recorded),
+    status: statusAfter(view.status, recorded.event),
     entries: entriesAfter(view.entries, recorded),
     failure: recorded.event.type === "session_failed" ? recorded.event.failure : view.failure,
   };

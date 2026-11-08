@@ -47,8 +47,12 @@ function send(socket: WebSocket, message: ServerMessage): void {
   socket.send(JSON.stringify(message));
 }
 
-async function prompt(socket: WebSocket, sessions: AgentSessions, command: [string, string]) {
-  const outcome = await sessions.prompt(...command);
+async function prompt(
+  socket: WebSocket,
+  sessions: AgentSessions,
+  { sessionId, text }: { sessionId: string; text: string },
+) {
+  const outcome = await sessions.prompt(sessionId, text);
   if (outcome !== "accepted") {
     send(socket, { type: "prompt_rejected", reason: outcome });
   }
@@ -68,7 +72,7 @@ async function serveEvents(socket: WebSocket, sessionId: string, sessions: Agent
     } else if (command.type === "cancel") {
       void sessions.cancel(sessionId);
     } else {
-      void prompt(socket, sessions, [sessionId, command.text]);
+      void prompt(socket, sessions, { sessionId, text: command.text });
     }
   });
   const session = await sessions.view(sessionId);
