@@ -57,7 +57,6 @@ A slice queries only its own schema.
 | unused files, exports, dependencies         | knip               | No dead code or unused packages.                                        |
 
 The clock lives in `packages/core/src/shared/time`; only `system-clock.ts` reads the real time.
-Repeated work takes the `Timer` from the same module; only `system-timer.ts` starts real timers.
 Node runs server sources directly by type stripping: use only erasable syntax and `.ts` import extensions.
 Dependency versions are exact. `pnpm-workspace.yaml` holds the supply-chain settings: release age, trust policy and allowed install scripts.
 Add a trust exclusion or install script only with a comment that gives the reason.
@@ -67,6 +66,7 @@ Add a trust exclusion or install script only with a comment that gives the reaso
 Check that a new rule exception names its reason and the narrowest files it covers.
 Check that tests follow [testing](docs/agents/testing.md): behavior at the public boundary, names after behavior.
 Check that user-facing text in the web app is in Russian.
+Check that repeated work takes the injected `Timer` from `packages/core/src/shared/time`; only `system-timer.ts` starts real timers.
 
 ## Contextual checks
 
