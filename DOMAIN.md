@@ -56,11 +56,11 @@ An Attempt is never changed after it is recorded; a Dispute adds a correction in
 The agent's assessment of one Attempt on a scale from 0 to 3, with a short justification.
 
 **Dispute**:
-The Candidate's objection to a Grade, with the corrected Grade if the objection is accepted.
+The Candidate's correction of a Grade, with a reason. The corrected Grade applies at once; the agent does not arbitrate.
 
 **Topic status**:
-How well the Candidate knows a Topic: not started, shaky or confident.
-Topic status follows from recent Attempts and is never set by hand. An Attempt with a hint cannot make a Topic confident.
+How well the Candidate knows a Topic within a Target: not started, shaky or confident.
+Topic status follows from recent Attempts and is never set by hand. Confident needs recent Attempts without hints and at least one confident Deeper question.
 
 **Inbox**:
 Material that the Candidate added to a Target and the agent has not processed yet: links, videos, files.
