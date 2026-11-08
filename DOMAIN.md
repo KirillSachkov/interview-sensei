@@ -94,6 +94,14 @@ One conversation of the application with the Candidate's agent: its kind, agent,
 The server records every event in the journal; the chat and its history after a restart come from the journal, not from the agent's log.
 _Avoid_: Session, when the kind of session matters; a Mock interview runs in an AgentSession.
 
+**MCP address**:
+The URL of our MCP server that one AgentSession gets in `session/new`. It offers the tools of the session kind and acts only on that session.
+It closes when the session's agent stops; another session cannot use it.
+
+**Permission request**:
+The agent's request to perform an action, such as a shell command, with the options it offers.
+The server answers requests for our own MCP tools; every other request goes to the Candidate in the chat.
+
 **Service chat**:
 The AgentSession kind of the skeleton: a free chat that checks the connection with the agent. It records no Attempts.
 

@@ -25,7 +25,15 @@ A feature slice has the layers `domain/`, `application/` and `infrastructure/`; 
 `application/` uses domain ports and receives infrastructure as parameters.
 Technical ports such as `Clock` live in `src/shared/`; application code may use them too.
 Slices never import each other. `src/shared/` is technical and never imports slices.
-When a slice needs another slice, it defines a port in its `domain/`, and the server passes the other slice in; `agent-sessions` gets `agent-runtime` this way.
+When a slice needs another slice, it defines a port in its `domain/`, and the server passes the other slice in; `agent-sessions` gets `agent-runtime` and `mcp-gateway` this way.
+
+### MCP tools
+
+`mcp-gateway` gives each AgentSession its own MCP address, `/mcp/<secret token>`, with the tool set of its session kind.
+A slice defines a tool with `sessionTool` from `src/shared/mcp` in its `application/`, as `get_brief` does, and exports it from its `index.ts`.
+`sessionTools` in `apps/server/src/mcp.ts` lists the tools of each session kind; add the new tool there.
+A tool acts only on the session it receives. Write its name in snake_case and its description in English.
+The server allows calls of our MCP tools without asking the Candidate; `agent-runtime/domain/permissions.ts` recognizes them by the adapter's structural fields, never by `title` or other text.
 Other workspaces reach core only through the subpaths in `packages/core/package.json` `exports`.
 
 ### Storage
