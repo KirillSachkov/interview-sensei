@@ -5,13 +5,19 @@
   "type": "module",
   "exports": {
     "./health": "./src/features/health/index.ts",
+    "./storage": "./src/shared/storage/index.ts",
     "./time": "./src/shared/time/index.ts"
   },
   "scripts": {
     "lint": "oxlint",
     "boundaries": "depcruise src --output-type err-long",
     "test": "vitest run --passWithNoTests",
-    "test:unit": "vitest run --project unit --passWithNoTests"
+    "test:unit": "vitest run --project unit --passWithNoTests",
+    "test:integration": "vitest run --project integration"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.15",
+    "drizzle-orm": "0.45.4"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
