@@ -21,6 +21,7 @@ If independent subagents are unavailable, report independent review as unavailab
 - Domain consumers and setup use `DOMAIN.md` and `DOMAIN-MAP.md` consistently.
 - Project pointers preserve explicit starts, worktree ownership, human decisions, committed review and verified delivery.
 - `implement` owns small-task corrections; `implement-spec` uses one fresh correction implementer.
+- `implement-spec` adds a project line for review after each ticket when the spec chooses it (#29).
 - `code-review` reports two independent axes and checks corrections without discarding prior full coverage.
 - `pr` uses the selected human language, conditional presentation guidance and visible human actions.
 - `pr` adds project lines for the five required report parts; its upstream lines stay.
@@ -58,7 +59,7 @@ Hashes establish identity, not correctness or behavior.
 | `grilling` | `27f71f106a7062691b2982d4f847304a62930ebed8b50734f4d4fd498d60afa8` |
 | `handoff` | `77c2607c751b7c522e0208ab113ba4949f8267610d6061323c7ccd3ace21d7da` |
 | `implement` | `95af274086aef8db8a8c51b078d9d2f0d108a28796d1e84e373536f88f3664fe` |
-| `implement-spec` | `8cfbe422e17966c2dd77c8dee31855c94068e785b791175680ac7dbff3630bab` |
+| `implement-spec` | `80119c1f57c961a06c467210735cbd4b4d643574e05d5cd17ace21d195875691` |
 | `improve-codebase-architecture` | `6309784c0b4631b92b2a2196da3ea5a500749fe5905c2981e34acf514da6820b` |
 | `pr` | `dc8521b417eaf56cef355cb6950b9ceb5f9b8e23c58a837ad3bfd3377da93642` |
 | `prototype` | `c4efd5e0f1c302b6225be83e8e42abdb05e13fde900484e4e2240e90b4e83eb6` |

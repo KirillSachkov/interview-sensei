@@ -35,6 +35,7 @@ Every spec has a section «Приёмка» with:
 - Delivery mode: one of the [delivery modes](delivery.md#delivery-modes).
 - Additional human checks, each with the [human-check fields](#human-check).
 - What each ticket must demonstrate.
+- Integration PR mode only: when [independent review](delivery.md#ticket-review) runs, after each ticket or after all tickets.
 - Integration PR mode only, optional: [checkpoints](delivery.md#checkpoints) after named tickets.
 
 Tickets inherit the spec's checks. Each ticket adds its own checks and demonstration to its acceptance criteria.
