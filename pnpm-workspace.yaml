@@ -34,6 +34,8 @@ packageExtensions:
 permissions:
   "@tanstack/react-router":
     skills: true
+  "@tanstack/router-core":
+    skills: true
   "@tanstack/router-plugin":
     skills: true
 # One target for every agent: .claude/skills points to .agents/skills, and Codex reads .agents/skills.
