@@ -24,7 +24,7 @@ Write a report the owner can understand without reading the conversation or ever
 
 Scale this shape to the change. Translate its headings into the team language. Omit empty sections and replace every placeholder.
 
-Project rule: the report contains the [five required parts](../../../docs/agents/human-review.md#level-1-every-pr). Keep each part; state "none" with a reason when it is empty.
+Project rule: the report contains the [five required parts](../../../docs/agents/human-review.md#level-1-every-pr). That rule overrides "Omit empty sections" for those parts.
 
 ````markdown
 <agent provenance under project rules>

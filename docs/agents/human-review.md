@@ -32,9 +32,10 @@ Keep a part with no content and state "none" with a short reason.
 
 Every spec has a section «Приёмка» with:
 
-- Delivery mode: one of the [delivery modes](delivery.md#delivery-modes); an integration PR states its reason.
+- Delivery mode: one of the [delivery modes](delivery.md#delivery-modes).
 - Additional human checks, each with the [human-check fields](#human-check).
 - What each ticket must demonstrate.
+- Integration PR mode only, optional: [checkpoints](delivery.md#checkpoints) after named tickets.
 
 Tickets inherit the spec's checks. Each ticket adds its own checks and demonstration to its acceptance criteria.
 
