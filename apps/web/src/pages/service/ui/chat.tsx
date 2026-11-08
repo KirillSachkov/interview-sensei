@@ -40,8 +40,15 @@ function SessionState({ view, onCancel }: { view: SessionView; onCancel: () => v
 }
 
 /** The Candidate types while the agent works, and sends once it waits for a prompt. */
-function MessageForm({ view, onSend }: { view: SessionView; onSend: (text: string) => void }) {
-  const canType = view.status === "idle" || view.status === "working";
+function MessageForm({
+  status,
+  onSend,
+}: {
+  /** The session status, or null when the page lost the connection. */
+  status: SessionView["status"] | null;
+  onSend: (text: string) => void;
+}) {
+  const canType = status === "idle" || status === "working";
   const [text, setText] = useState("");
   const submit = (event: SubmitEvent) => {
     event.preventDefault();
@@ -62,25 +69,60 @@ function MessageForm({ view, onSend }: { view: SessionView; onSend: (text: strin
           }}
         />
       </label>{" "}
-      <button type="submit" disabled={view.status !== "idle" || text.trim() === ""}>
+      <button type="submit" disabled={status !== "idle" || text.trim() === ""}>
         Отправить
       </button>
     </form>
   );
 }
 
-/** The service chat with one agent: messages, agent state and the message form. */
-export function Chat({ sessionId }: { sessionId: string }) {
-  const { view, prompt, cancel } = useSessionEvents(sessionId);
+/** Why the page stopped following the chat, with a way to connect again. */
+function ConnectionLost({ text, onReconnect }: { text: string; onReconnect: () => void }) {
+  return (
+    <p role="alert">
+      {text}{" "}
+      <button type="button" onClick={onReconnect}>
+        Переподключиться
+      </button>
+    </p>
+  );
+}
+
+/** One connection to the chat; the parent mounts a new one to reconnect. */
+function ChatConnection({
+  sessionId,
+  onReconnect,
+}: {
+  sessionId: string;
+  onReconnect: () => void;
+}) {
+  const { view, notice, lost, prompt, cancel } = useSessionEvents(sessionId);
+  const connectionLost =
+    lost === null ? null : <ConnectionLost text={lost} onReconnect={onReconnect} />;
   if (view === null) {
-    return <p>Загружаем чат…</p>;
+    return connectionLost ?? <p>Загружаем чат…</p>;
   }
   return (
     <section aria-label={`Чат с агентом «${agentName(view.agent)}»`}>
       <p>Агент: {agentName(view.agent)}</p>
       <ChatEntries entries={view.entries} />
-      <SessionState view={view} onCancel={cancel} />
-      <MessageForm view={view} onSend={prompt} />
+      {connectionLost ?? <SessionState view={view} onCancel={cancel} />}
+      {notice === null ? null : <output>{notice}</output>}
+      <MessageForm status={lost === null ? view.status : null} onSend={prompt} />
     </section>
+  );
+}
+
+/** The service chat with one agent: messages, agent state and the message form. */
+export function Chat({ sessionId }: { sessionId: string }) {
+  const [attempt, setAttempt] = useState(0);
+  return (
+    <ChatConnection
+      key={attempt}
+      sessionId={sessionId}
+      onReconnect={() => {
+        setAttempt((current) => current + 1);
+      }}
+    />
   );
 }
