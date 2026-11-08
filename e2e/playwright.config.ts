@@ -8,6 +8,10 @@ const serverPort = process.env.E2E_SERVER_PORT ?? "4320";
 const isCi = Boolean(process.env.CI);
 // The server under test keeps its data here, apart from the Candidate's ~/.interview-sensei.
 const dataDirectory = path.join(import.meta.dirname, ".data");
+// Each run starts on an empty data directory, so chats of earlier runs never reach the tests. The
+// webServer command removes it: Playwright starts the server before any globalSetup.
+// The command runs in this directory, so `.data` is dataDirectory.
+const removeDataDirectory = `node -e "require('node:fs').rmSync('.data', { recursive: true, force: true })"`;
 
 export default defineConfig({
   testDir: "./tests",
@@ -25,7 +29,7 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
     // --no-browser: Playwright opens its own browser instead of the system one.
-    command: "pnpm --dir .. exec interview-sensei --no-browser",
+    command: `${removeDataDirectory} && pnpm --dir .. exec interview-sensei --no-browser`,
     url: `http://127.0.0.1:${serverPort}/api/health`,
     // The fake ACP agent stands in for a real one, which needs a subscription.
     env: {

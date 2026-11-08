@@ -72,7 +72,8 @@ Any other host, `0.0.0.0` and `::` included, makes the server exit with code 1 b
 ## Data directory
 
 The server keeps all data in `~/.interview-sensei`; the `INTERVIEW_SENSEI_DATA_DIR` variable overrides it.
-`pnpm dev` and `pnpm start` use the default directory. `pnpm test:e2e` uses `e2e/.data`, which Git ignores.
+`pnpm dev` and `pnpm start` use the default directory.
+`pnpm test:e2e` uses `e2e/.data`, which Git ignores; its webServer command empties it before each run.
 Each agent session works in its own directory under `sessions/` in the data directory.
 The agents' own homes and configs live under `agents/` in the data directory, with symlinks to the Candidate's `auth.json`.
 One running server owns a data directory: a second server on it exits with code 1 and an error message.
