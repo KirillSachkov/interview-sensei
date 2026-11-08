@@ -49,9 +49,9 @@ Then the server picks `allow_once`; without that option, and for an agent kind i
 The runtime keeps announced tool calls only until they complete or fail, or the turn ends.
 Each agent's marker lives in `mcpServerReaders`:
 
-- Claude Code: the request's `_meta.claudeCode.mcpServer` with `source: "dynamic"` and our `name`.
+- Claude Code: the request's `_meta.claudeCode.mcpServer` with `source: "dynamic"` and our `name`. This shape comes only from the console of one live run; the live check must capture the real payloads.
 - Codex: the announced `tool_call` with `_meta.is_mcp_tool_call: true` and our `rawInput.server`; the request repeats its `toolCallId` and `kind`.
-- OpenCode: no marker; it asks no permission for MCP tools.
+- OpenCode: no marker. It asks permission only for the tools its config sets to `ask`, and every such request goes to the Candidate.
 
 A new agent or adapter version needs its marker there and unit tests in `agent-runtime/permissions.test.ts`.
 Other workspaces reach core only through the subpaths in `packages/core/package.json` `exports`.

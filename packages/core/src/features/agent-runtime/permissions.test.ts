@@ -102,8 +102,9 @@ describe("automatic answer when a tool call carries no marker", () => {
   });
 });
 
-// Shapes observed from claude-agent-acp 0.101.0 in a live run (#24): the `tool_call` names the
-// tool only, and the permission request adds the SDK's `mcpServer`.
+// Shapes seen on the console of one live run with claude-agent-acp 0.101.0 (#24); no payload was
+// saved. The `tool_call` names the tool only, and the permission request adds the SDK's
+// `mcpServer`. The live check must capture the real payloads and compare them with these.
 describe("automatic answer for Claude Code", () => {
   const claudeOptions: PermissionOption[] = [
     { optionId: "allow-once", name: "Yes", kind: "allow_once" },
@@ -232,5 +233,34 @@ describe("automatic answer for Codex", () => {
   it("leaves to the Candidate an approval with no announced tool call or another kind", () => {
     expect(codexAnswer(approval)).toBeNull();
     expect(codexAnswer({ ...approval, kind: "edit" }, mcpToolCall(ourServer))).toBeNull();
+  });
+});
+
+// OpenCode asks permission for the tools that its config sets to `ask`: edit, bash, webfetch and
+// external_directory in our recipe. It allows MCP tools without asking and marks none of its
+// requests, so each of its requests goes to the Candidate.
+describe("automatic answer for OpenCode", () => {
+  it("leaves every OpenCode request to the Candidate, even one marked like another agent's", () => {
+    const shell: ToolCallFields = {
+      toolCallId: "call_1",
+      kind: "execute",
+      title: `bash ${ourServer} get_brief`,
+      rawInput: { server: ourServer },
+    };
+    const claudeMarked = {
+      ...shell,
+      _meta: { claudeCode: { mcpServer: { name: ourServer, source: "dynamic" } } },
+    };
+    for (const request of [shell, marked(ourServer), claudeMarked]) {
+      expect(
+        automaticAnswer({
+          agent: "opencode",
+          ourServer,
+          request,
+          announced: { ...request, _meta: { is_mcp_tool_call: true } },
+          options: allOptions,
+        }),
+      ).toBeNull();
+    }
   });
 });

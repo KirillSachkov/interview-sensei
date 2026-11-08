@@ -24,6 +24,8 @@ const mcpServerReaders: Readonly<Record<AgentKind, (toolCall: ToolCallFields) =>
   // claude-agent-acp copies the SDK's `mcpServer` of an `mcp__*` tool into the permission
   // request as `_meta.claudeCode.mcpServer`. The SDK gives a server from `session/new` the source
   // `dynamic`; servers from settings or plugins have other sources.
+  // This shape comes only from the console of one live run with claude-agent-acp 0.101.0; no
+  // payload was saved. The live check of #24 must capture the real payloads and compare them.
   claude: (toolCall) => {
     const server = field(field(field(toolCall, "_meta"), "claudeCode"), "mcpServer");
     return field(server, "source") === "dynamic" ? text(field(server, "name")) : null;
@@ -34,7 +36,9 @@ const mcpServerReaders: Readonly<Record<AgentKind, (toolCall: ToolCallFields) =>
     field(field(toolCall, "_meta"), "is_mcp_tool_call") === true
       ? text(field(field(toolCall, "rawInput"), "server"))
       : null,
-  // OpenCode asks no permission for MCP tools, so it marks none.
+  // OpenCode asks permission for the tools its config sets to `ask` (edit, bash, webfetch,
+  // external_directory) and allows MCP tools without asking. Its requests carry no marker, so
+  // each of them goes to the Candidate.
   opencode: () => null,
   // The fake agent marks its MCP calls with `_meta.fakeAgent.mcpServer`.
   fake: (toolCall) => text(field(field(field(toolCall, "_meta"), "fakeAgent"), "mcpServer")),
