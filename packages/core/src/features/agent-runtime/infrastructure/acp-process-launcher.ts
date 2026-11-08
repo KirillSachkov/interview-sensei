@@ -11,6 +11,7 @@ import type {
 } from "@agentclientprotocol/sdk";
 
 import type { Timer } from "../../../shared/time/index.ts";
+import { agentEnvironment } from "../domain/launch-recipe.ts";
 import type { LaunchRecipe } from "../domain/launch-recipe.ts";
 import type {
   AcpLauncher,
@@ -30,11 +31,16 @@ export const stopGraceMs = 5000;
 
 type AgentProcess = ChildProcessByStdio<Writable, Readable, null>;
 
+type Environment = Readonly<Record<string, string | undefined>>;
+
 /** Spawns the agent; `exited` rejects only when the process could not start. */
-function spawnAgent(recipe: LaunchRecipe): { child: AgentProcess; exited: Promise<AgentExit> } {
+function spawnAgent(
+  recipe: LaunchRecipe,
+  env: Environment,
+): { child: AgentProcess; exited: Promise<AgentExit> } {
   const child = spawn(recipe.command, recipe.args, {
     cwd: recipe.cwd,
-    env: { ...process.env, ...recipe.env },
+    env: agentEnvironment(env, recipe.env),
     // The agent's own diagnostics go to the server's log output.
     stdio: ["pipe", "pipe", "inherit"],
   });
@@ -238,14 +244,15 @@ async function openSession(
 }
 
 /**
- * Prepares the recipe's files, starts the agent process by it, connects to it over stdio and opens one session. The
- * server owns the connection; the browser only sees what the server makes of it. The timer
- * bounds the launch and the wait for the process after SIGTERM.
+ * Prepares the recipe's files, starts the agent process by it, connects to it over stdio and
+ * opens one session. The server owns the connection; the browser only sees what the server makes
+ * of it. The timer bounds the launch and the wait for the process after SIGTERM. `env` is the
+ * Candidate's environment; the agent gets it filtered, with the recipe's variables over it.
  */
-export function acpLauncher({ timer }: { timer: Timer }): AcpLauncher {
+export function acpLauncher({ timer, env }: { timer: Timer; env: Environment }): AcpLauncher {
   return async (recipe, session) => {
     await prepareRecipe(recipe);
-    const { child, exited } = spawnAgent(recipe);
+    const { child, exited } = spawnAgent(recipe, env);
     const { stop, stopping, stopRequested } = stopper(child, timer);
     const { opened, connection } = connect(child, { recipe, session }, stopping);
     void reportUnexpectedExit({ connection, exited, stopRequested, onExit: session.onExit });

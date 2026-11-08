@@ -27,7 +27,7 @@ interface PreparedSymlink {
 export interface LaunchRecipe {
   readonly command: string;
   readonly args: readonly string[];
-  /** Variables added to the server's environment. */
+  /** Variables put over the Candidate's environment; see `agentEnvironment`. */
   readonly env: Readonly<Record<string, string>>;
   /** `_meta` of `session/new`, or null. */
   readonly sessionMeta: Readonly<Record<string, unknown>> | null;
@@ -213,4 +213,29 @@ export function launchRecipe(request: LaunchRequest): LaunchRecipe {
       return request.agent satisfies never;
     }
   }
+}
+
+/**
+ * Variables of the Candidate's environment that would point an agent at the Candidate's own
+ * config instead of the recipe's, or tell it about this server. API keys stay: the Candidate
+ * chose them. With `ANTHROPIC_API_KEY` set, Claude Code bills the API instead of the subscription.
+ */
+const isolationBreakers = new Set([
+  "OPENCODE_CONFIG",
+  "OPENCODE_CONFIG_DIR",
+  "CLAUDE_CONFIG_DIR",
+  "CODEX_HOME",
+]);
+const ownPrefix = "INTERVIEW_SENSEI_";
+
+/** The agent's environment: the Candidate's without the isolation breakers, then the recipe's. */
+export function agentEnvironment(
+  candidate: Readonly<Record<string, string | undefined>>,
+  recipe: Readonly<Record<string, string>>,
+): Record<string, string> {
+  const kept = Object.entries(candidate).filter(
+    (entry): entry is [string, string] =>
+      entry[1] !== undefined && !isolationBreakers.has(entry[0]) && !entry[0].startsWith(ownPrefix),
+  );
+  return { ...Object.fromEntries(kept), ...recipe };
 }

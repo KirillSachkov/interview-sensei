@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 
 import type { AgentHost } from "./domain/agent.ts";
 import { agentKinds } from "./domain/agent.ts";
-import { launchRecipe } from "./domain/launch-recipe.ts";
+import { agentEnvironment, launchRecipe } from "./domain/launch-recipe.ts";
 import type { LaunchRecipe } from "./domain/launch-recipe.ts";
 
 const dataDirectory = "/home/candidate/.interview-sensei";
@@ -210,4 +210,35 @@ describe("launch recipe paths", () => {
       expect(prepared.filter((location) => !isInside(dataDirectory, location))).toStrictEqual([]);
     },
   );
+});
+
+describe("agent environment", () => {
+  const candidate = {
+    PATH: "/usr/bin",
+    HOME: "/home/candidate",
+    ANTHROPIC_API_KEY: "sk-ant-candidate",
+    OPENAI_API_KEY: "sk-candidate",
+    OPENCODE_CONFIG: "/home/candidate/opencode.json",
+    OPENCODE_CONFIG_DIR: "/home/candidate/.opencode",
+    CLAUDE_CONFIG_DIR: "/home/candidate/.claude-work",
+    CODEX_HOME: "/home/candidate/.codex",
+    INTERVIEW_SENSEI_DATA_DIR: "/home/candidate/.interview-sensei",
+    INTERVIEW_SENSEI_FAKE_AGENT: "1",
+    UNSET: undefined,
+  };
+
+  it("keeps the Candidate's variables and API keys but drops those that defeat isolation", () => {
+    expect(agentEnvironment(candidate, {})).toStrictEqual({
+      PATH: "/usr/bin",
+      HOME: "/home/candidate",
+      ANTHROPIC_API_KEY: "sk-ant-candidate",
+      OPENAI_API_KEY: "sk-candidate",
+    });
+  });
+
+  it("puts the recipe's variables over the Candidate's", () => {
+    const env = agentEnvironment(candidate, { CODEX_HOME: "/data/codex-home", HOME: "/data/home" });
+    expect(env.CODEX_HOME).toBe("/data/codex-home");
+    expect(env.HOME).toBe("/data/home");
+  });
 });

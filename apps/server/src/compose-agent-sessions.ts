@@ -46,7 +46,8 @@ export function composeAgentSessions(
     agents: fakeAgent ? ["fake"] : realAgents,
     inspectHost: inspectAgentHost(environment ?? { home: dataDirectory, env: {} }),
     dataDirectory,
-    launch: acpLauncher({ timer }),
+    // The fake agent needs none of the Candidate's variables.
+    launch: acpLauncher({ timer, env: environment?.env ?? {} }),
   });
   const sessions = createAgentSessions({
     repository: drizzleSessionRepository(storage.database),

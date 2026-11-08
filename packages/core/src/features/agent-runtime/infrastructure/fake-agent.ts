@@ -15,6 +15,7 @@
 // - `/mode` replies with the session's permission mode: «Режим: <id>». A new session starts in
 //   `candidate-mode`, which stands for the mode in the Candidate's own settings.
 // - `/meta` replies with the `_meta` of `session/new` as JSON: «_meta: <json>».
+// - `/env` replies with the sorted names of its environment variables as JSON: «env: <json>».
 // - Any other text gets the reply «Фейковый агент получил: «<text>»» in several chunks.
 //
 // The variable INTERVIEW_SENSEI_FAKE_AGENT_MODE stands for broken agents in launcher tests:
@@ -221,6 +222,11 @@ const commands = new Map<
     "/meta",
     async (client, sessionId) =>
       reply(client, sessionId, `_meta: ${JSON.stringify(sessionSettings.get(sessionId)?.meta)}`),
+  ],
+  [
+    "/env",
+    async (client, sessionId) =>
+      reply(client, sessionId, `env: ${JSON.stringify(Object.keys(process.env).toSorted())}`),
   ],
   [
     "/mcp",

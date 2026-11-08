@@ -70,11 +70,14 @@ async function fakeRecipe(): Promise<LaunchRecipe> {
   });
 }
 
-/** Starts the agent by the recipe; `exits` collects the exits it reports by itself. */
-function launch(recipe: LaunchRecipe, timer: Timer) {
+/**
+ * Starts the agent by the recipe with `env` as the Candidate's environment; `exits` collects the
+ * exits it reports by itself.
+ */
+function launch(recipe: LaunchRecipe, timer: Timer, env: Record<string, string> = {}) {
   const exits: unknown[] = [];
   const updates: AgentUpdate[] = [];
-  const launched = acpLauncher({ timer })(recipe, {
+  const launched = acpLauncher({ timer, env })(recipe, {
     // These tests never call the MCP server or answer a permission request.
     mcpServer: { name: "interview-sensei", url: "http://127.0.0.1:9/mcp/unused" },
     onUpdate: (update) => {
@@ -221,5 +224,32 @@ describe("acp launcher", () => {
     await expect(readFile(path.join(userDirectory, "auth.json"), "utf8")).resolves.toBe(
       "the Candidate's own login",
     );
+  });
+
+  it("gives the agent the Candidate's environment without variables that defeat isolation", async () => {
+    const candidate = {
+      PATH: "/usr/bin",
+      ANTHROPIC_API_KEY: "sk-ant-candidate",
+      OPENCODE_CONFIG: "/home/candidate/opencode.json",
+      OPENCODE_CONFIG_DIR: "/home/candidate/.opencode",
+      CLAUDE_CONFIG_DIR: "/home/candidate/.claude-work",
+      CODEX_HOME: "/home/candidate/.codex",
+      INTERVIEW_SENSEI_DATA_DIR: "/home/candidate/.interview-sensei",
+    };
+    const { launched, updates } = launch(await fakeRecipe(), idleTimer, candidate);
+
+    const reply = await replyTo(await launched, updates, "/env");
+    const names: unknown = JSON.parse(reply.replace(/^env: /u, ""));
+
+    expect(names).toStrictEqual(expect.arrayContaining(["PATH", "ANTHROPIC_API_KEY"]));
+    for (const name of [
+      "OPENCODE_CONFIG",
+      "OPENCODE_CONFIG_DIR",
+      "CLAUDE_CONFIG_DIR",
+      "CODEX_HOME",
+      "INTERVIEW_SENSEI_DATA_DIR",
+    ]) {
+      expect(names).not.toContain(name);
+    }
   });
 });
