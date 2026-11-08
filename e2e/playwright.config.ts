@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import { defineConfig, devices } from "@playwright/test";
 
 // The tests start their own server and web dev server on ports apart from `pnpm dev`
@@ -5,6 +7,8 @@ import { defineConfig, devices } from "@playwright/test";
 const serverPort = process.env.E2E_SERVER_PORT ?? "4320";
 const webPort = process.env.E2E_WEB_PORT ?? "5183";
 const isCi = Boolean(process.env.CI);
+// The server under test keeps its data here, apart from the Candidate's ~/.interview-sensei.
+const dataDirectory = path.join(import.meta.dirname, ".data");
 
 export default defineConfig({
   testDir: "./tests",
@@ -24,8 +28,10 @@ export default defineConfig({
     {
       command: "pnpm --filter @interview-sensei/server start",
       url: `http://127.0.0.1:${serverPort}/api/health`,
-      env: { SERVER_PORT: serverPort },
+      env: { SERVER_PORT: serverPort, INTERVIEW_SENSEI_DATA_DIR: dataDirectory },
       reuseExistingServer: false,
+      // SIGTERM lets the server write its final dump and release the data directory lock.
+      gracefulShutdown: { signal: "SIGTERM", timeout: 10_000 },
     },
     {
       command: "pnpm --filter @interview-sensei/web dev",

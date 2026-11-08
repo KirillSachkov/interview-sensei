@@ -9,4 +9,6 @@ dist/
 *.tsbuildinfo
 playwright-report/
 test-results/
+# Data directory of the server that the Playwright tests start
+e2e/.data/
 *.log
