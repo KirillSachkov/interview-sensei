@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import type { Clock } from "../../../shared/time/index.ts";
 import type { AgentSession, SessionView } from "../domain/agent-session.ts";
+import { isLive } from "../domain/agent-session.ts";
 import type { AgentLauncher, LiveAgent, McpAddresses, SessionRepository } from "../domain/ports.ts";
 import type { PermissionAnswer, PermissionRequest, SessionEvent } from "../domain/session-event.ts";
 import { applyEvent, emptyView, statusAfter } from "../domain/session-view.ts";
@@ -30,6 +31,8 @@ export interface LiveSession {
   written: Promise<void>;
   readonly listeners: Set<SessionListener>;
   readonly dependencies: LiveSessionDependencies;
+  /** Called after the write that ends or fails the session: nothing changes it any more. */
+  readonly onFinished: () => void;
 }
 
 interface PendingPermission {
@@ -40,6 +43,7 @@ interface PendingPermission {
 export function liveSession(
   session: AgentSession,
   dependencies: LiveSessionDependencies,
+  onFinished: () => void,
 ): LiveSession {
   return {
     view: emptyView(session),
@@ -50,6 +54,7 @@ export function liveSession(
     written: Promise.resolve(),
     listeners: new Set(),
     dependencies,
+    onFinished,
   };
 }
 
@@ -65,6 +70,9 @@ async function write(session: LiveSession, event: SessionEvent): Promise<void> {
   session.view = applyEvent(session.view, recorded);
   for (const listener of session.listeners) {
     listener(session.view);
+  }
+  if (!isLive(session.view.status)) {
+    session.onFinished();
   }
 }
 

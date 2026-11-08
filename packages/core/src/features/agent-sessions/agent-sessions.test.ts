@@ -1,6 +1,7 @@
 // Unit tests of how AgentSessions closes while a session starts (#24): no agent may outlive the
-// server, and nothing may write after close. The repository, launcher and MCP addresses are
-// in-memory stand-ins for the ports; the test decides when each step finishes.
+// server, and nothing may write after close. Also how it lets go of finished sessions. The
+// repository, launcher and MCP addresses are in-memory stand-ins for the ports; the test decides
+// when each step finishes.
 import { describe, expect, it } from "vitest";
 
 import { createAgentSessions, SessionsClosedError } from "./application/agent-sessions.ts";
@@ -161,5 +162,85 @@ describe("closing agent sessions", () => {
       statuses: ["ended"],
       errors: [],
     });
+  });
+});
+
+/** Counts the repository's loads: a session that this server no longer keeps comes from there. */
+function countingLoads(repository: SessionRepository) {
+  const loads = { count: 0 };
+  const counted: SessionRepository = {
+    ...repository,
+    load: async (sessionId) => {
+      loads.count += 1;
+      return repository.load(sessionId);
+    },
+  };
+  return { repository: counted, loads };
+}
+
+/** Resolves once a listener sees the session in the status. */
+async function reaches(sessions: AgentSessions, sessionId: string, status: SessionStatus) {
+  const reached = Promise.withResolvers<null>();
+  sessions.subscribe(sessionId, (view) => {
+    if (view.status === status) {
+      reached.resolve(null);
+    }
+  });
+  return reached.promise;
+}
+
+/** A launcher that waits for `go`, then fails or hands out an agent and its exit callback. */
+function gatedLauncher({ fails }: { fails: boolean }) {
+  const go = Promise.withResolvers<null>();
+  const exits: ((exit: { exitCode: number | null; signal: string | null }) => void)[] = [];
+  const { launcher: counting } = countingLauncher(go.promise);
+  const launcher: AgentLauncher = {
+    start: async (session) => {
+      const agent = await counting.start(session);
+      if (fails) {
+        throw new Error("no adapter");
+      }
+      exits.push(session.onExit);
+      return agent;
+    },
+  };
+  return { launcher, go: () => go.resolve(null), exits };
+}
+
+/** AgentSessions on a gated launcher and a repository that counts its loads. */
+function finishingSessions({ fails }: { fails: boolean }) {
+  const { repository: stored } = memoryRepository();
+  const { repository, loads } = countingLoads(stored);
+  const { launcher, go, exits } = gatedLauncher({ fails });
+  const { sessions } = sessionsOn(repository, launcher);
+  return { sessions, loads, go, exits };
+}
+
+describe("finished agent sessions", () => {
+  it("lets go of a session whose agent failed to start and reads it from the journal", async () => {
+    const { sessions, loads, go } = finishingSessions({ fails: true });
+
+    const { id } = await sessions.start(request);
+    const failed = reaches(sessions, id, "failed");
+    go();
+    await failed;
+
+    await expect(sessions.view(id)).resolves.toMatchObject({ status: "failed" });
+    expect(loads.count).toBe(1);
+  });
+
+  it("lets go of a session whose agent exited and reads it from the journal", async () => {
+    const { sessions, loads, go, exits } = finishingSessions({ fails: false });
+
+    const { id } = await sessions.start(request);
+    const idle = reaches(sessions, id, "idle");
+    const failed = reaches(sessions, id, "failed");
+    go();
+    await idle;
+    exits[0]?.({ exitCode: 1, signal: null });
+    await failed;
+
+    await expect(sessions.view(id)).resolves.toMatchObject({ status: "failed" });
+    expect(loads.count).toBe(1);
   });
 });

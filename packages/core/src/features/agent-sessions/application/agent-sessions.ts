@@ -84,7 +84,10 @@ async function createAndLaunch(
   const { dependencies } = context;
   const { repository, clock } = dependencies;
   const created = await repository.create({ kind, agent, createdAt: clock.now() });
-  const session = liveSession(created, dependencies);
+  // A finished session leaves `live`: later reads come from the journal.
+  const session = liveSession(created, dependencies, () => {
+    context.live.delete(created.id);
+  });
   if (context.closing) {
     // Close began during the create: the session ends before its agent ever starts.
     await record(session, { type: "session_ended" });
