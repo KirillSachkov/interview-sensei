@@ -309,10 +309,15 @@ function fit(){const ns=S._spec.nodes.filter(n=>n.shape!=='none');const x0=Math.
  cam.s=Math.max(.4,Math.min(1,(innerWidth-80)/(x1-x0),(innerHeight-230)/(y1-y0)));cam.x=(innerWidth-(x1-x0)*cam.s)/2-x0*cam.s;cam.y=160-y0*cam.s;applyCam();}
 function focusNode(id,s){const n=S._by[id];if(!n)return;cam.s=s||cam.s;cam.x=innerWidth/2-(n.x+n.w/2)*cam.s+(S.variant!=='3'||S.chatOpen?CHAT_W/2*cam.s:0);cam.y=innerHeight*.55-(n.y+Math.min(n.hh,500)/2)*cam.s;applyCam();}
 function zoom(f,cx=innerWidth/2,cy=innerHeight/2){const ns=Math.max(.25,Math.min(2,cam.s*f));cam.x=cx-(cx-cam.x)*ns/cam.s;cam.y=cy-(cy-cam.y)*ns/cam.s;cam.s=ns;applyCam();}
+let spaceDown=false;
+addEventListener('keydown',e=>{if(e.code==='Space'&&!e.target.closest('input,textarea')){spaceDown=true;$('#vp').classList.add('drag');e.preventDefault()}});
+addEventListener('keyup',e=>{if(e.code==='Space'){spaceDown=false;$('#vp').classList.remove('drag')}});
 (function(){const vp=$('#vp');let d=null,nd=null;
+ vp.addEventListener('auxclick',e=>{if(e.button===1)e.preventDefault()});
  vp.addEventListener('wheel',e=>{const sc=e.target.closest('.scroll');if(sc&&sc.scrollHeight>sc.clientHeight&&!e.ctrlKey)return;e.preventDefault();
   if(e.ctrlKey||e.metaKey)zoom(Math.exp(-e.deltaY*.01),e.clientX,e.clientY);else{cam.x-=e.deltaX;cam.y-=e.deltaY;applyCam()}},{passive:false});
  vp.addEventListener('mousedown',e=>{const h=e.target.closest('[data-drag]');
+  if(e.button===1||(spaceDown&&e.button===0)){e.preventDefault();d={x:e.clientX-cam.x,y:e.clientY-cam.y};vp.classList.add('drag');return}
   if(h&&!e.target.closest('button,input')){const el=h.closest('.node');const p=S.pos.chat||{dx:0,dy:0};nd={el,sx:e.clientX,sy:e.clientY,p,l:parseFloat(el.style.left),t:parseFloat(el.style.top)};e.preventDefault();return}
   if(e.target.closest('button,input,textarea,.chip,.pr,.opt,.avatar,.fh'))return;if(e.target.closest('.node'))return;
   d={x:e.clientX-cam.x,y:e.clientY-cam.y};vp.classList.add('drag')});
