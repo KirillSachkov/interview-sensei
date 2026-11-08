@@ -93,9 +93,10 @@ async function startChat(server: FastifyInstance): Promise<string> {
   return response.json<{ id: string }>().id;
 }
 
-/** Opens the session's event socket and keeps every session view the server sends. */
+/** Opens the session's event socket; keeps the session views and, apart, the other replies. */
 async function openEvents(server: FastifyInstance, sessionId: string) {
   const views: SessionView[] = [];
+  const replies: unknown[] = [];
   let received = Promise.withResolvers<null>();
   const socket = await server.injectWS(
     `/api/sessions/${sessionId}/events`,
@@ -106,9 +107,11 @@ async function openEvents(server: FastifyInstance, sessionId: string) {
           const message: unknown = JSON.parse(data.toString("utf8"));
           if (isSessionMessage(message)) {
             views.push(message.session);
-            received.resolve(null);
-            received = Promise.withResolvers<null>();
+          } else {
+            replies.push(message);
           }
+          received.resolve(null);
+          received = Promise.withResolvers<null>();
         });
       },
     },
@@ -125,10 +128,21 @@ async function openEvents(server: FastifyInstance, sessionId: string) {
     await received.promise;
     return waitFor(matches);
   };
+  /** Resolves with the first reply other than a session view, already received or later. */
+  const nextReply = async (): Promise<unknown> => {
+    if (replies.length > 0) {
+      return replies[0];
+    }
+    await received.promise;
+    return nextReply();
+  };
   const send = (command: object) => {
     socket.send(JSON.stringify(command));
   };
-  return { views, send, waitFor };
+  const sendRaw = (text: string) => {
+    socket.send(text);
+  };
+  return { views, send, sendRaw, waitFor, nextReply };
 }
 
 /** Starts a chat and waits until its agent takes prompts. */
@@ -225,14 +239,30 @@ describe("service chat", () => {
     await events.waitFor(isWaitingForCancel);
 
     events.send({ type: "prompt", text: "Второй" });
-    events.send({ type: "cancel" });
 
+    await expect(events.nextReply()).resolves.toStrictEqual({
+      type: "prompt_rejected",
+      reason: "busy",
+    });
+    events.send({ type: "cancel" });
     const stopped = await events.waitFor(isInterrupted);
     expect(messages(stopped)).toStrictEqual([
       { type: "candidate_message", text: "/wait" },
       { type: "agent_message", text: "Жду отмены…" },
       { type: "turn_interrupted", text: undefined },
     ]);
+  });
+
+  it("answers invalid_command to a message it cannot read and keeps the chat working", async () => {
+    const { server } = await startServer(await temporaryDirectory());
+    const { events } = await readyChat(server);
+
+    events.sendRaw("not json");
+    events.send({ type: "prompt", text: "  " });
+
+    await expect(events.nextReply()).resolves.toStrictEqual({ type: "invalid_command" });
+    events.send({ type: "prompt", text: "Привет" });
+    await events.waitFor(isAnswered);
   });
 
   it("returns the chat history after a server restart on the same data directory", async () => {
