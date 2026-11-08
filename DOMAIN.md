@@ -17,7 +17,11 @@ The ordered list of Sections that a full Mock interview for a Target goes throug
 The agent proposes it from the Target's Sources and research; the Candidate changes it in conversation.
 
 **Section**:
-One part of an Interview plan, such as "Experience and resume", "Go and concurrency" or "System design". It has a Section kind and Topics, and can be switched off.
+One part of an Interview plan, such as "Experience and resume", "Go and concurrency" or "System design". It has a Section kind, Topics and short grading criteria, and can be switched off.
+
+**Section kind**:
+How a Section runs and how its answers are graded. There are three: conversation, Questions on Topics, and design.
+The product defines Section kinds; the Candidate and the agent compose Sections from them.
 
 **Topic**:
 An area of knowledge within a Target that its Sections check.
@@ -59,8 +63,15 @@ How well the Candidate knows a Topic: not started, shaky or confident.
 Topic status follows from recent Attempts and is never set by hand. An Attempt with a hint cannot make a Topic confident.
 
 **Inbox**:
-Material that the Candidate added and the agent has not processed yet: links, files, transcripts.
-After processing, an Inbox item becomes a Source and draft Questions.
+Material that the Candidate added to a Target and the agent has not processed yet: links, videos, files.
+The agent processes it in the background: it creates Sources and adds Questions to Sections and Topics, then writes an Inbox report.
+
+**Inbox report**:
+The agent's summary of one Inbox processing: what it processed, which Questions it added where, and which Questions it doubts.
+
+**Preference**:
+A rule the Candidate gave for a Target in plain language, with rejected Questions as examples, such as "fewer definitions, more applied questions".
+Every Inbox processing and Mock interview for that Target follows the active Preferences. There is no memory shared between Targets.
 
 **Side thread**:
 A separate conversation that branches from a session at a chosen moment, for clarification and explanation.
