@@ -1,12 +1,14 @@
 import { spawn } from "node:child_process";
 import { once } from "node:events";
+import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { sql } from "drizzle-orm";
 import { describe, expect, it, onTestFinished } from "vitest";
 
-import { openForTest, temporaryDirectory } from "./test-support.ts";
+import { DataDirectoryInUseError, lockDataDirectory } from "./data-directory-lock.ts";
+import { manualTime, openForTest, temporaryDirectory } from "./test-support.ts";
 
 function moduleUrl(relativePath: string): string {
   return JSON.stringify(pathToFileURL(path.join(import.meta.dirname, relativePath)).href);
@@ -51,6 +53,13 @@ async function holdInAnotherProcess(dataDirectory: string) {
   return { pid: holder.pid, crash };
 }
 
+/** The PID of a process that has already exited. */
+async function deadPid(): Promise<number | undefined> {
+  const child = spawn(process.execPath, ["-e", ""], { stdio: "ignore" });
+  await once(child, "exit");
+  return child.pid;
+}
+
 async function countNotes(storage: Awaited<ReturnType<typeof openForTest>>) {
   const { rows } = await storage.database.execute(
     sql`SELECT count(*)::int AS count FROM notes.notes`,
@@ -63,10 +72,11 @@ describe("data directory lock", () => {
     const dataDirectory = await temporaryDirectory();
     const first = await openForTest(dataDirectory);
 
-    await expect(openForTest(dataDirectory)).rejects.toThrow(
-      `Каталог данных ${dataDirectory} уже занят другим запуском Interview Sensei (PID ${process.pid}). ` +
-        "Остановите его или задайте другой каталог в переменной INTERVIEW_SENSEI_DATA_DIR.",
-    );
+    const refusal = openForTest(dataDirectory);
+
+    await expect(refusal).rejects.toBeInstanceOf(DataDirectoryInUseError);
+    await expect(refusal).rejects.toThrow(`(PID ${process.pid})`);
+    await expect(refusal).rejects.toThrow(path.join(dataDirectory, "server.lock"));
     await expect(countNotes(first)).resolves.toStrictEqual([{ count: 0 }]);
   });
 
@@ -85,5 +95,30 @@ describe("data directory lock", () => {
     const storage = await openForTest(dataDirectory);
 
     await expect(countNotes(storage)).resolves.toStrictEqual([{ count: 0 }]);
+  });
+
+  it("lets exactly one of several concurrent starts take over a stale lock", async () => {
+    const { clock } = manualTime();
+    const stalePid = await deadPid();
+    /* oxlint-disable eslint/no-await-in-loop -- each round needs a fresh stale lock */
+    for (let round = 0; round < 50; round += 1) {
+      const dataDirectory = await temporaryDirectory();
+      await writeFile(
+        path.join(dataDirectory, "server.lock"),
+        JSON.stringify({ pid: stalePid, startedAt: "2026-01-01T00:00:00.000Z" }),
+      );
+
+      const starts = await Promise.allSettled(
+        Array.from({ length: 8 }, async () => lockDataDirectory(dataDirectory, clock)),
+      );
+
+      const reasons = starts
+        .filter((start): start is PromiseRejectedResult => start.status === "rejected")
+        .map(({ reason }: { reason: unknown }) => reason);
+
+      expect(reasons).toHaveLength(7);
+      expect(reasons.every((reason) => reason instanceof DataDirectoryInUseError)).toBe(true);
+    }
+    /* oxlint-enable eslint/no-await-in-loop */
   });
 });

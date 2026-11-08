@@ -9,13 +9,11 @@ export class DataDirectoryInUseError extends Error {
   override readonly name = "DataDirectoryInUseError";
 
   constructor(dataDirectory: string, lockFile: string, holderPid: number | undefined) {
+    const holder = holderPid === undefined ? "" : ` (PID ${holderPid})`;
     super(
-      holderPid === undefined
-        ? `Каталог данных ${dataDirectory} уже занят другим запуском Interview Sensei. ` +
-            `Остановите его или задайте другой каталог в переменной ${dataDirectoryVariable}. ` +
-            `Если другой запуск не работает, удалите файл ${lockFile}.`
-        : `Каталог данных ${dataDirectory} уже занят другим запуском Interview Sensei (PID ${holderPid}). ` +
-            `Остановите его или задайте другой каталог в переменной ${dataDirectoryVariable}.`,
+      `Каталог данных ${dataDirectory} уже занят другим запуском Interview Sensei${holder}. ` +
+        `Остановите его или задайте другой каталог в переменной ${dataDirectoryVariable}. ` +
+        `Если Interview Sensei не запущен, удалите файл ${lockFile}.`,
     );
   }
 }
@@ -64,7 +62,8 @@ async function tryCreate(lockFile: string, content: string): Promise<boolean> {
   }
 }
 
-async function takeOverStaleLock(dataDirectory: string, lockFile: string, content: string) {
+/** Replaces the lock if its process no longer runs; the caller holds the takeover file. */
+async function replaceStaleLock(dataDirectory: string, lockFile: string, content: string) {
   const holderPid = await readHolderPid(lockFile);
   // A damaged lock may belong to a process that is writing it right now, so it is not stale.
   if (holderPid === undefined || isRunning(holderPid)) {
@@ -72,8 +71,29 @@ async function takeOverStaleLock(dataDirectory: string, lockFile: string, conten
   }
   await rm(lockFile, { force: true });
   if (!(await tryCreate(lockFile, content))) {
-    // Another process took over the stale lock first.
+    // A new start created the lock after the stale one was removed.
     throw new DataDirectoryInUseError(dataDirectory, lockFile, await readHolderPid(lockFile));
+  }
+}
+
+/**
+ * Takes over a lock whose process no longer runs. Several starts may find the same stale lock, so
+ * only the start that creates the takeover file may replace it. That start reads the lock again:
+ * another start may have replaced it already.
+ */
+async function takeOverStaleLock(dataDirectory: string, lockFile: string, content: string) {
+  const takeoverFile = `${lockFile}.takeover`;
+  if (!(await tryCreate(takeoverFile, content))) {
+    throw new DataDirectoryInUseError(
+      dataDirectory,
+      takeoverFile,
+      await readHolderPid(takeoverFile),
+    );
+  }
+  try {
+    await replaceStaleLock(dataDirectory, lockFile, content);
+  } finally {
+    await rm(takeoverFile, { force: true });
   }
 }
 
