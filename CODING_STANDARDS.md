@@ -24,6 +24,7 @@ A feature slice has the layers `domain/`, `application/` and `infrastructure/`; 
 `application/` uses domain ports and receives infrastructure as parameters.
 Technical ports such as `Clock` live in `src/shared/`; application code may use them too.
 Slices never import each other. `src/shared/` is technical and never imports slices.
+When a slice needs another slice, it defines a port in its `domain/`, and the server passes the other slice in; `agent-sessions` gets `agent-runtime` this way.
 Other workspaces reach core only through the subpaths in `packages/core/package.json` `exports`.
 
 ### Storage
@@ -31,7 +32,10 @@ Other workspaces reach core only through the subpaths in `packages/core/package.
 Only the server opens the data directory (ADR-0002); `packages/core/src/shared/storage` holds the lock, PGlite, migrations and dumps.
 The application writes only inside the data directory.
 A slice that stores data owns a Postgres schema named after it, with its Drizzle tables and drizzle-kit migrations in `infrastructure/`.
-Its first migration starts with `CREATE SCHEMA IF NOT EXISTS`, because the migrator first creates the schema for the history table.
+The slice keeps its tables in `infrastructure/schema.ts` and its drizzle-kit config in `infrastructure/drizzle.config.ts`, with the output in `infrastructure/migrations/`.
+Generate migrations with `db:generate`; never write or edit them by hand. Prettier ignores them.
+`db:generate` turns the first `CREATE SCHEMA` into `CREATE SCHEMA IF NOT EXISTS`, because the migrator first creates the schema for the history table.
+`schema.ts` exports its `pgSchema`: drizzle-kit reads only exported objects and would otherwise drop the schema.
 The slice exports its `SliceMigrations` from `index.ts`, and `sliceMigrations` in `apps/server/src/server.ts` lists it.
 A slice queries only its own schema.
 

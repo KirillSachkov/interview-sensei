@@ -12,6 +12,7 @@ Run every command from the repository root after `pnpm install --frozen-lockfile
 - `pnpm verify`: `pnpm check`, `pnpm test`, `pnpm test:e2e` and `python3 scripts/check.py` in order.
 - `python3 scripts/check.py`: local Markdown links/anchors, own skill identity and invocation metadata, directory hashes, package skill links and client pointers.
 - `git diff --check`: whitespace errors in the change.
+- `pnpm --filter @interview-sensei/core db:generate --name <name>`: drizzle-kit migrations for every core slice with `infrastructure/drizzle.config.ts`.
 
 Before a PR, run `pnpm verify` and `git diff --check` and report their actual results.
 Install the Playwright browser once with `pnpm --filter @interview-sensei/e2e exec playwright install chromium`.
@@ -32,6 +33,8 @@ Pass time through the injected `Clock`; never fake `Date` globally.
 Pass repeated work through the injected `Timer`; tests tick it by hand instead of sleeping.
 Give each test its own temporary data directory and remove it when the test finishes.
 Tests never call real agents: they need subscriptions.
+Tests use the fake ACP agent instead: `buildServer({ fakeAgent: true })` in process, `INTERVIEW_SENSEI_FAKE_AGENT=1` for `src/main.ts`.
+The fake agent streams a reply in chunks; the prompt `/wait` waits for a cancel, and `/crash` exits with code 1.
 
 ## Ports
 
@@ -43,6 +46,11 @@ Give each worktree its own ports when several run at once.
 
 The server keeps all data in `~/.interview-sensei`; the `INTERVIEW_SENSEI_DATA_DIR` variable overrides it.
 `pnpm dev` uses the default directory. `pnpm test:e2e` uses `e2e/.data`, which Git ignores.
+Each agent session works in its own directory under `sessions/` in the data directory.
+
+## Fake agent
+
+`pnpm test:e2e` offers the fake agent. To chat with it by hand, start `INTERVIEW_SENSEI_FAKE_AGENT=1 INTERVIEW_SENSEI_DATA_DIR=<temporary directory> pnpm dev`.
 One running server owns a data directory: a second server on it exits with code 1 and an error message.
 Give each worktree its own data directory when several servers run at once.
 

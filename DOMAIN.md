@@ -89,6 +89,14 @@ The compact context a Side thread starts from: the Target, the current Question,
 The Candidate's opinion of a Question itself: useful, irrelevant, or wrong.
 _Avoid_: Grade, which assesses the Candidate's answer, not the Question.
 
+**AgentSession**:
+One conversation of the application with the Candidate's agent: its kind, agent, ACP session id, status and event journal.
+The server records every event in the journal; the chat and its history after a restart come from the journal, not from the agent's log.
+_Avoid_: Session, when the kind of session matters; a Mock interview runs in an AgentSession.
+
+**Service chat**:
+The AgentSession kind of the skeleton: a free chat that checks the connection with the agent. It records no Attempts.
+
 **Source**:
 Material attached to a Target: a vacancy, a resume, a link, a video transcript, a file or the Candidate's own note.
 A Target can have any number of Sources of each type. Questions refer to the Sources they came from.
