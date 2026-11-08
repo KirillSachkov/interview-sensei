@@ -6,13 +6,48 @@ The testing guide owns verification commands; the tracker guide owns GitHub oper
 
 ## Issues and PRs
 
-Independent work targets `main`; a spec uses an integration branch for its tickets.
-Each implementation issue links to a PR. One integration PR may close several tickets.
+Each implementation issue links to a PR that targets `main`.
 A discussion or research issue without repository changes may resolve with an answer.
-For a small task, the draft follows local checks and committed independent review.
-A spec's draft follows its first integrated result.
+For a small task or ticket PR, the draft follows local checks and committed independent review.
 A ready PR requires checks and review covering the current change.
 Keep issues open until delivery criteria are met, normally by merge.
+
+## Delivery modes
+
+The spec's «Приёмка» section names its mode under [human participation](human-review.md#level-2-every-spec).
+
+- Ticket PRs, the default: one PR per ticket. Run each ticket through `implement`. Start the next ticket from fetched `main` after the owner accepts and merges the previous PR. The spec issue closes after its last ticket PR merges.
+- Integration PR: one PR through `implement-spec` closes the spec and its tickets. Choose it only when tickets cannot be demonstrated or kept green separately; the spec states the reason. Ticket work uses an integration branch, and its draft follows the first integrated result.
+
+### Ticket review
+
+In integration PR mode, the spec's «Приёмка» section names when independent review runs: after each ticket or after all tickets.
+If the spec names neither, review runs after all tickets.
+Ticket PR mode keeps its rule: each ticket PR gets independent review through `implement`.
+
+- After each ticket: the review runs after every ticket merge, whether or not the ticket has a checkpoint.
+  Once the ticket is integrated and project checks pass, the orchestrator calls `code-review` on the ticket diff.
+  That diff runs from the integration tip just before the ticket's merge to the ticket's integrated head.
+  A fresh implementer fixes findings, and a repeated `code-review` checks the fixes.
+  With a checkpoint, the ticket's checkpoint report follows this review and includes its result.
+  Without a checkpoint, the orchestrator posts the review result in the draft PR.
+- After all tickets: no review per ticket.
+
+In both choices, the full-diff review before final acceptance remains.
+
+### Checkpoints
+
+In integration PR mode, the spec's «Приёмка» section may name checkpoints after tickets.
+At a checkpoint, integrate the ticket and pass project checks first.
+If the spec chose review after each ticket, pass the [ticket review](#ticket-review) next.
+Then the orchestrator posts the [five-part report](human-review.md#level-1-every-pr) in the ticket and in the draft PR.
+Then wait for the owner's reply: accepted, or remarks.
+Tickets that depend on the checked ticket wait; independent tickets continue under [Ask the owner](human-review.md#ask-the-owner).
+
+### Owner remarks
+
+Fix owner remarks at a checkpoint or on a ticket PR within the same ticket.
+Then post a new five-part report and wait for the owner again.
 
 ## Verification evidence
 

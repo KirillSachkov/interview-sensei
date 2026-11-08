@@ -62,6 +62,9 @@ The Candidate's correction of a Grade, with a reason. The corrected Grade applie
 How well the Candidate knows a Topic within a Target: not started, shaky or confident.
 Topic status follows from recent Attempts and is never set by hand. Confident needs recent Attempts without hints and at least one confident Deeper question.
 
+**Readiness**:
+The share of Topics with the confident Topic status in the enabled Sections of a Target.
+
 **Inbox**:
 Material that the Candidate added to a Target and the agent has not processed yet: links, videos, files.
 The agent processes it in the background: it creates Sources and adds Questions to Sections and Topics, then writes an Inbox report.
@@ -77,6 +80,7 @@ Every Inbox processing and Mock interview for that Target follows the active Pre
 A separate conversation that branches from a session at a chosen moment, for clarification and explanation.
 It starts from a Handoff brief, not from the whole session history. A Side thread cannot record Attempts or change Grades.
 A Side thread opened before the Candidate answers the current Question marks that Attempt as received with a hint.
+The Candidate can delete a Side thread for good; the hint mark on the Attempt stays.
 
 **Handoff brief**:
 The compact context a Side thread starts from: the Target, the current Question, the Candidate's answer and Follow-ups, the selected fragment and the Candidate's question. It never contains Grades the Candidate has not opened.
