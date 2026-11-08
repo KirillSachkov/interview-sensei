@@ -1,6 +1,7 @@
 import type { AgentAvailability, AgentHost, AgentKind } from "../domain/agent.ts";
 import { agentAvailability, isAgentKind } from "../domain/agent.ts";
-import { isRuntimeSessionKind, launchRecipe } from "../domain/launch-recipe.ts";
+import { launchRecipe } from "../domain/launch-recipe.ts";
+import type { RuntimeSessionKind } from "../domain/launch-recipe.ts";
 import { automaticAnswer } from "../domain/permissions.ts";
 import type {
   AcpLauncher,
@@ -31,7 +32,7 @@ export interface AgentRuntime {
    * other permission requests go to `onPermission`.
    */
   readonly start: (
-    request: SessionRequest & { agent: string; kind: string; workingDirectory: string },
+    request: SessionRequest & { agent: string; kind: RuntimeSessionKind; workingDirectory: string },
   ) => Promise<LiveAgent>;
 }
 
@@ -129,9 +130,6 @@ export function createAgentRuntime(dependencies: AgentRuntimeDependencies): Agen
   return {
     listAgents: async () => agentAvailability(agents, await inspectHost()),
     start: async ({ agent: requested, kind, workingDirectory, ...request }) => {
-      if (!isRuntimeSessionKind(kind)) {
-        throw new Error(`The session kind ${kind} has no launch recipe`);
-      }
       const { agent, host } = await availableHost(dependencies, requested);
       const recipe = launchRecipe({
         agent,

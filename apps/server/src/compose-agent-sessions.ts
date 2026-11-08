@@ -2,10 +2,11 @@ import path from "node:path";
 
 import {
   acpLauncher,
+  agentKinds,
   createAgentRuntime,
   inspectAgentHost,
 } from "@interview-sensei/core/agent-runtime";
-import type { UserEnvironment } from "@interview-sensei/core/agent-runtime";
+import type { AgentKind, UserEnvironment } from "@interview-sensei/core/agent-runtime";
 import {
   createAgentSessions,
   drizzleSessionRepository,
@@ -15,6 +16,11 @@ import type { Clock, Timer } from "@interview-sensei/core/time";
 import type { FastifyInstance } from "fastify";
 
 import { mountMcpGateway } from "./mcp.ts";
+
+/** Every agent kind but the fake one, which only tests and manual checks get. */
+function isRealAgent(agent: AgentKind): agent is Exclude<AgentKind, "fake"> {
+  return agent !== "fake";
+}
 
 /**
  * The agents and AgentSessions of this server, on its storage. Each session gets its own MCP
@@ -41,7 +47,8 @@ export function composeAgentSessions(
 ) {
   // The fake agent never needs the Candidate's home, so tests do not look into the real one.
   const environment = fakeAgent ? undefined : userEnvironment;
-  const realAgents = environment === undefined ? [] : (["claude", "codex", "opencode"] as const);
+  const realAgents =
+    environment === undefined ? [] : agentKinds.filter((agent) => isRealAgent(agent));
   const runtime = createAgentRuntime({
     agents: fakeAgent ? ["fake"] : realAgents,
     inspectHost: inspectAgentHost(environment ?? { home: dataDirectory, env: {} }),
@@ -51,6 +58,7 @@ export function composeAgentSessions(
   });
   const sessions = createAgentSessions({
     repository: drizzleSessionRepository(storage.database),
+    // Compiles only while every session kind of agent-sessions has a launch recipe in the runtime.
     launcher: runtime,
     clock,
     mcp: mountMcpGateway(server),

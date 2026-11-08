@@ -3,13 +3,11 @@
 // the Candidate's agent directories are only linked to, for the login.
 import type { AgentHost, AgentKind } from "./agent.ts";
 
-/** The session kinds this runtime knows; the agent-sessions slice passes its kind through. */
-const runtimeSessionKinds = ["service-chat"] as const;
-type RuntimeSessionKind = (typeof runtimeSessionKinds)[number];
-
-export function isRuntimeSessionKind(value: string): value is RuntimeSessionKind {
-  return runtimeSessionKinds.some((kind) => kind === value);
-}
+/**
+ * The session kinds this runtime has launch recipes for. The server checks at compile time that
+ * every session kind of agent-sessions is one of them.
+ */
+export type RuntimeSessionKind = "service-chat";
 
 /** A file the server writes before the start; the path is inside the data directory. */
 interface PreparedFile {

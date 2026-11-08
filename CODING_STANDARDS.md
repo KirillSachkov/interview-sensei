@@ -26,6 +26,7 @@ A feature slice has the layers `domain/`, `application/` and `infrastructure/`; 
 Technical ports such as `Clock` live in `src/shared/`; application code may use them too.
 Slices never import each other. `src/shared/` is technical and never imports slices.
 When a slice needs another slice, it defines a port in its `domain/`, and the server passes the other slice in; `agent-sessions` gets `agent-runtime` and `mcp-gateway` this way.
+A new session kind in `agent-sessions` needs a launch recipe in `agent-runtime` (`RuntimeSessionKind`): `launcher: runtime` in `compose-agent-sessions.ts` fails to compile otherwise.
 
 ### Local requests
 
