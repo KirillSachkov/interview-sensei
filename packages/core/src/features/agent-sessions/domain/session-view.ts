@@ -26,7 +26,9 @@ export function statusAfter(status: SessionStatus, event: SessionEvent): Session
     case "session_ended": {
       return isLive(status) ? "ended" : status;
     }
-    case "agent_update": {
+    case "agent_update":
+    case "permission_requested":
+    case "permission_answered": {
       return status;
     }
     default: {
@@ -73,6 +75,33 @@ function withChunk(
   ];
 }
 
+/** The chat entry of a permission request that waits for the Candidate. */
+function permissionEntry(
+  { requestId, toolCall, options }: Extract<SessionEvent, { type: "permission_requested" }>,
+  id: number,
+): ChatEntry {
+  const title = typeof toolCall.title === "string" ? toolCall.title : null;
+  return {
+    id: `permission-${id}`,
+    type: "permission_request",
+    requestId,
+    title,
+    options,
+    answer: null,
+  };
+}
+
+function withAnswer(
+  entries: readonly ChatEntry[],
+  { requestId, answer }: Extract<SessionEvent, { type: "permission_answered" }>,
+): readonly ChatEntry[] {
+  return entries.map((entry) =>
+    entry.type === "permission_request" && entry.requestId === requestId
+      ? { ...entry, answer }
+      : entry,
+  );
+}
+
 function entriesAfter(
   entries: readonly ChatEntry[],
   { id, event }: RecordedEvent,
@@ -95,6 +124,12 @@ function entriesAfter(
     }
     case "turn_failed": {
       return [...entries, { id: `turn-${id}`, type: "turn_failed", message: event.message }];
+    }
+    case "permission_requested": {
+      return [...entries, permissionEntry(event, id)];
+    }
+    case "permission_answered": {
+      return withAnswer(entries, event);
     }
     case "session_started":
     case "session_failed":

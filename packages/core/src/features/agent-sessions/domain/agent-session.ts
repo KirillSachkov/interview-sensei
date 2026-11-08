@@ -1,4 +1,4 @@
-import type { SessionFailure } from "./session-event.ts";
+import type { PermissionAnswer, PermissionRequest, SessionFailure } from "./session-event.ts";
 
 /** The kinds of AgentSession. The skeleton has one: the service chat. */
 export const sessionKinds = ["service-chat"] as const;
@@ -42,7 +42,17 @@ export type ChatEntry =
   /** The turn ended before the agent finished, for example because the Candidate stopped it. */
   | { readonly id: string; readonly type: "turn_interrupted"; readonly stopReason: string }
   /** The agent answered the prompt with an error; the message is the agent's own. */
-  | { readonly id: string; readonly type: "turn_failed"; readonly message: string };
+  | { readonly id: string; readonly type: "turn_failed"; readonly message: string }
+  /** The agent asks for permission; `answer` is null until the Candidate answers. */
+  | {
+      readonly id: string;
+      readonly type: "permission_request";
+      readonly requestId: string;
+      /** The agent's description of the action, such as a command; null when it sent none. */
+      readonly title: string | null;
+      readonly options: PermissionRequest["options"];
+      readonly answer: PermissionAnswer | null;
+    };
 
 /** An AgentSession with its chat: what the browser shows. */
 export interface SessionView extends AgentSession {

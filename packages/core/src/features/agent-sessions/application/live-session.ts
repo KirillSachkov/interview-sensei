@@ -1,7 +1,9 @@
+import { randomUUID } from "node:crypto";
+
 import type { Clock } from "../../../shared/time/index.ts";
 import type { AgentSession, SessionView } from "../domain/agent-session.ts";
-import type { AgentLauncher, LiveAgent, SessionRepository } from "../domain/ports.ts";
-import type { SessionEvent } from "../domain/session-event.ts";
+import type { AgentLauncher, LiveAgent, McpAddresses, SessionRepository } from "../domain/ports.ts";
+import type { PermissionAnswer, PermissionRequest, SessionEvent } from "../domain/session-event.ts";
 import { applyEvent, emptyView, statusAfter } from "../domain/session-view.ts";
 
 /** Receives the session view after each journal entry. */
@@ -10,6 +12,7 @@ export type SessionListener = (view: SessionView) => void;
 export interface LiveSessionDependencies {
   readonly repository: SessionRepository;
   readonly clock: Clock;
+  readonly mcp: McpAddresses;
   /** Receives errors of background work, such as a failed journal write. */
   readonly onError: (error: unknown) => void;
 }
@@ -19,12 +22,19 @@ export interface LiveSession {
   view: SessionView;
   agent: LiveAgent | null;
   turnActive: boolean;
+  /** Permission requests that wait for the Candidate, by request id. */
+  readonly permissions: Map<string, PendingPermission>;
   /** Settles when the agent started or failed to start. */
   started: Promise<void>;
   /** The last journal write; writes run one after another and never reject. */
   written: Promise<void>;
   readonly listeners: Set<SessionListener>;
   readonly dependencies: LiveSessionDependencies;
+}
+
+interface PendingPermission {
+  readonly optionIds: readonly string[];
+  readonly resolve: (answer: PermissionAnswer) => void;
 }
 
 export function liveSession(
@@ -35,6 +45,7 @@ export function liveSession(
     view: emptyView(session),
     agent: null,
     turnActive: false,
+    permissions: new Map(),
     started: Promise.resolve(),
     written: Promise.resolve(),
     listeners: new Set(),
@@ -76,22 +87,79 @@ export async function record(session: LiveSession, event: SessionEvent): Promise
   await session.written;
 }
 
+/** Records the request and waits for the Candidate's answer. */
+function askCandidate(session: LiveSession, request: PermissionRequest): Promise<PermissionAnswer> {
+  const requestId = randomUUID();
+  const answered = Promise.withResolvers<PermissionAnswer>();
+  session.permissions.set(requestId, {
+    optionIds: request.options.map((option) => option.optionId),
+    resolve: answered.resolve,
+  });
+  void record(session, { type: "permission_requested", requestId, ...request });
+  return answered.promise;
+}
+
+/**
+ * Passes the answer to the agent and records it. Returns false when the request does not wait
+ * for an answer or did not offer the option.
+ */
+export function answerPermission(
+  session: LiveSession,
+  requestId: string,
+  answer: PermissionAnswer,
+): boolean {
+  const pending = session.permissions.get(requestId);
+  if (
+    pending === undefined ||
+    (answer.outcome === "selected" && !pending.optionIds.includes(answer.optionId))
+  ) {
+    return false;
+  }
+  session.permissions.delete(requestId);
+  // Recorded before the agent gets the answer, so the journal shows it before the agent's reply.
+  void record(session, { type: "permission_answered", requestId, answer });
+  pending.resolve(answer);
+  return true;
+}
+
+/** Answers every waiting request with `cancelled`, as ACP requires when the turn ends. */
+export function cancelPermissions(session: LiveSession): void {
+  for (const requestId of session.permissions.keys()) {
+    answerPermission(session, requestId, { outcome: "cancelled" });
+  }
+}
+
+/** Closes the session's MCP address; a failure goes to `onError`. */
+export async function closeMcp(session: LiveSession): Promise<void> {
+  const { mcp, onError } = session.dependencies;
+  try {
+    await mcp.close(session.view.id);
+  } catch (error) {
+    onError(error);
+  }
+}
+
 /** Starts the session's agent and records whether it started. */
 export async function launch(
   session: LiveSession,
   { launcher, workingDirectory }: { launcher: AgentLauncher; workingDirectory: string },
 ): Promise<void> {
   try {
+    const { id: sessionId, kind, agent: agentKind } = session.view;
     const agent = await launcher.start({
-      agent: session.view.agent,
+      agent: agentKind,
       workingDirectory,
+      mcpServer: session.dependencies.mcp.open({ sessionId, kind }),
       onUpdate: (update) => {
         void record(session, { type: "agent_update", update });
       },
+      onPermission: async (request) => askCandidate(session, request),
       onExit: ({ exitCode, signal }) => {
         session.agent = null;
+        cancelPermissions(session);
         const failure = { reason: "agent_exited", exitCode, signal } as const;
         void record(session, { type: "session_failed", failure });
+        void closeMcp(session);
       },
     });
     session.agent = agent;
@@ -102,6 +170,7 @@ export async function launch(
       type: "session_failed",
       failure: { reason: "agent_not_started", message },
     });
+    await closeMcp(session);
   }
 }
 
@@ -118,6 +187,8 @@ export async function runTurn(session: LiveSession, agent: LiveAgent, text: stri
   } catch {
     // The process exited or the server stopped it during the turn; onExit or close records it.
   } finally {
+    // A request the agent left open at the end of the turn no longer waits for the Candidate.
+    cancelPermissions(session);
     session.turnActive = false;
   }
 }

@@ -4,7 +4,15 @@ import type { AgentSession, SessionKind, SessionView } from "../domain/agent-ses
 import { isLive } from "../domain/agent-session.ts";
 import type { AgentLauncher } from "../domain/ports.ts";
 import { replay } from "../domain/session-view.ts";
-import { launch, liveSession, record, runTurn } from "./live-session.ts";
+import {
+  answerPermission,
+  cancelPermissions,
+  closeMcp,
+  launch,
+  liveSession,
+  record,
+  runTurn,
+} from "./live-session.ts";
 import type { LiveSession, LiveSessionDependencies, SessionListener } from "./live-session.ts";
 
 export interface AgentSessionsDependencies extends LiveSessionDependencies {
@@ -28,6 +36,14 @@ export interface AgentSessions {
   readonly list: () => Promise<readonly AgentSession[]>;
   readonly view: (sessionId: string) => Promise<SessionView | undefined>;
   readonly prompt: (sessionId: string, text: string) => Promise<PromptOutcome>;
+  /**
+   * Passes the Candidate's choice to the agent's permission request. `not_found` when the request
+   * no longer waits or did not offer the option.
+   */
+  readonly answerPermission: (
+    sessionId: string,
+    answer: { requestId: string; optionId: string },
+  ) => Promise<"accepted" | "not_found">;
   /** Asks the agent to stop the current turn; does nothing when no turn runs. */
   readonly cancel: (sessionId: string) => Promise<void>;
   /** Calls the listener after each change of a live session; returns the unsubscribe function. */
@@ -86,8 +102,26 @@ async function cancel({ live }: Context, sessionId: string): Promise<void> {
   const session = live.get(sessionId);
   const agent = session?.agent ?? null;
   if (agent !== null && session?.turnActive === true) {
+    // ACP: the client answers its waiting permission requests with `cancelled` on cancel.
+    cancelPermissions(session);
     await agent.cancel();
   }
+}
+
+async function answer(
+  { live }: Context,
+  sessionId: string,
+  { requestId, optionId }: { requestId: string; optionId: string },
+): Promise<"accepted" | "not_found"> {
+  const session = live.get(sessionId);
+  if (
+    session === undefined ||
+    !answerPermission(session, requestId, { outcome: "selected", optionId })
+  ) {
+    return "not_found";
+  }
+  await session.written;
+  return "accepted";
 }
 
 async function endInterrupted({ dependencies: { repository, clock } }: Context): Promise<void> {
@@ -110,7 +144,9 @@ async function end(session: LiveSession): Promise<void> {
   await session.started;
   const { agent } = session;
   session.agent = null;
+  cancelPermissions(session);
   await agent?.stop();
+  await closeMcp(session);
   if (isLive(session.view.status)) {
     await record(session, { type: "session_ended" });
   }
@@ -131,6 +167,7 @@ export function createAgentSessions(dependencies: AgentSessionsDependencies): Ag
     list: async () => dependencies.repository.list(),
     view: async (sessionId) => view(context, sessionId),
     prompt: async (sessionId, text) => prompt(context, sessionId, text),
+    answerPermission: async (sessionId, request) => answer(context, sessionId, request),
     cancel: async (sessionId) => cancel(context, sessionId),
     subscribe: (sessionId, listener) => {
       const listeners = context.live.get(sessionId)?.listeners;

@@ -59,7 +59,10 @@ async function startFake(mode: string, timer: Timer) {
   const launched = acpLauncher({ timer })(
     { ...recipe, env: { INTERVIEW_SENSEI_FAKE_AGENT_MODE: mode } },
     {
+      // These tests start and stop the agent; it never calls the MCP server or asks permission.
+      mcpServer: { name: "interview-sensei", url: "http://127.0.0.1:9/mcp/unused" },
       onUpdate: () => {},
+      onPermission: () => Promise.resolve({ outcome: "cancelled" }),
       onExit: (exit) => {
         exits.push(exit);
       },

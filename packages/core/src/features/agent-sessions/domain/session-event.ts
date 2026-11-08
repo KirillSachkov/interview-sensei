@@ -7,6 +7,20 @@ export interface AgentUpdate {
   readonly [field: string]: unknown;
 }
 
+/** ACP `session/request_permission` without the session id; the journal keeps the tool call whole. */
+export interface PermissionRequest {
+  readonly toolCall: { readonly toolCallId: string; readonly [field: string]: unknown };
+  readonly options: readonly {
+    readonly optionId: string;
+    readonly name: string;
+    readonly kind: string;
+  }[];
+}
+
+/** The answer to a permission request; `cancelled` when the turn or the session ended first. */
+export type PermissionAnswer =
+  { readonly outcome: "selected"; readonly optionId: string } | { readonly outcome: "cancelled" };
+
 /** Why an AgentSession can no longer take prompts. */
 export type SessionFailure =
   | {
@@ -27,6 +41,13 @@ export type SessionEvent =
   | { readonly type: "turn_ended"; readonly stopReason: string }
   /** The agent answered the prompt with an error and still runs; the session takes prompts. */
   | { readonly type: "turn_failed"; readonly message: string }
+  /** The agent asks the Candidate for permission, such as to run a command. */
+  | ({ readonly type: "permission_requested"; readonly requestId: string } & PermissionRequest)
+  | {
+      readonly type: "permission_answered";
+      readonly requestId: string;
+      readonly answer: PermissionAnswer;
+    }
   | { readonly type: "session_failed"; readonly failure: SessionFailure }
   /** The server stopped while the session was live; its agent process is gone. */
   | { readonly type: "session_ended" };

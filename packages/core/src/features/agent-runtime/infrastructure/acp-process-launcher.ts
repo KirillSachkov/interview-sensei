@@ -5,15 +5,15 @@ import { mkdir } from "node:fs/promises";
 import { Readable, Writable } from "node:stream";
 
 import { client, ndJsonStream, PROTOCOL_VERSION, RequestError } from "@agentclientprotocol/sdk";
-import type { ClientContext } from "@agentclientprotocol/sdk";
+import type { ClientContext, InitializeResponse } from "@agentclientprotocol/sdk";
 
 import type { Timer } from "../../../shared/time/index.ts";
 import type { LaunchRecipe } from "../domain/agent.ts";
 import type {
   AcpLauncher,
   AgentExit,
-  AgentUpdate,
   LiveAgent,
+  SessionRequest,
   TurnOutcome,
 } from "../domain/ports.ts";
 
@@ -57,6 +57,26 @@ async function stopProcess(child: AgentProcess, timer: Timer): Promise<void> {
   }
 }
 
+/** Opens the session with our MCP server; an agent without MCP over HTTP cannot have it. */
+async function openAcpSession(
+  agent: ClientContext,
+  { cwd, mcpServer }: { cwd: string; mcpServer: SessionRequest["mcpServer"] },
+): Promise<string> {
+  const initialized: InitializeResponse = await agent.request("initialize", {
+    protocolVersion: PROTOCOL_VERSION,
+    clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false },
+    clientInfo,
+  });
+  if (initialized.agentCapabilities?.mcpCapabilities?.http !== true) {
+    throw new Error("The agent does not support MCP over HTTP");
+  }
+  const session = await agent.request("session/new", {
+    cwd,
+    mcpServers: [{ type: "http", name: mcpServer.name, url: mcpServer.url, headers: [] }],
+  });
+  return session.sessionId;
+}
+
 /**
  * Connects to the agent as the ACP client and opens one session. The connection lives until
  * `stopped` resolves or the agent's output ends; in the second case `connection` rejects after
@@ -64,28 +84,26 @@ async function stopProcess(child: AgentProcess, timer: Timer): Promise<void> {
  */
 function connect(
   child: AgentProcess,
-  { cwd, onUpdate }: { cwd: string; onUpdate: (update: AgentUpdate) => void },
+  { cwd, session }: { cwd: string; session: SessionRequest },
   stopped: Promise<unknown>,
 ) {
   const opened = Promise.withResolvers<{ agent: ClientContext; acpSessionId: string }>();
   const app = client({ name: clientInfo.name })
     .onNotification("session/update", ({ params }) => {
       // Called in arrival order; the receiver queues its writes itself.
-      onUpdate(params.update);
+      session.onUpdate(params.update);
     })
+    .onRequest("session/request_permission", async ({ params: { toolCall, options } }) => ({
+      outcome: await session.onPermission({ toolCall, options }),
+    }))
     .onRequest("*", ({ method }) => {
-      // Permissions, files and terminals come with later tickets (#23, #24).
+      // Files and terminals come with a later ticket (#24).
       throw RequestError.methodNotFound(method);
     });
   const stream = ndJsonStream(Writable.toWeb(child.stdin), Readable.toWeb(child.stdout));
   const connection = app.connectWith(stream, async (agent) => {
-    await agent.request("initialize", {
-      protocolVersion: PROTOCOL_VERSION,
-      clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false },
-      clientInfo,
-    });
-    const session = await agent.request("session/new", { cwd, mcpServers: [] });
-    opened.resolve({ agent, acpSessionId: session.sessionId });
+    const acpSessionId = await openAcpSession(agent, { cwd, mcpServer: session.mcpServer });
+    opened.resolve({ agent, acpSessionId });
     await stopped;
   });
   return { opened: opened.promise, connection };
@@ -201,12 +219,12 @@ async function openSession(
  * bounds the launch and the wait for the process after SIGTERM.
  */
 export function acpLauncher({ timer }: { timer: Timer }): AcpLauncher {
-  return async (recipe, { onUpdate, onExit }) => {
+  return async (recipe, session) => {
     await mkdir(recipe.cwd, { recursive: true, mode: 0o700 });
     const { child, exited } = spawnAgent(recipe);
     const { stop, stopping, stopRequested } = stopper(child, timer);
-    const { opened, connection } = connect(child, { cwd: recipe.cwd, onUpdate }, stopping);
-    void reportUnexpectedExit({ connection, exited, stopRequested, onExit });
+    const { opened, connection } = connect(child, { cwd: recipe.cwd, session }, stopping);
+    void reportUnexpectedExit({ connection, exited, stopRequested, onExit: session.onExit });
     return openSession({ opened, connection, exited }, { stop, timer });
   };
 }

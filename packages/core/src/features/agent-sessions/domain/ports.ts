@@ -1,5 +1,11 @@
 import type { AgentSession, SessionKind, SessionStatus } from "./agent-session.ts";
-import type { AgentUpdate, RecordedEvent, SessionEvent } from "./session-event.ts";
+import type {
+  AgentUpdate,
+  PermissionAnswer,
+  PermissionRequest,
+  RecordedEvent,
+  SessionEvent,
+} from "./session-event.ts";
 
 /** Stores AgentSessions and their event journals. */
 export interface SessionRepository {
@@ -43,12 +49,30 @@ export interface LiveAgent {
   readonly stop: () => Promise<void>;
 }
 
+/** Our MCP server of one session. */
+interface McpServerAddress {
+  readonly name: string;
+  readonly url: string;
+}
+
+/** Gives each session its own MCP address; the mcp-gateway slice implements it. */
+export interface McpAddresses {
+  /** Opens the address with the tool set of the session kind; throws when it cannot. */
+  readonly open: (session: { sessionId: string; kind: SessionKind }) => McpServerAddress;
+  /** Closes the address when the session's agent is gone. */
+  readonly close: (sessionId: string) => Promise<void>;
+}
+
 /** Starts agents; the agent-runtime slice implements it and the server passes it in. */
 export interface AgentLauncher {
   readonly start: (request: {
     agent: string;
     /** The session directory inside the data directory, the agent's `cwd`. */
     workingDirectory: string;
+    /** The session's own MCP server, passed to the agent in `session/new`. */
+    mcpServer: McpServerAddress;
+    /** Answers a permission request that the launcher does not answer by itself. */
+    onPermission: (request: PermissionRequest) => Promise<PermissionAnswer>;
     /** Receives every `session/update` in the order the agent sent them. */
     onUpdate: (update: AgentUpdate) => void;
     /** Called once when the process exits by itself, after the last update. */

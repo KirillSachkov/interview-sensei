@@ -7,6 +7,7 @@
     "./agent-runtime": "./src/features/agent-runtime/index.ts",
     "./agent-sessions": "./src/features/agent-sessions/index.ts",
     "./health": "./src/features/health/index.ts",
+    "./mcp-gateway": "./src/features/mcp-gateway/index.ts",
     "./storage": "./src/shared/storage/index.ts",
     "./time": "./src/shared/time/index.ts"
   },
@@ -21,6 +22,7 @@
   "dependencies": {
     "@agentclientprotocol/sdk": "2.4.0",
     "@electric-sql/pglite": "0.5.15",
+    "@modelcontextprotocol/server": "2.4.0",
     "drizzle-orm": "0.45.4",
     "zod": "4.6.7"
   },

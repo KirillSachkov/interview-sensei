@@ -33,6 +33,9 @@ function entryText(entry: ChatEntry): string {
     case "turn_failed": {
       return entry.message;
     }
+    case "permission_request": {
+      return entry.title ?? "";
+    }
     case "candidate_message":
     case "agent_message": {
       return entry.text;

@@ -20,6 +20,7 @@ import { fastify } from "fastify";
 import type { FastifyInstance } from "fastify";
 
 import { registerAgentSessionRoutes } from "./agent-session-routes.ts";
+import { mountMcpGateway } from "./mcp.ts";
 
 /**
  * The migrations of every core slice that stores data, applied at each start in this order. A
@@ -47,7 +48,10 @@ function composeAgentSessions(
     timer,
     dataDirectory,
     fakeAgent,
-  }: Pick<ServerDependencies, "clock" | "timer" | "dataDirectory" | "fakeAgent">,
+    mcp,
+  }: Pick<ServerDependencies, "clock" | "timer" | "dataDirectory" | "fakeAgent"> & {
+    mcp: ReturnType<typeof mountMcpGateway>;
+  },
 ) {
   const runtime = createAgentRuntime({
     agents: fakeAgent === true ? ["fake"] : [],
@@ -58,6 +62,7 @@ function composeAgentSessions(
     repository: drizzleSessionRepository(storage.database),
     launcher: runtime,
     clock,
+    mcp,
     sessionsDirectory: path.join(dataDirectory, "sessions"),
     onError: (error) => {
       server.log.error({ err: error }, "An agent session failed in the background");
@@ -113,6 +118,7 @@ export async function buildServer({
     timer,
     dataDirectory,
     fakeAgent,
+    mcp: mountMcpGateway(server),
   });
   await prepare(server, storage, sessions);
   server.get("/api/health", () => checkHealth(clock));
