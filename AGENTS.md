@@ -23,7 +23,7 @@ Implementation starts when the owner explicitly selects `implement` or `implemen
 For an unnamed implementation request, propose the entrypoint and wait for selection.
 Preparation, issue labels and review comments do not start implementation.
 An authorized spec run may delegate its agreed tickets.
-In ticket PR mode, the owner starts `implement` for each ticket. One owner message may authorize a named ticket chain in order.
+In ticket PR mode, the owner starts `implement` for each ticket. One owner message may authorize a named ticket chain in order; each ticket still waits for the previous PR's merge.
 
 Within started work, routine commits, push, PR updates and in-scope review/CI fixes may proceed.
 Diagnosis alone does not authorize a fix.

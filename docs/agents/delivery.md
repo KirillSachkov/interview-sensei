@@ -27,8 +27,10 @@ Then the orchestrator posts the [five-part report](human-review.md#level-1-every
 Then wait for the owner's reply: accepted, or remarks.
 Tickets that depend on the checked ticket wait; independent tickets continue under [Ask the owner](human-review.md#ask-the-owner).
 
-Owner remarks at a checkpoint or on a ticket PR stay within the same ticket.
-The implementer fixes them, posts a new five-part report and waits for the owner again.
+### Owner remarks
+
+Fix owner remarks at a checkpoint or on a ticket PR within the same ticket.
+Then post a new five-part report and wait for the owner again.
 
 ## Verification evidence
 
