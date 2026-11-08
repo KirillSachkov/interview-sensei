@@ -60,7 +60,7 @@ Hashes establish identity, not correctness or behavior.
 | `grilling` | `27f71f106a7062691b2982d4f847304a62930ebed8b50734f4d4fd498d60afa8` |
 | `handoff` | `77c2607c751b7c522e0208ab113ba4949f8267610d6061323c7ccd3ace21d7da` |
 | `implement` | `95af274086aef8db8a8c51b078d9d2f0d108a28796d1e84e373536f88f3664fe` |
-| `implement-spec` | `bfbf1091cef2d3a533b410c5c095cb1eff1391710e6dd04c10d64538c3d947e9` |
+| `implement-spec` | `237295dc854d24a4047f1087d795a2fa0685d7f9f0b869186f142957dd60b14c` |
 | `improve-codebase-architecture` | `6309784c0b4631b92b2a2196da3ea5a500749fe5905c2981e34acf514da6820b` |
 | `pr` | `2ddfb7f87bdab9211993195b17ad783a07cbf7123331c9b8c982b46db8a9201a` |
 | `prototype` | `c4efd5e0f1c302b6225be83e8e42abdb05e13fde900484e4e2240e90b4e83eb6` |
