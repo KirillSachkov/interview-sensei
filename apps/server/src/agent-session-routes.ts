@@ -15,7 +15,10 @@ const sessionParams = {
 } as const;
 
 /** What the browser sends over the session's WebSocket. */
-type Command = { type: "prompt"; text: string } | { type: "cancel" };
+type Command =
+  | { type: "prompt"; text: string }
+  | { type: "cancel" }
+  | { type: "permission"; requestId: string; optionId: string };
 
 function parseJson(text: string): unknown {
   try {
@@ -23,6 +26,14 @@ function parseJson(text: string): unknown {
   } catch {
     return undefined;
   }
+}
+
+function parsePermission(message: object): Command | undefined {
+  const requestId = "requestId" in message ? message.requestId : undefined;
+  const optionId = "optionId" in message ? message.optionId : undefined;
+  return typeof requestId === "string" && typeof optionId === "string"
+    ? { type: "permission", requestId, optionId }
+    : undefined;
 }
 
 function parseCommand(data: unknown): Command | undefined {
@@ -33,6 +44,9 @@ function parseCommand(data: unknown): Command | undefined {
   if (message.type === "cancel") {
     return { type: "cancel" };
   }
+  if (message.type === "permission") {
+    return parsePermission(message);
+  }
   const text = message.type === "prompt" && "text" in message ? message.text : undefined;
   return typeof text === "string" && text.trim() !== "" ? { type: "prompt", text } : undefined;
 }
@@ -41,6 +55,7 @@ function parseCommand(data: unknown): Command | undefined {
 type ServerMessage =
   | { type: "session"; session: SessionView }
   | { type: "prompt_rejected"; reason: string }
+  | { type: "permission_rejected"; reason: "not_found" }
   | { type: "invalid_command" };
 
 function send(socket: WebSocket, message: ServerMessage): void {
@@ -55,6 +70,17 @@ async function prompt(
   const outcome = await sessions.prompt(sessionId, text);
   if (outcome !== "accepted") {
     send(socket, { type: "prompt_rejected", reason: outcome });
+  }
+}
+
+async function answerPermission(
+  socket: WebSocket,
+  sessions: AgentSessions,
+  { sessionId, requestId, optionId }: { sessionId: string; requestId: string; optionId: string },
+) {
+  const outcome = await sessions.answerPermission(sessionId, { requestId, optionId });
+  if (outcome !== "accepted") {
+    send(socket, { type: "permission_rejected", reason: outcome });
   }
 }
 
@@ -77,6 +103,8 @@ async function handle(
       send(socket, { type: "invalid_command" });
     } else if (command.type === "cancel") {
       await sessions.cancel(sessionId);
+    } else if (command.type === "permission") {
+      await answerPermission(socket, sessions, { sessionId, ...command });
     } else {
       await prompt(socket, sessions, { sessionId, text: command.text });
     }
@@ -137,7 +165,9 @@ function registerStartRoute(
  * - `POST /api/sessions` `{ kind, agent }`: creates a session and starts its agent.
  * - `GET /api/sessions`: every session, the newest first; `GET /api/sessions/:id`: its view.
  * - WebSocket `/api/sessions/:id/events`: sends `{ type: "session", session }` at once and after
- *   each change; takes `{ type: "prompt", text }` and `{ type: "cancel" }`.
+ *   each change; takes `{ type: "prompt", text }`, `{ type: "cancel" }` and
+ *   `{ type: "permission", requestId, optionId }`, the Candidate's answer to the agent's permission
+ *   request. A refused answer gets `{ type: "permission_rejected", reason: "not_found" }`.
  */
 export function registerAgentSessionRoutes(
   server: FastifyInstance,

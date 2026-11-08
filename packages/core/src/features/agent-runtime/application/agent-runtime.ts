@@ -60,7 +60,11 @@ function permissionGate(agent: AgentKind, request: SessionRequest): SessionReque
         toolCalls: earlier === undefined ? [permission.toolCall] : [permission.toolCall, earlier],
         options: permission.options,
       });
-      return answer ?? request.onPermission(permission);
+      // The Candidate sees the announced tool call too: the request may carry only its id.
+      return (
+        answer ??
+        request.onPermission({ ...permission, toolCall: { ...earlier, ...permission.toolCall } })
+      );
     },
   };
 }
