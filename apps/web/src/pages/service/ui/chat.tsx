@@ -96,7 +96,7 @@ function ChatConnection({
   sessionId: string;
   onReconnect: () => void;
 }) {
-  const { view, notice, lost, prompt, cancel } = useSessionEvents(sessionId);
+  const { view, notice, lost, prompt, cancel, answerPermission } = useSessionEvents(sessionId);
   const connectionLost =
     lost === null ? null : <ConnectionLost text={lost} onReconnect={onReconnect} />;
   if (view === null) {
@@ -105,7 +105,11 @@ function ChatConnection({
   return (
     <section aria-label={`Чат с агентом «${agentName(view.agent)}»`}>
       <p>Агент: {agentName(view.agent)}</p>
-      <ChatEntries entries={view.entries} />
+      <ChatEntries
+        entries={view.entries}
+        canAnswer={lost === null && view.status === "working"}
+        onAnswer={answerPermission}
+      />
       {connectionLost ?? <SessionState view={view} onCancel={cancel} />}
       {notice === null ? null : <output>{notice}</output>}
       <MessageForm status={lost === null ? view.status : null} onSend={prompt} />

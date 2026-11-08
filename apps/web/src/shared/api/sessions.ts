@@ -3,7 +3,28 @@ export type ChatEntry =
   | { readonly id: string; readonly type: "candidate_message"; readonly text: string }
   | { readonly id: string; readonly type: "agent_message"; readonly text: string }
   | { readonly id: string; readonly type: "turn_interrupted"; readonly stopReason: string }
-  | { readonly id: string; readonly type: "turn_failed"; readonly message: string };
+  | { readonly id: string; readonly type: "turn_failed"; readonly message: string }
+  | PermissionEntry;
+
+/** One answer the agent offers to its permission request; `name` is the agent's own text. */
+interface PermissionOption {
+  readonly optionId: string;
+  readonly name: string;
+  readonly kind: string;
+}
+
+/** The agent's permission request; `answer` is null while it waits for the Candidate. */
+export interface PermissionEntry {
+  readonly id: string;
+  readonly type: "permission_request";
+  readonly requestId: string;
+  readonly title: string | null;
+  readonly options: readonly PermissionOption[];
+  readonly answer:
+    | { readonly outcome: "selected"; readonly optionId: string }
+    | { readonly outcome: "cancelled" }
+    | null;
+}
 
 type SessionStatus = "starting" | "idle" | "working" | "failed" | "ended";
 

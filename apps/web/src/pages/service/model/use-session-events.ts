@@ -7,6 +7,7 @@ import type { SessionView } from "@/shared/api";
 type ServerMessage =
   | { type: "session"; session: SessionView }
   | { type: "prompt_rejected"; reason: string }
+  | { type: "permission_rejected" }
   | { type: "invalid_command" };
 
 function parseJson(text: string): unknown {
@@ -27,6 +28,9 @@ function serverMessage(data: unknown): ServerMessage | null {
   }
   if (message.type === "prompt_rejected" && "reason" in message) {
     return { type: "prompt_rejected", reason: String(message.reason) };
+  }
+  if (message.type === "permission_rejected") {
+    return { type: "permission_rejected" };
   }
   return message.type === "invalid_command" ? { type: "invalid_command" } : null;
 }
@@ -81,6 +85,8 @@ function follow(connection: WebSocket, { onView, onNotice, onLost }: SocketHandl
       onView(message.session);
     } else if (message?.type === "prompt_rejected") {
       onNotice(rejectionText(message.reason));
+    } else if (message?.type === "permission_rejected") {
+      onNotice("Агент больше не ждёт ответа на этот запрос разрешения.");
     } else if (message?.type === "invalid_command") {
       onNotice("Сервер не понял команду. Обновите страницу.");
     }
@@ -100,7 +106,7 @@ function follow(connection: WebSocket, { onView, onNotice, onLost }: SocketHandl
 
 /**
  * Follows one session over its WebSocket: the server sends the whole view at once and after each
- * change. `prompt` and `cancel` go to the server over the same socket. `notice` explains a
+ * change. `prompt`, `cancel` and `answerPermission` go to the server over the same socket. `notice` explains a
  * refused message; `lost` says why the socket closed. To connect again, mount the hook anew.
  */
 export function useSessionEvents(sessionId: string) {
@@ -132,7 +138,21 @@ export function useSessionEvents(sessionId: string) {
   const cancel = useCallback(() => {
     send({ type: "cancel" });
   }, [send]);
+  const answerPermission = useCallback(
+    (requestId: string, optionId: string) => {
+      setNotice(null);
+      send({ type: "permission", requestId, optionId });
+    },
+    [send],
+  );
 
   // A view of the previous session stays in state until the new socket sends its first view.
-  return { view: view?.id === sessionId ? view : null, notice, lost, prompt, cancel };
+  return {
+    view: view?.id === sessionId ? view : null,
+    notice,
+    lost,
+    prompt,
+    cancel,
+    answerPermission,
+  };
 }
