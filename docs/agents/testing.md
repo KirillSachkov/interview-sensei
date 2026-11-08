@@ -46,6 +46,9 @@ Tests that check the real agents' availability pass a temporary directory as `us
 Launch recipes are pure: unit tests give them made-up paths, and nothing touches the disk.
 The OpenCode model comes from `config.json`, `opencode.json` and `opencode.jsonc` in `$XDG_CONFIG_HOME/opencode` or `~/.config/opencode`.
 Unit tests give `opencodeModelSettings` made-up texts; a missing or invalid file gives no model.
+The recipe passes the copied `provider` entries in `OPENCODE_CONFIG_CONTENT`, which has no file location.
+So a relative `{file:...}` in such an entry may not resolve; `~/` and absolute paths do.
+The recipe drops `OPENCODE_CONFIG`, so it ignores a model that the Candidate chose only in that file.
 The fake agent streams a reply in chunks; the prompt `/wait` waits for a cancel, `/fail` answers with a JSON-RPC error, and `/crash` exits with code 1.
 `/brief` calls `get_brief` on the session's MCP address after a permission request that the server allows by itself.
 `/permission` asks permission for a foreign tool and replies with the Candidate's choice; `/mcp` replies with the session's MCP server name and address.
