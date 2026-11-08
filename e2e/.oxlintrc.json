@@ -1,0 +1,17 @@
+{
+  "$schema": "../node_modules/oxlint/configuration_schema.json",
+  "extends": ["../config/oxlint/node.json"],
+  // Options apply only in the root config of a run, so each workspace sets them.
+  "options": {
+    "typeAware": true,
+    "typeCheck": true,
+    "denyWarnings": true,
+    "reportUnusedDisableDirectives": "error"
+  },
+  "rules": {
+    // Playwright, not Vitest, runs these tests: `test` and `expect` come from @playwright/test.
+    "vitest/prefer-importing-vitest-globals": "off",
+    // vitest/no-focused-tests and no-disabled-tests miss Playwright calls; forbidOnly also stops `.only` runs.
+    "interview-sensei/no-playwright-test-modifiers": "error"
+  }
+}
