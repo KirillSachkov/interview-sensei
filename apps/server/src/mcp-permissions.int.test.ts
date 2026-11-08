@@ -166,6 +166,16 @@ describe("mcp and permissions", () => {
     await expect(mcpStatus(new URL(`/mcp/${first.sessionId}`, first.url).href)).resolves.toBe(404);
   });
 
+  it("gives the agent a loopback MCP address whatever host the server listens on", async () => {
+    const { server } = await startServer(await temporaryDirectory(), "localhost");
+    const { url } = await chatWithMcpUrl(server);
+
+    const ports = new Set(server.addresses().map((address) => address.port));
+    expect(ports.size).toBe(1);
+    expect(url).toMatch(new RegExp(`^http://127\\.0\\.0\\.1:${[...ports].join("")}/mcp/`, "u"));
+    await expect(toolList(url)).resolves.toMatchObject(serviceChatTools);
+  });
+
   it("rejects the MCP address of a session whose agent is gone and keeps the others", async () => {
     const { server } = await startServer(await temporaryDirectory());
     const gone = await chatWithMcpUrl(server);

@@ -21,10 +21,10 @@ export async function temporaryDirectory(): Promise<string> {
 }
 
 /**
- * Builds the server with the fake agent on the data directory and listens on a free loopback
- * port: the agent reaches the session's MCP address over real HTTP. `stop` closes it early.
+ * Builds the server with the fake agent on the data directory and listens on a free port of the
+ * host, loopback by default: the agent reaches the session's MCP address over real HTTP. `stop` closes it early.
  */
-export async function startServer(dataDirectory: string) {
+export async function startServer(dataDirectory: string, host = "127.0.0.1") {
   const server = await buildServer({
     clock: { now: () => new Date(fixedTime) },
     // Dumps and agent timeouts are not under test here; the timer never runs a task.
@@ -38,7 +38,7 @@ export async function startServer(dataDirectory: string) {
     await closed;
   };
   onTestFinished(stop);
-  await server.listen({ host: "127.0.0.1", port: 0 });
+  await server.listen({ host, port: 0 });
   return { server, stop };
 }
 

@@ -24,18 +24,16 @@ function toolsFor(kind: string): readonly SessionTool[] {
   return known === undefined ? [] : sessionTools[known];
 }
 
-/** The origin of the server's first address, for the MCP addresses; throws before it listens. */
-function listeningOrigin(server: FastifyInstance): string {
+/**
+ * The loopback origin of the server's port, for the MCP addresses; throws before it listens. The
+ * agent runs on this machine, so its MCP traffic stays on loopback whatever SERVER_HOST is.
+ */
+function loopbackOrigin(server: FastifyInstance): string {
   const [address] = server.addresses();
   if (address === undefined) {
     throw new Error("The server does not listen yet, so it has no MCP address");
   }
-  if (address.address === "0.0.0.0" || address.address === "::") {
-    // An agent on this machine reaches an unspecified address over loopback.
-    return `http://127.0.0.1:${address.port}`;
-  }
-  const host = address.family === "IPv6" ? `[${address.address}]` : address.address;
-  return `http://${host}:${address.port}`;
+  return `http://127.0.0.1:${address.port}`;
 }
 
 /** The Fastify request as a web-standard one; the parsed JSON body goes apart. */
@@ -59,7 +57,7 @@ function webRequest(request: FastifyRequest): Request {
 export function mountMcpGateway(server: FastifyInstance): McpGateway {
   const gateway = createMcpGateway({
     toolsFor,
-    origin: () => listeningOrigin(server),
+    origin: () => loopbackOrigin(server),
     newToken: randomToken,
     newNameSuffix: randomNameSuffix,
     serve: (tools, session) =>

@@ -30,6 +30,7 @@ When a slice needs another slice, it defines a port in its `domain/`, and the se
 ### MCP tools
 
 `mcp-gateway` gives each AgentSession its own MCP address, `/mcp/<secret token>`, with the tool set of its session kind.
+The address is always `http://127.0.0.1:<server port>`, whatever `SERVER_HOST` is: the agent runs on this machine.
 It names the session's MCP server `interview-sensei-<random hex>`, so a server named `interview-sensei` in the Candidate's agent config is never taken for ours.
 A tool lives in the `application/` of the slice that owns its data: define it there with `sessionTool` from `src/shared/mcp` and export it from the slice's `index.ts`.
 Content that differs by session kind lives in that slice's `domain/`.
