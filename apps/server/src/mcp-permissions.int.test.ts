@@ -94,18 +94,21 @@ describe("mcp and permissions", () => {
     const asking = await events.waitFor(isAskingPermission);
     const [request] = permissionRequests(asking);
     // The title names the session's MCP server and tool, but only structural fields mark our tools.
-    expect(request).toMatchObject({
-      title: expect.stringMatching(
-        /^mcp__interview-sensei-[0-9a-f]{8}__get_brief: touch interview-sensei\/get_brief\.txt$/u,
-      ),
-      options: [
-        { optionId: "allow-once", name: "Разрешить", kind: "allow_once" },
-        { optionId: "allow-always", name: "Разрешать всегда", kind: "allow_always" },
-        { optionId: "reject-once", name: "Отклонить", kind: "reject_once" },
-      ],
-      answer: null,
+    expect(request?.title).toMatch(
+      /^mcp__interview-sensei-[0-9a-f]{8}__get_brief: touch interview-sensei\/get_brief\.txt$/u,
+    );
+    expect({ status: asking.status, request }).toMatchObject({
+      status: "working",
+      request: {
+        input: "touch interview-sensei/get_brief.txt",
+        options: [
+          { optionId: "allow-once", name: "Разрешить", kind: "allow_once" },
+          { optionId: "allow-always", name: "Разрешать всегда", kind: "allow_always" },
+          { optionId: "reject-once", name: "Отклонить", kind: "reject_once" },
+        ],
+        answer: null,
+      },
     });
-    expect(asking.status).toBe("working");
     events.send({ type: "permission", requestId: request?.requestId, optionId: "reject-once" });
 
     const answered = await events.waitFor(hasAnswered("Фейковый агент получил ответ: «Отклонить»"));
@@ -157,9 +160,9 @@ describe("mcp and permissions", () => {
 
     expect(first.url).not.toBe(second.url);
     // A server of the same name in the Candidate's agent config cannot pass for ours.
-    expect(first.name).toMatch(/^interview-sensei-[0-9a-f]{8}$/u);
-    expect(second.name).toMatch(/^interview-sensei-[0-9a-f]{8}$/u);
-    expect(first.name).not.toBe(second.name);
+    expect(`${first.name} ${second.name}`).toMatch(
+      /^interview-sensei-(?<suffix>[0-9a-f]{8}) interview-sensei-(?!\k<suffix>)[0-9a-f]{8}$/u,
+    );
     // The address does not follow from the session id, which the browser API shows.
     expect(first.url).not.toContain(first.sessionId);
     await expect(toolList(first.url)).resolves.toMatchObject(serviceChatTools);

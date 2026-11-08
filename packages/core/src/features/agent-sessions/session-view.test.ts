@@ -117,4 +117,27 @@ describe("session view", () => {
       ]),
     ).toStrictEqual([]);
   });
+
+  it("shows the agent's command for a permission request without a title", () => {
+    expect(inputOf({ toolCallId: "call-1", rawInput: { command: "rm -rf build" } })).toBe(
+      "rm -rf build",
+    );
+  });
+
+  it("shows the agent's arguments, shortened, for a request without a title or command", () => {
+    const input = inputOf({ toolCallId: "call-1", rawInput: { path: "a".repeat(500) } });
+    expect(input).toBe(`{"path":"${"a".repeat(190)}…`);
+  });
+
+  it("shows no input for a permission request without raw input", () => {
+    expect(inputOf({ toolCallId: "call-1", title: "touch a.txt" })).toBeNull();
+  });
 });
+
+/** The input that the chat entry of a permission request with this tool call shows. */
+function inputOf(toolCall: { toolCallId: string; [field: string]: unknown }) {
+  const [entry] = replay(session, [
+    { id: 1, event: { type: "permission_requested", requestId: "r1", toolCall, options: [] } },
+  ]).entries;
+  return entry?.type === "permission_request" ? entry.input : undefined;
+}

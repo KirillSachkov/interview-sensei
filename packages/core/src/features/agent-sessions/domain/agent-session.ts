@@ -50,6 +50,8 @@ export type ChatEntry =
       readonly requestId: string;
       /** The agent's description of the action, such as a command; null when it sent none. */
       readonly title: string | null;
+      /** The agent's command or arguments, shortened; null when it sent no raw input. */
+      readonly input: string | null;
       readonly options: PermissionRequest["options"];
       readonly answer: PermissionAnswer | null;
     };

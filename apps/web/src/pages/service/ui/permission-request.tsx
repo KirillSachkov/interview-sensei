@@ -33,6 +33,12 @@ export function PermissionRequest({
       <p>
         <strong>Агент просит разрешение:</strong> {entry.title ?? "действие без описания"}
       </p>
+      {entry.title === null && entry.input !== null ? (
+        // Without a title the Candidate still sees what the agent asks to do.
+        <p>
+          Команда или аргументы агента: <code>{entry.input}</code>
+        </p>
+      ) : null}
       {waiting ? (
         <p>
           {entry.options.map((option) => (

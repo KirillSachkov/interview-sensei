@@ -50,6 +50,7 @@ interface Entry {
   readonly message?: string;
   readonly requestId?: string;
   readonly title?: string | null;
+  readonly input?: string | null;
   readonly options?: readonly { optionId: string; name: string; kind: string }[];
   readonly answer?: { outcome: string; optionId?: string } | null;
 }
