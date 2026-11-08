@@ -87,8 +87,12 @@ export async function openStorage(options: StorageOptions): Promise<Storage> {
     try {
       await stopDumps();
     } finally {
-      await client.close();
-      await unlock();
+      try {
+        await client.close();
+      } finally {
+        // A failed close must not leave the lock: the next start would refuse the directory.
+        await unlock();
+      }
     }
   };
   let closing: Promise<void> | undefined = undefined;
