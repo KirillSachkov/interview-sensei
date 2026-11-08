@@ -1,14 +1,17 @@
 import { spawn } from "node:child_process";
 import type { ChildProcessByStdio } from "node:child_process";
 import { once } from "node:events";
-import { mkdir } from "node:fs/promises";
 import { Readable, Writable } from "node:stream";
 
 import { client, ndJsonStream, PROTOCOL_VERSION, RequestError } from "@agentclientprotocol/sdk";
-import type { ClientContext, InitializeResponse } from "@agentclientprotocol/sdk";
+import type {
+  ClientContext,
+  InitializeResponse,
+  NewSessionResponse,
+} from "@agentclientprotocol/sdk";
 
 import type { Timer } from "../../../shared/time/index.ts";
-import type { LaunchRecipe } from "../domain/agent.ts";
+import type { LaunchRecipe } from "../domain/launch-recipe.ts";
 import type {
   AcpLauncher,
   AgentExit,
@@ -16,6 +19,7 @@ import type {
   SessionRequest,
   TurnOutcome,
 } from "../domain/ports.ts";
+import { prepareRecipe } from "./prepare-recipe.ts";
 
 const clientInfo = { name: "interview-sensei", version: "0.0.0" };
 
@@ -57,10 +61,28 @@ async function stopProcess(child: AgentProcess, timer: Timer): Promise<void> {
   }
 }
 
+/**
+ * Sets the recipe's permission mode, so the Candidate's own mode never applies. An agent that does
+ * not offer the mode does not start.
+ */
+async function setMode(
+  agent: ClientContext,
+  { session, mode }: { session: NewSessionResponse; mode: string | null },
+): Promise<void> {
+  if (mode === null) {
+    return;
+  }
+  const offered = session.modes?.availableModes.some((available) => available.id === mode);
+  if (offered !== true) {
+    throw new Error(`The agent does not offer the permission mode ${mode}`);
+  }
+  await agent.request("session/set_mode", { sessionId: session.sessionId, modeId: mode });
+}
+
 /** Opens the session with our MCP server; an agent without MCP over HTTP cannot have it. */
 async function openAcpSession(
   agent: ClientContext,
-  { cwd, mcpServer }: { cwd: string; mcpServer: SessionRequest["mcpServer"] },
+  { recipe, mcpServer }: { recipe: LaunchRecipe; mcpServer: SessionRequest["mcpServer"] },
 ): Promise<string> {
   const initialized: InitializeResponse = await agent.request("initialize", {
     protocolVersion: PROTOCOL_VERSION,
@@ -71,9 +93,11 @@ async function openAcpSession(
     throw new Error("The agent does not support MCP over HTTP");
   }
   const session = await agent.request("session/new", {
-    cwd,
+    cwd: recipe.cwd,
     mcpServers: [{ type: "http", name: mcpServer.name, url: mcpServer.url, headers: [] }],
+    ...(recipe.sessionMeta === null ? {} : { _meta: { ...recipe.sessionMeta } }),
   });
+  await setMode(agent, { session, mode: recipe.mode });
   return session.sessionId;
 }
 
@@ -84,7 +108,7 @@ async function openAcpSession(
  */
 function connect(
   child: AgentProcess,
-  { cwd, session }: { cwd: string; session: SessionRequest },
+  { recipe, session }: { recipe: LaunchRecipe; session: SessionRequest },
   stopped: Promise<unknown>,
 ) {
   const opened = Promise.withResolvers<{ agent: ClientContext; acpSessionId: string }>();
@@ -102,7 +126,7 @@ function connect(
     });
   const stream = ndJsonStream(Writable.toWeb(child.stdin), Readable.toWeb(child.stdout));
   const connection = app.connectWith(stream, async (agent) => {
-    const acpSessionId = await openAcpSession(agent, { cwd, mcpServer: session.mcpServer });
+    const acpSessionId = await openAcpSession(agent, { recipe, mcpServer: session.mcpServer });
     opened.resolve({ agent, acpSessionId });
     await stopped;
   });
@@ -214,16 +238,16 @@ async function openSession(
 }
 
 /**
- * Starts the agent process by the recipe, connects to it over stdio and opens one session. The
+ * Prepares the recipe's files, starts the agent process by it, connects to it over stdio and opens one session. The
  * server owns the connection; the browser only sees what the server makes of it. The timer
  * bounds the launch and the wait for the process after SIGTERM.
  */
 export function acpLauncher({ timer }: { timer: Timer }): AcpLauncher {
   return async (recipe, session) => {
-    await mkdir(recipe.cwd, { recursive: true, mode: 0o700 });
+    await prepareRecipe(recipe);
     const { child, exited } = spawnAgent(recipe);
     const { stop, stopping, stopRequested } = stopper(child, timer);
-    const { opened, connection } = connect(child, { cwd: recipe.cwd, session }, stopping);
+    const { opened, connection } = connect(child, { recipe, session }, stopping);
     void reportUnexpectedExit({ connection, exited, stopRequested, onExit: session.onExit });
     return openSession({ opened, connection, exited }, { stop, timer });
   };

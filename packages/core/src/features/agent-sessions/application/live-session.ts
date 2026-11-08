@@ -157,6 +157,7 @@ export async function launch(
     const { id: sessionId, kind, agent: agentKind } = session.view;
     const agent = await launcher.start({
       agent: agentKind,
+      kind,
       workingDirectory,
       mcpServer: session.dependencies.mcp.open({ sessionId, kind }),
       onUpdate: (update) => {

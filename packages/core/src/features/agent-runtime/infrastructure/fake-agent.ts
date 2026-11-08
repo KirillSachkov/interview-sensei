@@ -12,6 +12,9 @@
 // - `/late` ends the turn, then asks permission for a foreign command outside any turn and sends
 //   «Поздний запрос: <outcome>» when the answer comes.
 // - `/mcp` replies with the session's MCP server: «MCP: <name> <url>».
+// - `/mode` replies with the session's permission mode: «Режим: <id>». A new session starts in
+//   `candidate-mode`, which stands for the mode in the Candidate's own settings.
+// - `/meta` replies with the `_meta` of `session/new` as JSON: «_meta: <json>».
 // - Any other text gets the reply «Фейковый агент получил: «<text>»» in several chunks.
 //
 // The variable INTERVIEW_SENSEI_FAKE_AGENT_MODE stands for broken agents in launcher tests:
@@ -32,6 +35,16 @@ const chunkPauseMs = 40;
 
 /** The MCP servers each session got in `session/new`. */
 const sessionMcpServers = new Map<string, McpServer[]>();
+
+/** The `_meta` each session got in `session/new`, and its current permission mode. */
+const sessionSettings = new Map<string, { meta: unknown; mode: string }>();
+
+/** The permission modes of a session; the first is the Candidate's own, as an adapter reads it. */
+const availableModes = [
+  { id: "candidate-mode", name: "Режим кандидата" },
+  { id: "default", name: "Default" },
+  { id: "read-only", name: "Read only" },
+];
 
 /** The options of every permission request, like those of a real adapter. */
 const permissionOptions: PermissionOption[] = [
@@ -200,6 +213,16 @@ const commands = new Map<
   ["/permission", askForeignTool],
   ["/late", askAfterTurn],
   [
+    "/mode",
+    async (client, sessionId) =>
+      reply(client, sessionId, `Режим: ${sessionSettings.get(sessionId)?.mode ?? "нет"}`),
+  ],
+  [
+    "/meta",
+    async (client, sessionId) =>
+      reply(client, sessionId, `_meta: ${JSON.stringify(sessionSettings.get(sessionId)?.meta)}`),
+  ],
+  [
     "/mcp",
     async (client, sessionId) => {
       const { name, url } = mcpServerOf(sessionId);
@@ -217,7 +240,18 @@ const app = agent({ name: "interview-sensei-fake-agent" })
   .onRequest("session/new", ({ params }) => {
     const sessionId = randomUUID();
     sessionMcpServers.set(sessionId, params.mcpServers);
-    return { sessionId };
+    const mode = availableModes[0]?.id ?? "";
+    // oxlint-disable-next-line eslint/no-underscore-dangle -- `_meta` is the ACP field's name
+    sessionSettings.set(sessionId, { meta: params._meta ?? null, mode });
+    return { sessionId, modes: { currentModeId: mode, availableModes } };
+  })
+  .onRequest("session/set_mode", ({ params: { sessionId, modeId } }) => {
+    const settings = sessionSettings.get(sessionId);
+    if (settings === undefined || !availableModes.some((mode) => mode.id === modeId)) {
+      throw RequestError.invalidParams({ modeId });
+    }
+    settings.mode = modeId;
+    return {};
   })
   .onRequest("session/prompt", async ({ params: { sessionId, prompt }, client }) => {
     const text = prompt.map((block) => (block.type === "text" ? block.text : "")).join("");

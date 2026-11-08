@@ -1,16 +1,28 @@
 // The ACP launcher against the fake agent as a real process. The fake agent's modes stand for an
-// agent that never answers and one that ignores SIGTERM; the test passes time by hand.
-import { mkdtemp, rm } from "node:fs/promises";
+// agent that never answers and one that ignores SIGTERM; the test passes time by hand. The
+// recipe's files and links go to a temporary data directory; a temporary file stands for the
+// Candidate's login.
+import {
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readlink,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { describe, expect, it, onTestFinished } from "vitest";
 
 import type { Timer } from "../../../shared/time/index.ts";
-import { launchRecipe } from "../domain/agent.ts";
-import type { LiveAgent } from "../domain/ports.ts";
+import { launchRecipe } from "../domain/launch-recipe.ts";
+import type { LaunchRecipe } from "../domain/launch-recipe.ts";
+import type { AgentUpdate, LiveAgent } from "../domain/ports.ts";
 import { acpLauncher, launchTimeoutMs, stopGraceMs } from "./acp-process-launcher.ts";
-import { localInstallation } from "./installation.ts";
+import { inspectAgentHost } from "./installation.ts";
 
 async function temporaryDirectory(): Promise<string> {
   const directory = await mkdtemp(path.join(tmpdir(), "interview-sensei-launcher-"));
@@ -52,23 +64,73 @@ function manualTimer() {
   return { timer, fire };
 }
 
+/** A timer that never runs a task: these tests do not time out. */
+const idleTimer: Timer = { repeat: () => () => {}, after: () => () => {} };
+
+/** The fake agent's recipe in a fresh temporary data directory. */
+async function fakeRecipe(): Promise<LaunchRecipe> {
+  const dataDirectory = await temporaryDirectory();
+  return launchRecipe({
+    agent: "fake",
+    sessionKind: "service-chat",
+    host: await inspectAgentHost({ home: dataDirectory, env: {} })(),
+    dataDirectory,
+    sessionDirectory: path.join(dataDirectory, "sessions", "1"),
+  });
+}
+
+/** Starts the agent by the recipe; `exits` collects the exits it reports by itself. */
+function launch(recipe: LaunchRecipe, timer: Timer) {
+  const exits: unknown[] = [];
+  const updates: AgentUpdate[] = [];
+  const launched = acpLauncher({ timer })(recipe, {
+    // These tests never call the MCP server or answer a permission request.
+    mcpServer: { name: "interview-sensei", url: "http://127.0.0.1:9/mcp/unused" },
+    onUpdate: (update) => {
+      updates.push(update);
+    },
+    onPermission: () => Promise.resolve({ outcome: "cancelled" }),
+    onExit: (exit) => {
+      exits.push(exit);
+    },
+  });
+  return { launched, exits, updates };
+}
+
 /** Starts the fake agent in the mode; `exits` collects the exits it reports by itself. */
 async function startFake(mode: string, timer: Timer) {
-  const recipe = launchRecipe("fake", localInstallation(), await temporaryDirectory());
-  const exits: unknown[] = [];
-  const launched = acpLauncher({ timer })(
-    { ...recipe, env: { INTERVIEW_SENSEI_FAKE_AGENT_MODE: mode } },
-    {
-      // These tests start and stop the agent; it never calls the MCP server or asks permission.
-      mcpServer: { name: "interview-sensei", url: "http://127.0.0.1:9/mcp/unused" },
-      onUpdate: () => {},
-      onPermission: () => Promise.resolve({ outcome: "cancelled" }),
-      onExit: (exit) => {
-        exits.push(exit);
-      },
-    },
-  );
-  return { launched, exits };
+  const recipe = await fakeRecipe();
+  return launch({ ...recipe, env: { INTERVIEW_SENSEI_FAKE_AGENT_MODE: mode } }, timer);
+}
+
+/** The fake recipe, an agent home in its data directory and a file that stands for the login. */
+async function agentHome(loginContent: string) {
+  const recipe = await fakeRecipe();
+  const login = path.join(await temporaryDirectory(), "auth.json");
+  await writeFile(login, loginContent);
+  return { recipe, home: path.join(recipe.cwd, "..", "..", "agents", "fake"), login };
+}
+
+/** Starts the agent by the recipe; it stops when the test finishes. */
+async function startPrepared(recipe: LaunchRecipe): Promise<void> {
+  const { launched } = launch(recipe, idleTimer);
+  const agent = await launched;
+  onTestFinished(async () => agent.stop());
+}
+
+/** The agent's text reply to the prompt; the agent stops when the test finishes. */
+async function replyTo(agent: LiveAgent, updates: AgentUpdate[], text: string): Promise<string> {
+  onTestFinished(async () => agent.stop());
+  updates.length = 0;
+  await agent.prompt(text);
+  return updates
+    .map((update) => {
+      const { content } = update;
+      return typeof content === "object" && content !== null && "text" in content
+        ? String(content.text)
+        : "";
+    })
+    .join("");
 }
 
 /** Resolves with the rejection of the promise, so the test can pass time before it looks. */
@@ -103,5 +165,73 @@ describe("acp launcher", () => {
     await fire(stopGraceMs);
 
     await expect(stopped).resolves.toBeUndefined();
+  });
+
+  it("sets the recipe's permission mode right after session/new instead of the Candidate's", async () => {
+    const { launched, updates } = launch({ ...(await fakeRecipe()), mode: "default" }, idleTimer);
+
+    await expect(replyTo(await launched, updates, "/mode")).resolves.toBe("Режим: default");
+  });
+
+  it("refuses to start an agent that does not offer the recipe's permission mode", async () => {
+    const { launched } = launch({ ...(await fakeRecipe()), mode: "bypass-everything" }, idleTimer);
+
+    await expect(launched).rejects.toThrow(/does not offer the permission mode bypass-everything/u);
+  });
+
+  it("passes the recipe's _meta to session/new", async () => {
+    const sessionMeta = { claudeCode: { options: { settingSources: [] } } };
+    const { launched, updates } = launch({ ...(await fakeRecipe()), sessionMeta }, idleTimer);
+
+    await expect(replyTo(await launched, updates, "/meta")).resolves.toBe(
+      `_meta: ${JSON.stringify(sessionMeta)}`,
+    );
+  });
+
+  it("writes the recipe's files and links the Candidate's login before the start", async () => {
+    const { recipe, home, login } = await agentHome("token");
+
+    await startPrepared({
+      ...recipe,
+      directories: [home, ...recipe.directories],
+      files: [{ path: path.join(home, "config.toml"), content: "enabled = false\n" }],
+      symlinks: [{ path: path.join(home, "auth.json"), target: login }],
+    });
+
+    await expect(readFile(path.join(home, "config.toml"), "utf8")).resolves.toBe(
+      "enabled = false\n",
+    );
+    await expect(readlink(path.join(home, "auth.json"))).resolves.toBe(login);
+    await expect(readFile(login, "utf8")).resolves.toBe("token");
+  });
+
+  it("replaces a link at a file's path instead of writing through it", async () => {
+    const { recipe, home, login: userConfig } = await agentHome("the Candidate's own config");
+    await mkdir(home, { recursive: true });
+    await symlink(userConfig, path.join(home, "config.toml"));
+
+    await startPrepared({
+      ...recipe,
+      files: [{ path: path.join(home, "config.toml"), content: "ours" }],
+    });
+
+    await expect(readFile(userConfig, "utf8")).resolves.toBe("the Candidate's own config");
+    const entry = await lstat(path.join(home, "config.toml"));
+    expect(entry.isSymbolicLink()).toBe(false);
+    await expect(readFile(path.join(home, "config.toml"), "utf8")).resolves.toBe("ours");
+  });
+
+  it("puts the link back where a copy of the Candidate's login appeared", async () => {
+    const { recipe, home, login } = await agentHome("fresh token");
+    await mkdir(home, { recursive: true });
+    await writeFile(path.join(home, "auth.json"), "stale copy");
+
+    await startPrepared({
+      ...recipe,
+      symlinks: [{ path: path.join(home, "auth.json"), target: login }],
+    });
+
+    await expect(readlink(path.join(home, "auth.json"))).resolves.toBe(login);
+    await expect(readFile(login, "utf8")).resolves.toBe("fresh token");
   });
 });

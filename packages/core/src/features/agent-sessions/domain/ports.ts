@@ -67,6 +67,8 @@ export interface McpAddresses {
 export interface AgentLauncher {
   readonly start: (request: {
     agent: string;
+    /** The session kind; the launcher picks the agent's permission mode by it. */
+    kind: SessionKind;
     /** The session directory inside the data directory, the agent's `cwd`. */
     workingDirectory: string;
     /** The session's own MCP server, passed to the agent in `session/new`. */
