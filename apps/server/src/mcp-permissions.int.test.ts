@@ -1,5 +1,6 @@
 // The session's own MCP address and the agent's permission requests through the server's HTTP and
 // WebSocket API, with real PGlite and the fake ACP agent as a separate process.
+import type { FastifyInstance } from "fastify";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -10,6 +11,42 @@ import {
   temporaryDirectory,
 } from "./chat-test-support.ts";
 import type { SessionView } from "./chat-test-support.ts";
+
+/** Posts one JSON-RPC message of the 2025-06-18 revision to the MCP address. */
+async function postMcp(url: string, message: object) {
+  return fetch(url, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      accept: "application/json, text/event-stream",
+      "mcp-protocol-version": "2025-06-18",
+    },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, ...message }),
+  });
+}
+
+/** The JSON-RPC answer of a response with a JSON or an SSE body. */
+async function answerOf(response: Response): Promise<unknown> {
+  const body = await response.text();
+  const data = body.split("\n").find((line) => line.startsWith("data:"));
+  return JSON.parse(data === undefined ? body : data.slice("data:".length));
+}
+
+/** The answer of the MCP address to `tools/list`. */
+async function toolList(url: string): Promise<unknown> {
+  const response = await postMcp(url, { method: "tools/list", params: {} });
+  expect(response.status).toBe(200);
+  return answerOf(response);
+}
+
+/** The HTTP status the MCP address answers `tools/list` with. */
+async function mcpStatus(url: string): Promise<number> {
+  const response = await postMcp(url, { method: "tools/list" });
+  return response.status;
+}
+
+/** Only `get_brief`: the tool set of the service chat. */
+const serviceChatTools = { result: { tools: [{ name: "get_brief" }] } };
 
 const briefReply = "Фейковый агент прочитал brief:";
 
@@ -22,6 +59,16 @@ const hasAnswered = (reply: string) => (view: SessionView) =>
   isIdle(view) && lastAgentText(view) === reply;
 const isStopped = (view: SessionView) =>
   isIdle(view) && view.entries.some((entry) => entry.type === "turn_interrupted");
+const hasMcpUrl = (view: SessionView) => isIdle(view) && lastAgentText(view).startsWith("MCP: ");
+const mcpUrlOf = (view: SessionView) => lastAgentText(view).slice("MCP: ".length);
+/** Starts a chat and reads its MCP address from the fake agent's reply to `/mcp`. */
+async function chatWithMcpUrl(server: FastifyInstance) {
+  const { sessionId, events } = await readyChat(server);
+  events.send({ type: "prompt", text: "/mcp" });
+  const url = mcpUrlOf(await events.waitFor(hasMcpUrl));
+  return { sessionId, events, url };
+}
+
 const isAskingPermission = (view: SessionView) =>
   permissionRequests(view).some((entry) => entry.answer === null);
 
@@ -86,5 +133,29 @@ describe("mcp and permissions", () => {
       type: "permission_rejected",
       reason: "not_found",
     });
+  });
+
+  it("gives each session its own MCP address with the tools of its kind", async () => {
+    const { server } = await startServer(await temporaryDirectory());
+    const first = await chatWithMcpUrl(server);
+    const second = await chatWithMcpUrl(server);
+
+    expect(first.url).not.toBe(second.url);
+    // The address does not follow from the session id, which the browser API shows.
+    expect(first.url).not.toContain(first.sessionId);
+    await expect(toolList(first.url)).resolves.toMatchObject(serviceChatTools);
+    await expect(mcpStatus(new URL(`/mcp/${first.sessionId}`, first.url).href)).resolves.toBe(404);
+  });
+
+  it("rejects the MCP address of a session whose agent is gone and keeps the others", async () => {
+    const { server } = await startServer(await temporaryDirectory());
+    const gone = await chatWithMcpUrl(server);
+    const kept = await chatWithMcpUrl(server);
+
+    gone.events.send({ type: "prompt", text: "/crash" });
+    await gone.events.waitFor((view) => view.status === "failed");
+
+    await expect(mcpStatus(gone.url)).resolves.toBe(404);
+    await expect(toolList(kept.url)).resolves.toMatchObject(serviceChatTools);
   });
 });
