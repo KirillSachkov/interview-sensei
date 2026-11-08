@@ -50,6 +50,14 @@ describe("automatic answer to a permission request", () => {
     ).toStrictEqual(allowed);
   });
 
+  it("allows once a marked request whose announced tool call carries no marker", () => {
+    expect(answer({ request: marked(ourServer), announced: bare })).toStrictEqual(allowed);
+  });
+
+  it("leaves to the Candidate an unmarked request with no announced tool call", () => {
+    expect(answer({ request: bare })).toBeNull();
+  });
+
   it("leaves to the Candidate a request whose marker names a foreign server", () => {
     expect(answer({ request: marked("interview-sensei") })).toBeNull();
     expect(answer({ request: bare, announced: marked("other-server") })).toBeNull();
