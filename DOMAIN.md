@@ -18,10 +18,19 @@ An interview question with its source and Topic.
 _Avoid_: Task, when the item is not an algorithm problem.
 
 **Mock interview**:
-A session where the agent acts as an interviewer and gives no hints before the Candidate answers.
+The only kind of session: the agent acts as an interviewer and asks Questions for a Target.
+With a time limit, it follows the arc of a real interview, from general Questions to deeper ones. Without a limit, it continues until the Candidate stops it.
+Stopping early keeps every recorded Attempt and still produces a Debrief.
+_Avoid_: Training session; explanations happen in a Side thread instead.
 
-**Training session**:
-A session where the agent may explain and give hints.
+**Follow-up**:
+A clarifying question the agent asks about the current Question. Its answer belongs to the same Attempt.
+
+**Debrief**:
+The review of an Attempt: its Grade, gaps and an outline of a strong answer. The Candidate opens it for any answered Question. At the end of a Mock interview, a summary Debrief shows Topic status changes and the next step.
+
+**Interview format**:
+The structure of a Mock interview: for example, Questions on Topics in a row, a talk based on the Candidate profile, or a system design discussion.
 
 **Attempt**:
 One Candidate answer to one Question, with its Grade, the gaps it revealed, and whether the Candidate received a hint.
