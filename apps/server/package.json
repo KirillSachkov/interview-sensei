@@ -13,11 +13,13 @@
     "test:integration": "vitest run --project integration"
   },
   "dependencies": {
+    "@fastify/websocket": "11.3.7",
     "@interview-sensei/core": "workspace:*",
     "fastify": "5.12.7"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
+    "@types/ws": "8.18.2",
     "dependency-cruiser": "18.7.0",
     "typescript": "7.0.2",
     "vitest": "5.0.5"
