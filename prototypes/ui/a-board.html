@@ -1,0 +1,152 @@
+<!doctype html>
+<!-- PROTOTYPE, throwaway. Ticket #3. Variant A: board-first canvas, session opens as a side panel. -->
+<html lang="ru"><head><meta charset="utf-8"><title>Прототип A — Доска</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{--bg:#f7f7f5;--card:#fff;--ink:#1d1d1f;--mute:#6b6b70;--line:#e4e4e0;--acc:#4f5bd5;--accs:#eceefe;--ok:#2e9d5b;--oks:#e3f4ea;--warn:#c98a12;--warns:#fbf1dc;--no:#9a9aa0;--nos:#efefef;--bad:#c94a4a;--bads:#fbe6e6}
+[data-theme=dark]{--bg:#16171a;--card:#1f2024;--ink:#ececef;--mute:#9a9aa3;--line:#2e2f35;--accs:#2a2d4d;--oks:#1d3326;--warns:#3a301a;--nos:#2a2a2e;--bads:#3d2222}
+*{box-sizing:border-box}body{margin:0;font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;background:var(--bg);color:var(--ink);height:100vh;display:flex;flex-direction:column}
+header{display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid var(--line);background:var(--card)}
+header b{font-size:15px}.sp{flex:1}
+button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:6px 11px;cursor:pointer}
+button.pri{background:var(--acc);color:#fff;border-color:var(--acc)}button.ghost{border-color:transparent;background:transparent}
+.badge{background:var(--bad);color:#fff;border-radius:10px;padding:0 6px;font-size:11px;margin-left:4px}
+main{flex:1;display:flex;min-height:0}
+aside.left{width:230px;border-right:1px solid var(--line);padding:14px;background:var(--card);overflow:auto}
+.h{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);margin:14px 0 6px}
+.tgt{padding:8px 10px;border-radius:8px;margin-bottom:4px;cursor:pointer;border-left:4px solid}
+.tgt:hover{background:var(--bg)}.tgt small{display:block;color:var(--mute)}
+.canvas{flex:1;position:relative;overflow:auto;background-image:radial-gradient(var(--line) 1px,transparent 1px);background-size:18px 18px}
+svg.wires{position:absolute;inset:0;width:1100px;height:640px;pointer-events:none}
+.node{position:absolute;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 11px;min-width:150px;box-shadow:0 1px 2px rgba(0,0,0,.04);cursor:pointer}
+.node:hover{border-color:var(--acc)}.node .t{font-weight:600}.node small{color:var(--mute)}
+.root{font-weight:700;color:#fff;border:none;padding:10px 14px}
+.st{display:inline-block;font-size:11px;padding:1px 7px;border-radius:9px;margin-top:3px}
+.s0{background:var(--nos);color:var(--no)}.s1{background:var(--warns);color:var(--warn)}.s2{background:var(--oks);color:var(--ok)}
+.legend{position:absolute;left:16px;bottom:16px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:12px}
+.panel{width:0;overflow:hidden;transition:width .25s;border-left:1px solid var(--line);background:var(--card);display:flex}
+.panel.open{width:560px}.panel.split{width:900px}
+.col{width:560px;flex:none;display:flex;flex-direction:column;min-height:0}
+.col+.col{width:340px;border-left:1px solid var(--line);background:var(--bg)}
+.ph{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.stream{flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.msg{max-width:88%;padding:8px 11px;border-radius:10px;background:var(--bg);position:relative}
+.msg.me{align-self:flex-end;background:var(--accs)}
+.msg .fork{position:absolute;right:-6px;top:-8px;font-size:11px;padding:1px 6px;display:none}
+.msg:hover .fork{display:block}
+.tool{border:1px dashed var(--line);border-radius:8px;padding:6px 10px;font:12px ui-monospace,Menlo,monospace;color:var(--mute)}
+.tool b{color:var(--acc)}
+.q{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--card)}
+.q .meta{font-size:12px;color:var(--mute);display:flex;gap:8px;margin-bottom:6px}
+.q textarea{width:100%;min-height:70px;border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;background:var(--bg);color:var(--ink);resize:vertical}
+.opt{display:block;border:1px solid var(--line);border-radius:8px;padding:7px 10px;margin:5px 0;cursor:pointer}
+.opt.sel{border-color:var(--acc);background:var(--accs)}
+.grade{display:flex;align-items:center;gap:10px;margin:6px 0}
+.score{font-size:22px;font-weight:700;color:var(--warn)}
+.gap{background:var(--bads);color:var(--bad);border-radius:6px;padding:2px 8px;font-size:12px;display:inline-block;margin:2px 3px 2px 0}
+.rate button{font-size:12px;padding:3px 8px}
+.composer{display:flex;gap:6px;padding:10px;border-top:1px solid var(--line)}
+.composer input{flex:1;border:1px solid var(--line);border-radius:8px;padding:7px 10px;font:inherit;background:var(--bg);color:var(--ink)}
+.pop{position:absolute;top:50px;right:18px;width:320px;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.12);padding:12px;display:none;z-index:5}
+.pop.on{display:block}.inb{padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}.inb small{color:var(--mute);display:block}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:14px;text-align:center;color:var(--mute);margin-top:8px}
+.vbar{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);background:#1d1d1f;color:#fff;border-radius:20px;padding:5px 8px;display:flex;gap:4px;font-size:12px;z-index:9}
+.vbar a{color:#ccc;text-decoration:none;padding:3px 10px;border-radius:14px}.vbar a.on{background:#fff;color:#000}
+</style></head><body>
+<header>
+  <b>Interview Sensei</b><span style="color:var(--mute)">Доска целей</span><span class="sp"></span>
+  <span style="font-size:12px;color:var(--mute)">Агент: Claude Code · ACP подключён ●</span>
+  <button onclick="pop.classList.toggle('on')">Inbox <span class="badge">3</span></button>
+  <button class="ghost" onclick="theme()">◐</button>
+  <button class="pri" onclick="openS()">Продолжить сессию</button>
+</header>
+<div class="pop" id="pop">
+  <b>Inbox</b> <small style="color:var(--mute)">— агент ещё не обработал</small>
+  <div class="inb">habr.com/ru/articles/…/go-interview<small>ссылка · добавлено сегодня</small></div>
+  <div class="inb">Собес_Ozon_транскрипт.txt<small>файл · 12 КБ</small></div>
+  <div class="inb">youtube.com/watch?v=… «Мок System design»<small>видео</small></div>
+  <div class="drop">Перетащите файл или вставьте ссылку</div>
+  <button class="pri" style="margin-top:8px;width:100%">Попросить агента разобрать</button>
+</div>
+<main>
+  <aside class="left">
+    <div class="h">Активные цели</div>
+    <div class="tgt" style="border-color:#4f5bd5">Go Backend · Middle<small>Вакансия: Ozon, платформа</small></div>
+    <div class="tgt" style="border-color:#d5664f">.NET Backend · Senior<small>Без вакансии</small></div>
+    <div class="tgt" style="border-color:#2e9d8f">System Design · Senior<small>Вакансия: Авито</small></div>
+    <button style="width:100%;margin-top:6px">+ Новая цель</button>
+    <div class="h">Банк вопросов</div>
+    <div style="font-size:13px">142 вопроса · <a href="#" style="color:var(--acc)">8 черновиков</a> ждут принятия</div>
+    <div class="h">Сложность след. сессии</div>
+    <select style="width:100%;padding:5px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)"><option>Как сейчас</option><option>Сложнее</option><option>Проще</option></select>
+    <div class="h">Прошлые сессии</div>
+    <div style="font-size:13px;color:var(--mute)">7 нояб · Go · 6 вопр. · 1.8<br>5 нояб · .NET · 8 вопр. · 2.1<br>3 нояб · Go · 5 вопр. · 1.4</div>
+  </aside>
+  <section class="canvas">
+    <svg class="wires" id="wires"></svg>
+    <div id="nodes"></div>
+    <div class="legend"><span class="st s0">не начата</span> <span class="st s1">шаткая</span> <span class="st s2">уверенная</span> · пунктир = общая тема у нескольких целей</div>
+  </section>
+  <section class="panel" id="panel">
+    <div class="col">
+      <div class="ph"><b>Мок-собеседование</b><span style="color:var(--mute);font-size:12px">Go Backend · вопрос 3 из 6</span><span class="sp"></span><button onclick="side()">Side thread</button><button class="ghost" onclick="closeS()">✕</button></div>
+      <div class="stream">
+        <div class="msg">Продолжаем. Прошлый раз «Конкурентность» была шаткой — начну с неё.</div>
+        <div class="tool">⚙ <b>mcp.show_question</b>(id: "go-ch-07", kind: "free_text") → показан на холсте</div>
+        <div class="q"><div class="meta"><span>Конкурентность</span><span>· источник: транскрипт Ozon</span></div>
+          <b>Чем буферизованный канал отличается от небуферизованного? Когда что выбрать?</b>
+          <textarea>Небуферизованный блокирует отправителя до чтения. Буферизованный — пока буфер не заполнен…</textarea>
+          <div style="display:flex;gap:6px;margin-top:6px"><button class="pri">Отправить ответ</button><button>Не знаю</button></div></div>
+        <div class="tool">⚙ <b>mcp.record_attempt</b>(question: "go-ch-07", grade: 2) → сохранено</div>
+        <div class="q"><div class="meta"><span>Оценка попытки</span><span>· без подсказки</span></div>
+          <div class="grade"><span class="score">2 / 3</span><span>Верно про блокировку, но нет критериев выбора.</span></div>
+          <div><span class="gap">backpressure</span><span class="gap">close() и range</span></div>
+          <div style="display:flex;gap:6px;margin-top:8px;align-items:center" class="rate"><button>Оспорить оценку</button><span class="sp"></span><span style="font-size:12px;color:var(--mute)">Вопрос:</span><button>полезный</button><button>нерелевантный</button><button>ошибочный</button></div></div>
+        <div class="tool">⚙ <b>mcp.show_question</b>(id: "pg-idx-02", kind: "quiz")</div>
+        <div class="q"><div class="meta"><span>PostgreSQL · индексы</span><span>· квиз</span></div>
+          <b>Какой индекс подойдёт для запроса <code>WHERE tags @&gt; '{go}'</code>?</b>
+          <label class="opt" onclick="sel(this)">B-tree</label><label class="opt" onclick="sel(this)">GIN</label><label class="opt" onclick="sel(this)">Hash</label><label class="opt" onclick="sel(this)">BRIN</label></div>
+        <div class="msg me">Можно я сначала уточню про GIN в отдельной ветке?</div>
+      </div>
+      <div class="composer"><input placeholder="Сообщение агенту…"><button class="pri">↑</button></div>
+    </div>
+    <div class="col">
+      <div class="ph"><b>Side thread</b><span style="font-size:12px;color:var(--mute)">от вопроса 3 · основная сессия не меняется</span><span class="sp"></span><button class="ghost" onclick="side()">✕</button></div>
+      <div class="stream">
+        <div class="tool">Контекст: сессия до вопроса 3 (Attempt 2/3)</div>
+        <div class="msg me">Почему за backpressure сняли балл?</div>
+        <div class="msg">В вопросе было «когда что выбрать». Буфер — это способ сгладить пики, но он скрывает медленного потребителя…</div>
+      </div>
+      <div class="composer"><input placeholder="Вопрос в боковой ветке…"><button>↑</button></div>
+    </div>
+  </section>
+</main>
+<nav class="vbar"><a href="index.html">←</a><a class="on" href="a-board.html">A Доска</a><a href="b-workspace.html">B Рабочее место</a><a href="c-focus.html">C Фокус</a></nav>
+<script>
+const C={go:'#4f5bd5',net:'#d5664f',sd:'#2e9d8f'};
+const N=[
+ {id:'go',x:40,y:40,root:1,t:'Go Backend · Middle',c:C.go},
+ {id:'net',x:40,y:280,root:1,t:'.NET Backend · Senior',c:C.net},
+ {id:'sd',x:40,y:500,root:1,t:'System Design · Senior',c:C.sd},
+ {id:'conc',x:300,y:20,t:'Конкурентность',s:1,n:'14 вопр. · 2.0',p:['go']},
+ {id:'gc',x:300,y:110,t:'GC и память',s:0,n:'9 вопр.',p:['go','net']},
+ {id:'pg',x:560,y:190,t:'PostgreSQL',s:1,n:'21 вопр. · 1.7',p:['go','net','sd']},
+ {id:'idx',x:820,y:130,t:'Индексы',s:1,n:'8 вопр. · 1.5',p:['pg']},
+ {id:'tx',x:820,y:240,t:'Транзакции и MVCC',s:2,n:'7 вопр. · 2.8',p:['pg']},
+ {id:'http',x:300,y:350,t:'HTTP и gRPC',s:2,n:'10 вопр. · 2.6',p:['go','net']},
+ {id:'async',x:300,y:260,t:'async/await, TPL',s:1,n:'11 вопр. · 1.9',p:['net']},
+ {id:'cache',x:560,y:470,t:'Кэширование',s:0,n:'6 вопр.',p:['sd','net']},
+ {id:'queue',x:300,y:560,t:'Очереди, Kafka',s:1,n:'9 вопр. · 1.6',p:['sd','go']},
+];
+const st=['не начата','шаткая','уверенная'];
+const byId=Object.fromEntries(N.map(n=>[n.id,n]));
+nodes.innerHTML=N.map(n=>n.root?`<div class="node root" style="left:${n.x}px;top:${n.y}px;background:${n.c}">${n.t}</div>`:`<div class="node" style="left:${n.x}px;top:${n.y}px" onclick="openS()"><div class="t">${n.t}</div><small>${n.n}</small><br><span class="st s${n.s}">${st[n.s]}</span></div>`).join('');
+let w='';N.forEach(n=>(n.p||[]).forEach(p=>{const a=byId[p];const col=a.c||'#999';const x1=a.x+(a.root?190:160),y1=a.y+22,x2=n.x,y2=n.y+28;
+ w+=`<path d="M${x1},${y1} C${x1+60},${y1} ${x2-60},${y2} ${x2},${y2}" fill="none" stroke="${col}" stroke-width="2" ${n.p.length>1?'stroke-dasharray="5 4"':''} opacity=".7"/>`}));
+wires.innerHTML=w;
+function openS(){panel.className='panel open'}function closeS(){panel.className='panel'}
+function side(){panel.className=panel.className.includes('split')?'panel open':'panel split'}
+function sel(e){e.parentNode.querySelectorAll('.opt').forEach(o=>o.classList.remove('sel'));e.classList.add('sel')}
+function theme(){document.documentElement.dataset.theme=document.documentElement.dataset.theme==='dark'?'':'dark'}
+if(location.hash==='#session')openS();if(location.hash==='#side')side();
+</script></body></html>

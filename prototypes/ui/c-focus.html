@@ -1,0 +1,134 @@
+<!doctype html>
+<!-- PROTOTYPE, throwaway. Ticket #3. Variant C: minimal focus mode, one question at a time, collapsible chat, Side thread drawer. -->
+<html lang="ru"><head><meta charset="utf-8"><title>Прототип C — Фокус</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{--bg:#fbfaf7;--card:#fff;--ink:#222;--mute:#85827a;--line:#ebe8e1;--acc:#b5552e;--accs:#f8ebe4;--ok:#2e9d5b;--oks:#e3f4ea;--warn:#c98a12;--warns:#fbf1dc;--no:#a09d96;--nos:#f0eee9;--bad:#c94a4a;--bads:#fbe6e6}
+[data-theme=dark]{--bg:#171614;--card:#201f1c;--ink:#ecebe7;--mute:#9b978e;--line:#302e2a;--accs:#3a271d;--oks:#1d3326;--warns:#3a301a;--nos:#2a2926;--bads:#3d2222}
+*{box-sizing:border-box}body{margin:0;font:15px/1.55 Georgia,"Iowan Old Style",serif;background:var(--bg);color:var(--ink);min-height:100vh}
+.ui{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
+header{display:flex;align-items:center;gap:14px;padding:14px 28px;font-size:13px}.sp{flex:1}
+header a{color:var(--mute);text-decoration:none;cursor:pointer}header a.on{color:var(--ink);font-weight:600}
+button{font:13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:20px;padding:6px 14px;cursor:pointer}
+button.pri{background:var(--acc);color:#fff;border-color:var(--acc)}button.ghost{border-color:transparent;background:transparent}
+.badge{background:var(--acc);color:#fff;border-radius:10px;padding:0 6px;font-size:11px;margin-left:4px}
+.wrap{max-width:680px;margin:0 auto;padding:10px 24px 200px}
+.progress{display:flex;gap:6px;margin:10px 0 30px}.progress i{flex:1;height:4px;border-radius:2px;background:var(--line)}.progress i.d{background:var(--acc)}.progress i.c{background:var(--ink)}
+.meta{font:12px -apple-system,sans-serif;color:var(--mute);letter-spacing:.03em;text-transform:uppercase}
+h1{font-size:26px;line-height:1.3;font-weight:500;margin:10px 0 24px}
+textarea{width:100%;min-height:180px;border:none;border-bottom:1px solid var(--line);background:transparent;color:var(--ink);font:inherit;resize:vertical;outline:none;padding:0}
+.opt{display:block;padding:14px 18px;border:1px solid var(--line);border-radius:12px;margin:10px 0;cursor:pointer;background:var(--card)}.opt.sel{border-color:var(--acc);background:var(--accs)}
+.opt kbd{font:11px ui-monospace,monospace;color:var(--mute);margin-right:10px}
+.actions{display:flex;gap:8px;margin-top:22px;align-items:center}
+.result{margin-top:28px;padding:20px 22px;background:var(--card);border:1px solid var(--line);border-radius:14px}
+.score{font-size:40px;font-weight:500;color:var(--warn);line-height:1}
+.gap{display:inline-block;font:12px -apple-system,sans-serif;background:var(--bads);color:var(--bad);border-radius:6px;padding:2px 8px;margin:3px 4px 0 0}
+.rate{display:flex;gap:6px;align-items:center;margin-top:16px;font:12px -apple-system,sans-serif;color:var(--mute)}.rate button{padding:3px 10px;font-size:12px}
+.chat{position:fixed;left:50%;transform:translateX(-50%);bottom:56px;width:680px;max-width:calc(100% - 32px);background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 30px rgba(0,0,0,.08);overflow:hidden}
+.chat .bar{display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;font-size:13px}
+.chat .body{display:none;max-height:300px;overflow:auto;padding:4px 14px 10px;border-top:1px solid var(--line);font-size:13.5px}
+.chat.open .body{display:block}
+.m{margin:8px 0}.m b{font-size:11px;color:var(--mute);display:block;font-weight:500}
+.tool{font:12px ui-monospace,Menlo,monospace;color:var(--mute);border-left:2px solid var(--acc);padding:3px 9px;margin:8px 0;background:var(--bg)}
+.chat input,.drawer input{width:100%;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:13px -apple-system,sans-serif;background:var(--bg);color:var(--ink);margin-top:6px}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:380px;background:var(--card);border-left:1px solid var(--line);transform:translateX(100%);transition:transform .25s;padding:18px;display:flex;flex-direction:column;z-index:6;font-size:13.5px;box-shadow:-8px 0 30px rgba(0,0,0,.06)}
+.drawer.open{transform:none}.drawer .s{flex:1;overflow:auto}
+.pop{position:fixed;top:50px;right:28px;width:320px;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.1);padding:14px;display:none;z-index:7;font-size:13px}
+.pop.on{display:block}.inb{padding:7px 0;border-bottom:1px solid var(--line)}.inb small{color:var(--mute);display:block}
+.tcard{padding:18px 20px;background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:14px}
+.tcard h3{margin:0;font-weight:500}.bars{display:flex;height:8px;border-radius:4px;overflow:hidden;margin:12px 0 8px}
+.chips span{display:inline-block;font:12px -apple-system,sans-serif;padding:2px 9px;border-radius:10px;margin:3px 4px 0 0}
+.s0{background:var(--nos);color:var(--no)}.s1{background:var(--warns);color:var(--warn)}.s2{background:var(--oks);color:var(--ok)}
+.shared{border:1px dashed var(--mute)}
+.vbar{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);background:#1d1d1f;color:#fff;border-radius:20px;padding:5px 8px;display:flex;gap:4px;font:12px -apple-system,sans-serif;z-index:9}
+.vbar a{color:#ccc;text-decoration:none;padding:3px 10px;border-radius:14px}.vbar a.on{background:#fff;color:#000}
+.hide{display:none}
+</style></head><body>
+<header class="ui">
+  <b>Interview Sensei</b>
+  <a id="nb" onclick="view('board')">Прогресс</a><a id="ns" class="on" onclick="view('session')">Сессия</a>
+  <span class="sp"></span>
+  <a onclick="pop.classList.toggle('on')">Inbox<span class="badge">3</span></a>
+  <a onclick="drawer.classList.toggle('open')">⑂ Side thread</a>
+  <a onclick="theme()">◐</a>
+</header>
+<div class="pop ui" id="pop"><b>Inbox</b>
+  <div class="inb">habr.com/ru/articles/…/go-interview<small>ссылка</small></div>
+  <div class="inb">Собес_Ozon_транскрипт.txt<small>файл</small></div>
+  <div class="inb">«Мок System design»<small>видео</small></div>
+  <input placeholder="Вставьте ссылку или перетащите файл" style="width:100%;margin-top:8px;padding:7px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink)">
+  <button class="pri" style="width:100%;margin-top:8px">Разобрать после сессии</button>
+</div>
+
+<div class="wrap" id="board">
+  <div class="meta" style="margin-top:20px">Ваши цели</div>
+  <h1>Три цели, 9 тем. Шаткие темы: 4.</h1>
+  <div class="tcard"><h3>Go Backend · Middle</h3><div class="meta" style="text-transform:none">Ozon, платформа · последняя сессия вчера · 1.8</div>
+    <div class="bars"><i style="width:20%;background:var(--ok)"></i><i style="width:50%;background:var(--warn)"></i><i style="width:30%;background:var(--line)"></i></div>
+    <div class="chips"><span class="s1">Конкурентность</span><span class="s0 shared">GC и память</span><span class="s1 shared">PostgreSQL</span><span class="s2 shared">HTTP и gRPC</span><span class="s1 shared">Очереди</span></div>
+    <div class="actions"><button class="pri" onclick="view('session')">Продолжить</button><button>Банк вопросов · 8 черновиков</button></div></div>
+  <div class="tcard"><h3>.NET Backend · Senior</h3><div class="meta" style="text-transform:none">без вакансии · 3 дня назад · 2.1</div>
+    <div class="bars"><i style="width:30%;background:var(--ok)"></i><i style="width:30%;background:var(--warn)"></i><i style="width:40%;background:var(--line)"></i></div>
+    <div class="chips"><span class="s1">async/await</span><span class="s0 shared">GC и память</span><span class="s1 shared">PostgreSQL</span><span class="s2 shared">HTTP и gRPC</span><span class="s0 shared">Кэширование</span></div></div>
+  <div class="tcard"><h3>System Design · Senior</h3><div class="meta" style="text-transform:none">Авито · ещё не начата</div>
+    <div class="chips"><span class="s1 shared">PostgreSQL</span><span class="s0 shared">Кэширование</span><span class="s1 shared">Очереди</span></div></div>
+  <div class="meta">Пунктир — тема общая для нескольких целей</div>
+  <div class="actions"><button>+ Новая цель</button><span class="sp"></span><span class="meta" style="text-transform:none">Сложность следующей сессии</span><select style="border-radius:16px;padding:4px 8px;border:1px solid var(--line);background:var(--card);color:var(--ink)"><option>как сейчас</option><option>сложнее</option><option>проще</option></select></div>
+</div>
+
+<div class="wrap" id="session">
+  <div class="progress"><i class="d"></i><i class="d"></i><i class="c" id="p3"></i><i id="p4"></i><i></i><i></i></div>
+  <div id="q1">
+    <div class="meta">Вопрос 3 из 6 · Конкурентность · свободный ответ</div>
+    <h1>Чем буферизованный канал отличается от небуферизованного? Когда что выбрать?</h1>
+    <textarea placeholder="Пишите ответ как на собеседовании…">Небуферизованный синхронизирует отправителя и получателя. Буферизованный блокирует только при заполненном буфере, поэтому подходит, когда…</textarea>
+    <div class="actions"><button class="pri" onclick="grade()">Отправить</button><button>Не знаю</button><span class="sp"></span><span class="meta" style="text-transform:none">⌘↵ отправить</span></div>
+    <div class="result hide" id="res">
+      <div style="display:flex;gap:16px;align-items:center"><div class="score">2<span style="font-size:18px;color:var(--mute)">/3</span></div>
+      <div>Механику описали верно. Не хватило критериев выбора и того, как закрывать канал.</div></div>
+      <div style="margin-top:10px"><span class="gap">backpressure</span><span class="gap">close() и range</span></div>
+      <div class="rate"><button>Оспорить оценку</button><button onclick="drawer.classList.add('open')">⑂ Обсудить в Side thread</button><span class="sp"></span>Вопрос: <button>полезный</button><button>нерелевантный</button><button>ошибочный</button></div>
+      <div class="actions"><button class="pri" onclick="next()">Следующий вопрос →</button></div>
+    </div>
+  </div>
+  <div id="q2" class="hide">
+    <div class="meta">Вопрос 4 из 6 · PostgreSQL · квиз</div>
+    <h1>Какой индекс подойдёт для запроса <code style="font-size:20px">WHERE tags @&gt; '{go}'</code>?</h1>
+    <label class="opt" onclick="sel(this)"><kbd>1</kbd>B-tree</label><label class="opt" onclick="sel(this)"><kbd>2</kbd>GIN</label><label class="opt" onclick="sel(this)"><kbd>3</kbd>Hash</label><label class="opt" onclick="sel(this)"><kbd>4</kbd>BRIN</label>
+    <div class="actions"><button class="pri">Ответить</button><button>Не знаю</button></div>
+  </div>
+</div>
+
+<div class="chat ui" id="chat">
+  <div class="bar" onclick="chat.classList.toggle('open')"><span style="color:var(--acc)">●</span><b>Агент</b><span style="color:var(--mute)" id="last">Засчитал 2 из 3. Готов к следующему?</span><span class="sp"></span><span style="color:var(--mute)">чат ▴</span></div>
+  <div class="body">
+    <div class="m"><b>Агент</b>Сегодня мок по «Go Backend · Middle». Начну с шатких тем.</div>
+    <div class="tool">⚙ mcp.show_question(id: "go-ch-07", kind: "free_text") ✓</div>
+    <div class="tool">⚙ mcp.record_attempt(grade: 2, gaps: ["backpressure","close"]) ✓</div>
+    <div class="m"><b>Агент</b>Засчитал 2 из 3. Готов к следующему?</div>
+    <input placeholder="Написать агенту…">
+  </div>
+</div>
+
+<aside class="drawer ui" id="drawer">
+  <div style="display:flex;align-items:center"><b>⑂ Side thread</b><span class="sp"></span><button class="ghost" onclick="drawer.classList.remove('open')">✕</button></div>
+  <div class="meta" style="text-transform:none;margin:4px 0 12px">Ответвлено от вопроса 3 после оценки. Мок не меняется, подсказки здесь не влияют на Attempt.</div>
+  <div class="s">
+    <div class="m"><b>Вы</b>Что именно ты ждал про backpressure?</div>
+    <div class="m"><b>Агент</b>Что буфер не решает медленного consumer: он только откладывает блокировку. Критерий выбора — известный предел пиков…</div>
+    <div class="m"><b>Вы</b>Ок, а как это спрашивают на Ozon?</div>
+  </div>
+  <input placeholder="Спросить в ветке…">
+  <div class="meta" style="text-transform:none;margin-top:8px">Другие ветки: «GIN vs GiST» · «Что такое MVCC»</div>
+</aside>
+
+<nav class="vbar"><a href="index.html">←</a><a href="a-board.html">A Доска</a><a href="b-workspace.html">B Рабочее место</a><a class="on" href="c-focus.html">C Фокус</a></nav>
+<script>
+function view(v){board.classList.toggle('hide',v!=='board');session.classList.toggle('hide',v!=='session');chat.classList.toggle('hide',v!=='session');nb.classList.toggle('on',v==='board');ns.classList.toggle('on',v==='session')}
+function grade(){res.classList.remove('hide')}
+function next(){q1.classList.add('hide');q2.classList.remove('hide');p3.className='d';p4.className='c';last.textContent='Квиз по индексам. Выберите вариант.'}
+function sel(e){e.parentNode.querySelectorAll('.opt').forEach(o=>o.classList.remove('sel'));e.classList.add('sel')}
+function theme(){document.documentElement.dataset.theme=document.documentElement.dataset.theme==='dark'?'':'dark'}
+view(location.hash==='#board'?'board':'session');
+if(location.hash==='#graded')grade();if(location.hash==='#side'){grade();drawer.classList.add('open');chat.classList.add('open')}if(location.hash==='#quiz')next();
+</script></body></html>
