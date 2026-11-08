@@ -24,7 +24,7 @@ Install the Playwright browser once with `pnpm --filter @interview-sensei/e2e ex
 | Level       | File                                  | Runs                                                                 |
 | ----------- | ------------------------------------- | -------------------------------------------------------------------- |
 | unit        | `src/**/*.test.ts` next to the code; core domain tests at the slice root | Pure functions; no I/O, no server. `domain-is-pure` keeps tests out of `domain/`. |
-| integration | `apps/server/src/**/*.int.test.ts`    | The server in process through its HTTP API, or `src/main.ts` as a process. |
+| integration | `apps/server/src/**/*.int.test.ts`    | The server in process through its HTTP API, or `src/main.ts` and `src/launch.ts` as processes. |
 | integration | `packages/core/src/**/*.int.test.ts`  | Core technical code on real PGlite in a temporary data directory.    |
 | e2e         | `e2e/tests/*.test.ts`                 | The real browser against the built app that `interview-sensei` serves. |
 

@@ -41,7 +41,7 @@ describe("interview-sensei command", () => {
     expect(stderr).toContain("Выполните pnpm build");
   });
 
-  it("prints the URL of the served web app on a readable terminal", async () => {
+  it("prints only the URL of the served web app on stdout", async () => {
     const webDirectory = await temporaryDirectory();
     await writeFile(path.join(webDirectory, "index.html"), indexHtml);
     const launch = await startLaunch(webDirectory);
