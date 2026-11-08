@@ -31,12 +31,14 @@ For each accepted link, the check requires a `SKILL.md` with a name and a descri
 | Package | Link folder | Frontmatter name |
 | --- | --- | --- |
 | `@tanstack/react-router` | `pnpm-@tanstack+react-router-react-router` | `react-router` |
+| `@tanstack/router-core` | `pnpm-@tanstack+router-core-router-core` | `router-core` |
 | `@tanstack/router-plugin` | `pnpm-@tanstack+router-plugin-router-plugin` | `router-plugin` |
 
 Limits:
 
 - pnpm links only `skills/<name>/SKILL.md`. The nested skills `compositions/router-query` and `lifecycle/migrate-from-react-router` of `@tanstack/react-router` are not linked.
-- `react-router` declares `requires: router-core`. The skills of `@tanstack/router-core` are not approved, so that skill is absent.
+- pnpm links skills only of direct dependencies. `apps/web` lists `@tanstack/router-core` for this reason: `react-router` declares `requires: router-core`.
+  Its version must match the one `@tanstack/react-router` depends on; bump both together.
 - Discovery of these links by Claude Code and Codex is not verified.
 - A lockfile bump changes the skill text. No hash pins it.
 
