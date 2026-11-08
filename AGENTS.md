@@ -1,5 +1,7 @@
 # Interview Sensei
 
+Session mode: worktree
+
 Before planning or implementing work, read [the agreed scope](docs/requirements.en.md).
 This repository contains the open-source first version: a local interview-preparation layer over the user's own coding agent.
 The closed second version, with its own agent and SaaS, lives in a separate private repository; keep its code and plans out of this one.
