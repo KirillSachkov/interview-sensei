@@ -76,9 +76,23 @@ export function isSessionView(value: unknown): value is SessionView {
 
 async function readJson(response: Response): Promise<unknown> {
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
+    throw new Error((await serverMessage(response)) ?? `HTTP ${response.status}`);
   }
   return response.json();
+}
+
+/** The Russian message the server put in an error body, if there is one. */
+async function serverMessage(response: Response): Promise<string | undefined> {
+  const body: unknown = await response.json().catch(() => null);
+  if (
+    typeof body === "object" &&
+    body !== null &&
+    "message" in body &&
+    typeof body.message === "string"
+  ) {
+    return body.message;
+  }
+  return undefined;
 }
 
 /** Every session, the newest first. */
