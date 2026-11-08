@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -16,10 +17,26 @@ async function temporaryDirectory(): Promise<string> {
   return directory;
 }
 
-/** Runs the server's entry point as `node src/main.ts` on a free port and the given data directory. */
-function runServer(dataDirectory: string) {
+/** Holds a loopback port until the test finishes, so a server cannot listen on it. */
+async function occupiedPort(): Promise<number> {
+  const blocker = createServer();
+  blocker.listen(0, "127.0.0.1");
+  await once(blocker, "listening");
+  onTestFinished(async () => {
+    blocker.close();
+    await once(blocker, "close");
+  });
+  const address = blocker.address();
+  if (address === null || typeof address === "string") {
+    throw new Error("The blocker listens on no TCP port");
+  }
+  return address.port;
+}
+
+/** Runs the server's entry point as `node src/main.ts` on the data directory, by default on a free port. */
+function runServer(dataDirectory: string, port = 0) {
   const child = spawn(process.execPath, [mainScript], {
-    env: { ...process.env, INTERVIEW_SENSEI_DATA_DIR: dataDirectory, SERVER_PORT: "0" },
+    env: { ...process.env, INTERVIEW_SENSEI_DATA_DIR: dataDirectory, SERVER_PORT: String(port) },
     stdio: ["ignore", "pipe", "pipe"],
   });
   const exited = once(child, "exit");
@@ -86,5 +103,16 @@ describe("server process", () => {
     expect(code).toBe(1);
     expect(stderr).toContain(`Каталог данных ${dataDirectory} уже занят`);
     expect(stderr).toContain(`(PID ${first.pid})`);
+  });
+
+  it("closes the data directory and exits with code 1 when the port is taken", async () => {
+    const dataDirectory = await temporaryDirectory();
+    const server = runServer(dataDirectory, await occupiedPort());
+
+    await expect(server.exit()).resolves.toMatchObject({ code: 1 });
+    await expect(readdir(dataDirectory)).resolves.toStrictEqual([
+      "database",
+      "database.dump.tar.gz",
+    ]);
   });
 });

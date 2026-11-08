@@ -26,7 +26,13 @@ async function start(): Promise<void> {
       void server.close();
     });
   }
-  await server.listen({ host, port });
+  try {
+    await server.listen({ host, port });
+  } catch (error) {
+    // Close writes the final dump and releases the lock, so a failed start ends like a stop.
+    await server.close();
+    throw error;
+  }
 }
 
 try {
