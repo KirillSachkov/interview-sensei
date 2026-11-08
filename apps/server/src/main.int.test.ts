@@ -35,9 +35,9 @@ async function occupiedPort(): Promise<number> {
 }
 
 /** Runs the server's entry point as `node src/main.ts` on the data directory, by default on a free port. */
-function startMain(dataDirectory: string, port = 0) {
+function startMain(dataDirectory: string, port = 0, env: NodeJS.ProcessEnv = {}) {
   const main = startProcess(mainScript, {
-    env: { INTERVIEW_SENSEI_DATA_DIR: dataDirectory, SERVER_PORT: String(port) },
+    env: { INTERVIEW_SENSEI_DATA_DIR: dataDirectory, SERVER_PORT: String(port), ...env },
   });
   return { ...main, listening: () => main.output(/Server listening/u) };
 }
@@ -84,4 +84,19 @@ describe("server process", () => {
       "database.dump.tar.gz",
     ]);
   });
+
+  it.each(["0.0.0.0", "::", "192.168.1.10"])(
+    "refuses to listen on the non-loopback host %s and exits with code 1",
+    async (host) => {
+      const dataDirectory = path.join(await temporaryDirectory(), "data");
+      const server = startMain(dataDirectory, 0, { SERVER_HOST: host });
+
+      const { code, stderr } = await server.exit();
+
+      expect(code).toBe(1);
+      expect(stderr).toContain(`SERVER_HOST=${host} не loopback-адрес`);
+      // The check runs before the server opens the data directory.
+      await expect(readdir(dataDirectory)).rejects.toThrow(/ENOENT/u);
+    },
+  );
 });

@@ -65,7 +65,8 @@ In-process API tests listen on a free loopback port: the agent reaches the sessi
 `pnpm test:e2e` uses port 4320; set `E2E_SERVER_PORT` to change it.
 A server on a taken port exits with code 1 and a message that names the port.
 Give each worktree its own ports when several run at once.
-`SERVER_HOST` must be a loopback address such as the default `127.0.0.1` (#23): agents always get their MCP address on `127.0.0.1`.
+`SERVER_HOST` takes only `127.0.0.1` (the default), `::1` or `localhost` (#23).
+Any other host, `0.0.0.0` and `::` included, makes the server exit with code 1 before it opens the data directory.
 
 ## Data directory
 
@@ -85,7 +86,6 @@ To check the built app by hand, run `pnpm build`, then the same variables with `
 
 `interview-sensei` (`apps/server/src/launch.ts`) serves `apps/web/dist` beside `/api` and prints the URL.
 It logs only warnings and errors, so the URL line stays visible; `pnpm dev` logs every request.
-On a wildcard host such as `0.0.0.0` or `::`, the URL uses the loopback address.
 Without a built web app, it exits with code 1 and asks for `pnpm build`.
 `INTERVIEW_SENSEI_WEB_DIR` replaces `apps/web/dist` in tests.
 It opens the URL with `open` on macOS, `rundll32 url.dll,FileProtocolHandler` on Windows and `xdg-open` elsewhere.

@@ -5,6 +5,7 @@ import { systemClock, systemTimer } from "@interview-sensei/core/time";
 import type { FastifyInstance } from "fastify";
 
 import { appUrl } from "./app-url.ts";
+import { isLoopbackHost } from "./loopback.ts";
 import { buildServer } from "./server.ts";
 import type { LogLevel } from "./server.ts";
 
@@ -45,6 +46,11 @@ async function listen(server: FastifyInstance, host: string, port: number): Prom
 async function start({ webDirectory, onListening, logLevel = "info" }: RunOptions): Promise<void> {
   // Local application: listen on the loopback interface only.
   const host = process.env.SERVER_HOST ?? "127.0.0.1";
+  if (!isLoopbackHost(host)) {
+    throw new StartError(
+      `SERVER_HOST=${host} не loopback-адрес. Сервер слушает только 127.0.0.1, ::1 или localhost.`,
+    );
+  }
   const port = Number(process.env.SERVER_PORT ?? "4310");
   const server = await buildServer({
     clock: systemClock,
