@@ -12,24 +12,30 @@ function field(value: unknown, key: string): unknown {
     : undefined;
 }
 
-/**
- * The MCP server that the tool call belongs to, read from the adapter's structural fields; null
- * when the adapter marks no MCP server or the agent kind is unknown. #24 adds the fields of Claude
- * Code, Codex and OpenCode.
- */
-function mcpServerOf(agent: AgentKind, toolCall: ToolCallFields): string | null {
-  switch (agent) {
-    case "fake": {
-      // The fake agent marks its MCP calls with `_meta.fakeAgent.mcpServer`.
-      const server = field(field(field(toolCall, "_meta"), "fakeAgent"), "mcpServer");
-      return typeof server === "string" ? server : null;
-    }
-    default: {
-      agent satisfies never;
-      return null;
-    }
-  }
+function text(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
 }
+
+/**
+ * How each adapter marks the MCP server of a tool call in its structural fields. Each reader
+ * returns the server's name from `session/new`, or null when the tool call carries no marker.
+ */
+const mcpServerReaders: Readonly<Record<AgentKind, (toolCall: ToolCallFields) => string | null>> = {
+  // claude-agent-acp copies the SDK's `mcpServer` of an `mcp__*` tool into the permission
+  // request as `_meta.claudeCode.mcpServer`.
+  claude: (toolCall) =>
+    text(field(field(field(field(toolCall, "_meta"), "claudeCode"), "mcpServer"), "name")),
+  // codex-acp marks an MCP tool call with `_meta.is_mcp_tool_call` and names its server in
+  // `rawInput.server`.
+  codex: (toolCall) =>
+    field(field(toolCall, "_meta"), "is_mcp_tool_call") === true
+      ? text(field(field(toolCall, "rawInput"), "server"))
+      : null,
+  // OpenCode asks no permission for MCP tools, so it marks none.
+  opencode: () => null,
+  // The fake agent marks its MCP calls with `_meta.fakeAgent.mcpServer`.
+  fake: (toolCall) => text(field(field(field(toolCall, "_meta"), "fakeAgent"), "mcpServer")),
+};
 
 interface PermissionCase {
   /** The agent kind; a kind this rule does not know marks no MCP server. */
@@ -52,8 +58,9 @@ function isOurCall({ agent, ourServer, request, announced }: PermissionCase): bo
   if (!isAgentKind(agent)) {
     return false;
   }
-  const requestServer = mcpServerOf(agent, request);
-  const announcedServer = announced === undefined ? null : mcpServerOf(agent, announced);
+  const mcpServerOf = mcpServerReaders[agent];
+  const requestServer = mcpServerOf(request);
+  const announcedServer = announced === undefined ? null : mcpServerOf(announced);
   if (requestServer !== null) {
     return requestServer === ourServer && (announcedServer ?? ourServer) === ourServer;
   }

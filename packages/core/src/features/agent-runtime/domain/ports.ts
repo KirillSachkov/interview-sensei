@@ -1,4 +1,4 @@
-import type { LaunchRecipe } from "./agent.ts";
+import type { LaunchRecipe } from "./launch-recipe.ts";
 
 /** One ACP `session/update`, passed on whole. */
 export interface AgentUpdate {

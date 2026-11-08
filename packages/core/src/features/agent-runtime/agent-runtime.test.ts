@@ -3,6 +3,8 @@
 import { describe, expect, it } from "vitest";
 
 import { createAgentRuntime } from "./application/agent-runtime.ts";
+import type { AgentHost } from "./domain/agent.ts";
+import type { LaunchRecipe } from "./domain/launch-recipe.ts";
 import type {
   AgentUpdate,
   PermissionAnswer,
@@ -30,13 +32,25 @@ const ourToolCall: AgentUpdate = {
   _meta: { fakeAgent: { mcpServer: ourServer } },
 };
 
+/** A machine with every agent installed and no Codex login. */
+const host: AgentHost = {
+  nodeExecutable: "node",
+  fakeAgentScript: "fake-agent.ts",
+  claudeAdapter: "claude-agent-acp.js",
+  codexAdapter: "codex-acp.js",
+  opencodeBinary: null,
+  codexAuth: { path: "/home/candidate/.codex/auth.json", exists: false },
+  opencodeAuth: { path: "/home/candidate/.local/share/opencode/auth.json", exists: false },
+};
+
 /** Starts the fake agent through an in-memory launcher and returns the agent's side of ACP. */
 async function startAgent() {
   const launched = Promise.withResolvers<SessionRequest>();
   const turn = Promise.withResolvers<{ type: "ended"; stopReason: string }>();
   const runtime = createAgentRuntime({
     agents: ["fake"],
-    installation: { nodeExecutable: "node", fakeAgentScript: "fake-agent.ts" },
+    inspectHost: () => Promise.resolve(host),
+    dataDirectory: "/home/candidate/.interview-sensei",
     launch: (_recipe, session) => {
       launched.resolve(session);
       return Promise.resolve({
@@ -49,6 +63,7 @@ async function startAgent() {
   });
   const live = await runtime.start({
     agent: "fake",
+    kind: "service-chat",
     workingDirectory: "/tmp/session",
     mcpServer: { name: ourServer, url: "http://127.0.0.1:1/mcp" },
     onUpdate: () => {},
@@ -104,5 +119,68 @@ describe("agent runtime permission gate", () => {
     await turn;
 
     await expect(agent.ask("call-1")).resolves.toStrictEqual(candidateAnswer);
+  });
+});
+
+/** A runtime offering the agents; `recipes` collects what it hands the launcher. */
+function runtimeOffering(agents: Parameters<typeof createAgentRuntime>[0]["agents"]) {
+  const recipes: LaunchRecipe[] = [];
+  const runtime = createAgentRuntime({
+    agents,
+    inspectHost: () => Promise.resolve(host),
+    dataDirectory: "/home/candidate/.interview-sensei",
+    launch: (recipe) => {
+      recipes.push(recipe);
+      return Promise.resolve({
+        acpSessionId: "acp-1",
+        prompt: () => Promise.resolve({ type: "ended", stopReason: "end_turn" }),
+        cancel: async () => {},
+        stop: async () => {},
+      });
+    },
+  });
+  const start = async (agent: string) =>
+    runtime.start({
+      agent,
+      kind: "service-chat",
+      workingDirectory: "/home/candidate/.interview-sensei/sessions/1",
+      mcpServer: { name: ourServer, url: "http://127.0.0.1:1/mcp" },
+      onUpdate: () => {},
+      onExit: () => {},
+      onPermission: () => Promise.resolve(candidateAnswer),
+    });
+  return { runtime, start, recipes };
+}
+
+describe("agent runtime start", () => {
+  it("lists the offered agents with the reason of each unavailable one", async () => {
+    const { runtime } = runtimeOffering(["claude", "codex", "opencode"]);
+
+    const [claude, codex, opencode] = await runtime.listAgents();
+
+    expect(claude).toStrictEqual({ agent: "claude", available: true });
+    expect(codex).toMatchObject({ agent: "codex", available: false });
+    expect(opencode).toMatchObject({ agent: "opencode", available: false });
+  });
+
+  it("starts an available agent by its recipe", async () => {
+    const { start, recipes } = runtimeOffering(["claude"]);
+
+    await start("claude");
+
+    expect(recipes).toMatchObject([{ args: ["claude-agent-acp.js"], mode: "default" }]);
+  });
+
+  it("refuses to start an unavailable agent and gives the reason", async () => {
+    const { start, recipes } = runtimeOffering(["codex"]);
+
+    await expect(start("codex")).rejects.toThrow(/codex login/u);
+    expect(recipes).toStrictEqual([]);
+  });
+
+  it("refuses to start an agent the server does not offer", async () => {
+    const { start } = runtimeOffering(["claude"]);
+
+    await expect(start("fake")).rejects.toThrow(/not offered/u);
   });
 });

@@ -1,5 +1,6 @@
-import type { AgentAvailability, AgentKind, Installation } from "../domain/agent.ts";
-import { isAgentKind, launchRecipe } from "../domain/agent.ts";
+import type { AgentAvailability, AgentHost, AgentKind } from "../domain/agent.ts";
+import { agentAvailability, isAgentKind } from "../domain/agent.ts";
+import { isRuntimeSessionKind, launchRecipe } from "../domain/launch-recipe.ts";
 import { automaticAnswer } from "../domain/permissions.ts";
 import type {
   AcpLauncher,
@@ -12,19 +13,25 @@ import type {
 export interface AgentRuntimeDependencies {
   /** The agents this server offers; the fake agent only when the server enables it. */
   readonly agents: readonly AgentKind[];
-  readonly installation: Installation;
+  /**
+   * Finds the adapters, programs and logins on this machine. The runtime asks at each check, so a
+   * new login shows after a page reload.
+   */
+  readonly inspectHost: () => Promise<AgentHost>;
+  /** The data directory: the agents' own homes and configs live in it. */
+  readonly dataDirectory: string;
   readonly launch: AcpLauncher;
 }
 
 /** Checks which agents are available, starts them through ACP and passes on their events. */
 export interface AgentRuntime {
-  readonly listAgents: () => readonly AgentAvailability[];
+  readonly listAgents: () => Promise<readonly AgentAvailability[]>;
   /**
    * Starts the agent with our MCP server. The server allows calls of our MCP tools by itself;
    * other permission requests go to `onPermission`.
    */
   readonly start: (
-    request: SessionRequest & { agent: string; workingDirectory: string },
+    request: SessionRequest & { agent: string; kind: string; workingDirectory: string },
   ) => Promise<LiveAgent>;
 }
 
@@ -101,20 +108,40 @@ function forgettingTurns(agent: LiveAgent, endTurn: () => void): LiveAgent {
   };
 }
 
-export function createAgentRuntime({
-  agents,
-  installation,
-  launch,
-}: AgentRuntimeDependencies): AgentRuntime {
+/** The agent's availability on this machine now; throws the reason when it is unavailable. */
+async function availableHost(
+  { agents, inspectHost }: Pick<AgentRuntimeDependencies, "agents" | "inspectHost">,
+  agent: string,
+): Promise<{ agent: AgentKind; host: AgentHost }> {
+  if (!isAgentKind(agent) || !agents.includes(agent)) {
+    throw new Error(`The agent ${agent} is not offered`);
+  }
+  const host = await inspectHost();
+  const [availability] = agentAvailability([agent], host);
+  if (availability?.available !== true) {
+    throw new Error(availability?.reason ?? `The agent ${agent} is not available`);
+  }
+  return { agent, host };
+}
+
+export function createAgentRuntime(dependencies: AgentRuntimeDependencies): AgentRuntime {
+  const { agents, inspectHost, dataDirectory, launch } = dependencies;
   return {
-    listAgents: () => agents.map((agent) => ({ agent, available: true })),
-    start: async ({ agent, workingDirectory, ...request }) => {
-      if (!isAgentKind(agent) || !agents.includes(agent)) {
-        throw new Error(`The agent ${agent} is not available`);
+    listAgents: async () => agentAvailability(agents, await inspectHost()),
+    start: async ({ agent: requested, kind, workingDirectory, ...request }) => {
+      if (!isRuntimeSessionKind(kind)) {
+        throw new Error(`The session kind ${kind} has no launch recipe`);
       }
+      const { agent, host } = await availableHost(dependencies, requested);
+      const recipe = launchRecipe({
+        agent,
+        sessionKind: kind,
+        host,
+        dataDirectory,
+        sessionDirectory: workingDirectory,
+      });
       const gate = permissionGate(agent, request);
-      const live = await launch(launchRecipe(agent, installation, workingDirectory), gate.session);
-      return forgettingTurns(live, gate.endTurn);
+      return forgettingTurns(await launch(recipe, gate.session), gate.endTurn);
     },
   };
 }
