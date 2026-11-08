@@ -35,7 +35,7 @@ Other workspaces reach core only through the subpaths in `packages/core/package.
 | `application-does-not-use-infrastructure`   | dependency-cruiser | Application depends on ports, not on their implementations.             |
 | `features-are-independent`                  | dependency-cruiser | Core slices do not import each other, so parallel slices do not conflict. |
 | `shared-is-technical`                       | dependency-cruiser | `src/shared/` does not depend on feature slices.                        |
-| `no-circular`                               | dependency-cruiser | No import cycles; oxlint `import/no-cycle` checks every workspace too.  |
+| `no-circular`                               | dependency-cruiser | No import cycles, type-only imports included. In web and e2e, oxlint `import/no-cycle` reports value-import cycles. |
 | `not-to-unresolvable`                       | dependency-cruiser | Every import resolves, including core subpath exports.                  |
 | `tsPreCompilationDeps`                      | dependency-cruiser | Type-only imports count as dependencies.                                |
 | `interview-sensei/require-disable-reason`   | oxlint             | Every disable directive gives a reason after `--`.                      |
