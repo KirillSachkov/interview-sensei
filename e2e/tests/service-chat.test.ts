@@ -48,7 +48,7 @@ test("the Candidate answers the agent's permission request in the chat", async (
 
   const request = messages.getByRole("group", { name: "Запрос разрешения" });
   await expect(request).toContainText(
-    "Агент просит разрешение: mcp__interview-sensei__get_brief: touch interview-sensei/get_brief.txt",
+    /Агент просит разрешение: mcp__interview-sensei-[0-9a-f]{8}__get_brief: touch interview-sensei\/get_brief\.txt/u,
   );
   await request.getByRole("button", { name: "Разрешить", exact: true }).click();
   await expect(request).toContainText("Ваш ответ: Разрешить");

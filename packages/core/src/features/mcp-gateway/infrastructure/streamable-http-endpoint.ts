@@ -8,11 +8,11 @@ import {
 } from "@modelcontextprotocol/server";
 
 import type { SessionTool, ToolSession } from "../../../shared/mcp/index.ts";
-import { mcpServerName } from "../domain/mcp-address.ts";
+import { mcpImplementationName } from "../domain/mcp-address.ts";
 import type { McpEndpoint } from "../domain/ports.ts";
 
 function mcpServer(tools: readonly SessionTool[], session: ToolSession): McpServer {
-  const server = new McpServer({ name: mcpServerName, version: "0.0.0" });
+  const server = new McpServer({ name: mcpImplementationName, version: "0.0.0" });
   for (const tool of tools) {
     server.registerTool(
       tool.name,

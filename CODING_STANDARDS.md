@@ -30,10 +30,23 @@ When a slice needs another slice, it defines a port in its `domain/`, and the se
 ### MCP tools
 
 `mcp-gateway` gives each AgentSession its own MCP address, `/mcp/<secret token>`, with the tool set of its session kind.
-A slice defines a tool with `sessionTool` from `src/shared/mcp` in its `application/`, as `get_brief` does, and exports it from its `index.ts`.
+It names the session's MCP server `interview-sensei-<random hex>`, so a server named `interview-sensei` in the Candidate's agent config is never taken for ours.
+A tool lives in the `application/` of the slice that owns its data: define it there with `sessionTool` from `src/shared/mcp` and export it from the slice's `index.ts`.
+Content that differs by session kind lives in that slice's `domain/`.
+`get_brief` is the template: the tool is in `mcp-gateway/application/get-brief.ts`, and the brief of each kind is in `briefFor` in `mcp-gateway/domain/brief.ts`.
 `sessionTools` in `apps/server/src/mcp.ts` lists the tools of each session kind; add the new tool there.
 A tool acts only on the session it receives. Write its name in snake_case and its description in English.
-The server allows calls of our MCP tools without asking the Candidate; `agent-runtime/domain/permissions.ts` recognizes them by the adapter's structural fields, never by `title` or other text.
+
+The server allows calls of our MCP tools without asking the Candidate; `automaticAnswer` in `agent-runtime/domain/permissions.ts` decides.
+It reads only the structural marker that the agent's adapter sets, never `title` or other text.
+It allows a request in two cases, and only with that session's MCP server name:
+
+- The request carries our marker, and the `tool_call` the agent announced with the same `toolCallId` carries no other marker.
+- The request carries no marker, the announced `tool_call` carries ours, and the request gives no other `kind`.
+
+Then the server picks `allow_once`; without that option, and for an agent kind it does not know, the Candidate decides.
+The runtime keeps announced tool calls only until they complete or fail, or the turn ends.
+When #24 adds an agent, add its marker to `mcpServerOf` and unit tests to `agent-runtime/permissions.test.ts`.
 Other workspaces reach core only through the subpaths in `packages/core/package.json` `exports`.
 
 ### Storage

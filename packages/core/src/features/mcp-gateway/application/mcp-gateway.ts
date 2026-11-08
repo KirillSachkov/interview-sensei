@@ -1,6 +1,6 @@
 import type { SessionTool, ToolSession } from "../../../shared/mcp/index.ts";
 import type { McpAddress } from "../domain/mcp-address.ts";
-import { mcpServerName, mcpUrl } from "../domain/mcp-address.ts";
+import { mcpUrl, sessionMcpServerName } from "../domain/mcp-address.ts";
 import type { McpEndpoint } from "../domain/ports.ts";
 
 export interface McpGatewayDependencies {
@@ -10,6 +10,8 @@ export interface McpGatewayDependencies {
   readonly origin: () => string;
   /** A new secret token; nobody can derive one address from another or from a session id. */
   readonly newToken: () => string;
+  /** A new random suffix for the session's MCP server name. */
+  readonly newNameSuffix: () => string;
   /** Serves the tools to the session over MCP. */
   readonly serve: (tools: readonly SessionTool[], session: ToolSession) => McpEndpoint;
 }
@@ -33,6 +35,7 @@ export function createMcpGateway({
   toolsFor,
   origin,
   newToken,
+  newNameSuffix,
   serve,
 }: McpGatewayDependencies): McpGateway {
   const bySession = new Map<string, OpenAddress>();
@@ -45,7 +48,7 @@ export function createMcpGateway({
       const endpoint = serve(toolsFor(session.kind), session);
       bySession.set(session.sessionId, { token, endpoint });
       byToken.set(token, endpoint);
-      return { name: mcpServerName, url: mcpUrl(serverOrigin, token) };
+      return { name: sessionMcpServerName(newNameSuffix()), url: mcpUrl(serverOrigin, token) };
     },
     close: async (sessionId) => {
       const address = bySession.get(sessionId);

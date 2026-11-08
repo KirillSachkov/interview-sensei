@@ -60,13 +60,14 @@ const hasAnswered = (reply: string) => (view: SessionView) =>
 const isStopped = (view: SessionView) =>
   isIdle(view) && view.entries.some((entry) => entry.type === "turn_interrupted");
 const hasMcpUrl = (view: SessionView) => isIdle(view) && lastAgentText(view).startsWith("MCP: ");
-const mcpUrlOf = (view: SessionView) => lastAgentText(view).slice("MCP: ".length);
-/** Starts a chat and reads its MCP address from the fake agent's reply to `/mcp`. */
+/** Starts a chat and reads its MCP server from the fake agent's reply `MCP: <name> <url>`. */
 async function chatWithMcpUrl(server: FastifyInstance) {
   const { sessionId, events } = await readyChat(server);
   events.send({ type: "prompt", text: "/mcp" });
-  const url = mcpUrlOf(await events.waitFor(hasMcpUrl));
-  return { sessionId, events, url };
+  const [name = "", url = ""] = lastAgentText(await events.waitFor(hasMcpUrl))
+    .slice("MCP: ".length)
+    .split(" ");
+  return { sessionId, events, name, url };
 }
 
 const isAskingPermission = (view: SessionView) =>
@@ -92,9 +93,11 @@ describe("mcp and permissions", () => {
 
     const asking = await events.waitFor(isAskingPermission);
     const [request] = permissionRequests(asking);
-    // The title names our MCP server and tool, but only structural fields mark our tools.
+    // The title names the session's MCP server and tool, but only structural fields mark our tools.
     expect(request).toMatchObject({
-      title: "mcp__interview-sensei__get_brief: touch interview-sensei/get_brief.txt",
+      title: expect.stringMatching(
+        /^mcp__interview-sensei-[0-9a-f]{8}__get_brief: touch interview-sensei\/get_brief\.txt$/u,
+      ),
       options: [
         { optionId: "allow-once", name: "Разрешить", kind: "allow_once" },
         { optionId: "allow-always", name: "Разрешать всегда", kind: "allow_always" },
@@ -141,6 +144,10 @@ describe("mcp and permissions", () => {
     const second = await chatWithMcpUrl(server);
 
     expect(first.url).not.toBe(second.url);
+    // A server of the same name in the Candidate's agent config cannot pass for ours.
+    expect(first.name).toMatch(/^interview-sensei-[0-9a-f]{8}$/u);
+    expect(second.name).toMatch(/^interview-sensei-[0-9a-f]{8}$/u);
+    expect(first.name).not.toBe(second.name);
     // The address does not follow from the session id, which the browser API shows.
     expect(first.url).not.toContain(first.sessionId);
     await expect(toolList(first.url)).resolves.toMatchObject(serviceChatTools);

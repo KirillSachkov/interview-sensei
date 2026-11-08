@@ -4,6 +4,7 @@ import {
   createMcpGateway,
   getBrief,
   mcpRoute,
+  randomNameSuffix,
   randomToken,
   streamableHttpEndpoint,
 } from "@interview-sensei/core/mcp-gateway";
@@ -60,6 +61,7 @@ export function mountMcpGateway(server: FastifyInstance): McpGateway {
     toolsFor,
     origin: () => listeningOrigin(server),
     newToken: randomToken,
+    newNameSuffix: randomNameSuffix,
     serve: (tools, session) =>
       streamableHttpEndpoint(tools, session, {
         onError: (error) => {

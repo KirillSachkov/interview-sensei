@@ -7,9 +7,9 @@
 // - `/fail` answers the prompt with a JSON-RPC error and keeps running.
 // - `/brief` asks permission to call `get_brief` of our MCP server, then calls it over HTTP and
 //   replies «Фейковый агент прочитал brief: <brief>». The server allows the call by itself.
-// - `/permission` asks permission for a foreign shell command whose title names our MCP server
-//   and tool, then replies with the chosen option: «Фейковый агент получил ответ: «<name>»».
-// - `/mcp` replies with the session's MCP address: «MCP: <url>».
+// - `/permission` asks permission for a foreign shell command whose title names the session's MCP
+//   server and tool, then replies with the chosen option: «Фейковый агент получил ответ: «<name>»».
+// - `/mcp` replies with the session's MCP server: «MCP: <name> <url>».
 // - Any other text gets the reply «Фейковый агент получил: «<text>»» in several chunks.
 //
 // The variable INTERVIEW_SENSEI_FAKE_AGENT_MODE stands for broken agents in launcher tests:
@@ -147,8 +147,8 @@ async function askForeignTool(client: AgentContext, sessionId: string) {
   const command = "touch interview-sensei/get_brief.txt";
   const outcome = await askPermission(client, sessionId, {
     toolCallId: randomUUID(),
-    // The title names our MCP server and tool; only structural fields may count.
-    title: `mcp__interview-sensei__get_brief: ${command}`,
+    // The title names the session's MCP server and tool; only structural fields may count.
+    title: `mcp__${mcpServerOf(sessionId).name}__get_brief: ${command}`,
     kind: "execute",
     rawInput: { command },
   });
@@ -180,7 +180,10 @@ const commands = new Map<
   ["/permission", askForeignTool],
   [
     "/mcp",
-    async (client, sessionId) => reply(client, sessionId, `MCP: ${mcpServerOf(sessionId).url}`),
+    async (client, sessionId) => {
+      const { name, url } = mcpServerOf(sessionId);
+      return reply(client, sessionId, `MCP: ${name} ${url}`);
+    },
   ],
 ]);
 

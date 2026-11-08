@@ -95,7 +95,7 @@ The server records every event in the journal; the chat and its history after a 
 _Avoid_: Session, when the kind of session matters; a Mock interview runs in an AgentSession.
 
 **MCP address**:
-The URL of our MCP server that one AgentSession gets in `session/new`. It offers the tools of the session kind and acts only on that session.
+The URL of our MCP server that one AgentSession gets in `session/new`, under a server name of its own. It offers the tools of the session kind and acts only on that session.
 Only that session's agent gets it, and it closes when that agent stops.
 
 **Permission request**:

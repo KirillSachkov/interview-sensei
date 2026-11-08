@@ -38,7 +38,7 @@ Tests never call real agents: they need subscriptions.
 Tests use the fake ACP agent instead: `buildServer({ fakeAgent: true })` in process, `INTERVIEW_SENSEI_FAKE_AGENT=1` for `src/main.ts`.
 The fake agent streams a reply in chunks; the prompt `/wait` waits for a cancel, `/fail` answers with a JSON-RPC error, and `/crash` exits with code 1.
 `/brief` calls `get_brief` on the session's MCP address after a permission request that the server allows by itself.
-`/permission` asks permission for a foreign tool and replies with the Candidate's choice; `/mcp` replies with the session's MCP address.
+`/permission` asks permission for a foreign tool and replies with the Candidate's choice; `/mcp` replies with the session's MCP server name and address.
 In-process API tests listen on a free loopback port: the agent reaches the session's MCP address over real HTTP.
 `INTERVIEW_SENSEI_FAKE_AGENT_MODE=silent` makes it a hung agent; `ignore-sigterm` makes it ignore SIGTERM.
 
