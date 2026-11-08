@@ -22,12 +22,14 @@ Write a report the owner can understand without reading the conversation or ever
 
 ## Suggested shape
 
-Scale this shape to the change. Translate its headings into the team language. Omit empty sections and replace every placeholder.
+Scale this shape to the change. Translate its headings and bold labels into the team language. Omit empty sections and replace every placeholder.
 
 Project rule: the report contains the [five required parts](../../../docs/agents/human-review.md#level-1-every-pr). That rule overrides "Omit empty sections" for those parts.
+Project rule: the report follows the [report format](../../../docs/agents/human-review.md#present-the-result); it overrides this shape where they differ.
 
 ````markdown
 <agent provenance under project rules>
+**Owner action:** <what the owner must do now, with direct links; or that only acceptance is needed>
 
 ## What changes
 
@@ -36,11 +38,13 @@ Project rule: the report contains the [five required parts](../../../docs/agents
 
 ## How to verify it yourself
 
-<part 2: steps the owner can run and the expected result of each>
+1. <step the owner can run>. **Expected:** <result>
+<part 2: 3 to 5 steps>
 
 ## Verification
 
-<short result, actual evidence, and the important limit>
+**CI:** <result and run link>
+<short conclusion and the important limit>
 <part 3: evidence>
 
 <details>
@@ -60,7 +64,7 @@ Checked head: <commit permalink>. Review base: <full SHA>.
 
 ## What the owner needs to do
 
-<concrete question or action, expected result, reason, and evidence>
+- **<question>** **Recommendation:** <answer and consequence>. **Alternative:** <one option and consequence>. **Evidence:** <link>.
 <or a short reason why no additional manual check is needed>
 <part 5: what the owner must decide>
 
