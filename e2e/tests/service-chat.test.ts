@@ -5,11 +5,13 @@ test("the fake agent answers «Привет» in a new service chat", async ({ p
   await page.goto("/");
   await page.getByLabel("Агент").selectOption({ label: "Фейковый агент" });
   await page.getByRole("button", { name: "Новый чат" }).click();
+  // The new chat replaces the latest one from earlier runs and has no messages yet.
+  const messages = page.getByRole("list", { name: "Сообщения" }).getByRole("listitem");
+  await expect(messages).toHaveCount(0);
 
+  // The field turns on when the agent has started; chats of earlier runs keep it off.
   await page.getByLabel("Сообщение").fill("Привет");
-  // The button turns on when the agent has started and waits for a prompt.
   await page.getByRole("button", { name: "Отправить" }).click();
 
-  const messages = page.getByRole("list", { name: "Сообщения" }).getByRole("listitem");
   await expect(messages).toHaveText(["Вы: Привет", "Агент: Фейковый агент получил: «Привет»"]);
 });

@@ -39,7 +39,9 @@ function SessionState({ view, onCancel }: { view: SessionView; onCancel: () => v
   return null;
 }
 
-function MessageForm({ enabled, onSend }: { enabled: boolean; onSend: (text: string) => void }) {
+/** The Candidate types while the agent works, and sends once it waits for a prompt. */
+function MessageForm({ view, onSend }: { view: SessionView; onSend: (text: string) => void }) {
+  const canType = view.status === "idle" || view.status === "working";
   const [text, setText] = useState("");
   const submit = (event: SubmitEvent) => {
     event.preventDefault();
@@ -53,13 +55,14 @@ function MessageForm({ enabled, onSend }: { enabled: boolean; onSend: (text: str
       <label>
         Сообщение{" "}
         <input
+          disabled={!canType}
           value={text}
           onChange={(event) => {
             setText(event.target.value);
           }}
         />
       </label>{" "}
-      <button type="submit" disabled={!enabled || text.trim() === ""}>
+      <button type="submit" disabled={view.status !== "idle" || text.trim() === ""}>
         Отправить
       </button>
     </form>
@@ -77,7 +80,7 @@ export function Chat({ sessionId }: { sessionId: string }) {
       <p>Агент: {agentName(view.agent)}</p>
       <ChatEntries entries={view.entries} />
       <SessionState view={view} onCancel={cancel} />
-      <MessageForm enabled={view.status === "idle"} onSend={prompt} />
+      <MessageForm view={view} onSend={prompt} />
     </section>
   );
 }
