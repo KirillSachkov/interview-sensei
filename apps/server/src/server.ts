@@ -77,7 +77,12 @@ export async function buildServer({
   userEnvironment,
   webDirectory,
 }: ServerDependencies): Promise<FastifyInstance> {
-  const server = fastify({ logger: logLevel === undefined ? false : { level: logLevel } });
+  const server = fastify({
+    logger: logLevel === undefined ? false : { level: logLevel },
+    // Close waits for every connection before the onClose hooks stop the agents. A browser keeps
+    // spare connections without a request, so close drops them instead of waiting minutes.
+    forceCloseConnections: true,
+  });
   const storage = await openStorage({
     dataDirectory,
     clock,
