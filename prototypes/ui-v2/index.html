@@ -213,8 +213,8 @@ function setupChat(){
  ${input('setup','Опишите, что поменять, или перетащите файл…',`<button class="ghost ico" title="Прикрепить файл" onclick="$('#fileIn').click()">📎</button>`)}`;
 }
 function threadNode(t){
- if(!t.open)return{id:t.id,w:280,stroke:'#e8590c',noOverlap:1,html:`<div class="row" style="cursor:pointer" onclick="act('topen','${t.id}')"><span style="font-size:20px">↗</span><b>${esc(t.title)}</b><span class="sp"></span><span class="tag">${t.msgs.length}</span></div>${t.hint?'<div class="hint" style="margin-top:4px">открыта до ответа: с подсказкой</div>':''}`};
- return{id:t.id,w:460,stroke:'#e8590c',cls:'cnode',noOverlap:1,html:`<div class="chathd"><span style="font-size:20px">↗</span><b>${esc(t.title)}</b><span class="sp"></span>${S.working===t.id?working():''}<button class="ghost ico" title="Свернуть" onclick="act('topen','${t.id}')">–</button></div>
+ if(!t.open)return{id:t.id,w:280,stroke:'#e8590c',noOverlap:1,html:`<div class="row" style="cursor:pointer" onclick="act('topen','${t.id}')"><span style="font-size:20px">↗</span><b>${esc(t.title)}</b><span class="sp"></span><span class="tag">${t.msgs.length}</span><button class="ghost ico" title="Удалить ветку" onclick="event.stopPropagation();askDelThread('${t.id}')">✕</button></div>${t.hint?'<div class="hint" style="margin-top:4px">открыта до ответа: с подсказкой</div>':''}`};
+ return{id:t.id,w:460,stroke:'#e8590c',cls:'cnode',noOverlap:1,html:`<div class="chathd"><span style="font-size:20px">↗</span><b>${esc(t.title)}</b><span class="sp"></span>${S.working===t.id?working():''}<button class="ghost ico" title="Свернуть" onclick="act('topen','${t.id}')">–</button><button class="ghost ico" title="Удалить ветку" onclick="askDelThread('${t.id}')">✕</button></div>
  <div class="nodechat scroll"><div class="msg sys">Отдельная ветка: оценок и записи попыток здесь нет.</div>${msgs(t.msgs)}</div>${input(t.id,'Спросить в ветке…')}`};
 }
 const pinBtn=k=>`<button class="ghost ico pin ${S.pin[k]?'on':''}" title="${S.pin[k]?'Открепить: вернуть на холст':'Закрепить у края экрана'}" onclick="S.pin.${k}=!S.pin.${k};render()">📌</button>`;
@@ -398,6 +398,10 @@ function reset(){S=Object.assign(initState(),{variant:S.variant,style:S.style});
 addEventListener('keydown',e=>{if(e.target.closest('input,textarea'))return;if(e.key==='ArrowLeft')cycle(-1);if(e.key==='ArrowRight')cycle(1)});
 
 // ---------- actions ----------
+function askDelThread(id){const t=S.threads.find(x=>x.id===id);const m=$('#modal');m.classList.add('on');m.innerHTML=`<div class="island"><div class="ttl" style="margin-bottom:10px">Удалить ветку?</div>
+ <div>«${esc(t.title)}» и вся переписка в ней исчезнут без возможности вернуть.</div>${t.hint?'<div class="hint" style="margin-top:8px">Отметка «с подсказкой» у попытки останется: попытки не меняются.</div>':''}
+ <div class="acts" style="margin-top:18px"><span class="sp"></span><button onclick="$('#modal').classList.remove('on')">Отмена</button><button class="pri" style="background:#c92a2a;border-color:#c92a2a" onclick="delThread('${id}')">Удалить</button></div></div>`}
+function delThread(id){S.threads=S.threads.filter(x=>x.id!==id);$('#modal').classList.remove('on');render();toast('Ветка удалена')}
 function openSetup(intent){S.setupOpen=true;if(intent)setupQuick(intent,true);else render();focusNode('setup');const i=$('#ci-setup');if(i)i.focus()}
 function setupQuick(x,silent){
  if(x==='Добавить материалы'){S.setup.push({r:'c',t:'Хочу добавить материалы.'});agentLater(()=>S.setup.push({r:'a',t:'Пришлите файл, ссылку или текст вакансии: 📎 или перетащите сюда. Разбирать буду в фоне, вопросы появятся в банке.'}),'setup');return}
