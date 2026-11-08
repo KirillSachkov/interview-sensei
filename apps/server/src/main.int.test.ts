@@ -107,9 +107,13 @@ describe("server process", () => {
 
   it("closes the data directory and exits with code 1 when the port is taken", async () => {
     const dataDirectory = await temporaryDirectory();
-    const server = runServer(dataDirectory, await occupiedPort());
+    const port = await occupiedPort();
+    const server = runServer(dataDirectory, port);
 
-    await expect(server.exit()).resolves.toMatchObject({ code: 1 });
+    const { code, stderr } = await server.exit();
+
+    expect(code).toBe(1);
+    expect(stderr).toContain(`Порт ${port} на 127.0.0.1 занят`);
     await expect(readdir(dataDirectory)).resolves.toStrictEqual([
       "database",
       "database.dump.tar.gz",
