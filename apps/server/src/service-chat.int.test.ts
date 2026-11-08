@@ -1,6 +1,8 @@
 // The service chat through the server's HTTP and WebSocket API, with real PGlite and the fake
 // ACP agent as a separate process.
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
+
+import { buildServer } from "./server.ts";
 
 import {
   agentTexts,
@@ -13,6 +15,50 @@ import {
   temporaryDirectory,
 } from "./chat-test-support.ts";
 import type { SessionView } from "./chat-test-support.ts";
+
+/** A server with the fake agent whose requests wait at `preHandler` until the test lets them go. */
+async function gatedServer(dataDirectory: string) {
+  const reached = Promise.withResolvers<null>();
+  const gate = Promise.withResolvers<null>();
+  const server = await buildServer({
+    clock: { now: () => new Date(fixedTime) },
+    timer: { repeat: () => () => {}, after: () => () => {} },
+    dataDirectory,
+    fakeAgent: true,
+  });
+  server.addHook("preHandler", async () => {
+    reached.resolve(null);
+    await gate.promise;
+  });
+  const release = () => {
+    gate.resolve(null);
+  };
+  let closed: Promise<void> | null = null;
+  const stop = async () => {
+    closed ??= server.close();
+    await closed;
+  };
+  onTestFinished(async () => {
+    release();
+    await stop();
+  });
+  await server.ready();
+  return { reached: reached.promise, server, stop, release };
+}
+
+/** Sends a new chat that passes the request hooks, shuts the server down, then lets it go on. */
+async function startChatDuringShutdown(dataDirectory: string) {
+  const { server, reached, stop, release } = await gatedServer(dataDirectory);
+  const starting = server.inject({
+    method: "POST",
+    url: "/api/sessions",
+    payload: { kind: "service-chat", agent: "fake" },
+  });
+  await reached;
+  await stop();
+  release();
+  return starting;
+}
 
 const isAnswered = (view: SessionView) => isIdle(view) && agentTexts(view).includes(fakeReply);
 const isWaitingForCancel = (view: SessionView) =>
@@ -162,5 +208,20 @@ describe("service chat", () => {
     });
 
     expect(response.statusCode).toBe(404);
+  });
+
+  it("answers 503 to a new chat that reaches the server while it shuts down", async () => {
+    const dataDirectory = await temporaryDirectory();
+
+    const response = await startChatDuringShutdown(dataDirectory);
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toStrictEqual({
+      error: "server_closing",
+      message: "Сервер завершает работу и не начинает новые чаты.",
+    });
+    const { server: restarted } = await startServer(dataDirectory);
+    const list = await restarted.inject({ method: "GET", url: "/api/sessions" });
+    expect(list.json()).toStrictEqual([]);
   });
 });

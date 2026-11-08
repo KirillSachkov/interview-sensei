@@ -1,5 +1,5 @@
 import type { AgentRuntime } from "@interview-sensei/core/agent-runtime";
-import { sessionKinds } from "@interview-sensei/core/agent-sessions";
+import { SessionsClosedError, sessionKinds } from "@interview-sensei/core/agent-sessions";
 import type {
   AgentSessions,
   SessionKind,
@@ -136,6 +136,23 @@ async function serveEvents(
   }
 }
 
+const serverClosingMessage = "Сервер завершает работу и не начинает новые чаты.";
+
+/** The started session, or null when the server shuts down and starts no new session. */
+async function startOrRefuse(
+  sessions: AgentSessions,
+  request: { kind: SessionKind; agent: string },
+): Promise<SessionView | null> {
+  try {
+    return await sessions.start(request);
+  } catch (error) {
+    if (error instanceof SessionsClosedError) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 function registerStartRoute(
   server: FastifyInstance,
   { runtime, sessions }: Pick<RouteDependencies, "runtime" | "sessions">,
@@ -155,7 +172,10 @@ function registerStartRoute(
       if (offered?.available !== true) {
         return reply.code(400).send({ error: "agent_unavailable" });
       }
-      return reply.code(201).send(await sessions.start({ kind, agent }));
+      const session = await startOrRefuse(sessions, { kind, agent });
+      return session === null
+        ? reply.code(503).send({ error: "server_closing", message: serverClosingMessage })
+        : reply.code(201).send(session);
     },
   );
 }
@@ -163,7 +183,8 @@ function registerStartRoute(
 /**
  * The HTTP and WebSocket API of agents and AgentSessions:
  * - `GET /api/agents`: the agents and whether each is available, with the reason when not.
- * - `POST /api/sessions` `{ kind, agent }`: creates a session and starts its agent.
+ * - `POST /api/sessions` `{ kind, agent }`: creates a session and starts its agent; 503 with
+ *   `{ error: "server_closing", message }` once the server shuts down.
  * - `GET /api/sessions`: every session, the newest first; `GET /api/sessions/:id`: its view.
  * - WebSocket `/api/sessions/:id/events`: sends `{ type: "session", session }` at once and after
  *   each change; takes `{ type: "prompt", text }`, `{ type: "cancel" }` and

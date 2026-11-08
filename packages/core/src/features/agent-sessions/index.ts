@@ -2,7 +2,7 @@ import path from "node:path";
 
 import type { SliceMigrations } from "../../shared/storage/index.ts";
 
-export { createAgentSessions } from "./application/agent-sessions.ts";
+export { createAgentSessions, SessionsClosedError } from "./application/agent-sessions.ts";
 export type { AgentSessions, PromptOutcome } from "./application/agent-sessions.ts";
 export { sessionKinds } from "./domain/agent-session.ts";
 export type { AgentSession, SessionKind, SessionView } from "./domain/agent-session.ts";

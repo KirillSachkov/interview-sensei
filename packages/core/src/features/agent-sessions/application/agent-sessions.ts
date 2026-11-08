@@ -30,7 +30,10 @@ export interface AgentSessionsDependencies extends LiveSessionDependencies {
 export type PromptOutcome = "accepted" | "busy" | "closed" | "not_found";
 
 export interface AgentSessions {
-  /** Creates the session and starts its agent in the background; the view reports progress. */
+  /**
+   * Creates the session and starts its agent in the background; the view reports progress.
+   * Rejects with SessionsClosedError once close has begun.
+   */
   readonly start: (request: { kind: SessionKind; agent: string }) => Promise<SessionView>;
   /** Every session, the newest first. */
   readonly list: () => Promise<readonly AgentSession[]>;
@@ -50,26 +53,70 @@ export interface AgentSessions {
   readonly subscribe: (sessionId: string, listener: SessionListener) => () => void;
   /** Marks sessions that were live when the server last stopped as ended. Call it at start. */
   readonly endInterrupted: () => Promise<void>;
-  /** Stops every agent and marks its session as ended. */
+  /**
+   * Refuses new sessions, waits for the sessions being created, then stops every agent and marks
+   * its session as ended.
+   */
   readonly close: () => Promise<void>;
+}
+
+/** The server is shutting down: AgentSessions starts no new session. */
+export class SessionsClosedError extends Error {
+  constructor() {
+    super("The server is shutting down and starts no new session");
+    this.name = "SessionsClosedError";
+  }
 }
 
 interface Context {
   readonly dependencies: AgentSessionsDependencies;
   readonly live: Map<string, LiveSession>;
+  /** Starts that have not yet put their session into `live`; close waits for them. */
+  readonly starting: Set<Promise<unknown>>;
+  closing: boolean;
+}
+
+/** Creates the session and starts its agent; close ends it when close began meanwhile. */
+async function createAndLaunch(
+  context: Context,
+  { kind, agent }: { kind: SessionKind; agent: string },
+): Promise<SessionView> {
+  const { dependencies } = context;
+  const { repository, clock } = dependencies;
+  const created = await repository.create({ kind, agent, createdAt: clock.now() });
+  const session = liveSession(created, dependencies);
+  if (context.closing) {
+    // Close began during the create: the session ends before its agent ever starts.
+    await record(session, { type: "session_ended" });
+    throw new SessionsClosedError();
+  }
+  launchLive(context, session);
+  return session.view;
+}
+
+/** Hands the session to `live`, where close finds it, and starts its agent in the background. */
+function launchLive({ dependencies, live }: Context, session: LiveSession): void {
+  const { launcher, sessionsDirectory } = dependencies;
+  live.set(session.view.id, session);
+  const workingDirectory = path.join(sessionsDirectory, session.view.id);
+  session.started = launch(session, { launcher, workingDirectory });
 }
 
 async function start(
-  { dependencies, live }: Context,
-  { kind, agent }: { kind: SessionKind; agent: string },
+  context: Context,
+  request: { kind: SessionKind; agent: string },
 ): Promise<SessionView> {
-  const { repository, clock, launcher, sessionsDirectory } = dependencies;
-  const created = await repository.create({ kind, agent, createdAt: clock.now() });
-  const session = liveSession(created, dependencies);
-  live.set(created.id, session);
-  const workingDirectory = path.join(sessionsDirectory, created.id);
-  session.started = launch(session, { launcher, workingDirectory });
-  return session.view;
+  if (context.closing) {
+    throw new SessionsClosedError();
+  }
+  const starting = createAndLaunch(context, request);
+  // Close waits for this start: it either hands its session to close or ends it itself.
+  context.starting.add(starting);
+  try {
+    return await starting;
+  } finally {
+    context.starting.delete(starting);
+  }
 }
 
 async function view({ dependencies, live }: Context, sessionId: string) {
@@ -153,7 +200,11 @@ async function end(session: LiveSession): Promise<void> {
   await session.written;
 }
 
-async function close({ live }: Context): Promise<void> {
+async function close(context: Context): Promise<void> {
+  context.closing = true;
+  // A session being created ends in its start, before the storage closes.
+  await Promise.allSettled(context.starting);
+  const { live } = context;
   const sessions = [...live.values()];
   live.clear();
   await Promise.all(sessions.map(async (session) => end(session)));
@@ -161,7 +212,12 @@ async function close({ live }: Context): Promise<void> {
 
 /** AgentSessions of this server: starts their agents, keeps their journals and tells listeners. */
 export function createAgentSessions(dependencies: AgentSessionsDependencies): AgentSessions {
-  const context: Context = { dependencies, live: new Map() };
+  const context: Context = {
+    dependencies,
+    live: new Map(),
+    starting: new Set(),
+    closing: false,
+  };
   return {
     start: async (request) => start(context, request),
     list: async () => dependencies.repository.list(),
