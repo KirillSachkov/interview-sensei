@@ -38,7 +38,7 @@ Give each worktree its own ports when several run at once.
 
 ## CI
 
-`harness-check` (`.github/workflows/harness.yml`) runs the structural checker and the whitespace check.
+`harness-check` (`.github/workflows/check.yml`) runs the structural checker and the whitespace check.
 `app-check`, `app-test` and `app-e2e` (`.github/workflows/app.yml`) run `pnpm check`, `pnpm test` and `pnpm test:e2e`.
 Repository protection settings are not implied by these jobs.
 
