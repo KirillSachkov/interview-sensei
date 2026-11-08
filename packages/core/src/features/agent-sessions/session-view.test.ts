@@ -124,6 +124,12 @@ describe("session view", () => {
     );
   });
 
+  it("shows the agent's command for a permission request with a title", () => {
+    expect(
+      inputOf({ toolCallId: "call-1", title: "Read a file", rawInput: { command: "rm -rf ~" } }),
+    ).toBe("rm -rf ~");
+  });
+
   it("shows the agent's arguments, shortened, for a request without a title or command", () => {
     const input = inputOf({ toolCallId: "call-1", rawInput: { path: "a".repeat(500) } });
     expect(input).toBe(`{"path":"${"a".repeat(190)}…`);

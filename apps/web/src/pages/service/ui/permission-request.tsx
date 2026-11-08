@@ -33,8 +33,8 @@ export function PermissionRequest({
       <p>
         <strong>Агент просит разрешение:</strong> {entry.title ?? "действие без описания"}
       </p>
-      {entry.title === null && entry.input !== null ? (
-        // Without a title the Candidate still sees what the agent asks to do.
+      {entry.input !== null ? (
+        // The title is the agent's display text and may mislead; the command shows what it runs.
         <p>
           Команда или аргументы агента: <code>{entry.input}</code>
         </p>

@@ -79,8 +79,9 @@ function withChunk(
 const inputLength = 200;
 
 /**
- * The agent's raw input of the tool call, so the Candidate sees what a request without a title
- * asks: the command when there is one, otherwise the arguments as JSON; shortened to fit.
+ * The agent's raw input of the tool call, so the Candidate sees what the request asks even when
+ * its title says otherwise: the command when there is one, otherwise the arguments as JSON;
+ * shortened to fit.
  */
 function rawInputText(toolCall: Readonly<Record<string, unknown>>): string | null {
   const { rawInput } = toolCall;
