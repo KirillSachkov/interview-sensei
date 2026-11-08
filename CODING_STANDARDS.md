@@ -10,8 +10,7 @@ For agent instructions, apply `.agents/skills/writing-for-agents/SKILL.md` and i
 Check that conditional pointers reach their material before an action needs it.
 Keep the authority for each process rule in one place.
 
-For human documentation, compare English and Russian versions for equivalent decisions, evidence and required actions.
-Translations must not introduce different permissions or requirements.
+For human documentation, check that the Russian text states decisions, evidence and required actions clearly.
 
 For borrowed material, inspect provenance, retained notices and documented adaptations.
 A changed source pin must describe the files actually updated.

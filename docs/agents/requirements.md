@@ -15,8 +15,8 @@ Keep large ideas as proposals until concrete behavior is ready to specify.
 
 ## Current behavior and history
 
-`docs/requirements.en.md` and `docs/requirements.ru.md` describe this repository’s agreed scope.
-Maintain the human document pair when the agreed scope changes.
+`docs/requirements.ru.md` describes this repository’s agreed scope.
+Update it when the agreed scope changes.
 Agent instructions own the operational rules; human process maps explain them.
 
 An issue, including a change spec, records what was requested and why at that time.

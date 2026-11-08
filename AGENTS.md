@@ -2,20 +2,20 @@
 
 Session mode: worktree
 
-Before planning or implementing work, read [the agreed scope](docs/requirements.en.md).
+Before planning or implementing work, read [the agreed scope](docs/requirements.ru.md).
 This repository contains the open-source first version: a local interview-preparation layer over the user's own coding agent.
 The closed second version, with its own agent and SaaS, lives in a separate private repository; keep its code and plans out of this one.
 
 ## Language
 
 Human language: ru.
-Supported human languages: en, ru.
 
 Use the selected language for replies, issues, specs, PRs and reports, including headings.
 Keep executable syntax, identifiers and established technical terms intact.
 Write agent instructions, skills and tool descriptions in English.
-Maintain English and Russian human documentation together; neither translation expands the agreed scope.
-Use `setup-matt-pocock-skills` to choose or change the human language.
+Russian is the only human language: PR titles and bodies, issues, specs, reports and human documentation.
+Do not add English versions of human documents.
+Agent tooling uses native `AGENTS.md`; do not add `CLAUDE.md`.
 
 ## Start and authority
 
@@ -39,4 +39,4 @@ Follow [delivery](docs/agents/delivery.md) for merge authority.
 - Before delivery, read [delivery](docs/agents/delivery.md).
 - Before tracker operations, read [tracker](docs/agents/issue-tracker.md); before triage, read [label mappings](docs/agents/triage-labels.md).
 - Before applying skills, read [runtime and provenance](.agents/skills/README.md).
-- Before changing borrowed skills, read [upstream maintenance](docs/upstream.en.md).
+- Before changing borrowed skills, read [upstream maintenance](docs/upstream.ru.md).

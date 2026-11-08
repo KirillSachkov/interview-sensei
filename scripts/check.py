@@ -91,17 +91,14 @@ def check(root: Path) -> tuple[list[str], dict[str, int]]:
             elif url.fragment and target.suffix == ".md" and unquote(url.fragment) not in anchors(target.read_text()):
                 errors.append(f"{file.relative_to(root)}: missing anchor {raw}")
 
-    for left, right in [("CLAUDE.md", "AGENTS.md"), (".claude/skills", ".agents/skills")]:
+    for file in root.rglob("CLAUDE.md"):
+        if ".git" not in file.relative_to(root).parts:
+            errors.append(f"{file.relative_to(root)}: use native AGENTS.md instead of CLAUDE.md")
+    for left, right in [(".claude/skills", ".agents/skills")]:
         if not (root / left).is_symlink() or (root / left).resolve() != (root / right).resolve():
             errors.append(f"{left}: incorrect client pointer")
-    if not re.search(r"^Human language: (en|ru)\.$", (root / "AGENTS.md").read_text(), re.M):
-        errors.append("AGENTS.md: choose an explicit en or ru human language")
-    for file in root.rglob("*.en.md"):
-        if not file.with_name(file.name.replace(".en.md", ".ru.md")).is_file():
-            errors.append(f"{file.relative_to(root)}: missing Russian peer")
-    for file in root.rglob("*.ru.md"):
-        if not file.with_name(file.name.replace(".ru.md", ".en.md")).is_file():
-            errors.append(f"{file.relative_to(root)}: missing English peer")
+    if not re.search(r"^Human language: ru\.$", (root / "AGENTS.md").read_text(), re.M):
+        errors.append("AGENTS.md: the human language must be ru")
     return errors, counts
 
 
@@ -112,4 +109,4 @@ if __name__ == "__main__":
         print(problem, file=sys.stderr)
     if problems:
         raise SystemExit(1)
-    print("Structure checks passed. Behavior and translation meaning require separate evidence.")
+    print("Structure checks passed. Behavior and text meaning require separate evidence.")

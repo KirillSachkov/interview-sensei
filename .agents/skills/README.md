@@ -9,7 +9,7 @@ These are adapted copies, not a claim of byte identity with upstream.
 ## Runtime
 
 Skills live in `.agents/skills`; `.claude/skills` points here.
-Root `CLAUDE.md` points to the same `AGENTS.md` authority.
+Clients read root `AGENTS.md` natively; the repository has no `CLAUDE.md`.
 Use the client’s native skill mechanism where available.
 When it is unavailable, read the named SKILL.md and its references, then follow the explicit assignment.
 This fallback does not allow an agent to select user-only entrypoints itself.
@@ -34,7 +34,7 @@ If independent subagents are unavailable, report independent review as unavailab
 ## Notices and updates
 
 Retain [Matt’s MIT notice](LICENSE.mattpocock), [HumanLayer’s MIT notice](LICENSE.humanlayer) and [PR credits](pr/CREDITS.md).
-See [upstream maintenance](../../docs/upstream.en.md) for selective three-way updates.
+See [upstream maintenance](../../docs/upstream.ru.md) for selective three-way updates.
 Default source exceptions: none. Locally authored skill: `ship`.
 Local adaptations do not imply a newer upstream source revision.
 Record per-skill source exceptions here before changing the default source snapshot after a partial update.

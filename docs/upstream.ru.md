@@ -1,7 +1,5 @@
 # Сопровождение upstream
 
-[English](upstream.en.md)
-
 Репозиторий хранит редактируемые копии skills; запуск не требует загрузки другого репозитория.
 Исходная версия Matt: `a496f5513d4a4cf889bc48e189e579f4b0bdf6aa`.
 Начальные локальные адаптации получены через [ai-first-platform](https://github.com/KirillSachkov/ai-first-platform/commit/53c0b946506b41839e255806144c3289680061c8).

@@ -17,7 +17,7 @@ CI runs the structural checker and whitespace check on the PR result.
 ## Appropriate evidence
 
 For documentation or metadata changes, run structural checks and obtain independent review.
-Check English/Russian meaning and owner actions during review; a link checker cannot do that.
+Check the meaning of Russian text and owner actions during review; a link checker cannot do that.
 For changed checker behavior, exercise a clean fixture and a fixture that should fail.
 Record the observed failure and successful result rather than adding tests for prose wording.
 For new executable behavior, add suitable regression tests as part of that issue.
