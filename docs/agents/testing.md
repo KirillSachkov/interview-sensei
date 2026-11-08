@@ -44,6 +44,8 @@ The fake agent gets an empty environment plus its recipe's variables.
 API keys stay: the Candidate chose them. With `ANTHROPIC_API_KEY` set, Claude Code bills the API instead of the subscription.
 Tests that check the real agents' availability pass a temporary directory as `userEnvironment.home` and PATH, and start no real agent.
 Launch recipes are pure: unit tests give them made-up paths, and nothing touches the disk.
+The OpenCode model comes from `config.json`, `opencode.json` and `opencode.jsonc` in `$XDG_CONFIG_HOME/opencode` or `~/.config/opencode`.
+Unit tests give `opencodeModelSettings` made-up texts; a missing or invalid file gives no model.
 The fake agent streams a reply in chunks; the prompt `/wait` waits for a cancel, `/fail` answers with a JSON-RPC error, and `/crash` exits with code 1.
 `/brief` calls `get_brief` on the session's MCP address after a permission request that the server allows by itself.
 `/permission` asks permission for a foreign tool and replies with the Candidate's choice; `/mcp` replies with the session's MCP server name and address.
