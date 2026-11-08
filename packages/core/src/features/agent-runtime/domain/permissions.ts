@@ -15,7 +15,7 @@ function field(value: unknown, key: string): unknown {
  * The MCP server that the tool call belongs to, read from the adapter's structural fields; null
  * when the adapter marks no MCP server. #24 adds the fields of Claude Code, Codex and OpenCode.
  */
-export function mcpServerOf(agent: AgentKind, toolCall: ToolCallFields): string | null {
+function mcpServerOf(agent: AgentKind, toolCall: ToolCallFields): string | null {
   switch (agent) {
     case "fake": {
       // The fake agent marks its MCP calls with `_meta.fakeAgent.mcpServer`.

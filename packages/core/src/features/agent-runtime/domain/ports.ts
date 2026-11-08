@@ -13,7 +13,7 @@ export interface AgentExit {
 }
 
 /** Our MCP server for the session, passed to the agent in `session/new` as `type: "http"`. */
-export interface McpServerAddress {
+interface McpServerAddress {
   readonly name: string;
   readonly url: string;
 }
@@ -36,7 +36,7 @@ export interface PermissionOption {
 }
 
 /** ACP `session/request_permission` without the session id. */
-export interface PermissionRequest {
+interface PermissionRequest {
   readonly toolCall: ToolCallFields;
   readonly options: readonly PermissionOption[];
 }
@@ -46,7 +46,7 @@ export type PermissionAnswer =
   { readonly outcome: "selected"; readonly optionId: string } | { readonly outcome: "cancelled" };
 
 /** Receivers of the agent's event stream. */
-export interface AgentListeners {
+interface AgentListeners {
   /** Receives every `session/update` in the order the agent sent them. */
   readonly onUpdate: (update: AgentUpdate) => void;
   /** Called once when the process exits by itself, after the last update. */

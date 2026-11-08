@@ -42,7 +42,7 @@ export async function startServer(dataDirectory: string) {
   return { server, stop };
 }
 
-export interface Entry {
+interface Entry {
   readonly id: string;
   readonly type: string;
   readonly text?: string;
@@ -83,7 +83,7 @@ export function messages(view: SessionView) {
 
 export const isIdle = (view: SessionView) => view.status === "idle";
 
-export async function startChat(server: FastifyInstance): Promise<string> {
+async function startChat(server: FastifyInstance): Promise<string> {
   const response = await server.inject({
     method: "POST",
     url: "/api/sessions",
@@ -94,7 +94,7 @@ export async function startChat(server: FastifyInstance): Promise<string> {
 }
 
 /** Opens the session's event socket; keeps the session views and, apart, the other replies. */
-export async function openEvents(server: FastifyInstance, sessionId: string) {
+async function openEvents(server: FastifyInstance, sessionId: string) {
   const views: SessionView[] = [];
   const replies: unknown[] = [];
   let received = Promise.withResolvers<null>();
