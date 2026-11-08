@@ -20,12 +20,12 @@ If independent subagents are unavailable, report independent review as unavailab
 
 - Domain consumers and setup use `DOMAIN.md` and `DOMAIN-MAP.md` consistently.
 - Project pointers preserve explicit starts, worktree ownership, human decisions, committed review and verified delivery.
-- `implement` owns small-task corrections; `implement-spec` uses one fresh correction implementer.
+- `implement` owns small-task corrections; `implement-spec` uses one fresh correction implementer for the full-diff review and one for each ticket review.
 - `implement-spec` adds a project line for review after each ticket when the spec chooses it (#29).
 - `code-review` reports two independent axes and checks corrections without discarding prior full coverage.
 - `pr` uses the selected human language, conditional presentation guidance and visible human actions.
 - `pr` adds project lines for the five required report parts and the report format; its upstream lines stay.
-- `pr` shapes its template to the report format: owner action first, short verification and decisions with alternatives (#31).
+- `pr` shapes its template to the report format: owner action first, short evidence and decisions with alternatives (#31).
 - `ship` delivers through existing project testing/tracker contracts; it does not deploy or approve merge.
 - Setup selects English or Russian human language and preserves existing settings and equivalent pointers.
 - Explanations and architecture reports follow that language. Tracker authorship precedes localized triage disclosures.
@@ -60,9 +60,9 @@ Hashes establish identity, not correctness or behavior.
 | `grilling` | `27f71f106a7062691b2982d4f847304a62930ebed8b50734f4d4fd498d60afa8` |
 | `handoff` | `77c2607c751b7c522e0208ab113ba4949f8267610d6061323c7ccd3ace21d7da` |
 | `implement` | `95af274086aef8db8a8c51b078d9d2f0d108a28796d1e84e373536f88f3664fe` |
-| `implement-spec` | `80119c1f57c961a06c467210735cbd4b4d643574e05d5cd17ace21d195875691` |
+| `implement-spec` | `bfbf1091cef2d3a533b410c5c095cb1eff1391710e6dd04c10d64538c3d947e9` |
 | `improve-codebase-architecture` | `6309784c0b4631b92b2a2196da3ea5a500749fe5905c2981e34acf514da6820b` |
-| `pr` | `c1704d55b6a7aee8baad85d5f97db455e80deeeb979cf543c4f27e7b2014582c` |
+| `pr` | `2ddfb7f87bdab9211993195b17ad783a07cbf7123331c9b8c982b46db8a9201a` |
 | `prototype` | `c4efd5e0f1c302b6225be83e8e42abdb05e13fde900484e4e2240e90b4e83eb6` |
 | `research` | `f2d6425b15cf3100d5c3eb4305a8e817174b8e5fa1fde6e06ad4b61321c32a60` |
 | `retro` | `09c4f9fe72fc5bc8e486a2bbb32dd785ca6264c56a53dd1bf9a334af72586efd` |

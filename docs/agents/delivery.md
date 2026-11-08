@@ -25,10 +25,12 @@ In integration PR mode, the spec's «Приёмка» section names when indepen
 If the spec names neither, review runs after all tickets.
 Ticket PR mode keeps its rule: each ticket PR gets independent review through `implement`.
 
-- After each ticket: once the ticket is integrated and project checks pass, the orchestrator calls `code-review` on the ticket diff.
-  That diff runs from the integration tip before the ticket to the ticket's integrated head.
+- After each ticket: the review runs after every ticket merge, whether or not the ticket has a checkpoint.
+  Once the ticket is integrated and project checks pass, the orchestrator calls `code-review` on the ticket diff.
+  That diff runs from the integration tip just before the ticket's merge to the ticket's integrated head.
   A fresh implementer fixes findings, and a repeated `code-review` checks the fixes.
-  The ticket's checkpoint report follows this review and includes its result.
+  With a checkpoint, the ticket's checkpoint report follows this review and includes its result.
+  Without a checkpoint, the orchestrator posts the review result in the draft PR.
 - After all tickets: no review per ticket.
 
 In both choices, the full-diff review before final acceptance remains.

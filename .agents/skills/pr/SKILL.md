@@ -25,7 +25,7 @@ Write a report the owner can understand without reading the conversation or ever
 Scale this shape to the change. Translate its headings and bold labels into the team language. Omit empty sections and replace every placeholder.
 
 Project rule: the report contains the [five required parts](../../../docs/agents/human-review.md#level-1-every-pr). That rule overrides "Omit empty sections" for those parts.
-Project rule: the report follows the [report format](../../../docs/agents/human-review.md#present-the-result); it overrides this shape where they differ.
+Project rule: the report follows the [report format](../../../docs/agents/human-review.md#present-the-result); it overrides this shape and steps 2 and 4 of "Build the explanation" where they differ.
 
 ````markdown
 <agent provenance under project rules>
@@ -41,14 +41,14 @@ Project rule: the report follows the [report format](../../../docs/agents/human-
 1. <step the owner can run>. **Expected:** <result>
 <part 2: 3 to 5 steps>
 
-## Verification
+## Evidence
 
 **CI:** <result and run link>
 <short conclusion and the important limit>
 <part 3: evidence>
 
 <details>
-<summary>Verification details</summary>
+<summary>Evidence details</summary>
 
 Checked head: <commit permalink>. Review base: <full SHA>.
 
