@@ -21,7 +21,7 @@ Install the Playwright browser once with `pnpm --filter @interview-sensei/e2e ex
 
 | Level       | File                                  | Runs                                                                 |
 | ----------- | ------------------------------------- | -------------------------------------------------------------------- |
-| unit        | `src/**/*.test.ts` next to the code   | Pure functions; no I/O, no server.                                   |
+| unit        | `src/**/*.test.ts` next to the code; core domain tests at the slice root | Pure functions; no I/O, no server. `domain-is-pure` keeps tests out of `domain/`. |
 | integration | `apps/server/src/**/*.int.test.ts`    | The server in process through its HTTP API, or `src/main.ts` as a process. |
 | integration | `packages/core/src/**/*.int.test.ts`  | Core technical code on real PGlite in a temporary data directory.    |
 | e2e         | `e2e/tests/*.test.ts`                 | The real browser against the running server and web app.             |
@@ -47,12 +47,12 @@ Give each worktree its own ports when several run at once.
 The server keeps all data in `~/.interview-sensei`; the `INTERVIEW_SENSEI_DATA_DIR` variable overrides it.
 `pnpm dev` uses the default directory. `pnpm test:e2e` uses `e2e/.data`, which Git ignores.
 Each agent session works in its own directory under `sessions/` in the data directory.
+One running server owns a data directory: a second server on it exits with code 1 and an error message.
+Give each worktree its own data directory when several servers run at once.
 
 ## Fake agent
 
 `pnpm test:e2e` offers the fake agent. To chat with it by hand, start `INTERVIEW_SENSEI_FAKE_AGENT=1 INTERVIEW_SENSEI_DATA_DIR=<temporary directory> pnpm dev`.
-One running server owns a data directory: a second server on it exits with code 1 and an error message.
-Give each worktree its own data directory when several servers run at once.
 
 ## CI
 
