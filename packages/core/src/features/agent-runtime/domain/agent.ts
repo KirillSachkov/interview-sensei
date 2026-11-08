@@ -38,21 +38,22 @@ export interface AgentHost {
   readonly opencodeAuth: UserFile;
 }
 
+/** Why an adapter that comes with the application is missing, and what to do. */
+function adapterMissing(agentName: string): string {
+  return `Адаптер ${agentName} не установлен вместе с приложением. Выполните \`pnpm install\` и перезапустите приложение.`;
+}
+
 function availabilityOf(agent: AgentKind, host: AgentHost): AgentAvailability {
   const unavailable = (reason: string): AgentAvailability => ({ agent, available: false, reason });
   switch (agent) {
     case "claude": {
       return host.claudeAdapter === null
-        ? unavailable(
-            "Адаптер Claude Code не установлен вместе с приложением. Выполните `pnpm install` и перезапустите приложение.",
-          )
+        ? unavailable(adapterMissing("Claude Code"))
         : { agent, available: true };
     }
     case "codex": {
       if (host.codexAdapter === null) {
-        return unavailable(
-          "Адаптер Codex не установлен вместе с приложением. Выполните `pnpm install` и перезапустите приложение.",
-        );
+        return unavailable(adapterMissing("Codex"));
       }
       return host.codexAuth.exists
         ? { agent, available: true }
