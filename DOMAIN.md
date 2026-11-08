@@ -8,10 +8,19 @@ Draft terms. Refine them with `grill-with-docs` before the first spec.
 The person who prepares for an interview.
 
 **Target**:
-The role, level and optional vacancy the Candidate prepares for.
+What the Candidate prepares for, shown as a preparation direction: a role and level, such as a middle Go developer.
+A Target owns its Sources, Topics, Questions, Interview plan and progress. Targets do not share progress.
+The Candidate creates and changes a Target together with the agent.
+
+**Interview plan**:
+The ordered list of Sections that a full Mock interview for a Target goes through.
+The agent proposes it from the Target's Sources and research; the Candidate changes it in conversation.
+
+**Section**:
+One part of an Interview plan, such as "Experience and resume", "Go and concurrency" or "System design". It has a Section kind and Topics, and can be switched off.
 
 **Topic**:
-An area of knowledge that interviews for a Target check.
+An area of knowledge within a Target that its Sections check.
 
 **Question**:
 An interview question with its source and Topic.
@@ -34,8 +43,6 @@ _Avoid_: Question chain.
 **Debrief**:
 The review of an Attempt: its Grade, gaps and an outline of a strong answer. The Candidate opens it for any answered Question. At the end of a Mock interview, a summary Debrief shows Topic status changes and the next step.
 
-**Interview format**:
-The structure of a Mock interview: for example, Questions on Topics in a row, a talk based on the Candidate profile, or a system design discussion.
 
 **Attempt**:
 One Candidate answer to one Question, with its Grade, the gaps it revealed, and whether the Candidate received a hint.
@@ -68,4 +75,5 @@ The Candidate's opinion of a Question itself: useful, irrelevant, or wrong.
 _Avoid_: Grade, which assesses the Candidate's answer, not the Question.
 
 **Source**:
-The origin of a Question: a link, a transcript, a video or the Candidate's own input.
+Material attached to a Target: a vacancy, a resume, a link, a video transcript, a file or the Candidate's own note.
+A Target can have any number of Sources of each type. Questions refer to the Sources they came from.
