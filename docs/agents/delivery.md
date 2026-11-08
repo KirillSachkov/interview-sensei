@@ -6,13 +6,18 @@ The testing guide owns verification commands; the tracker guide owns GitHub oper
 
 ## Issues and PRs
 
-Independent work targets `main`; a spec uses an integration branch for its tickets.
-Each implementation issue links to a PR. One integration PR may close several tickets.
+Each implementation issue links to a PR that targets `main`.
 A discussion or research issue without repository changes may resolve with an answer.
-For a small task, the draft follows local checks and committed independent review.
-A spec's draft follows its first integrated result.
+For a small task or ticket, the draft follows local checks and committed independent review.
 A ready PR requires checks and review covering the current change.
 Keep issues open until delivery criteria are met, normally by merge.
+
+## Delivery modes
+
+The spec's «Приёмка» section names its mode under [human participation](human-review.md#level-2-every-spec).
+
+- Ticket PRs, the default: one PR per ticket. Run each ticket through `implement`. Start the next ticket from fetched `main` after the owner accepts and merges the previous PR.
+- Integration PR: one PR through `implement-spec` closes the spec and its tickets. Choose it only when tickets cannot be demonstrated or kept green separately; the spec states the reason. Ticket work uses an integration branch, and its draft follows the first integrated result.
 
 ## Verification evidence
 

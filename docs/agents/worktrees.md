@@ -11,7 +11,7 @@ A reviewer that writes artifacts inside the repository needs a separate copy.
 1. Inspect path, branch, HEAD, status and assignment. Preserve existing changes and live work.
 2. Reuse the issue’s dedicated worktree when one exists; establish ownership before writing.
 3. Otherwise, base independent work on fetched `origin/main` and confirm its actual base.
-4. Base spec ticket worktrees on the integration branch. Integrate worker commits serially.
+4. In integration PR [mode](delivery.md#delivery-modes), base ticket worktrees on the integration branch. Integrate worker commits serially.
 5. Prefer the host’s worktree manager when available. Otherwise use Git’s worktree commands.
 
 Use the root checkout for orientation rather than implementation.

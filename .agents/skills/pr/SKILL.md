@@ -24,16 +24,24 @@ Write a report the owner can understand without reading the conversation or ever
 
 Scale this shape to the change. Translate its headings into the team language. Omit empty sections and replace every placeholder.
 
+Project rule: the report contains the [five required parts](../../../docs/agents/human-review.md#level-1-every-pr). Keep each part; state "none" with a reason when it is empty.
+
 ````markdown
 <agent provenance under project rules>
 
 ## What changes
 
 <problem, resulting behavior, and a small visual when useful>
+<part 1: what now works, from the user's perspective>
+
+## How to verify it yourself
+
+<part 2: steps the owner can run and the expected result of each>
 
 ## Verification
 
 <short result, actual evidence, and the important limit>
+<part 3: evidence>
 
 <details>
 <summary>Verification details</summary>
@@ -46,10 +54,15 @@ Checked head: <commit permalink>. Review base: <full SHA>.
 
 </details>
 
+## Not done or limited
+
+<part 4: omitted scope, known limits, and deferred findings>
+
 ## What the owner needs to do
 
 <concrete question or action, expected result, reason, and evidence>
 <or a short reason why no additional manual check is needed>
+<part 5: what the owner must decide>
 
 ## Risk and rollback
 

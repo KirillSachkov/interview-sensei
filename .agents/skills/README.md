@@ -23,6 +23,7 @@ If independent subagents are unavailable, report independent review as unavailab
 - `implement` owns small-task corrections; `implement-spec` uses one fresh correction implementer.
 - `code-review` reports two independent axes and checks corrections without discarding prior full coverage.
 - `pr` uses the selected human language, conditional presentation guidance and visible human actions.
+- `pr` adds project lines for the five required report parts; its upstream lines stay.
 - `ship` delivers through existing project testing/tracker contracts; it does not deploy or approve merge.
 - Setup selects English or Russian human language and preserves existing settings and equivalent pointers.
 - Explanations and architecture reports follow that language. Tracker authorship precedes localized triage disclosures.
@@ -59,7 +60,7 @@ Hashes establish identity, not correctness or behavior.
 | `implement` | `95af274086aef8db8a8c51b078d9d2f0d108a28796d1e84e373536f88f3664fe` |
 | `implement-spec` | `8cfbe422e17966c2dd77c8dee31855c94068e785b791175680ac7dbff3630bab` |
 | `improve-codebase-architecture` | `6309784c0b4631b92b2a2196da3ea5a500749fe5905c2981e34acf514da6820b` |
-| `pr` | `98d1dd6da6310b8d09b957005463c11b361c40354b5bbff48a7186cef3f0f4f2` |
+| `pr` | `4387a4339b572c6c1333db52e188c39dc056ca3f33bb25c50407df895e53050c` |
 | `prototype` | `c4efd5e0f1c302b6225be83e8e42abdb05e13fde900484e4e2240e90b4e83eb6` |
 | `research` | `f2d6425b15cf3100d5c3eb4305a8e817174b8e5fa1fde6e06ad4b61321c32a60` |
 | `retro` | `09c4f9fe72fc5bc8e486a2bbb32dd785ca6264c56a53dd1bf9a334af72586efd` |
