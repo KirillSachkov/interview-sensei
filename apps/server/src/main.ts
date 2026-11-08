@@ -20,6 +20,8 @@ async function start(): Promise<void> {
     timer: systemTimer,
     dataDirectory,
     logger: true,
+    // Tests and manual checks without a subscription; the Candidate's agents need no variable.
+    fakeAgent: process.env.INTERVIEW_SENSEI_FAKE_AGENT === "1",
   });
   for (const signal of ["SIGINT", "SIGTERM"] as const) {
     process.once(signal, () => {

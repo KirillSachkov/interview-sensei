@@ -2,12 +2,15 @@ import { useQuery } from "@tanstack/react-query";
 
 import { fetchHealth } from "@/shared/api";
 
-/** The service screen of the skeleton. Later tickets add the agent chat here. */
+import { ServiceChat } from "./service-chat";
+
+/** The service screen of the skeleton: server status and the service chat with an agent. */
 export function ServicePage() {
   return (
     <main>
       <h1>Interview Sensei</h1>
       <ServerStatus />
+      <ServiceChat />
     </main>
   );
 }

@@ -28,7 +28,12 @@ export default defineConfig({
     {
       command: "pnpm --filter @interview-sensei/server start",
       url: `http://127.0.0.1:${serverPort}/api/health`,
-      env: { SERVER_PORT: serverPort, INTERVIEW_SENSEI_DATA_DIR: dataDirectory },
+      // The fake ACP agent stands in for a real one, which needs a subscription.
+      env: {
+        SERVER_PORT: serverPort,
+        INTERVIEW_SENSEI_DATA_DIR: dataDirectory,
+        INTERVIEW_SENSEI_FAKE_AGENT: "1",
+      },
       reuseExistingServer: false,
       // SIGTERM lets the server write its final dump and release the data directory lock.
       gracefulShutdown: { signal: "SIGTERM", timeout: 10_000 },
