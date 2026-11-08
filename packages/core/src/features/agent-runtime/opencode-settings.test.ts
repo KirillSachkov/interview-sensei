@@ -4,20 +4,20 @@ import { describe, expect, it } from "vitest";
 
 import { opencodeModelSettings } from "./domain/opencode-settings.ts";
 
-describe("opencode model settings", () => {
-  const deepseek = { models: { "deepseek-flash": { name: "DeepSeek Flash" } } };
-  const candidateConfig = {
-    $schema: "https://opencode.ai/config.json",
-    model: "deepseek/deepseek-flash",
-    provider: { deepseek, minimax: { options: { apiKey: "minimax-key" } } },
-    mcp: { notes: { type: "local", command: ["notes-mcp"] } },
-    permission: { bash: "allow" },
-    instructions: ["~/AGENTS.md"],
-    agent: { build: { prompt: "Write to Kirill" } },
-    plugin: ["herdr-opencode"],
-    formatter: false,
-  };
+const deepseek = { models: { "deepseek-flash": { name: "DeepSeek Flash" } } };
+const candidateConfig = {
+  $schema: "https://opencode.ai/config.json",
+  model: "deepseek/deepseek-flash",
+  provider: { deepseek, minimax: { options: { apiKey: "minimax-key" } } },
+  mcp: { notes: { type: "local", command: ["notes-mcp"] } },
+  permission: { bash: "allow" },
+  instructions: ["~/AGENTS.md"],
+  agent: { build: { prompt: "Write to Kirill" } },
+  plugin: ["herdr-opencode"],
+  formatter: false,
+};
 
+describe("opencode model settings", () => {
   it("takes the model and its provider entry", () => {
     expect(opencodeModelSettings([JSON.stringify(candidateConfig)])).toStrictEqual({
       model: "deepseek/deepseek-flash",
