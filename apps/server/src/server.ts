@@ -28,13 +28,16 @@ import { registerWebApp } from "./web-app.ts";
  */
 const sliceMigrations: readonly SliceMigrations[] = [agentSessionsMigrations];
 
+/** `info` logs every request; `warn` keeps only problems. */
+export type LogLevel = "info" | "warn";
+
 export interface ServerDependencies {
   clock: Clock;
   timer: Timer;
   /** The data directory this server owns; see resolveDataDirectory. */
   dataDirectory: string;
-  /** Fastify request logging; off in tests. */
-  logger?: boolean;
+  /** The lowest level of the Fastify JSON logs; no logs when omitted, as in tests. */
+  logLevel?: LogLevel;
   /** Offers the fake ACP agent, for tests and manual checks without a subscription. */
   fakeAgent?: boolean;
   /** The built web app to serve beside `/api`; `pnpm dev` serves the web app from Vite instead. */
@@ -98,11 +101,11 @@ export async function buildServer({
   clock,
   timer,
   dataDirectory,
-  logger = false,
+  logLevel,
   fakeAgent = false,
   webDirectory,
 }: ServerDependencies): Promise<FastifyInstance> {
-  const server = fastify({ logger });
+  const server = fastify({ logger: logLevel === undefined ? false : { level: logLevel } });
   const storage = await openStorage({
     dataDirectory,
     clock,

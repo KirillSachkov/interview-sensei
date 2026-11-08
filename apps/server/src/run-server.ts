@@ -4,13 +4,17 @@ import { DataDirectoryInUseError, resolveDataDirectory } from "@interview-sensei
 import { systemClock, systemTimer } from "@interview-sensei/core/time";
 import type { FastifyInstance } from "fastify";
 
+import { appUrl } from "./app-url.ts";
 import { buildServer } from "./server.ts";
+import type { LogLevel } from "./server.ts";
 
 interface RunOptions {
   /** The built web app to serve; see ServerDependencies. */
   webDirectory?: string;
-  /** Called with the server's URL once it listens. */
+  /** Called with the URL to open the app at once the server listens. */
   onListening?: (url: string) => void;
+  /** The lowest level of the JSON logs on standard output; `info` logs every request. */
+  logLevel?: LogLevel;
 }
 
 /** A start failure the Candidate can fix: the message replaces the stack trace. */
@@ -38,7 +42,7 @@ async function listen(server: FastifyInstance, host: string, port: number): Prom
   }
 }
 
-async function start({ webDirectory, onListening }: RunOptions): Promise<void> {
+async function start({ webDirectory, onListening, logLevel = "info" }: RunOptions): Promise<void> {
   // Local application: listen on the loopback interface only.
   const host = process.env.SERVER_HOST ?? "127.0.0.1";
   const port = Number(process.env.SERVER_PORT ?? "4310");
@@ -50,7 +54,7 @@ async function start({ webDirectory, onListening }: RunOptions): Promise<void> {
       home: homedir(),
       workingDirectory: process.cwd(),
     }),
-    logger: true,
+    logLevel,
     // Tests and manual checks without a subscription; the Candidate's agents need no variable.
     fakeAgent: process.env.INTERVIEW_SENSEI_FAKE_AGENT === "1",
     ...(webDirectory === undefined ? {} : { webDirectory }),
@@ -61,7 +65,10 @@ async function start({ webDirectory, onListening }: RunOptions): Promise<void> {
     });
   }
   await listen(server, host, port);
-  onListening?.(`http://${host}:${port}/`);
+  const address = server.server.address();
+  if (address !== null && typeof address !== "string") {
+    onListening?.(appUrl(address));
+  }
 }
 
 /**
