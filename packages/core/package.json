@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./agent-runtime": "./src/features/agent-runtime/index.ts",
+    "./agent-sessions": "./src/features/agent-sessions/index.ts",
     "./health": "./src/features/health/index.ts",
     "./storage": "./src/shared/storage/index.ts",
     "./time": "./src/shared/time/index.ts"
@@ -13,15 +15,19 @@
     "boundaries": "depcruise src --output-type err-long",
     "test": "vitest run --passWithNoTests",
     "test:unit": "vitest run --project unit --passWithNoTests",
-    "test:integration": "vitest run --project integration"
+    "test:integration": "vitest run --project integration",
+    "db:generate": "node scripts/generate-migrations.ts"
   },
   "dependencies": {
+    "@agentclientprotocol/sdk": "2.4.0",
     "@electric-sql/pglite": "0.5.15",
-    "drizzle-orm": "0.45.4"
+    "drizzle-orm": "0.45.4",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
     "dependency-cruiser": "18.7.0",
+    "drizzle-kit": "0.31.11",
     "typescript": "7.0.2",
     "vitest": "5.0.5"
   }

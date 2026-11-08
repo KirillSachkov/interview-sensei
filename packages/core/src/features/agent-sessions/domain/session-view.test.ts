@@ -1,0 +1,97 @@
+import { describe, expect, it } from "vitest";
+
+import type { AgentSession } from "./agent-session.ts";
+import type { SessionEvent } from "./session-event.ts";
+import { replay } from "./session-view.ts";
+
+const session: AgentSession = {
+  id: "session-1",
+  kind: "service-chat",
+  agent: "fake",
+  status: "idle",
+  createdAt: "2026-01-02T03:04:05.000Z",
+};
+
+function chunk(text: string, messageId?: string): SessionEvent {
+  return {
+    type: "agent_update",
+    update: {
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text },
+      ...(messageId === undefined ? {} : { messageId }),
+    },
+  };
+}
+
+function entriesOf(events: readonly SessionEvent[]) {
+  const journal = events.map((event, index) => ({ id: index + 1, event }));
+  return replay(session, journal).entries.map(({ type, ...entry }) => ({
+    type,
+    text: "text" in entry ? entry.text : entry.stopReason,
+  }));
+}
+
+describe("session view", () => {
+  it("joins the chunks of one turn without message ids into one agent message", () => {
+    expect(
+      entriesOf([
+        { type: "prompt_sent", text: "Привет" },
+        chunk("Здравствуй, "),
+        chunk("кандидат"),
+      ]),
+    ).toStrictEqual([
+      { type: "candidate_message", text: "Привет" },
+      { type: "agent_message", text: "Здравствуй, кандидат" },
+    ]);
+  });
+
+  it("starts a new agent message when the message id changes", () => {
+    expect(
+      entriesOf([chunk("Один", "m1"), chunk(" и всё", "m1"), chunk("Два", "m2")]),
+    ).toStrictEqual([
+      { type: "agent_message", text: "Один и всё" },
+      { type: "agent_message", text: "Два" },
+    ]);
+  });
+
+  it("keeps the replies of two turns apart", () => {
+    expect(
+      entriesOf([
+        { type: "prompt_sent", text: "1" },
+        chunk("Первый"),
+        { type: "turn_ended", stopReason: "end_turn" },
+        { type: "prompt_sent", text: "2" },
+        chunk("Второй"),
+      ]),
+    ).toStrictEqual([
+      { type: "candidate_message", text: "1" },
+      { type: "agent_message", text: "Первый" },
+      { type: "candidate_message", text: "2" },
+      { type: "agent_message", text: "Второй" },
+    ]);
+  });
+
+  it("shows a turn that ended early, such as a cancelled one", () => {
+    expect(
+      entriesOf([
+        { type: "prompt_sent", text: "/wait" },
+        { type: "turn_ended", stopReason: "cancelled" },
+      ]),
+    ).toStrictEqual([
+      { type: "candidate_message", text: "/wait" },
+      { type: "turn_interrupted", text: "cancelled" },
+    ]);
+  });
+
+  it("ignores tool calls and content other than text", () => {
+    expect(
+      entriesOf([
+        { type: "agent_update", update: { sessionUpdate: "tool_call", toolCallId: "t1" } },
+        {
+          type: "agent_update",
+          update: { sessionUpdate: "agent_message_chunk", content: { type: "image", data: "" } },
+        },
+      ]),
+    ).toStrictEqual([]);
+  });
+});

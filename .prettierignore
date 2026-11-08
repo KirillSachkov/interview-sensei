@@ -3,3 +3,5 @@ apps/web/src/app/route-tree.gen.ts
 # Prose keeps its authored layout; Prettier formats code and configs.
 *.md
 .agents/
+# drizzle-kit output stays as generated, so the next `db:generate` diffs against it unchanged.
+packages/core/src/features/*/infrastructure/migrations/
