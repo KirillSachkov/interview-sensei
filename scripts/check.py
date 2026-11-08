@@ -51,32 +51,65 @@ def identity(directory: Path) -> str:
     return digest.hexdigest()
 
 
+def frontmatter(file: Path) -> str | None:
+    match = re.match(r"^---\n(.*?)\n---", file.read_text(), re.S)
+    return match[1] if match else None
+
+
+def skill_name(text: str) -> str | None:
+    name = re.search(r"^name:\s*([^\n]+)", text, re.M)
+    return name[1].strip(" '\"") if name else None
+
+
+def check_package_skill(directory: Path, errors: list[str]) -> None:
+    """A dependency's skill that pnpm links at install time; the lockfile pins its content."""
+    target = directory.resolve()
+    file = target / "SKILL.md"
+    if not file.is_file():
+        errors.append(f"{directory.name}: package skill link has no SKILL.md at {target}")
+        return
+    text = frontmatter(file)
+    if text is None:
+        errors.append(f"{directory.name}: missing frontmatter")
+        return
+    if skill_name(text) != target.name:
+        errors.append(f"{directory.name}: name differs from the package skill directory {target.name}")
+    if not re.search(r"^description:\s*\S", text, re.M):
+        errors.append(f"{directory.name}: missing description")
+
+
 def check(root: Path) -> tuple[list[str], dict[str, int]]:
     root = root.resolve()
-    errors, counts = [], {"skills": 0, "local_links": 0}
+    errors, counts = [], {"skills": 0, "package_skills": 0, "local_links": 0}
     skills = root / ".agents/skills"
     inventory = (skills / "README.md").read_text()
     for directory in sorted(skills.iterdir()):
+        if directory.is_symlink():
+            # pnpm links approved dependency skills into node_modules; own skills are real directories.
+            if "node_modules" not in directory.resolve().parts:
+                errors.append(f"{directory.name}: a skill link must resolve into node_modules")
+                continue
+            counts["package_skills"] += 1
+            check_package_skill(directory, errors)
+            continue
         file = directory / "SKILL.md"
         if not file.is_file():
             continue
         counts["skills"] += 1
-        match = re.match(r"^---\n(.*?)\n---", file.read_text(), re.S)
-        if not match:
+        frontmatter_text = frontmatter(file)
+        if frontmatter_text is None:
             errors.append(f"{directory.name}: missing frontmatter")
             continue
-        frontmatter = match[1]
-        name = re.search(r"^name:\s*([^\n]+)", frontmatter, re.M)
-        if not name or name[1].strip(" '\"") != directory.name:
+        if skill_name(frontmatter_text) != directory.name:
             errors.append(f"{directory.name}: name mismatch")
-        if not re.search(r"^description:\s*\S", frontmatter, re.M):
+        if not re.search(r"^description:\s*\S", frontmatter_text, re.M):
             errors.append(f"{directory.name}: missing description")
         native = directory / "agents/openai.yaml"
         if not native.is_file():
             errors.append(f"{directory.name}: missing native metadata")
         else:
             implicit = re.search(r"allow_implicit_invocation:\s*(true|false)", native.read_text())
-            user_only = bool(re.search(r"^disable-model-invocation:\s*true\s*$", frontmatter, re.M))
+            user_only = bool(re.search(r"^disable-model-invocation:\s*true\s*$", frontmatter_text, re.M))
             if (implicit is None or implicit[1] == "true") == user_only:
                 errors.append(f"{directory.name}: invocation policies disagree")
         row = f"| `{directory.name}` | `{identity(directory)}` |"
@@ -109,7 +142,10 @@ def check(root: Path) -> tuple[list[str], dict[str, int]]:
 
 if __name__ == "__main__":
     problems, checked = check(Path(__file__).resolve().parents[1])
-    print(f"Checked {checked['skills']} skills and {checked['local_links']} local links/anchors.")
+    print(
+        f"Checked {checked['skills']} own skills, {checked['package_skills']} package skills"
+        f" and {checked['local_links']} local links/anchors."
+    )
     for problem in problems:
         print(problem, file=sys.stderr)
     if problems:
