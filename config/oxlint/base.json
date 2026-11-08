@@ -144,7 +144,8 @@
     },
     {
       // The system clock is the one place that reads the real time; tests inject a Clock instead.
-      // Globs resolve from the workspace that runs oxlint, so this matches only packages/core.
+      // Globs resolve from the workspace that runs oxlint: today only packages/core has this file.
+      // A file at the same path in another workspace would also be exempt; keep the clock in core.
       "files": ["src/shared/time/system-clock.ts"],
       "rules": {
         "interview-sensei/no-current-time": "off"
