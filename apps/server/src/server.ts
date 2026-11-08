@@ -20,6 +20,7 @@ import { fastify } from "fastify";
 import type { FastifyInstance } from "fastify";
 
 import { registerAgentSessionRoutes } from "./agent-session-routes.ts";
+import { registerWebApp } from "./web-app.ts";
 
 /**
  * The migrations of every core slice that stores data, applied at each start in this order. A
@@ -36,6 +37,8 @@ export interface ServerDependencies {
   logger?: boolean;
   /** Offers the fake ACP agent, for tests and manual checks without a subscription. */
   fakeAgent?: boolean;
+  /** The built web app to serve beside `/api`; `pnpm dev` serves the web app from Vite instead. */
+  webDirectory?: string;
 }
 
 /** The agents and AgentSessions of this server, on its storage. */
@@ -97,6 +100,7 @@ export async function buildServer({
   dataDirectory,
   logger = false,
   fakeAgent = false,
+  webDirectory,
 }: ServerDependencies): Promise<FastifyInstance> {
   const server = fastify({ logger });
   const storage = await openStorage({
@@ -123,5 +127,8 @@ export async function buildServer({
       server.log.error({ err: error }, "A session command from the browser failed");
     },
   });
+  if (webDirectory !== undefined) {
+    await registerWebApp(server, webDirectory);
+  }
   return server;
 }

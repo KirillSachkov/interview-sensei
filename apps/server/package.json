@@ -13,6 +13,7 @@
     "test:integration": "vitest run --project integration"
   },
   "dependencies": {
+    "@fastify/static": "10.1.10",
     "@fastify/websocket": "11.3.7",
     "@interview-sensei/core": "workspace:*",
     "fastify": "5.12.7"
