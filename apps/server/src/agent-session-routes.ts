@@ -58,22 +58,47 @@ async function prompt(
   }
 }
 
+interface RouteDependencies {
+  runtime: AgentRuntime;
+  sessions: AgentSessions;
+  /** Receives a failure of a browser command; the socket stays open for the next one. */
+  onError: (error: unknown) => void;
+}
+
+/** Carries out one browser command; a failure goes to `onError` and the socket stays open. */
+async function handle(
+  socket: WebSocket,
+  { sessionId, data }: { sessionId: string; data: unknown },
+  { sessions, onError }: Pick<RouteDependencies, "sessions" | "onError">,
+) {
+  const command = parseCommand(data);
+  try {
+    if (command === undefined) {
+      send(socket, { type: "invalid_command" });
+    } else if (command.type === "cancel") {
+      await sessions.cancel(sessionId);
+    } else {
+      await prompt(socket, sessions, { sessionId, text: command.text });
+    }
+  } catch (error) {
+    onError(error);
+  }
+}
+
 /** Serves one browser connection to a session: the view at once and after each change. */
-async function serveEvents(socket: WebSocket, sessionId: string, sessions: AgentSessions) {
+async function serveEvents(
+  socket: WebSocket,
+  sessionId: string,
+  dependencies: Pick<RouteDependencies, "sessions" | "onError">,
+) {
+  const { sessions } = dependencies;
   // Handlers attach before the first await, so no message from the browser is lost.
   const unsubscribe = sessions.subscribe(sessionId, (session) => {
     send(socket, { type: "session", session });
   });
   socket.on("close", unsubscribe);
   socket.on("message", (data) => {
-    const command = parseCommand(data);
-    if (command === undefined) {
-      send(socket, { type: "invalid_command" });
-    } else if (command.type === "cancel") {
-      void sessions.cancel(sessionId);
-    } else {
-      void prompt(socket, sessions, { sessionId, text: command.text });
-    }
+    void handle(socket, { sessionId, data }, dependencies);
   });
   const session = await sessions.view(sessionId);
   if (session === undefined) {
@@ -85,7 +110,7 @@ async function serveEvents(socket: WebSocket, sessionId: string, sessions: Agent
 
 function registerStartRoute(
   server: FastifyInstance,
-  { runtime, sessions }: { runtime: AgentRuntime; sessions: AgentSessions },
+  { runtime, sessions }: Pick<RouteDependencies, "runtime" | "sessions">,
 ) {
   const body = {
     type: "object",
@@ -116,7 +141,7 @@ function registerStartRoute(
  */
 export function registerAgentSessionRoutes(
   server: FastifyInstance,
-  { runtime, sessions }: { runtime: AgentRuntime; sessions: AgentSessions },
+  { runtime, sessions, onError }: RouteDependencies,
 ): void {
   server.get("/api/agents", () => runtime.listAgents());
   registerStartRoute(server, { runtime, sessions });
@@ -132,6 +157,6 @@ export function registerAgentSessionRoutes(
   server.get<{ Params: { id: string } }>(
     "/api/sessions/:id/events",
     { websocket: true, schema: { params: sessionParams } },
-    async (socket, request) => serveEvents(socket, request.params.id, sessions),
+    async (socket, request) => serveEvents(socket, request.params.id, { sessions, onError }),
   );
 }

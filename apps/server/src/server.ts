@@ -114,6 +114,12 @@ export async function buildServer({
   });
   await prepare(server, storage, sessions);
   server.get("/api/health", () => checkHealth(clock));
-  registerAgentSessionRoutes(server, { runtime, sessions });
+  registerAgentSessionRoutes(server, {
+    runtime,
+    sessions,
+    onError: (error) => {
+      server.log.error({ err: error }, "A session command from the browser failed");
+    },
+  });
   return server;
 }
