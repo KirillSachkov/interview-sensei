@@ -169,7 +169,16 @@ describe("mcp and permissions", () => {
     await expect(mcpStatus(new URL(`/mcp/${first.sessionId}`, first.url).href)).resolves.toBe(404);
   });
 
-  it("gives the agent a loopback MCP address whatever host the server listens on", async () => {
+  it("gives the agent an IPv6 loopback MCP address when the server listens on ::1", async () => {
+    const { server } = await startServer(await temporaryDirectory(), "::1");
+    const { url } = await chatWithMcpUrl(server);
+
+    const [address] = server.addresses();
+    expect(url).toMatch(new RegExp(`^http://\\[::1\\]:${address?.port}/mcp/`, "u"));
+    await expect(toolList(url)).resolves.toMatchObject(serviceChatTools);
+  });
+
+  it("gives the agent an IPv4 loopback MCP address when the server listens on localhost", async () => {
     const { server } = await startServer(await temporaryDirectory(), "localhost");
     const { url } = await chatWithMcpUrl(server);
 

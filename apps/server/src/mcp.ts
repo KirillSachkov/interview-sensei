@@ -26,14 +26,18 @@ function toolsFor(kind: string): readonly SessionTool[] {
 
 /**
  * The loopback origin of the server's port, for the MCP addresses; throws before it listens. The
- * agent runs on this machine, so its MCP traffic stays on loopback whatever SERVER_HOST is.
+ * agent runs on this machine and connects to an address the server listens on: the IPv4 loopback
+ * when the server has one, as on `localhost`, and the IPv6 loopback otherwise, as on `::1`.
  */
 function loopbackOrigin(server: FastifyInstance): string {
-  const [address] = server.addresses();
+  const addresses = server.addresses();
+  const address = addresses.find(({ family }) => family === "IPv4") ?? addresses[0];
   if (address === undefined) {
     throw new Error("The server does not listen yet, so it has no MCP address");
   }
-  return `http://127.0.0.1:${address.port}`;
+  return address.family === "IPv4"
+    ? `http://127.0.0.1:${address.port}`
+    : `http://[::1]:${address.port}`;
 }
 
 /** The Fastify request as a web-standard one; the parsed JSON body goes apart. */
