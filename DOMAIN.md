@@ -96,7 +96,7 @@ _Avoid_: Session, when the kind of session matters; a Mock interview runs in an 
 
 **MCP address**:
 The URL of our MCP server that one AgentSession gets in `session/new`. It offers the tools of the session kind and acts only on that session.
-It closes when the session's agent stops; another session cannot use it.
+Only that session's agent gets it, and it closes when that agent stops.
 
 **Permission request**:
 The agent's request to perform an action, such as a shell command, with the options it offers.
