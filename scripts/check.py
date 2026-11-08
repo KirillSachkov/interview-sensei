@@ -35,6 +35,14 @@ def anchors(text: str) -> set[str]:
     return result
 
 
+# Generated and installed trees: package READMEs and test reports are not repository documents.
+SKIPPED = {".git", "node_modules", "dist", "test-results", "playwright-report"}
+
+
+def repository_files(root: Path, pattern: str) -> list[Path]:
+    return sorted(file for file in root.rglob(pattern) if not SKIPPED & set(file.relative_to(root).parts))
+
+
 def identity(directory: Path) -> str:
     digest = hashlib.sha256()
     for file in sorted(directory.rglob("*"), key=lambda file: file.relative_to(directory).as_posix()):
@@ -75,9 +83,7 @@ def check(root: Path) -> tuple[list[str], dict[str, int]]:
         if row not in inventory:
             errors.append(f"{directory.name}: directory identity differs from inventory")
 
-    for file in sorted(root.rglob("*.md")):
-        if ".git" in file.relative_to(root).parts:
-            continue
+    for file in repository_files(root, "*.md"):
         for raw in re.findall(r"(?<!!)\[[^\]\n]*\]\(([^)\n]+)\)", prose(file.read_text())):
             url = urlsplit(raw.strip().split(' "')[0].strip("<>"))
             if url.scheme or url.netloc:
@@ -91,9 +97,8 @@ def check(root: Path) -> tuple[list[str], dict[str, int]]:
             elif url.fragment and target.suffix == ".md" and unquote(url.fragment) not in anchors(target.read_text()):
                 errors.append(f"{file.relative_to(root)}: missing anchor {raw}")
 
-    for file in root.rglob("CLAUDE.md"):
-        if ".git" not in file.relative_to(root).parts:
-            errors.append(f"{file.relative_to(root)}: use native AGENTS.md instead of CLAUDE.md")
+    for file in repository_files(root, "CLAUDE.md"):
+        errors.append(f"{file.relative_to(root)}: use native AGENTS.md instead of CLAUDE.md")
     for left, right in [(".claude/skills", ".agents/skills")]:
         if not (root / left).is_symlink() or (root / left).resolve() != (root / right).resolve():
             errors.append(f"{left}: incorrect client pointer")
