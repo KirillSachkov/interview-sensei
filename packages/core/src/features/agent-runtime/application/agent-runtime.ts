@@ -36,19 +36,30 @@ function announcedToolCall(update: AgentUpdate): ToolCallFields | null {
     : null;
 }
 
+/** A tool call in these states asks no more permissions. */
+const finishedStatuses = new Set(["completed", "failed"]);
+
 /**
- * Keeps the tool calls the agent announced, by `toolCallId`, and answers permission requests for
- * our MCP tools by itself.
+ * Keeps the tool calls the agent announced in the current turn, by `toolCallId`, and answers
+ * permission requests for our MCP tools by itself. A finished tool call and the end of the turn
+ * remove the kept tool calls.
  */
-function permissionGate(agent: AgentKind, request: SessionRequest): SessionRequest {
+function permissionGate(
+  agent: AgentKind,
+  request: SessionRequest,
+): { session: SessionRequest; endTurn: () => void } {
   const announced = new Map<string, ToolCallFields>();
-  return {
+  const session: SessionRequest = {
     ...request,
     onUpdate: (update) => {
       const toolCall = announcedToolCall(update);
       if (toolCall !== null) {
-        const earlier = announced.get(toolCall.toolCallId);
-        announced.set(toolCall.toolCallId, { ...earlier, ...toolCall });
+        if (typeof toolCall.status === "string" && finishedStatuses.has(toolCall.status)) {
+          announced.delete(toolCall.toolCallId);
+        } else {
+          const earlier = announced.get(toolCall.toolCallId);
+          announced.set(toolCall.toolCallId, { ...earlier, ...toolCall });
+        }
       }
       request.onUpdate(update);
     },
@@ -57,7 +68,8 @@ function permissionGate(agent: AgentKind, request: SessionRequest): SessionReque
       const answer = automaticAnswer({
         agent,
         ourServer: request.mcpServer.name,
-        toolCalls: earlier === undefined ? [permission.toolCall] : [permission.toolCall, earlier],
+        request: permission.toolCall,
+        announced: earlier,
         options: permission.options,
       });
       // The Candidate sees the announced tool call too: the request may carry only its id.
@@ -65,6 +77,26 @@ function permissionGate(agent: AgentKind, request: SessionRequest): SessionReque
         answer ??
         request.onPermission({ ...permission, toolCall: { ...earlier, ...permission.toolCall } })
       );
+    },
+  };
+  return {
+    session,
+    endTurn: () => {
+      announced.clear();
+    },
+  };
+}
+
+/** The agent whose turns, however they end, forget the tool calls announced in them. */
+function forgettingTurns(agent: LiveAgent, endTurn: () => void): LiveAgent {
+  return {
+    ...agent,
+    prompt: async (text) => {
+      try {
+        return await agent.prompt(text);
+      } finally {
+        endTurn();
+      }
     },
   };
 }
@@ -80,10 +112,9 @@ export function createAgentRuntime({
       if (!isAgentKind(agent) || !agents.includes(agent)) {
         throw new Error(`The agent ${agent} is not available`);
       }
-      return launch(
-        launchRecipe(agent, installation, workingDirectory),
-        permissionGate(agent, request),
-      );
+      const gate = permissionGate(agent, request);
+      const live = await launch(launchRecipe(agent, installation, workingDirectory), gate.session);
+      return forgettingTurns(live, gate.endTurn);
     },
   };
 }
