@@ -119,7 +119,9 @@ textarea:focus,input:focus{outline:3px solid var(--accs);border-color:var(--acc)
 .pin{opacity:.35}.pin.on{opacity:1}
 /* sheet & modal */
 #sheet{position:fixed;top:14px;right:14px;bottom:14px;width:600px;display:none;flex-direction:column;z-index:30}
-#sheet.on{display:flex}#sheet .hd{display:flex;align-items:center;padding:16px 20px;border-bottom:1px solid var(--line);font-size:18px}
+#sheet.on{display:flex}#sheet.wide{width:min(1000px,calc(100vw - 28px))}
+.big{font-size:20px;margin-top:10px}.big b{font-size:40px;font-weight:700;margin-right:4px}.segbar.tall{height:14px;border-radius:7px}
+.fh.zh{padding-bottom:12px}.st-clean .fh.zh b{font-size:22px}.st-hand .fh.zh b{font-size:34px}#sheet .hd{display:flex;align-items:center;padding:16px 20px;border-bottom:1px solid var(--line);font-size:18px}
 #sheet .bd{flex:1;overflow:auto;padding:14px 20px}
 .bq{display:flex;gap:10px;padding:11px 0;border-bottom:1px solid #f0eee9;font-size:16px}.bq .mute{font-size:14px;margin-top:2px}
 .bq input{width:18px;height:18px;margin-top:3px}
@@ -173,7 +175,7 @@ const PAST={
 };
 function initState(){return{
  sheet:null,sheetArg:null,working:false,sel:new Set(),onlyNew:false,debrief:false,seq:4,
- pin:{mat:false,plan:false,prog:false},draft:{},setupOpen:false,attach:[],progOpen:true,setup:[{r:'a',t:'Это настройка цели «Go middle»: материалы, план и правила отбора. Интервью здесь не идёт. Что поменяем?'}],open:{},sess:{m1:false,m2:false,m3:true},pos:{},chatOpen:false,plus:false,prefs:false,report:false,
+ pin:{mat:false,plan:false,prog:false},draft:{},setupOpen:false,attach:[],setup:[{r:'a',t:'Это настройка цели «Go middle»: материалы, план и правила отбора. Интервью здесь не идёт. Что поменяем?'}],open:{},sess:{m1:false,m2:false,m3:true},pos:{},chatOpen:false,plus:false,prefs:false,report:false,
  sources:[['вакансия','Авито · Go'],['вакансия','Ozon · Backend'],['резюме','Резюме 2026'],['видео','Мок собес Go #12'],['ссылка','Go Memory Model']],
  proc:[{name:'Собес в Яндекс: Go',p:45}],done:[{name:'Статья «Go Scheduler»',added:9,doubt:2}],
  prefsList:['Меньше определений, больше прикладных вопросов','Без вопросов про Go до 1.18'],
@@ -274,17 +276,24 @@ function plan(){
   <div class="row small"><span class="link" onclick="openSheet('bank','${s.title}')">${s.q} вопросов${s.nw?` · <b>${s.nw} новых</b>`:''} →</span><span class="sp"></span>${s.off?'<span class="mute">выключена</span>':''}</div>
  </div>`).join('')}`;
 }
+function progStats(){const act=SECTIONS.filter(s=>!s.off),all=act.flatMap(s=>s.topics);const c={confident:0,shaky:0,none:0};all.forEach(t=>c[t[1]]++);return{all,c,n:all.length}}
 function progress(){
+ const{all,c,n}=progStats();
+ const weak=['GC и память','Каналы и select','Транзакции и изоляция'].map(t=>all.find(x=>x[0]===t)).filter(Boolean);
+ return `<div class="row"><span class="ttl">Готовность</span><span class="sp"></span><button class="ghost" onclick="openSheet('progress')">Подробнее →</button></div>
+ <div class="big"><b>${c.confident}</b> из ${n} тем уверенно</div>
+ <div class="segbar tall" title="${c.confident} уверенно · ${c.shaky} шатко · ${c.none} не начато"><i style="width:${c.confident/n*100}%;background:var(--ok)"></i><i style="width:${c.shaky/n*100}%;background:#f59f00"></i><i style="width:${c.none/n*100}%;background:#e3e1dc"></i></div>
+ <div class="row small mute" style="gap:14px"><span><span class="dot d-confident"></span>${c.confident} уверенно</span><span><span class="dot d-shaky"></span>${c.shaky} шатко</span><span><span class="dot d-none"></span>${c.none} не начато</span></div>
+ <div class="small mute" style="margin-top:14px">Подтянуть в первую очередь</div>
+ <div class="tp">${weak.map(t=>`<span class="pill s-${t[1]}"><span class="dot d-${t[1]}"></span>${esc(t[0])}</span>`).join('')}</div>`;
+}
+function progressDetails(){
  const act=SECTIONS.filter(s=>!s.off),all=act.flatMap(s=>s.topics);const c={confident:0,shaky:0,none:0};all.forEach(t=>c[t[1]]++);const n=all.length;
  const avg=a=>a.reduce((x,y)=>x+y,0)/a.length;
  const cur=S.qs.filter(x=>x.status==='done').map(x=>x.grade);
  const bars=[['Мок 1',avg(PAST.m1.qs.map(x=>x[1])),PAST.m1.qs.length],['Мок 2',avg(PAST.m2.qs.map(x=>x[1])),PAST.m2.qs.length],['Мок 3',cur.length?avg(cur):0,cur.length]];
  const hard=[['Как работает GC в Go?',0,'GC и память','Мок 2'],['Как безопасно закрыть канал?',1,'Каналы и select','Мок 1'],['Чем Mutex отличается от RWMutex?',1,'Горутины и планировщик','Мок 1'],['Уровни изоляции транзакций',1,'Транзакции и изоляция','Мок 2']];
- if(!S.progOpen)return `<div class="row" style="cursor:pointer" onclick="S.progOpen=true;render()"><span class="ttl">Прогресс</span><span class="sp"></span><span class="mute">▾ развернуть</span></div>
-  <div class="segbar"><i style="width:${c.confident/n*100}%;background:var(--ok)"></i><i style="width:${c.shaky/n*100}%;background:#f59f00"></i><i style="width:${c.none/n*100}%;background:#e3e1dc"></i></div>
-  <div class="row small" style="gap:14px"><span><span class="dot d-confident"></span>${c.confident} уверенно</span><span><span class="dot d-shaky"></span>${c.shaky} шатко</span><span><span class="dot d-none"></span>${c.none} не начато</span></div>`;
- return `<div class="row"><span class="ttl">Прогресс</span><span class="mute small">Go middle · ${bars.reduce((a,b)=>a+b[2],0)} ответов в 3 сессиях</span><span class="sp"></span><button class="ghost" onclick="S.progOpen=false;render()">▴ свернуть</button></div>
- <div class="kpis">
+ return `<div class="kpis">
   <div class="kpi"><div class="kv">${c.confident}<span class="mute"> из ${n}</span></div><div class="kl"><span class="dot d-confident"></span>тем уверенно</div></div>
   <div class="kpi"><div class="kv">${c.shaky}</div><div class="kl"><span class="dot d-shaky"></span>тем шатко</div></div>
   <div class="kpi"><div class="kv">${c.none}</div><div class="kl"><span class="dot d-none"></span>тем не начато</div></div>
@@ -320,17 +329,20 @@ function build(){
  const left=[];
  if(!S.pin.plan)left.push({id:'plan',w:LW,html:plan()});
  if(!S.pin.mat)left.push({id:'mat',w:LW,html:materials()});
- left.forEach((n,i)=>{if(i===0){n.x=0;n.y=0}else{n.below=left[i-1].id;n.gap=40}N.push(n)});
- let sx=left.length?LW+100:0;
+ left.unshift({id:'prog',w:LW,html:progress()});
+ left.forEach((n,i)=>{if(i===0){n.x=0;n.y=-10}else{n.below=left[i-1].id;n.gap=40}N.push(n)});
+ let sx=LW+60;
  if(S.setupOpen){const at=left.find(n=>n.id===S.setupAt)?S.setupAt:left[0]?.id;
   N.push(at?{id:'setup',rightOf:at,gap:60,w:SETUP_W,cls:'cnode',stroke:'#1e1e1e',html:setupChat()}:{id:'setup',x:0,y:0,w:SETUP_W,cls:'cnode',stroke:'#1e1e1e',html:setupChat()});
-  sx+=SETUP_W+100;}
- N.push({id:'prog',x:sx,y:0,w:S.progOpen?980:460,html:progress()});
- N.push({...pastCard('m1'),below:'prog',alignLeft:1,gap:150});
+  sx+=SETUP_W+60;}
+ F.push({ids:[...left.map(n=>n.id),...(S.setupOpen?['setup']:[])],pad:40,zone:1,header:`<b>Цель · Go middle</b><span class="mute small">готовность, план, материалы</span>`});
+ sx+=240;
+ N.push({...pastCard('m1'),x:sx,y:60});
  N.push({...pastCard('m2'),rightOf:'m1',gap:40});
+ const sessZone=()=>F.splice(1,0,{ids:N.filter(n=>['m1','m2','m3c','m3a','chat','deb'].includes(n.id)||S.qs.some(x=>x.id===n.id)||S.threads.some(t=>t.id===n.id)).map(n=>n.id),pad:110,zone:1,header:`<b>Сессии</b><span class="mute small">моки по этой цели</span>`});
  if(!S.sess.m3){
   N.push({id:'m3c',rightOf:'m2',gap:40,w:280,stroke:'#6965db',html:`<div class="row" style="cursor:pointer" onclick="S.sess.m3=true;render()"><span class="ttl">Мок 3</span><span class="sp"></span><span class="mute">▾</span></div><div class="mute small">${S.debrief?'завершён':'идёт'} · ${S.qs.length} вопроса</div><div style="margin-top:8px">${S.qs.map(x=>`<span class="dot ${x.status==='current'?'d-none':'d-shaky'}"></span>`).join(' ')}</div>`});
-  return{nodes:N,edges:E,frames:F};
+  sessZone();return{nodes:N,edges:E,frames:F};
  }
  const reserve=S.variant==='3'?(S.chatOpen?CHAT_W+60:200):CHAT_W+60;
  N.push({id:'m3a',rightOf:'m2',gap:80+reserve,w:Q_W,h:1,bare:1,html:'',shape:'none'});
@@ -350,7 +362,7 @@ function build(){
   E.push({from:prevT||from,to:t.id,dash:1,side:1,color:'#e8590c'});used[from]=t.id;});
  const ids=N.filter(n=>['m3a','chat','deb'].includes(n.id)||S.qs.some(x=>x.id===n.id)||S.threads.some(t=>t.id===n.id)).map(n=>n.id);
  F.push({ids,header:`<b>Мок 3</b><span class="mute small">${S.debrief?'завершён':'идёт'} · без лимита · Go и конкурентность</span>${S.debrief?'':`<button onclick="act('finish')">Завершить</button>`}<button class="ghost" onclick="S.sess.m3=false;render()" title="Свернуть область">▴ свернуть</button>`});
- return{nodes:N,edges:E,frames:F};
+ sessZone();return{nodes:N,edges:E,frames:F};
 }
 
 // ---------- engine ----------
@@ -373,9 +385,10 @@ function render(){
   n.el.style.left=n.x+'px';n.el.style.top=n.y+'px';});
  const sv=$('#sv'),hand=S.style==='hand'&&window.rough,rc=hand?rough.svg(sv):null,add=e=>sv.appendChild(e);
  const mk=(t,a)=>{const e=document.createElementNS('http://www.w3.org/2000/svg',t);for(const k in a)e.setAttribute(k,a[k]);return e};
- spec.frames.forEach(f=>{const ns=f.ids.map(i=>by[i]).filter(Boolean);const x0=Math.min(...ns.map(n=>n.x))-30,y0=Math.min(...ns.map(n=>n.y))-30,x1=Math.max(...ns.map(n=>n.x+n.w))+30,y1=Math.max(...ns.map(n=>n.y+n.hh))+30;
-  add(hand?rc.rectangle(x0,y0,x1-x0,y1-y0,{stroke:'#b8b5ad',strokeLineDash:[9,9],roughness:.7,seed:3,fill:'rgba(105,101,219,.03)',fillStyle:'solid'}):mk('rect',{x:x0,y:y0,width:x1-x0,height:y1-y0,rx:18,fill:'rgba(105,101,219,.03)',stroke:'#cfccc4','stroke-dasharray':'7 6'}));
-  const l=document.createElement('div');l.className='fh';l.style.left=x0+'px';l.style.top=y0+'px';l.innerHTML=f.header;world.appendChild(l);});
+ spec.frames.forEach(f=>{const ns=f.ids.map(i=>by[i]).filter(Boolean);if(!ns.length)return;const pd=f.pad||30,pt=f.zone?pd:30;const x0=Math.min(...ns.map(n=>n.x))-(f.zone?40:30),y0=Math.min(...ns.map(n=>n.y))-pt,x1=Math.max(...ns.map(n=>n.x+n.w))+(f.zone?40:30),y1=Math.max(...ns.map(n=>n.y+n.hh))+(f.zone?40:30);
+  if(f.zone)add(hand?rc.rectangle(x0,y0,x1-x0,y1-y0,{stroke:'#c9c6bf',roughness:.6,seed:5,fill:'rgba(255,255,255,.55)',fillStyle:'solid'}):mk('rect',{x:x0,y:y0,width:x1-x0,height:y1-y0,rx:24,fill:'rgba(255,255,255,.6)',stroke:'#dcd9d2','stroke-width':1.5}));
+  else add(hand?rc.rectangle(x0,y0,x1-x0,y1-y0,{stroke:'#b8b5ad',strokeLineDash:[9,9],roughness:.7,seed:3,fill:'rgba(105,101,219,.03)',fillStyle:'solid'}):mk('rect',{x:x0,y:y0,width:x1-x0,height:y1-y0,rx:18,fill:'rgba(105,101,219,.03)',stroke:'#cfccc4','stroke-dasharray':'7 6'}));
+  const l=document.createElement('div');l.className='fh'+(f.zone?' zh':'');l.style.left=x0+'px';l.style.top=y0+'px';l.innerHTML=f.header;world.appendChild(l);});
  const mid=n=>n.h?n.hh/2:Math.min(n.hh/2,40);
  spec.edges.forEach(e=>{const a=by[e.from],b=by[e.to];if(!a||!b)return;let p1,p2,horiz=false;
   if(!e.side&&b.y>=a.y+a.hh-2){p1=[a.x+a.w/2,a.y+a.hh+5];p2=[b.x+b.w/2,b.y-5]}
@@ -403,7 +416,7 @@ function render(){
 function rr(x,y,w,h,r){return `M${x+r},${y}L${x+w-r},${y}Q${x+w},${y} ${x+w},${y+r}L${x+w},${y+h-r}Q${x+w},${y+h} ${x+w-r},${y+h}L${x+r},${y+h}Q${x},${y+h} ${x},${y+h-r}L${x},${y+r}Q${x},${y} ${x+r},${y}Z`}
 function applyCam(){$('#world').style.transform=`translate(${cam.x}px,${cam.y}px) scale(${cam.s})`;const z=$('#zv');if(z)z.textContent=Math.round(cam.s*100)+'%'}
 function fit(){const ns=S._spec.nodes.filter(n=>n.shape!=='none');const x0=Math.min(...ns.map(n=>n.x)),y0=Math.min(...ns.map(n=>n.y)),x1=Math.max(...ns.map(n=>n.x+n.w)),y1=Math.max(...ns.map(n=>n.y+n.hh));
- cam.s=Math.max(.4,Math.min(1,(innerWidth-80)/(x1-x0),(innerHeight-230)/(y1-y0)));cam.x=(innerWidth-(x1-x0)*cam.s)/2-x0*cam.s;cam.y=160-y0*cam.s;applyCam();}
+ cam.s=Math.max(.4,Math.min(1,(innerWidth-80)/(x1-x0),(innerHeight-320)/(y1-y0)));cam.x=(innerWidth-(x1-x0)*cam.s)/2-x0*cam.s;cam.y=250-y0*cam.s;applyCam();}
 function focusNode(id,s){const n=S._by[id];if(!n)return;cam.s=s||cam.s;cam.x=innerWidth/2-(n.x+n.w/2)*cam.s+(S.variant!=='3'||S.chatOpen?CHAT_W/2*cam.s:0);cam.y=innerHeight*.55-(n.y+Math.min(n.hh,500)/2)*cam.s;applyCam();}
 function zoom(f,cx=innerWidth/2,cy=innerHeight/2){const ns=Math.max(.25,Math.min(2,cam.s*f));cam.x=cx-(cx-cam.x)*ns/cam.s;cam.y=cy-(cy-cam.y)*ns/cam.s;cam.s=ns;applyCam();}
 let spaceDown=false;
@@ -431,7 +444,9 @@ function chrome(){
  if(S.pin.mat||S.pin.plan)h+=`<div id="pinCol">${S.pin.mat?`<div class="island">${materials()}</div>`:''}${S.pin.plan?`<div class="island">${plan()}</div>`:''}</div>`;
  $('#chrome').innerHTML=h;
  const sh=$('#sheet');
- if(S.sheet){sh.classList.add('on');sh.innerHTML=`<div class="hd"><b>Банк вопросов</b><span class="sp"></span><button class="ghost" onclick="S.sheet=null;render()">✕</button></div><div class="bd">${bankHTML(S.sheetArg)}</div>`}else sh.classList.remove('on');
+ sh.classList.toggle('wide',S.sheet==='progress');
+ if(S.sheet==='progress'){sh.classList.add('on');sh.innerHTML=`<div class="hd"><b>Прогресс · Go middle</b><span class="sp"></span><button class="ghost" onclick="S.sheet=null;render()">✕</button></div><div class="bd">${progressDetails()}</div>`}
+ else if(S.sheet){sh.classList.add('on');sh.innerHTML=`<div class="hd"><b>Банк вопросов</b><span class="sp"></span><button class="ghost" onclick="S.sheet=null;render()">✕</button></div><div class="bd">${bankHTML(S.sheetArg)}</div>`}else sh.classList.remove('on');
  $('#switch').innerHTML=`<button onclick="cycle(-1)">←</button><span class="lbl">${S.variant} · ${VARIANTS[S.variant]}</span><button onclick="cycle(1)">→</button><span style="opacity:.4">|</span><button class="${S.style==='hand'?'on':''}" onclick="setStyle('hand')">рукописный</button><button class="${S.style==='clean'?'on':''}" onclick="setStyle('clean')">чистый</button><button onclick="reset()" title="Сбросить">↺</button>`;
 }
 function bankHTML(sec){
