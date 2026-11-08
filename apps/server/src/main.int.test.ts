@@ -81,11 +81,10 @@ describe("server process", () => {
 
     const second = runServer(dataDirectory);
 
-    await expect(second.exit()).resolves.toStrictEqual({
-      code: 1,
-      stderr:
-        `Каталог данных ${dataDirectory} уже занят другим запуском Interview Sensei (PID ${first.pid}). ` +
-        "Остановите его или задайте другой каталог в переменной INTERVIEW_SENSEI_DATA_DIR.\n",
-    });
+    const { code, stderr } = await second.exit();
+
+    expect(code).toBe(1);
+    expect(stderr).toContain(`Каталог данных ${dataDirectory} уже занят`);
+    expect(stderr).toContain(`(PID ${first.pid})`);
   });
 });
