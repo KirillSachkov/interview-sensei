@@ -108,8 +108,13 @@ export async function launch(
 /** Sends the prompt and records how the turn ended. */
 export async function runTurn(session: LiveSession, agent: LiveAgent, text: string) {
   try {
-    const { stopReason } = await agent.prompt(text);
-    await record(session, { type: "turn_ended", stopReason });
+    const outcome = await agent.prompt(text);
+    await record(
+      session,
+      outcome.type === "ended"
+        ? { type: "turn_ended", stopReason: outcome.stopReason }
+        : { type: "turn_failed", message: outcome.message },
+    );
   } catch {
     // The process exited or the server stopped it during the turn; onExit or close records it.
   } finally {

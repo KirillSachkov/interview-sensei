@@ -43,6 +43,7 @@ interface Entry {
   readonly type: string;
   readonly text?: string;
   readonly stopReason?: string;
+  readonly message?: string;
 }
 
 interface SessionView {
@@ -79,6 +80,8 @@ const isWaitingForCancel = (view: SessionView) =>
 const isInterrupted = (view: SessionView) =>
   view.entries.some((entry) => entry.type === "turn_interrupted");
 const isFailed = (view: SessionView) => view.status === "failed";
+const hasFailedTurn = (view: SessionView) =>
+  isIdle(view) && view.entries.some((entry) => entry.type === "turn_failed");
 
 async function startChat(server: FastifyInstance): Promise<string> {
   const response = await server.inject({
@@ -197,6 +200,22 @@ describe("service chat", () => {
     const failed = await events.waitFor(isFailed);
     expect(failed.failure).toStrictEqual({ reason: "agent_exited", exitCode: 1, signal: null });
     expect(agentTexts(failed)).toStrictEqual(["Падаю…"]);
+  });
+
+  it("reports a failed turn and takes the next prompt when the agent answers with an error", async () => {
+    const { server } = await startServer(await temporaryDirectory());
+    const { events } = await readyChat(server);
+
+    events.send({ type: "prompt", text: "/fail" });
+
+    const failedTurn = await events.waitFor(hasFailedTurn);
+    expect(failedTurn.failure).toBeNull();
+    expect(failedTurn.entries.at(-1)).toMatchObject({
+      type: "turn_failed",
+      message: "Фейковый агент не смог ответить",
+    });
+    events.send({ type: "prompt", text: "Привет" });
+    await events.waitFor(isAnswered);
   });
 
   it("refuses a prompt while the agent works on the previous one", async () => {

@@ -27,11 +27,16 @@ interface AgentExit {
   readonly signal: string | null;
 }
 
+/** How a turn ended: with an ACP stop reason, or with an error answer of the running agent. */
+type TurnOutcome =
+  | { readonly type: "ended"; readonly stopReason: string }
+  | { readonly type: "failed"; readonly message: string };
+
 /** A started agent with one ACP session. */
 export interface LiveAgent {
   readonly acpSessionId: string;
-  /** Resolves with the ACP stop reason when the turn ends; rejects when the process exits. */
-  readonly prompt: (text: string) => Promise<{ stopReason: string }>;
+  /** Resolves with the outcome when the turn ends; rejects when the process exits. */
+  readonly prompt: (text: string) => Promise<TurnOutcome>;
   /** Asks the agent to end the current turn; the pending prompt resolves with `cancelled`. */
   readonly cancel: () => Promise<void>;
   /** Stops the agent process; `onExit` is not called for this stop. */

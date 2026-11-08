@@ -2,7 +2,8 @@
 export type ChatEntry =
   | { readonly id: string; readonly type: "candidate_message"; readonly text: string }
   | { readonly id: string; readonly type: "agent_message"; readonly text: string }
-  | { readonly id: string; readonly type: "turn_interrupted"; readonly stopReason: string };
+  | { readonly id: string; readonly type: "turn_interrupted"; readonly stopReason: string }
+  | { readonly id: string; readonly type: "turn_failed"; readonly message: string };
 
 type SessionStatus = "starting" | "idle" | "working" | "failed" | "ended";
 

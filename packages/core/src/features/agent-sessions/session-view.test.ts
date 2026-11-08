@@ -2,7 +2,7 @@
 // even test imports such as vitest out of domain/.
 import { describe, expect, it } from "vitest";
 
-import type { AgentSession } from "./domain/agent-session.ts";
+import type { AgentSession, ChatEntry } from "./domain/agent-session.ts";
 import type { SessionEvent } from "./domain/session-event.ts";
 import { replay } from "./domain/session-view.ts";
 
@@ -25,11 +25,29 @@ function chunk(text: string, messageId?: string): SessionEvent {
   };
 }
 
+function entryText(entry: ChatEntry): string {
+  switch (entry.type) {
+    case "turn_interrupted": {
+      return entry.stopReason;
+    }
+    case "turn_failed": {
+      return entry.message;
+    }
+    case "candidate_message":
+    case "agent_message": {
+      return entry.text;
+    }
+    default: {
+      return entry satisfies never;
+    }
+  }
+}
+
 function entriesOf(events: readonly SessionEvent[]) {
   const journal = events.map((event, index) => ({ id: index + 1, event }));
-  return replay(session, journal).entries.map(({ type, ...entry }) => ({
-    type,
-    text: "text" in entry ? entry.text : entry.stopReason,
+  return replay(session, journal).entries.map((entry) => ({
+    type: entry.type,
+    text: entryText(entry),
   }));
 }
 

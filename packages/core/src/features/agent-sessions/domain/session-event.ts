@@ -25,6 +25,8 @@ export type SessionEvent =
   | { readonly type: "prompt_sent"; readonly text: string }
   | { readonly type: "agent_update"; readonly update: AgentUpdate }
   | { readonly type: "turn_ended"; readonly stopReason: string }
+  /** The agent answered the prompt with an error and still runs; the session takes prompts. */
+  | { readonly type: "turn_failed"; readonly message: string }
   | { readonly type: "session_failed"; readonly failure: SessionFailure }
   /** The server stopped while the session was live; its agent process is gone. */
   | { readonly type: "session_ended" };

@@ -13,7 +13,8 @@ export function emptyView(session: AgentSession): SessionView {
 export function statusAfter(status: SessionStatus, { event }: RecordedEvent): SessionStatus {
   switch (event.type) {
     case "session_started":
-    case "turn_ended": {
+    case "turn_ended":
+    case "turn_failed": {
       return isLive(status) ? "idle" : status;
     }
     case "prompt_sent": {
@@ -91,6 +92,9 @@ function entriesAfter(
             ...entries,
             { id: `turn-${id}`, type: "turn_interrupted", stopReason: event.stopReason },
           ];
+    }
+    case "turn_failed": {
+      return [...entries, { id: `turn-${id}`, type: "turn_failed", message: event.message }];
     }
     case "session_started":
     case "session_failed":

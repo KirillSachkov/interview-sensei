@@ -40,7 +40,9 @@ export type ChatEntry =
       readonly messageId: string | null;
     }
   /** The turn ended before the agent finished, for example because the Candidate stopped it. */
-  | { readonly id: string; readonly type: "turn_interrupted"; readonly stopReason: string };
+  | { readonly id: string; readonly type: "turn_interrupted"; readonly stopReason: string }
+  /** The agent answered the prompt with an error; the message is the agent's own. */
+  | { readonly id: string; readonly type: "turn_failed"; readonly message: string };
 
 /** An AgentSession with its chat: what the browser shows. */
 export interface SessionView extends AgentSession {

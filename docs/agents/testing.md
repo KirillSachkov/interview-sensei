@@ -34,7 +34,7 @@ Pass repeated work through the injected `Timer`; tests tick it by hand instead o
 Give each test its own temporary data directory and remove it when the test finishes.
 Tests never call real agents: they need subscriptions.
 Tests use the fake ACP agent instead: `buildServer({ fakeAgent: true })` in process, `INTERVIEW_SENSEI_FAKE_AGENT=1` for `src/main.ts`.
-The fake agent streams a reply in chunks; the prompt `/wait` waits for a cancel, and `/crash` exits with code 1.
+The fake agent streams a reply in chunks; the prompt `/wait` waits for a cancel, `/fail` answers with a JSON-RPC error, and `/crash` exits with code 1.
 
 ## Ports
 

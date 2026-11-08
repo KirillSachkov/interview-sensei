@@ -23,6 +23,11 @@ function EntryLine({ entry }: { entry: ChatEntry }) {
     case "turn_interrupted": {
       return <p>{interruption(entry.stopReason)}</p>;
     }
+    case "turn_failed": {
+      return (
+        <p role="alert">Агент не смог ответить: {entry.message}. Отправьте сообщение ещё раз.</p>
+      );
+    }
     default: {
       return entry satisfies never;
     }

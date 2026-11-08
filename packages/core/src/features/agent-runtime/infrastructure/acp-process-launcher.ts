@@ -8,7 +8,13 @@ import { client, ndJsonStream, PROTOCOL_VERSION, RequestError } from "@agentclie
 import type { ClientContext } from "@agentclientprotocol/sdk";
 
 import type { LaunchRecipe } from "../domain/agent.ts";
-import type { AcpLauncher, AgentExit, AgentUpdate, LiveAgent } from "../domain/ports.ts";
+import type {
+  AcpLauncher,
+  AgentExit,
+  AgentUpdate,
+  LiveAgent,
+  TurnOutcome,
+} from "../domain/ports.ts";
 
 const clientInfo = { name: "interview-sensei", version: "0.0.0" };
 
@@ -116,17 +122,33 @@ async function failWhenExited(exited: Promise<AgentExit>): Promise<never> {
   throw new Error(`The agent exited before the session opened: ${exitCode ?? signal}`);
 }
 
+/** A JSON-RPC error answer fails the turn; a closed connection rejects, as the process is gone. */
+async function promptTurn(
+  agent: ClientContext,
+  acpSessionId: string,
+  text: string,
+): Promise<TurnOutcome> {
+  try {
+    const { stopReason } = await agent.request("session/prompt", {
+      sessionId: acpSessionId,
+      prompt: [{ type: "text", text }],
+    });
+    return { type: "ended", stopReason };
+  } catch (error) {
+    if (error instanceof RequestError) {
+      return { type: "failed", message: error.message };
+    }
+    throw error;
+  }
+}
+
 function liveAgent(
   { agent, acpSessionId }: { agent: ClientContext; acpSessionId: string },
   stop: () => Promise<void>,
 ): LiveAgent {
   return {
     acpSessionId,
-    prompt: async (text) =>
-      agent.request("session/prompt", {
-        sessionId: acpSessionId,
-        prompt: [{ type: "text", text }],
-      }),
+    prompt: async (text) => promptTurn(agent, acpSessionId, text),
     cancel: async () => agent.notify("session/cancel", { sessionId: acpSessionId }),
     stop,
   };

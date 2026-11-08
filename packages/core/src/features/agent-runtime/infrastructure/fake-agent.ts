@@ -4,12 +4,13 @@
 // Prompts:
 // - `/wait` sends «Жду отмены…» and waits until the client cancels the turn.
 // - `/crash` sends «Падаю…» and exits with code 1 in the middle of the turn.
+// - `/fail` answers the prompt with a JSON-RPC error and keeps running.
 // - Any other text gets the reply «Фейковый агент получил: «<text>»» in several chunks.
 import { randomUUID } from "node:crypto";
 import { Readable, Writable } from "node:stream";
 import { setTimeout as delay } from "node:timers/promises";
 
-import { agent, ndJsonStream, PROTOCOL_VERSION } from "@agentclientprotocol/sdk";
+import { agent, ndJsonStream, PROTOCOL_VERSION, RequestError } from "@agentclientprotocol/sdk";
 import type { AgentContext } from "@agentclientprotocol/sdk";
 
 // A short pause between chunks lets a person see the reply grow; the fake agent stands for an
@@ -74,6 +75,9 @@ const app = agent({ name: "interview-sensei-fake-agent" })
     const text = prompt.map((block) => (block.type === "text" ? block.text : "")).join("");
     if (text === "/crash") {
       return crash(client, sessionId);
+    }
+    if (text === "/fail") {
+      throw new RequestError(-32_603, "Фейковый агент не смог ответить");
     }
     if (text === "/wait") {
       return waitForCancel(client, sessionId);

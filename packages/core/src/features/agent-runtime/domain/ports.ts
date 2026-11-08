@@ -20,11 +20,19 @@ export interface AgentListeners {
   readonly onExit: (exit: AgentExit) => void;
 }
 
+/**
+ * How a turn ended: with an ACP stop reason, or with the JSON-RPC error the agent answered the
+ * prompt with while it kept running.
+ */
+export type TurnOutcome =
+  | { readonly type: "ended"; readonly stopReason: string }
+  | { readonly type: "failed"; readonly message: string };
+
 /** A started agent process with one ACP session. */
 export interface LiveAgent {
   readonly acpSessionId: string;
-  /** Resolves with the ACP stop reason when the turn ends; rejects when the process exits. */
-  readonly prompt: (text: string) => Promise<{ stopReason: string }>;
+  /** Resolves with the outcome when the turn ends; rejects when the process exits. */
+  readonly prompt: (text: string) => Promise<TurnOutcome>;
   /** Sends `session/cancel`; the pending prompt then resolves with `cancelled`. */
   readonly cancel: () => Promise<void>;
   /** Stops the process; `onExit` is not called for this stop. */
