@@ -143,8 +143,9 @@
       }
     },
     {
-      // The system clock reads the real time; tests control time through the Clock.
-      "files": ["**/shared/time/system-clock.ts", "**/*.test.ts", "**/*.test.tsx"],
+      // The system clock is the one place that reads the real time; tests inject a Clock instead.
+      // Globs resolve from the workspace that runs oxlint, so this matches only packages/core.
+      "files": ["src/shared/time/system-clock.ts"],
       "rules": {
         "interview-sensei/no-current-time": "off"
       }
