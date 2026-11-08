@@ -22,12 +22,13 @@ Shared settings live in `config/`: TypeScript, oxlint with the project plugin, a
 A feature slice has the layers `domain/`, `application/` and `infrastructure/`; create a layer when it gets code.
 `domain/` is plain TypeScript and imports only the `domain/` of its own feature.
 `application/` uses domain ports and receives infrastructure as parameters.
+Technical ports such as `Clock` live in `src/shared/`; application code may use them too.
 Slices never import each other. `src/shared/` is technical and never imports slices.
 Other workspaces reach core only through the subpaths in `packages/core/package.json` `exports`.
 
 ### Mechanical rules
 
-`pnpm check` enforces these rules. Change a rule only with the owner's agreement.
+`pnpm check` enforces these rules and options. Change a rule only with the owner's agreement.
 
 | Rule                                        | Tool               | Purpose                                                                  |
 | ------------------------------------------- | ------------------ | ------------------------------------------------------------------------ |
@@ -38,7 +39,7 @@ Other workspaces reach core only through the subpaths in `packages/core/package.
 | `no-circular`                               | dependency-cruiser | No import cycles, type-only imports included. In web and e2e, oxlint `import/no-cycle` reports value-import cycles. |
 | `server-uses-core-exports`                  | dependency-cruiser | The server imports core by package subpath, never by a path into `packages/core/src`. |
 | `not-to-unresolvable`                       | dependency-cruiser | Every import resolves, including core subpath exports.                  |
-| `tsPreCompilationDeps`                      | dependency-cruiser | Type-only imports count as dependencies.                                |
+| `tsPreCompilationDeps` (option)             | dependency-cruiser | An option, not a rule: the rules above count type-only imports as dependencies. |
 | `interview-sensei/require-disable-reason`   | oxlint             | Every disable directive gives a reason after `--`.                      |
 | `interview-sensei/no-current-time`          | oxlint             | No `Date.now()` or argument-less `new Date()`; use the injected `Clock`. |
 | `interview-sensei/no-playwright-test-modifiers` | oxlint         | No `test.only`, `test.skip` or `test.fixme` in Playwright tests.        |
