@@ -30,3 +30,16 @@ packageExtensions:
   "@feature-sliced/steiger-plugin@0.8.1":
     dependencies:
       "@steiger/toolkit": "0.2.4"
+# Agent skills that the owner approved (#32). pnpm links them at install time; the lockfile pins them.
+permissions:
+  "@tanstack/react-router":
+    skills: true
+  "@tanstack/router-core":
+    skills: true
+  "@tanstack/router-plugin":
+    skills: true
+# One target for every agent: .claude/skills points to .agents/skills, and Codex reads .agents/skills.
+# Without it, pnpm also links into the directory of the detected agent, such as .cursor/skills.
+skills:
+  dirs:
+    - .agents/skills

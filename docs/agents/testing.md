@@ -10,7 +10,7 @@ Run every command from the repository root after `pnpm install --frozen-lockfile
 - `pnpm test:unit` or `pnpm test:integration`: one Vitest project.
 - `pnpm test:e2e`: Playwright in Chromium; it starts the server and the web dev server itself.
 - `pnpm verify`: `pnpm check`, `pnpm test`, `pnpm test:e2e` and `python3 scripts/check.py` in order.
-- `python3 scripts/check.py`: local Markdown links/anchors, skill identity and invocation metadata, directory hashes and client pointers.
+- `python3 scripts/check.py`: local Markdown links/anchors, own skill identity and invocation metadata, directory hashes, package skill links and client pointers.
 - `git diff --check`: whitespace errors in the change.
 
 Before a PR, run `pnpm verify` and `git diff --check` and report their actual results.

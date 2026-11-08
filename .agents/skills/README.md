@@ -16,13 +16,44 @@ This fallback does not allow an agent to select user-only entrypoints itself.
 Native metadata preserves the same invocation choice; reading files does not prove client discovery.
 If independent subagents are unavailable, report independent review as unavailable rather than substituting self-review.
 
+## Package skills
+
+Package skills come from npm dependencies, not from this repository.
+`pnpm install` links them here as `pnpm-<package>-<skill>` symlinks into `node_modules`.
+pnpm links a package's skills only after approval in `permissions` of `pnpm-workspace.yaml`.
+The `skills.dirs` setting there limits the links to this directory.
+Git ignores the links and the `.gitignore` that pnpm writes here.
+The lockfile pins their content, so they have no row in the identity table and no native metadata.
+`scripts/check.py` accepts a link only if its name starts with `pnpm-` and it resolves inside the repository `node_modules`.
+Any other link here fails the check.
+For each accepted link, the check requires a `SKILL.md` with a name and a description.
+
+| Package | Link folder | Frontmatter name |
+| --- | --- | --- |
+| `@tanstack/react-router` | `pnpm-@tanstack+react-router-react-router` | `react-router` |
+| `@tanstack/router-core` | `pnpm-@tanstack+router-core-router-core` | `router-core` |
+| `@tanstack/router-plugin` | `pnpm-@tanstack+router-plugin-router-plugin` | `router-plugin` |
+
+Limits:
+
+- pnpm links only `skills/<name>/SKILL.md`. The nested skills `compositions/router-query` and `lifecycle/migrate-from-react-router` of `@tanstack/react-router` are not linked.
+- pnpm links skills only of direct dependencies. `apps/web` lists `@tanstack/router-core` for this reason: `react-router` declares `requires: router-core`.
+  Its version must match the one `@tanstack/react-router` depends on; bump both together.
+- Discovery of these links by Claude Code and Codex is not verified.
+- A lockfile bump changes the skill text. No hash pins it.
+
+Adding a package's skills needs the owner's decision. Then run `pnpm approve <package>`.
+
 ## Local adaptations
 
 - Domain consumers and setup use `DOMAIN.md` and `DOMAIN-MAP.md` consistently.
 - Project pointers preserve explicit starts, worktree ownership, human decisions, committed review and verified delivery.
-- `implement` owns small-task corrections; `implement-spec` uses one fresh correction implementer.
+- `implement` owns small-task corrections; `implement-spec` uses one fresh correction implementer for the full-diff review and one for each ticket review.
+- `implement-spec` adds a project line for review after each ticket when the spec chooses it (#29).
 - `code-review` reports two independent axes and checks corrections without discarding prior full coverage.
 - `pr` uses the selected human language, conditional presentation guidance and visible human actions.
+- `pr` adds project lines for the five required report parts and the report format; its upstream lines stay.
+- `pr` shapes its template to the report format: owner action first, short evidence and decisions with alternatives (#31).
 - `ship` delivers through existing project testing/tracker contracts; it does not deploy or approve merge.
 - Setup selects English or Russian human language and preserves existing settings and equivalent pointers.
 - Explanations and architecture reports follow that language. Tracker authorship precedes localized triage disclosures.
@@ -57,9 +88,9 @@ Hashes establish identity, not correctness or behavior.
 | `grilling` | `27f71f106a7062691b2982d4f847304a62930ebed8b50734f4d4fd498d60afa8` |
 | `handoff` | `77c2607c751b7c522e0208ab113ba4949f8267610d6061323c7ccd3ace21d7da` |
 | `implement` | `95af274086aef8db8a8c51b078d9d2f0d108a28796d1e84e373536f88f3664fe` |
-| `implement-spec` | `8cfbe422e17966c2dd77c8dee31855c94068e785b791175680ac7dbff3630bab` |
+| `implement-spec` | `237295dc854d24a4047f1087d795a2fa0685d7f9f0b869186f142957dd60b14c` |
 | `improve-codebase-architecture` | `6309784c0b4631b92b2a2196da3ea5a500749fe5905c2981e34acf514da6820b` |
-| `pr` | `98d1dd6da6310b8d09b957005463c11b361c40354b5bbff48a7186cef3f0f4f2` |
+| `pr` | `2ddfb7f87bdab9211993195b17ad783a07cbf7123331c9b8c982b46db8a9201a` |
 | `prototype` | `c4efd5e0f1c302b6225be83e8e42abdb05e13fde900484e4e2240e90b4e83eb6` |
 | `research` | `f2d6425b15cf3100d5c3eb4305a8e817174b8e5fa1fde6e06ad4b61321c32a60` |
 | `retro` | `09c4f9fe72fc5bc8e486a2bbb32dd785ca6264c56a53dd1bf9a334af72586efd` |

@@ -12,9 +12,37 @@ Record each additional check with these fields:
 - Evidence and its limits.
 - When the check is needed and what permits work to continue.
 
+## Acceptance levels
+
+Acceptance has two levels. Level 1 applies to all work; level 2 adds rules per spec.
+
+### Level 1: every PR
+
+The PR is the unit of acceptance. The owner accepts every PR from its report. Every PR report and checkpoint report has five required parts, in the [report format](#present-the-result):
+
+1. What now works, from the user's perspective.
+2. How to verify it yourself: steps and the expected result of each.
+3. Evidence: checks actually run and what each confirms.
+4. What is not done or is limited.
+5. What the owner must decide, including due [human checks](#human-check).
+
+Keep a part with no content and state "none" with a short reason.
+
+### Level 2: every spec
+
+Every spec has a section «Приёмка» with:
+
+- Delivery mode: one of the [delivery modes](delivery.md#delivery-modes).
+- Additional human checks, each with the [human-check fields](#human-check).
+- What each ticket must demonstrate.
+- Integration PR mode only: when [independent review](delivery.md#ticket-review) runs, after each ticket or after all tickets.
+- Integration PR mode only, optional: [checkpoints](delivery.md#checkpoints) after named tickets.
+
+Tickets inherit the spec's checks. Each ticket adds its own checks and demonstration to its acceptance criteria.
+
 ## Plan additional acceptance
 
-When preparing an issue or spec, agree additional checks using the [human-check fields](#human-check). A small issue may explicitly need no checks beyond normal final PR acceptance. Tickets inherit relevant parent checks and identify additional ones. Surface newly discovered checks when their decision is needed. Keep agreed checks until the owner resolves them; an agent cannot waive them.
+When preparing an issue or spec, agree additional checks using the [human-check fields](#human-check). A small issue may explicitly need no checks beyond normal final PR acceptance. Surface newly discovered checks when their decision is needed. Keep agreed checks until the owner resolves them; an agent cannot waive them.
 
 ## Choose additional human checks
 
@@ -35,9 +63,16 @@ If no additional check is needed, give a short reason in the PR. Every final PR 
 
 ## Present the result
 
-Lead with changed behavior and the owner's next action. Present each additional check using the [human-check fields](#human-check).
+Write PR and checkpoint reports for fast reading. Use `pr` for presentation. The report format:
 
-Keep required human actions, unresolved questions, and material limitations visible. Put detailed commands, logs, and revision records behind a disclosure. Use `pr` for presentation. A screenshot demonstrates visible state; permissions and side effects need evidence at the relevant boundary. Mark planned or unavailable checks as such.
+- **First line**, after the [authorship prefix](issue-tracker.md#message-authorship): what the owner must do now, with a direct link to each target. If the owner needs to do nothing beyond acceptance, state that.
+- **Sections:** the [five required parts](#level-1-every-pr), in order, each a short section under its own heading.
+- **How to verify it yourself:** 3 to 5 steps, each with its expected result.
+- **Evidence:** one line on CI with its link, then a short conclusion. Put logs, check tables, and command output behind `<details>`.
+- **What the owner must decide:** a list. Each item has a question, a recommendation, one alternative, and a link to its evidence. Present each additional check using the [human-check fields](#human-check).
+- **Form:** bold labels, lists, and tables instead of continuous prose.
+
+Keep required human actions, unresolved questions, and material limitations outside `<details>`. A screenshot demonstrates visible state; permissions and side effects need evidence at the relevant boundary. Mark planned or unavailable checks as such.
 
 ## Ask the owner
 

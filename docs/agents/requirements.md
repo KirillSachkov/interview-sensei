@@ -34,7 +34,8 @@ A lasting requirement that a test cannot check goes into an ADR when it meets th
 Otherwise its issue remains its record.
 
 A short issue records the problem, desired and preserved behavior, scope, acceptance criteria and verification.
-Use the `to-spec` template for full specs and [human participation](human-review.md) for acceptance planning.
+Use the `to-spec` template for full specs.
+Add the spec's «Приёмка» section under [acceptance levels](human-review.md#acceptance-levels).
 
 ## When requirements change
 

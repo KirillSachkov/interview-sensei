@@ -8,6 +8,8 @@
     "apps/web": {
       // Steiger has no knip plugin; `pnpm boundaries` loads this config.
       "entry": ["steiger.config.ts"],
+      // A direct dependency only so pnpm links its agent skills (#32); the code imports @tanstack/react-router.
+      "ignoreDependencies": ["@tanstack/router-core"],
       "ignoreIssues": {
         // The router plugin decides what the generated route tree exports.
         "src/**/*.gen.ts": ["exports", "types"],

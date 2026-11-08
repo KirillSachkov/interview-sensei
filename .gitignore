@@ -12,3 +12,7 @@ test-results/
 # Data directory of the server that the Playwright tests start
 e2e/.data/
 *.log
+
+# Agent skills that pnpm links from dependencies at install time, and the ignore file pnpm writes for them
+/.agents/skills/pnpm-*
+/.agents/skills/.gitignore
