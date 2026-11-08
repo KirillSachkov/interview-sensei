@@ -36,8 +36,15 @@ export function useSessionEvents(sessionId: string) {
       }
     });
     return () => {
-      connection.close();
       socket.current = null;
+      // Closing during the handshake breaks the dev proxy's pipe; close once the socket opens.
+      if (connection.readyState === WebSocket.CONNECTING) {
+        connection.addEventListener("open", () => {
+          connection.close();
+        });
+      } else {
+        connection.close();
+      }
     };
   }, [sessionId]);
 
