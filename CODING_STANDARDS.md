@@ -25,6 +25,15 @@ A feature slice has the layers `domain/`, `application/` and `infrastructure/`; 
 Slices never import each other. `src/shared/` is technical and never imports slices.
 Other workspaces reach core only through the subpaths in `packages/core/package.json` `exports`.
 
+### Storage
+
+Only the server opens the data directory (ADR-0002); `packages/core/src/shared/storage` holds the lock, PGlite, migrations and dumps.
+The application writes only inside the data directory.
+A slice that stores data owns a Postgres schema named after it, with its Drizzle tables and drizzle-kit migrations in `infrastructure/`.
+Its first migration starts with `CREATE SCHEMA IF NOT EXISTS`, because the migrator first creates the schema for the history table.
+The slice exports its `SliceMigrations` from `index.ts`, and `sliceMigrations` in `apps/server/src/server.ts` lists it.
+A slice queries only its own schema.
+
 ### Mechanical rules
 
 `pnpm check` enforces these rules. Change a rule only with the owner's agreement.
@@ -46,6 +55,7 @@ Other workspaces reach core only through the subpaths in `packages/core/package.
 | unused files, exports, dependencies         | knip               | No dead code or unused packages.                                        |
 
 The clock lives in `packages/core/src/shared/time`; only `system-clock.ts` reads the real time.
+Repeated work takes the `Timer` from the same module; only `system-timer.ts` starts real timers.
 Node runs server sources directly by type stripping: use only erasable syntax and `.ts` import extensions.
 Dependency versions are exact. `pnpm-workspace.yaml` holds the supply-chain settings: release age, trust policy and allowed install scripts.
 Add a trust exclusion or install script only with a comment that gives the reason.

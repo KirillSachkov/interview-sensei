@@ -21,13 +21,16 @@ Install the Playwright browser once with `pnpm --filter @interview-sensei/e2e ex
 | Level       | File                                  | Runs                                                                 |
 | ----------- | ------------------------------------- | -------------------------------------------------------------------- |
 | unit        | `src/**/*.test.ts` next to the code   | Pure functions; no I/O, no server.                                   |
-| integration | `apps/server/src/**/*.int.test.ts`    | The server built in process, called through its HTTP API.            |
+| integration | `apps/server/src/**/*.int.test.ts`    | The server in process through its HTTP API, or `src/main.ts` as a process. |
+| integration | `packages/core/src/**/*.int.test.ts`  | Core technical code on real PGlite in a temporary data directory.    |
 | e2e         | `e2e/tests/*.test.ts`                 | The real browser against the running server and web app.             |
 
 Test external behavior at the public boundary, not implementation details.
 Name each test after the behavior it checks.
 Integration tests use real infrastructure in process, without Docker.
 Pass time through the injected `Clock`; never fake `Date` globally.
+Pass repeated work through the injected `Timer`; tests tick it by hand instead of sleeping.
+Give each test its own temporary data directory and remove it when the test finishes.
 Tests never call real agents: they need subscriptions.
 
 ## Ports
@@ -35,6 +38,13 @@ Tests never call real agents: they need subscriptions.
 `pnpm dev` uses server port 4310 and web port 5173; set `SERVER_PORT` and `WEB_PORT` to change them.
 `pnpm test:e2e` uses 4320 and 5183; set `E2E_SERVER_PORT` and `E2E_WEB_PORT` to change them.
 Give each worktree its own ports when several run at once.
+
+## Data directory
+
+The server keeps all data in `~/.interview-sensei`; the `INTERVIEW_SENSEI_DATA_DIR` variable overrides it.
+`pnpm dev` uses the default directory. `pnpm test:e2e` uses `e2e/.data`, which Git ignores.
+One running server owns a data directory: a second server on it exits with code 1 and an error message.
+Give each worktree its own data directory when several servers run at once.
 
 ## CI
 
