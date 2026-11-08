@@ -3,5 +3,5 @@
  * sleeping. The returned function stops the ticks.
  */
 export interface Timer {
-  readonly every: (intervalMs: number, tick: () => Promise<void>) => () => void;
+  readonly repeat: (intervalMs: number, tick: () => Promise<void>) => () => void;
 }

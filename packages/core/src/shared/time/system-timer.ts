@@ -2,7 +2,7 @@ import type { Timer } from "./timer.ts";
 
 /** Real timers. Only the server's entry point creates it; everything else receives a Timer. */
 export const systemTimer: Timer = {
-  every: (intervalMs, tick) => {
+  repeat: (intervalMs, tick) => {
     const interval = setInterval(() => {
       void tick();
     }, intervalMs);

@@ -8,6 +8,7 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 
 import type { Clock, Timer } from "../time/index.ts";
 import { lockDataDirectory } from "./data-directory-lock.ts";
+import { scheduleDumps } from "./database-dumps.ts";
 
 /** The application database. Each slice queries only the tables of its own Postgres schema. */
 export type Database = PgliteDatabase;
@@ -26,9 +27,14 @@ export interface StorageOptions {
   readonly clock: Clock;
   readonly timer: Timer;
   readonly migrations: readonly SliceMigrations[];
+  /** Receives the error of a periodic dump; the storage keeps working and tries again later. */
+  readonly onDumpFailed: (error: unknown) => void;
 }
 
-/** The open data directory. Only this process uses it until `close` resolves; `close` is idempotent. */
+/**
+ * The open data directory. Only this process uses it until `close` resolves. `close` writes the
+ * final dump, closes the database and releases the lock; a second call waits for the first.
+ */
 export interface Storage {
   readonly database: Database;
   readonly close: () => Promise<void>;
@@ -69,17 +75,19 @@ async function openMigratedClient(
 
 /**
  * Opens the data directory for this process: creates it on the first start, takes its lock,
- * opens PGlite and applies the migrations of every slice. Rejects with DataDirectoryInUseError
+ * opens PGlite, applies the migrations of every slice and schedules dumps. Rejects with DataDirectoryInUseError
  * when another running process holds the directory.
  */
 export async function openStorage(options: StorageOptions): Promise<Storage> {
   await mkdir(options.dataDirectory, { recursive: true, mode: 0o700 });
   const unlock = await lockDataDirectory(options.dataDirectory, options.clock);
   const client = await openMigratedClient(options, unlock);
+  const stopDumps = scheduleDumps({ ...options, client });
   const shutDown = async () => {
     try {
-      await client.close();
+      await stopDumps();
     } finally {
+      await client.close();
       await unlock();
     }
   };
