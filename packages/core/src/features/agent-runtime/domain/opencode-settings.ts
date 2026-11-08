@@ -72,7 +72,9 @@ function parseConfig(text: string | null): JsonObject {
     return {};
   }
   try {
-    const parsed: unknown = JSON.parse(withoutTrailingCommas(withoutComments(text)));
+    // JSON.parse refuses the byte order mark that some editors put at the start of the file.
+    const content = text.startsWith("\uFEFF") ? text.slice(1) : text;
+    const parsed: unknown = JSON.parse(withoutTrailingCommas(withoutComments(content)));
     return isObject(parsed) ? parsed : {};
   } catch {
     return {};

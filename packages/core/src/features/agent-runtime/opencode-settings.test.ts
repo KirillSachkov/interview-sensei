@@ -71,4 +71,9 @@ describe("opencode model settings", () => {
       opencodeModelSettings(['{"model":"one/a","small_model":"one/b"}', null, '{"model":"two/a"}']),
     ).toStrictEqual({ model: "two/a", small_model: "one/b" });
   });
+
+  it("reads a file that starts with a UTF-8 byte order mark, as Windows editors save it", () => {
+    const withBom = `\uFEFF${JSON.stringify({ model: "deepseek/deepseek-flash" })}`;
+    expect(opencodeModelSettings([withBom])).toStrictEqual({ model: "deepseek/deepseek-flash" });
+  });
 });
