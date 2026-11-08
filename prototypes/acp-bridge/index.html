@@ -1,0 +1,40 @@
+<!doctype html>
+<!-- PROTOTYPE, throwaway: browser chat over WS relayed from the Fastify ACP client -->
+<html><head><meta charset="utf-8"><title>ACP bridge prototype</title>
+<style>
+body{font:14px system-ui;margin:0;display:grid;grid-template-columns:2fr 1fr;height:100vh}
+#chat{overflow:auto;padding:12px}#side{border-left:1px solid #ccc;overflow:auto;padding:12px;background:#fafafa}
+.m{margin:6px 0;white-space:pre-wrap}.user{color:#04a}.agent{color:#111}.tool{color:#875;font-size:12px}
+.card{border:2px solid #4a4;border-radius:8px;padding:8px;margin:8px 0;background:#efe}
+.perm{border:2px solid #c80;padding:8px;margin:8px 0}form{display:flex;gap:6px;padding:8px;position:sticky;bottom:0;background:#fff}
+input{flex:1}pre{font-size:11px;white-space:pre-wrap}
+</style></head><body>
+<div><div id="chat"></div>
+<form id="f"><input id="i" value="Call get_session_brief, then present_question with one Go question. Reply in one sentence."><button>Send</button><button type="button" id="fork">Fork</button></form></div>
+<div id="side"><b>Question cards</b><div id="cards"></div><b>Plan</b><pre id="plan"></pre><b>Last event</b><pre id="ev"></pre></div>
+<script>
+const ws = new WebSocket(`ws://${location.host}/ws`);
+const chat = document.getElementById("chat");
+let cur = null;
+const add = (cls, text) => { const d = document.createElement("div"); d.className = "m " + cls; d.textContent = text; chat.append(d); chat.scrollTop = 1e9; return d; };
+ws.onmessage = (e) => {
+  const ev = JSON.parse(e.data);
+  document.getElementById("ev").textContent = JSON.stringify(ev, null, 1).slice(0, 1500);
+  if (ev.type === "user") { add("user", "> " + ev.text); cur = null; }
+  if (ev.type === "update") {
+    const u = ev.update;
+    if (u.sessionUpdate === "agent_message_chunk" && u.content?.type === "text") { cur ??= add("agent", ""); cur.textContent += u.content.text; }
+    else if (u.sessionUpdate === "tool_call") { add("tool", `tool_call ${u.toolCallId}: ${u.title} [${u.status ?? ""}]`); cur = null; }
+    else if (u.sessionUpdate === "tool_call_update") add("tool", `tool_call_update ${u.toolCallId}: ${u.status ?? ""}`);
+    else if (u.sessionUpdate === "plan") document.getElementById("plan").textContent = u.entries.map(x => `[${x.status}] ${x.content}`).join("\n");
+  }
+  if (ev.type === "question_card") { const c = document.createElement("div"); c.className = "card"; c.innerHTML = `<b>#${ev.id} ${ev.topic}</b><div></div>`; c.lastChild.textContent = ev.question; document.getElementById("cards").append(c); }
+  if (ev.type === "permission") {
+    const d = add("perm", `Permission: ${ev.toolCall?.title}\n`);
+    for (const o of ev.options) { const b = document.createElement("button"); b.textContent = o.name; b.onclick = () => { ws.send(JSON.stringify({ type: "permission", id: ev.id, optionId: o.optionId })); d.remove(); }; d.append(b); }
+  }
+  if (["stop", "error", "fork", "session", "permission_auto", "mcp_call", "agent_exit"].includes(ev.type)) add("tool", ev.type + " " + JSON.stringify(ev).slice(0, 300));
+};
+document.getElementById("f").onsubmit = (e) => { e.preventDefault(); ws.send(JSON.stringify({ type: "prompt", text: document.getElementById("i").value })); };
+document.getElementById("fork").onclick = () => ws.send(JSON.stringify({ type: "fork" }));
+</script></body></html>
