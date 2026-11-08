@@ -2,7 +2,6 @@
 // They sit at the slice root: domain-is-pure keeps even test imports such as vitest out of domain/.
 import { describe, expect, it } from "vitest";
 
-import type { AgentKind } from "./domain/agent.ts";
 import { automaticAnswer } from "./domain/permissions.ts";
 import type { PermissionOption, ToolCallFields } from "./domain/ports.ts";
 
@@ -33,7 +32,7 @@ function answer({
   request: ToolCallFields;
   announced?: ToolCallFields;
   options?: readonly PermissionOption[];
-  agent?: AgentKind;
+  agent?: string;
 }) {
   return automaticAnswer({ agent, ourServer, request, announced, options });
 }
@@ -89,7 +88,6 @@ describe("automatic answer to a permission request", () => {
 
   it("leaves to the Candidate a request of an agent kind it does not know", () => {
     // An agent kind that a later ticket adds before it teaches the rule its fields.
-    const unknown = ourServer as AgentKind;
-    expect(answer({ agent: unknown, request: marked(ourServer) })).toBeNull();
+    expect(answer({ agent: "claude-code", request: marked(ourServer) })).toBeNull();
   });
 });
