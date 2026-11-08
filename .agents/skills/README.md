@@ -24,12 +24,21 @@ pnpm links a package's skills only after approval in `permissions` of `pnpm-work
 The `skills.dirs` setting there limits the links to this directory.
 Git ignores the links and the `.gitignore` that pnpm writes here.
 The lockfile pins their content, so they have no row in the identity table and no native metadata.
-`scripts/check.py` requires a `SKILL.md` with a name and a description for each link.
+`scripts/check.py` accepts a link only if its name starts with `pnpm-` and it resolves inside the repository `node_modules`.
+Any other link here fails the check.
+For each accepted link, the check requires a `SKILL.md` with a name and a description.
 
-| Package | Skill |
-| --- | --- |
-| `@tanstack/react-router` | `react-router` |
-| `@tanstack/router-plugin` | `router-plugin` |
+| Package | Link folder | Frontmatter name |
+| --- | --- | --- |
+| `@tanstack/react-router` | `pnpm-@tanstack+react-router-react-router` | `react-router` |
+| `@tanstack/router-plugin` | `pnpm-@tanstack+router-plugin-router-plugin` | `router-plugin` |
+
+Limits:
+
+- pnpm links only `skills/<name>/SKILL.md`. The nested skills `compositions/router-query` and `lifecycle/migrate-from-react-router` of `@tanstack/react-router` are not linked.
+- `react-router` declares `requires: router-core`. The skills of `@tanstack/router-core` are not approved, so that skill is absent.
+- Discovery of these links by Claude Code and Codex is not verified.
+- A lockfile bump changes the skill text. No hash pins it.
 
 Adding a package's skills needs the owner's decision. Then run `pnpm approve <package>`.
 
