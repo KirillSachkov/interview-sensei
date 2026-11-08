@@ -9,10 +9,10 @@ The stack is TypeScript on Node 24 in a pnpm workspace; NestJS is not used.
 
 | Workspace       | Role                                                                          |
 | --------------- | ----------------------------------------------------------------------------- |
-| `apps/server`   | Fastify server: composes core features, serves HTTP under `/api`.             |
+| `apps/server`   | Fastify server: composes core features, serves HTTP under `/api` and the built web app; the `interview-sensei` command. |
 | `apps/web`      | React, Vite, TanStack Router and Query, Feature-Sliced Design.                |
 | `packages/core` | Feature slices in `src/features/<feature>/` and technical code in `src/shared/`. |
-| `e2e`           | Playwright tests against the running server and web app.                      |
+| `e2e`           | Playwright tests against the built app that `interview-sensei` serves.        |
 | `skills/`       | Skills the application gives the Candidate's agent; not a workspace.          |
 
 Shared settings live in `config/`: TypeScript, oxlint with the project plugin, and the dependency-cruiser base.
@@ -71,6 +71,7 @@ A slice queries only its own schema.
 
 The clock lives in `packages/core/src/shared/time`; only `system-clock.ts` reads the real time.
 Node runs server sources directly by type stripping: use only erasable syntax and `.ts` import extensions.
+So the server has no build step; `pnpm build` builds only the web app, and the server serves it from `apps/web/dist`.
 Dependency versions are exact. `pnpm-workspace.yaml` holds the supply-chain settings: release age, trust policy and allowed install scripts.
 Add a trust exclusion or install script only with a comment that gives the reason.
 

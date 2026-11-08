@@ -8,7 +8,9 @@ Run every command from the repository root after `pnpm install --frozen-lockfile
 - `pnpm check`: Prettier, oxlint with type checking, dependency-cruiser, Steiger and knip.
 - `pnpm test`: the Vitest projects `unit` and `integration` of every workspace.
 - `pnpm test:unit` or `pnpm test:integration`: one Vitest project.
-- `pnpm test:e2e`: Playwright in Chromium; it starts the server and the web dev server itself.
+- `pnpm build`: the web app into `apps/web/dist`; the server runs from its sources and needs no build.
+- `pnpm test:e2e`: `pnpm build`, then Playwright in Chromium against the `interview-sensei` command that it starts itself.
+  Only the root script builds first; `pnpm --filter @interview-sensei/e2e test:e2e` tests the existing `apps/web/dist`.
 - `pnpm verify`: `pnpm check`, `pnpm test`, `pnpm test:e2e` and `python3 scripts/check.py` in order.
 - `python3 scripts/check.py`: local Markdown links/anchors, own skill identity and invocation metadata, directory hashes, package skill links and client pointers.
 - `git diff --check`: whitespace errors in the change.
@@ -22,9 +24,9 @@ Install the Playwright browser once with `pnpm --filter @interview-sensei/e2e ex
 | Level       | File                                  | Runs                                                                 |
 | ----------- | ------------------------------------- | -------------------------------------------------------------------- |
 | unit        | `src/**/*.test.ts` next to the code; core domain tests at the slice root | Pure functions; no I/O, no server. `domain-is-pure` keeps tests out of `domain/`. |
-| integration | `apps/server/src/**/*.int.test.ts`    | The server in process through its HTTP API, or `src/main.ts` as a process. |
+| integration | `apps/server/src/**/*.int.test.ts`    | The server in process through its HTTP API, or `src/main.ts` and `src/launch.ts` as processes. |
 | integration | `packages/core/src/**/*.int.test.ts`  | Core technical code on real PGlite in a temporary data directory.    |
-| e2e         | `e2e/tests/*.test.ts`                 | The real browser against the running server and web app.             |
+| e2e         | `e2e/tests/*.test.ts`                 | The real browser against the built app that `interview-sensei` serves. |
 
 Test external behavior at the public boundary, not implementation details.
 Name each test after the behavior it checks.
@@ -43,13 +45,15 @@ In-process API tests listen on a free loopback port: the agent reaches the sessi
 ## Ports
 
 `pnpm dev` uses server port 4310 and web port 5173; set `SERVER_PORT` and `WEB_PORT` to change them.
-`pnpm test:e2e` uses 4320 and 5183; set `E2E_SERVER_PORT` and `E2E_WEB_PORT` to change them.
+`pnpm start` uses port 4310 too and serves the web app on it; set `SERVER_PORT` to change it.
+`pnpm test:e2e` uses port 4320; set `E2E_SERVER_PORT` to change it.
+A server on a taken port exits with code 1 and a message that names the port.
 Give each worktree its own ports when several run at once.
 
 ## Data directory
 
 The server keeps all data in `~/.interview-sensei`; the `INTERVIEW_SENSEI_DATA_DIR` variable overrides it.
-`pnpm dev` uses the default directory. `pnpm test:e2e` uses `e2e/.data`, which Git ignores.
+`pnpm dev` and `pnpm start` use the default directory. `pnpm test:e2e` uses `e2e/.data`, which Git ignores.
 Each agent session works in its own directory under `sessions/` in the data directory.
 One running server owns a data directory: a second server on it exits with code 1 and an error message.
 Give each worktree its own data directory when several servers run at once.
@@ -57,6 +61,17 @@ Give each worktree its own data directory when several servers run at once.
 ## Fake agent
 
 `pnpm test:e2e` offers the fake agent. To chat with it by hand, start `INTERVIEW_SENSEI_FAKE_AGENT=1 INTERVIEW_SENSEI_DATA_DIR=<temporary directory> pnpm dev`.
+To check the built app by hand, run `pnpm build`, then the same variables with `pnpm start`.
+
+## Launch command
+
+`interview-sensei` (`apps/server/src/launch.ts`) serves `apps/web/dist` beside `/api` and prints the URL.
+It logs only warnings and errors, so the URL line stays visible; `pnpm dev` logs every request.
+On a wildcard host such as `0.0.0.0` or `::`, the URL uses the loopback address.
+Without a built web app, it exits with code 1 and asks for `pnpm build`.
+`INTERVIEW_SENSEI_WEB_DIR` replaces `apps/web/dist` in tests.
+It opens the URL with `open` on macOS, `rundll32 url.dll,FileProtocolHandler` on Windows and `xdg-open` elsewhere.
+Tests and CI turn the browser off with `--no-browser` or `INTERVIEW_SENSEI_NO_BROWSER=1`.
 
 ## CI
 
