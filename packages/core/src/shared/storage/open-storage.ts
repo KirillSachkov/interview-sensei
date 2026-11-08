@@ -27,7 +27,7 @@ export interface StorageOptions {
   readonly migrations: readonly SliceMigrations[];
 }
 
-/** The open data directory. Only this process uses it until `close` resolves. */
+/** The open data directory. Only this process uses it until `close` resolves; `close` is idempotent. */
 export interface Storage {
   readonly database: Database;
   readonly close: () => Promise<void>;
@@ -47,10 +47,13 @@ export async function openStorage(options: StorageOptions): Promise<Storage> {
     });
   }
   /* oxlint-enable eslint/no-await-in-loop */
+  let closing: Promise<void> | undefined = undefined;
   return {
     database,
+    // Both the server's shutdown and its entry point may close the storage; it closes once.
     close: async () => {
-      await client.close();
+      closing ??= client.close();
+      await closing;
     },
   };
 }

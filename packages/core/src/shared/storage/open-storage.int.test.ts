@@ -10,6 +10,7 @@ import type { SliceMigrations, Storage } from "./index.ts";
 
 const fixtures = path.join(import.meta.dirname, "test-fixtures");
 const notesV1: SliceMigrations = { schema: "notes", folder: path.join(fixtures, "notes-v1") };
+const notesV2: SliceMigrations = { schema: "notes", folder: path.join(fixtures, "notes-v2") };
 const tags: SliceMigrations = { schema: "tags", folder: path.join(fixtures, "tags-v1") };
 
 const startTime = Date.parse("2026-01-02T03:04:05.000Z");
@@ -89,5 +90,17 @@ describe(openStorage, () => {
       { schema: "tags", table: "__drizzle_migrations" },
       { schema: "tags", table: "tags" },
     ]);
+  });
+
+  it("keeps the data after a restart and applies the migrations added since", async () => {
+    const dataDirectory = await temporaryDirectory();
+    const first = await open(dataDirectory, [notesV1]);
+    await first.database.execute(sql`INSERT INTO notes.notes (text) VALUES ('goroutines')`);
+    await first.close();
+
+    const second = await open(dataDirectory, [notesV2]);
+
+    const { rows } = await second.database.execute(sql`SELECT text, author FROM notes.notes`);
+    expect(rows).toStrictEqual([{ text: "goroutines", author: "candidate" }]);
   });
 });
