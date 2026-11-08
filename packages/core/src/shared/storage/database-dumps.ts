@@ -1,4 +1,4 @@
-import { rename, writeFile } from "node:fs/promises";
+import { open, rename } from "node:fs/promises";
 import path from "node:path";
 
 import type { PGlite } from "@electric-sql/pglite";
@@ -14,13 +14,31 @@ const dumpPeriodMs = 5 * 60_000;
 /** How often the timer asks whether a dump is due; the injected clock decides. */
 const checkIntervalMs = 60_000;
 
+/** Writes the directory's entries to the disk, so a crash does not undo a rename in it. */
+async function syncDirectory(directory: string): Promise<void> {
+  const handle = await open(directory, "r");
+  try {
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+}
+
 async function writeDump(client: PGlite, dataDirectory: string): Promise<void> {
   const dump = await client.dumpDataDir("gzip");
   const target = path.join(dataDirectory, dumpFileName);
   const partial = `${target}.partial`;
-  await writeFile(partial, new Uint8Array(await dump.arrayBuffer()));
+  const file = await open(partial, "w");
+  try {
+    await file.writeFile(new Uint8Array(await dump.arrayBuffer()));
+    // The dump must reach the disk before it replaces the previous one.
+    await file.sync();
+  } finally {
+    await file.close();
+  }
   // A rename replaces the previous dump at once, so a crash never leaves half a dump in its place.
   await rename(partial, target);
+  await syncDirectory(dataDirectory);
 }
 
 export interface DumpSchedule {
