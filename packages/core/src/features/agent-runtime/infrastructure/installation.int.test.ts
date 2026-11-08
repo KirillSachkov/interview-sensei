@@ -1,6 +1,6 @@
 // What the server finds about the agents on a machine. A temporary directory stands for the
 // Candidate's home and PATH, so the test never reads the real ones.
-import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -99,5 +99,38 @@ describe("agent host inspection", () => {
     const host = await inspectAgentHost({ home, env: {} })();
 
     expect(host.opencodeAuth.exists).toBe(true);
+  });
+
+  it("takes the Candidate's OpenCode model from the home's .config without changing the file", async () => {
+    const home = await temporaryHome();
+    const file = path.join(home, ".config", "opencode", "opencode.json");
+    const content = '{"model":"deepseek/deepseek-flash","mcp":{"notes":{}}}';
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, content);
+
+    const host = await inspectAgentHost({ home, env: {} })();
+
+    expect(host.opencodeModel).toStrictEqual({ model: "deepseek/deepseek-flash" });
+    await expect(readFile(file, "utf8")).resolves.toBe(content);
+  });
+
+  it("reads opencode.jsonc in XDG_CONFIG_HOME when the Candidate set it", async () => {
+    const home = await temporaryHome();
+    const configHome = path.join(home, "xdg");
+    await mkdir(path.join(configHome, "opencode"), { recursive: true });
+    await writeFile(path.join(configHome, "opencode", "opencode.jsonc"), '{"small_model":"a/b",}');
+
+    const host = await inspectAgentHost({ home, env: { XDG_CONFIG_HOME: configHome } })();
+
+    expect(host.opencodeModel).toStrictEqual({ small_model: "a/b" });
+  });
+
+  it("takes no OpenCode model from a missing or unreadable config", async () => {
+    const home = await temporaryHome();
+    await mkdir(path.join(home, ".config", "opencode", "opencode.json"), { recursive: true });
+
+    const host = await inspectAgentHost({ home, env: {} })();
+
+    expect(host.opencodeModel).toStrictEqual({});
   });
 });

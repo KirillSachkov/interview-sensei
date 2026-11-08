@@ -13,6 +13,7 @@ const host: AgentHost = {
   opencodeBinary: "/opt/homebrew/bin/opencode",
   codexAuth: { path: "/home/candidate/.codex/auth.json", exists: true },
   opencodeAuth: { path: "/home/candidate/.local/share/opencode/auth.json", exists: false },
+  opencodeModel: {},
 };
 
 function availability(changes: Partial<AgentHost> = {}) {

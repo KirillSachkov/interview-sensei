@@ -21,6 +21,7 @@ const host: AgentHost = {
   opencodeBinary: "/opt/homebrew/bin/opencode",
   codexAuth: { path: "/home/candidate/.codex/auth.json", exists: true },
   opencodeAuth: { path: "/home/candidate/.local/share/opencode/auth.json", exists: true },
+  opencodeModel: {},
 };
 
 function recipe(agent: (typeof agentKinds)[number], changes: Partial<AgentHost> = {}) {
@@ -193,6 +194,21 @@ describe("launch recipe", () => {
     expect(() => recipe("claude", { claudeAdapter: null })).toThrow(/claude/u);
     expect(() => recipe("codex", { codexAdapter: null })).toThrow(/codex/u);
     expect(() => recipe("opencode", { opencodeBinary: null })).toThrow(/opencode/u);
+  });
+});
+
+describe("opencode recipe with the Candidate's model", () => {
+  it("puts the Candidate's model into the agent's config under the recipe's own settings", () => {
+    const deepseek = { models: { "deepseek-flash": { name: "DeepSeek Flash" } } };
+    const opencodeModel = { model: "deepseek/deepseek-flash", provider: { deepseek } };
+    const config = recipe("opencode", { opencodeModel }).env.OPENCODE_CONFIG_CONTENT;
+    expect(JSON.parse(String(config))).toStrictEqual({
+      model: "deepseek/deepseek-flash",
+      provider: { deepseek },
+      autoupdate: false,
+      share: "disabled",
+      permission: { edit: "ask", bash: "ask", webfetch: "ask", external_directory: "ask" },
+    });
   });
 });
 

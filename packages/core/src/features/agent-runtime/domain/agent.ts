@@ -1,3 +1,5 @@
+import type { OpencodeModelSettings } from "./opencode-settings.ts";
+
 /** The agents the server can start; `fake` only for tests and manual checks. */
 export const agentKinds = ["claude", "codex", "opencode", "fake"] as const;
 export type AgentKind = (typeof agentKinds)[number];
@@ -36,6 +38,8 @@ export interface AgentHost {
   readonly codexAuth: UserFile;
   /** The Candidate's OpenCode provider keys: `opencode/auth.json` in `$XDG_DATA_HOME`. */
   readonly opencodeAuth: UserFile;
+  /** The model the Candidate chose for OpenCode; see `opencodeModelSettings`. */
+  readonly opencodeModel: OpencodeModelSettings;
 }
 
 /** Why an adapter that comes with the application is missing, and what to do. */

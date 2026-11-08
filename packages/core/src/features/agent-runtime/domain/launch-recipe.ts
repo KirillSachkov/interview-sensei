@@ -162,7 +162,7 @@ function opencodeRecipe({ host, dataDirectory, sessionDirectory }: LaunchRequest
       OPENCODE_DISABLE_CLAUDE_CODE: "1",
       OPENCODE_DISABLE_EXTERNAL_SKILLS: "1",
       OPENCODE_DISABLE_PROJECT_CONFIG: "1",
-      OPENCODE_CONFIG_CONTENT: JSON.stringify(opencodeConfig),
+      OPENCODE_CONFIG_CONTENT: JSON.stringify({ ...host.opencodeModel, ...opencodeConfig }),
     },
     sessionMeta: null,
     mode: null,

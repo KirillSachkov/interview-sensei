@@ -1,9 +1,10 @@
 import { constants } from "node:fs";
-import { access, stat } from "node:fs/promises";
+import { access, readFile, stat } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 
 import type { AgentHost } from "../domain/agent.ts";
+import { opencodeModelSettings } from "../domain/opencode-settings.ts";
 
 const require = createRequire(import.meta.url);
 
@@ -60,6 +61,18 @@ async function userFile(file: string) {
   return { path: file, exists: await isFile(file) };
 }
 
+/** The file's text, or null when it is missing or unreadable. */
+async function textOrNull(file: string): Promise<string | null> {
+  try {
+    return await readFile(file, "utf8");
+  } catch {
+    return null;
+  }
+}
+
+/** The global config files in OpenCode's merge order; read only, never logged. */
+const opencodeConfigFiles = ["config.json", "opencode.json", "opencode.jsonc"];
+
 /**
  * Finds the adapters, OpenCode and the Candidate's logins. It only reads: the Candidate's agent
  * directories are never written.
@@ -67,6 +80,7 @@ async function userFile(file: string) {
 export function inspectAgentHost({ home, env }: UserEnvironment): () => Promise<AgentHost> {
   const codexHome = env.CODEX_HOME ?? path.join(home, ".codex");
   const dataHome = env.XDG_DATA_HOME ?? path.join(home, ".local", "share");
+  const configHome = env.XDG_CONFIG_HOME ?? path.join(home, ".config");
   return async () => ({
     nodeExecutable: process.execPath,
     fakeAgentScript: path.join(import.meta.dirname, "fake-agent.ts"),
@@ -75,5 +89,10 @@ export function inspectAgentHost({ home, env }: UserEnvironment): () => Promise<
     opencodeBinary: await findInPath("opencode", env.PATH),
     codexAuth: await userFile(path.join(codexHome, "auth.json")),
     opencodeAuth: await userFile(path.join(dataHome, "opencode", "auth.json")),
+    opencodeModel: opencodeModelSettings(
+      await Promise.all(
+        opencodeConfigFiles.map((name) => textOrNull(path.join(configHome, "opencode", name))),
+      ),
+    ),
   });
 }

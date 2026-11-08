@@ -41,6 +41,7 @@ const host: AgentHost = {
   opencodeBinary: null,
   codexAuth: { path: "/home/candidate/.codex/auth.json", exists: false },
   opencodeAuth: { path: "/home/candidate/.local/share/opencode/auth.json", exists: false },
+  opencodeModel: {},
 };
 
 /** Starts the fake agent through an in-memory launcher and returns the agent's side of ACP. */
