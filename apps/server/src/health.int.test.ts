@@ -13,7 +13,7 @@ async function startServer() {
   const server = await buildServer({
     clock: { now: () => new Date(fixedTime) },
     // Periodic dumps are not under test here; the timer never ticks.
-    timer: { repeat: () => () => {} },
+    timer: { repeat: () => () => {}, after: () => () => {} },
     dataDirectory,
   });
   onTestFinished(async () => {

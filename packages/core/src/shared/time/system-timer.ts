@@ -12,4 +12,11 @@ export const systemTimer: Timer = {
       clearInterval(interval);
     };
   },
+  after: (delayMs, task) => {
+    const timeout = setTimeout(task, delayMs);
+    timeout.unref();
+    return () => {
+      clearTimeout(timeout);
+    };
+  },
 };

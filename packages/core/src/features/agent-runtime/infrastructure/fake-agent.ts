@@ -6,6 +6,10 @@
 // - `/crash` sends «Падаю…» and exits with code 1 in the middle of the turn.
 // - `/fail` answers the prompt with a JSON-RPC error and keeps running.
 // - Any other text gets the reply «Фейковый агент получил: «<text>»» in several chunks.
+//
+// The variable INTERVIEW_SENSEI_FAKE_AGENT_MODE stands for broken agents in launcher tests:
+// - `silent` never answers and ignores SIGTERM, like a hung agent.
+// - `ignore-sigterm` works but ignores SIGTERM, so only SIGKILL stops it.
 import { randomUUID } from "node:crypto";
 import { Readable, Writable } from "node:stream";
 import { setTimeout as delay } from "node:timers/promises";
@@ -89,4 +93,12 @@ const app = agent({ name: "interview-sensei-fake-agent" })
     cancelWaiters.delete(params.sessionId);
   });
 
-app.connect(ndJsonStream(Writable.toWeb(process.stdout), Readable.toWeb(process.stdin)));
+const mode = process.env.INTERVIEW_SENSEI_FAKE_AGENT_MODE;
+if (mode === "silent" || mode === "ignore-sigterm") {
+  process.on("SIGTERM", () => {});
+  // Keeps the process alive after its input ends, so only SIGKILL stops it.
+  setInterval(() => {}, 60_000);
+}
+if (mode !== "silent") {
+  app.connect(ndJsonStream(Writable.toWeb(process.stdout), Readable.toWeb(process.stdin)));
+}

@@ -24,8 +24,8 @@ async function temporaryDirectory(): Promise<string> {
 async function startServer(dataDirectory: string) {
   const server = await buildServer({
     clock: { now: () => new Date(fixedTime) },
-    // Periodic dumps are not under test here; the timer never ticks.
-    timer: { repeat: () => () => {} },
+    // Dumps and agent timeouts are not under test here; the timer never runs a task.
+    timer: { repeat: () => () => {}, after: () => () => {} },
     dataDirectory,
     fakeAgent: true,
   });

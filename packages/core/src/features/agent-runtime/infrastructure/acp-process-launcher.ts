@@ -7,6 +7,7 @@ import { Readable, Writable } from "node:stream";
 import { client, ndJsonStream, PROTOCOL_VERSION, RequestError } from "@agentclientprotocol/sdk";
 import type { ClientContext } from "@agentclientprotocol/sdk";
 
+import type { Timer } from "../../../shared/time/index.ts";
 import type { LaunchRecipe } from "../domain/agent.ts";
 import type {
   AcpLauncher,
@@ -17,6 +18,11 @@ import type {
 } from "../domain/ports.ts";
 
 const clientInfo = { name: "interview-sensei", version: "0.0.0" };
+
+/** How long the agent may take to answer `initialize` and `session/new`. */
+export const launchTimeoutMs = 60_000;
+/** How long a stopped agent may take to exit after SIGTERM; then it gets SIGKILL. */
+export const stopGraceMs = 5000;
 
 type AgentProcess = ChildProcessByStdio<Writable, Readable, null>;
 
@@ -36,11 +42,18 @@ function spawnAgent(recipe: LaunchRecipe): { child: AgentProcess; exited: Promis
   return { child, exited: exit.promise };
 }
 
-async function stopProcess(child: AgentProcess): Promise<void> {
+async function stopProcess(child: AgentProcess, timer: Timer): Promise<void> {
   if (child.exitCode === null && child.signalCode === null) {
     const closed = once(child, "close");
     child.kill("SIGTERM");
-    await closed;
+    const cancelKill = timer.after(stopGraceMs, () => {
+      child.kill("SIGKILL");
+    });
+    try {
+      await closed;
+    } finally {
+      cancelKill();
+    }
   }
 }
 
@@ -79,7 +92,7 @@ function connect(
 }
 
 /** The server's stop of the agent: `stopping` ends the connection, then the process ends. */
-function stopper(child: AgentProcess) {
+function stopper(child: AgentProcess, timer: Timer) {
   const stopping = Promise.withResolvers<null>();
   let requested = false;
   return {
@@ -88,7 +101,7 @@ function stopper(child: AgentProcess) {
     stop: async () => {
       requested = true;
       stopping.resolve(null);
-      await stopProcess(child);
+      await stopProcess(child, timer);
     },
   };
 }
@@ -115,6 +128,15 @@ async function reportUnexpectedExit({
 async function failWhenClosed(connection: Promise<void>): Promise<never> {
   await connection;
   throw new Error("The agent closed the connection before the session opened");
+}
+
+/** Rejects when the agent has not opened the session in time; the returned function cancels it. */
+function failAfterTimeout(timer: Timer): { timedOut: Promise<never>; cancel: () => void } {
+  const timeout = Promise.withResolvers<never>();
+  const cancel = timer.after(launchTimeoutMs, () => {
+    timeout.reject(new Error(`The agent did not open a session in ${launchTimeoutMs / 1000} s`));
+  });
+  return { timedOut: timeout.promise, cancel };
 }
 
 async function failWhenExited(exited: Promise<AgentExit>): Promise<never> {
@@ -154,23 +176,37 @@ function liveAgent(
   };
 }
 
-/**
- * Starts the agent process by the recipe, connects to it over stdio and opens one session. The
- * server owns the connection; the browser only sees what the server makes of it.
- */
-export const launchAcpAgent: AcpLauncher = async (recipe, { onUpdate, onExit }) => {
-  await mkdir(recipe.cwd, { recursive: true, mode: 0o700 });
-  const { child, exited } = spawnAgent(recipe);
-  const { stop, stopping, stopRequested } = stopper(child);
-  const { opened, connection } = connect(child, { cwd: recipe.cwd, onUpdate }, stopping);
-  void reportUnexpectedExit({ connection, exited, stopRequested, onExit });
+/** Waits until the agent opens the session; stops the process when it fails or takes too long. */
+async function openSession(
+  { opened, connection, exited }: ReturnType<typeof connect> & { exited: Promise<AgentExit> },
+  { stop, timer }: { stop: () => Promise<void>; timer: Timer },
+): Promise<LiveAgent> {
+  const { timedOut, cancel } = failAfterTimeout(timer);
   try {
     return liveAgent(
-      await Promise.race([opened, failWhenClosed(connection), failWhenExited(exited)]),
+      await Promise.race([opened, failWhenClosed(connection), failWhenExited(exited), timedOut]),
       stop,
     );
   } catch (error) {
     await stop();
     throw error;
+  } finally {
+    cancel();
   }
-};
+}
+
+/**
+ * Starts the agent process by the recipe, connects to it over stdio and opens one session. The
+ * server owns the connection; the browser only sees what the server makes of it. The timer
+ * bounds the launch and the wait for the process after SIGTERM.
+ */
+export function acpLauncher({ timer }: { timer: Timer }): AcpLauncher {
+  return async (recipe, { onUpdate, onExit }) => {
+    await mkdir(recipe.cwd, { recursive: true, mode: 0o700 });
+    const { child, exited } = spawnAgent(recipe);
+    const { stop, stopping, stopRequested } = stopper(child, timer);
+    const { opened, connection } = connect(child, { cwd: recipe.cwd, onUpdate }, stopping);
+    void reportUnexpectedExit({ connection, exited, stopRequested, onExit });
+    return openSession({ opened, connection, exited }, { stop, timer });
+  };
+}

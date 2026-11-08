@@ -39,6 +39,8 @@ export function manualTime() {
         ticks.splice(ticks.indexOf(tick), 1);
       };
     },
+    // Storage schedules no single tasks.
+    after: () => () => {},
   };
   return {
     clock,

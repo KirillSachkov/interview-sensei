@@ -3,7 +3,7 @@ import path from "node:path";
 import { fastifyWebsocket } from "@fastify/websocket";
 import {
   createAgentRuntime,
-  launchAcpAgent,
+  acpLauncher,
   localInstallation,
 } from "@interview-sensei/core/agent-runtime";
 import {
@@ -44,14 +44,15 @@ function composeAgentSessions(
   storage: Storage,
   {
     clock,
+    timer,
     dataDirectory,
     fakeAgent,
-  }: Pick<ServerDependencies, "clock" | "dataDirectory" | "fakeAgent">,
+  }: Pick<ServerDependencies, "clock" | "timer" | "dataDirectory" | "fakeAgent">,
 ) {
   const runtime = createAgentRuntime({
     agents: fakeAgent === true ? ["fake"] : [],
     installation: localInstallation(),
-    launch: launchAcpAgent,
+    launch: acpLauncher({ timer }),
   });
   const sessions = createAgentSessions({
     repository: drizzleSessionRepository(storage.database),
@@ -109,6 +110,7 @@ export async function buildServer({
   });
   const { runtime, sessions } = composeAgentSessions(server, storage, {
     clock,
+    timer,
     dataDirectory,
     fakeAgent,
   });

@@ -30,11 +30,12 @@ Test external behavior at the public boundary, not implementation details.
 Name each test after the behavior it checks.
 Integration tests use real infrastructure in process, without Docker.
 Pass time through the injected `Clock`; never fake `Date` globally.
-Pass repeated work through the injected `Timer`; tests tick it by hand instead of sleeping.
+Pass repeated and delayed work through the injected `Timer`; tests run its tasks by hand instead of sleeping.
 Give each test its own temporary data directory and remove it when the test finishes.
 Tests never call real agents: they need subscriptions.
 Tests use the fake ACP agent instead: `buildServer({ fakeAgent: true })` in process, `INTERVIEW_SENSEI_FAKE_AGENT=1` for `src/main.ts`.
 The fake agent streams a reply in chunks; the prompt `/wait` waits for a cancel, `/fail` answers with a JSON-RPC error, and `/crash` exits with code 1.
+`INTERVIEW_SENSEI_FAKE_AGENT_MODE=silent` makes it a hung agent; `ignore-sigterm` makes it ignore SIGTERM.
 
 ## Ports
 
