@@ -13,10 +13,12 @@ describe("browser command", () => {
     expect(browserCommand("linux", url)).toStrictEqual({ command: "xdg-open", args: [url] });
   });
 
-  it("opens the URL with start through cmd on Windows", () => {
-    expect(browserCommand("win32", url)).toStrictEqual({
-      command: "cmd",
-      args: ["/c", "start", '""', url],
+  it("passes the URL on Windows as one argument that cmd does not parse", () => {
+    const urlWithQuery = "http://127.0.0.1:4310/?a=1&b=2";
+
+    expect(browserCommand("win32", urlWithQuery)).toStrictEqual({
+      command: "rundll32",
+      args: ["url.dll,FileProtocolHandler", urlWithQuery],
     });
   });
 });
