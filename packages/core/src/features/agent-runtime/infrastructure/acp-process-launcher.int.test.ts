@@ -32,7 +32,10 @@ function manualTimer() {
       scheduled.resolve(null);
       scheduled = Promise.withResolvers<null>();
       return () => {
-        pending.splice(pending.indexOf(entry), 1);
+        const index = pending.indexOf(entry);
+        if (index !== -1) {
+          pending.splice(index, 1);
+        }
       };
     },
   };

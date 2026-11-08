@@ -5,7 +5,9 @@ import type { Page } from "@playwright/test";
 /** Opens the page, starts a chat with the fake agent and returns its message list items. */
 async function startNewChat(page: Page) {
   await page.goto("/");
-  await page.getByLabel("Агент").selectOption({ label: "Фейковый агент" });
+  await page
+    .getByRole("combobox", { name: "Агент", exact: true })
+    .selectOption({ label: "Фейковый агент" });
   await page.getByRole("button", { name: "Новый чат" }).click();
   // The new chat replaces the latest one from earlier runs and has no messages yet.
   const messages = page.getByRole("list", { name: "Сообщения" }).getByRole("listitem");
