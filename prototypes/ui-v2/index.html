@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- PROTOTYPE, throwaway. Ticket #3, iteration 2, round 2. Base: round-1 variant A (zones on canvas).
+<!-- PROTOTYPE, throwaway. Ticket #3, iteration 2, round 3. Base: round-1 variant A (zones on canvas).
      Question: where does the main agent chat live on the canvas?
      ?variant=1 chat column inside the session area follows the current question
      ?variant=2 chat inside the session area, dragged by its header, stays where placed
@@ -7,7 +7,7 @@
      Common: larger UI, minimal Materials/Plan (pinnable), one collapsible area per session,
      Side thread chat on canvas, edge labels never cross arrows.
      Libraries: rough.js (MIT), font Caveat (OFL), both from CDN. In-memory state only. -->
-<html lang="ru"><head><meta charset="utf-8"><title>Прототип UI v2 · раунд 2</title>
+<html lang="ru"><head><meta charset="utf-8"><title>Прототип UI v2 · раунд 3</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/roughjs@4.6.6/bundled/rough.js"></script>
@@ -23,7 +23,7 @@ button:hover{background:#f4f3f0}button.pri{background:var(--acc);border-color:va
 button.ghost{border-color:transparent;background:transparent;color:var(--mute)}button.ghost:hover{color:var(--ink);background:#f1f0ec}
 button.ico{padding:5px 9px;font-size:16px}
 button.big{font-size:16px;padding:10px 20px;font-weight:600}
-textarea,input[type=text]{font:inherit;width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;resize:vertical;background:#fff}
+textarea,input[type=text]{font:inherit;width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;resize:none;background:#fff;display:block}
 textarea:focus,input:focus{outline:3px solid var(--accs);border-color:var(--acc)}
 .mute{color:var(--mute)}.small{font-size:14px}.row{display:flex;gap:8px;align-items:center}.wrap{flex-wrap:wrap}.sp{flex:1}
 .tag{display:inline-block;font-size:13px;padding:2px 9px;border-radius:12px;background:#f1f0ec;color:#555;white-space:nowrap}
@@ -55,7 +55,17 @@ textarea:focus,input:focus{outline:3px solid var(--accs);border-color:var(--acc)
 .chathd{display:flex;gap:8px;align-items:center;margin-bottom:6px}
 .dh{cursor:move}.dh .grip{color:#bbb;font-size:18px;letter-spacing:-2px}
 .nodechat{max-height:360px;margin:0 -6px;padding:0 6px}
-.msg{margin:10px 0;font-size:15px;position:relative}.msg.c{margin-left:44px;background:var(--accs);border-radius:12px;padding:8px 12px}
+.cnode{padding:0}.cnode .chathd{padding:14px 20px;border-bottom:1px solid #efede8;margin:0;min-height:56px}
+.cnode .nodechat{max-height:560px;min-height:240px;padding:6px 20px 10px;margin:0;display:flex;flex-direction:column}
+.cnode .nodechat.over{outline:3px dashed var(--acc);outline-offset:-8px}
+.cnode .inp{padding:12px 14px;border-top:1px solid #efede8;margin:0;align-items:flex-end}
+.inp textarea{min-height:46px;max-height:160px;overflow:auto;line-height:1.4}
+.send{border-radius:50%;width:42px;height:42px;padding:0;background:var(--acc);border-color:var(--acc);color:#fff;font-size:18px;flex:none}.send:hover{background:#5753c9}
+.ansbox{min-height:90px;max-height:300px;overflow:auto;margin-top:4px}
+.msg{max-width:90%}.msg.a{align-self:flex-start}.msg.c{align-self:flex-end;margin-left:0}.msg.sys{align-self:stretch;max-width:none}
+.prop{border:1px solid var(--line);border-left:3px solid var(--acc);border-radius:10px;padding:10px 12px;margin-top:8px;background:#fff}
+.segbar{display:flex;height:10px;border-radius:5px;overflow:hidden;margin:12px 0 8px;background:#eee}.segbar i{display:block;height:100%}
+.msg{margin:8px 0;font-size:15.5px;position:relative;line-height:1.5}.msg.c{background:var(--accs);border-radius:14px 14px 4px 14px;padding:8px 14px}
 .msg.a .sb{position:absolute;right:-4px;top:-6px;opacity:0}.msg.a:hover .sb{opacity:1}
 .msg.sys{font-size:13px;color:var(--mute)}
 .brief{font-size:14px;background:#f6f5f2;border-radius:10px;padding:8px 10px;color:#555;margin:6px 0}
@@ -110,6 +120,7 @@ textarea:focus,input:focus{outline:3px solid var(--accs);border-color:var(--acc)
 <div id="sheet" class="island"></div>
 <div id="modal"></div>
 <div id="toast"></div>
+<input type="file" id="fileIn" multiple hidden onchange="attach(this.files);this.value=''">
 <div id="switch"></div>
 <script>
 // ---------- data ----------
@@ -137,7 +148,7 @@ const PAST={
 };
 function initState(){return{
  sheet:null,sheetArg:null,working:false,sel:new Set(),onlyNew:false,debrief:false,seq:4,
- pin:{mat:false,plan:false},open:{},sess:{m1:false,m2:false,m3:true},pos:{},chatOpen:false,plus:false,prefs:false,report:false,
+ pin:{mat:false,plan:false,prog:false},draft:{},setupOpen:false,setup:[{r:'a',t:'Это настройка цели «Go middle»: материалы, план и правила отбора. Интервью здесь не идёт. Что поменяем?'}],open:{},sess:{m1:false,m2:false,m3:true},pos:{},chatOpen:false,plus:false,prefs:false,report:false,
  sources:[['вакансия','Авито · Go'],['вакансия','Ozon · Backend'],['резюме','Резюме 2026'],['видео','Мок собес Go #12'],['ссылка','Go Memory Model']],
  proc:[{name:'Собес в Яндекс: Go',p:45}],done:[{name:'Статья «Go Scheduler»',added:9,doubt:2}],
  prefsList:['Меньше определений, больше прикладных вопросов','Без вопросов про Go до 1.18'],
@@ -172,7 +183,7 @@ function qCard(x){
  if(x.answer!=null)h+=`<div class="ans">${esc(x.answer)}</div>`;
  x.fu.forEach(f=>{h+=`<div class="fu"><span class="mute">Уточнение:</span> ${esc(f.a)}${f.c?`<div class="ans">${esc(f.c)}</div>`:''}</div>`});
  if(x.status==='current'){
-  h+=S.working?`<div style="margin-top:8px">${working()}</div>`:`<textarea id="ans-${x.id}" rows="3" placeholder="${x.fu.length?'Уточните ответ…':'Ваш ответ…'}"></textarea>
+  h+=S.working?`<div style="margin-top:8px">${working()}</div>`:`${ta('ans-'+x.id,x.fu.length?'Уточните ответ…':'Ваш ответ…',null,'ansbox')}
   <div class="acts"><button class="pri" onclick="act('submit','${x.id}')">Ответить</button><button onclick="act('dunno','${x.id}')">Не знаю</button><span class="sp"></span><button class="ghost" title="Обсудить отдельно: откроется ветка, попытка будет с подсказкой" onclick="act('side','${x.id}')">↗ Обсудить</button></div>`;
  }else{
   h+=`<div class="acts"><button onclick="act('reveal','${x.id}')">${x.reveal?'Скрыть разбор':'Разбор'}</button><button class="ghost" title="Обсудить отдельно" onclick="act('side','${x.id}')">↗ Обсудить</button><span class="sp"></span><span class="hov"><button class="ghost ico" title="Полезный вопрос" onclick="toast('👍 сохранено')">👍</button><button class="ghost ico" title="В вопросе ошибка" onclick="toast('⚠ вопрос скрыт до исправления')">⚠</button><button class="ghost ico" title="Нерелевантный" onclick="toast('👎 исключён для этой цели')">👎</button></span></div>`;
@@ -183,39 +194,62 @@ function qCard(x){
  }
  return h;
 }
-function msgs(list,side){return list.map((m,i)=>`<div class="msg ${m.r}">${m.r==='a'&&side?`<button class="ghost ico sb" title="Обсудить отдельно" onclick="act('sideMsg',${i})">↗</button>`:''}${m.brief?`<div class="brief"><b>Контекст ветки</b><br>${esc(m.brief)}</div>`:''}${esc(m.t)}</div>`).join('')}
-function input(tab,ph){return `<div class="inp"><input type="text" id="ci-${tab}" placeholder="${ph}" onkeydown="if(event.key==='Enter')act('send','${tab}')"><button class="ico" onclick="act('send','${tab}')">↵</button></div>`}
+function msgs(list,side,tab){return list.map((m,i)=>`<div class="msg ${m.r}">${m.r==='a'&&side?`<button class="ghost ico sb" title="Обсудить отдельно" onclick="act('sideMsg',${i})">↗</button>`:''}${m.brief?`<div class="brief"><b>Контекст ветки</b><br>${esc(m.brief)}</div>`:''}${esc(m.t)}${m.prop?propHTML(m.prop,tab,i):''}</div>`).join('')}
+function propHTML(p,tab,i){return `<div class="prop"><div>${esc(p.text)}</div>${p.state?`<div class="mute small" style="margin-top:6px">${p.state==='ok'?'✓ Применено':'Отклонено'}</div>`:`<div class="acts"><button class="pri" onclick="applyProp(${i},true)">Применить</button><button onclick="applyProp(${i},false)">Отклонить</button></div>`}</div>`}
+function ta(id,ph,send,cls){const d=S.draft[id]||{v:'',h:0};return `<textarea id="${id}" class="${cls||''}" rows="1" placeholder="${ph}" style="${d.h?'height:'+d.h+'px':''}" oninput="grow(this)" ${send?`onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();${send}}"`:''}>${esc(d.v)}</textarea>`}
+function grow(el){const old=el.offsetHeight;el.style.height='auto';const max=el.classList.contains('ansbox')?300:160;const h=Math.min(el.scrollHeight+2,max);el.style.height=h+'px';S.draft[el.id]={v:el.value,h};
+ if(Math.abs(h-old)>1){const pos=el.selectionStart;render();const n=document.getElementById(el.id);if(n){n.focus();n.setSelectionRange(pos,pos)}}}
+function input(tab,ph,extra){return `<div class="inp">${extra||''}${ta('ci-'+tab,ph,`act('send','${tab}')`)}<button class="send" title="Отправить (Enter)" onclick="act('send','${tab}')">↑</button></div>`}
 function agentChat(){
  const handle=S.variant==='2';
- return `<div class="chathd ${handle?'dh':''}" data-drag="chat">${handle?'<span class="grip">⋮⋮</span>':''}<span style="font-size:22px">🤖</span><b>Агент</b><span class="sp"></span>${S.working?working():''}${S.variant==='3'?`<button class="ghost ico" title="Свернуть" onclick="S.chatOpen=false;render()">–</button>`:''}</div>
- <div class="nodechat scroll">${msgs(S.chat,true)}</div>${input('main','Сказать агенту…')}`;
+ return `<div class="chathd ${handle?'dh':''}" data-drag="chat">${handle?'<span class="grip">⋮⋮</span>':''}<b>Интервьюер</b><span class="mute small">Мок 3</span><span class="sp"></span>${S.working===true?working():''}${S.variant==='3'?`<button class="ghost ico" title="Свернуть" onclick="S.chatOpen=false;render()">–</button>`:''}</div>
+ <div class="nodechat scroll">${msgs(S.chat,true,'main')}</div>${input('main','Сказать интервьюеру…')}`;
+}
+function setupChat(){
+ const quick=['Добавить материалы','Изменить план','Новое правило отбора'];
+ return `<div class="chathd"><b>Настройка цели</b><span class="mute small">Go middle</span><span class="sp"></span>${S.working==='setup'?working():''}<button class="ghost ico" title="Закрыть (разговор сохранится)" onclick="S.setupOpen=false;render()">✕</button></div>
+ <div class="nodechat scroll" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="dropSetup(event,this)">${msgs(S.setup,false,'setup')}
+ ${S.setup.length<3?`<div class="row wrap" style="margin:6px 0 10px">${quick.map(x=>`<button onclick="setupQuick('${x}')">${x}</button>`).join('')}</div>`:''}</div>
+ ${input('setup','Опишите, что поменять, или перетащите файл…',`<button class="ghost ico" title="Прикрепить файл" onclick="$('#fileIn').click()">📎</button>`)}`;
 }
 function threadNode(t){
- if(!t.open)return{id:t.id,w:260,stroke:'#e8590c',html:`<div class="row" style="cursor:pointer" onclick="act('topen','${t.id}')"><span style="font-size:20px">↗</span><b>${esc(t.title)}</b><span class="sp"></span><span class="tag">${t.msgs.length}</span></div>${t.hint?'<div class="hint" style="margin-top:4px">открыта до ответа: с подсказкой</div>':''}`};
- return{id:t.id,w:400,stroke:'#e8590c',html:`<div class="chathd"><span style="font-size:20px">↗</span><b>${esc(t.title)}</b><span class="sp"></span><button class="ghost ico" title="Свернуть" onclick="act('topen','${t.id}')">–</button></div>
- <div class="hint">Отдельная ветка: оценок и записи попыток здесь нет.</div>
- <div class="nodechat scroll">${msgs(t.msgs)}</div>${S.working===t.id?working():''}${input(t.id,'Спросить в ветке…')}`};
+ if(!t.open)return{id:t.id,w:280,stroke:'#e8590c',noOverlap:1,html:`<div class="row" style="cursor:pointer" onclick="act('topen','${t.id}')"><span style="font-size:20px">↗</span><b>${esc(t.title)}</b><span class="sp"></span><span class="tag">${t.msgs.length}</span></div>${t.hint?'<div class="hint" style="margin-top:4px">открыта до ответа: с подсказкой</div>':''}`};
+ return{id:t.id,w:460,stroke:'#e8590c',cls:'cnode',noOverlap:1,html:`<div class="chathd"><span style="font-size:20px">↗</span><b>${esc(t.title)}</b><span class="sp"></span>${S.working===t.id?working():''}<button class="ghost ico" title="Свернуть" onclick="act('topen','${t.id}')">–</button></div>
+ <div class="nodechat scroll"><div class="msg sys">Отдельная ветка: оценок и записи попыток здесь нет.</div>${msgs(t.msgs)}</div>${input(t.id,'Спросить в ветке…')}`};
 }
+const pinBtn=k=>`<button class="ghost ico pin ${S.pin[k]?'on':''}" title="${S.pin[k]?'Открепить: вернуть на холст':'Закрепить у края экрана'}" onclick="S.pin.${k}=!S.pin.${k};render()">📌</button>`;
+const editBtn=(intent,t)=>`<button class="ghost ico" title="${t}" onclick="openSetup('${intent}')">✎</button>`;
 function materials(){
- return `<div class="row"><span class="ttl">Материалы</span><span class="sp"></span><button class="ghost ico pin ${S.pin.mat?'on':''}" title="${S.pin.mat?'Открепить: вернуть на холст':'Закрепить у края экрана'}" onclick="S.pin.mat=!S.pin.mat;render()">📌</button></div>
- <div class="dropzone" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="dropFiles(event,this)" style="margin-top:10px">
- ${S.sources.map(s=>`<span class="chip" title="${s[0]}">${SRCICON[s[0]]||'📄'} ${esc(s[1])}</span>`).join('')}
- ${S.proc.map(p=>`<span class="chip proc" title="Агент разбирает в фоне">${'<span class="working"><i></i></span>'} ${esc(p.name)}<span class="pbar" style="width:${p.p}%"></span></span>`).join('')}
- ${S.done.map(d=>`<span class="chip" onclick="S.report=!S.report;render()" title="Inbox report">✓ ${esc(d.name)} <span class="tag acc">+${d.added}</span></span>`).join('')}
- <span class="chip add" onclick="S.plus=!S.plus;render()">＋ Добавить</span>
- ${S.plus?`<div class="menu"><div onclick="fakeAdd('файл','Тестовое задание.pdf')">📄 Файл</div><div onclick="fakeAdd('ссылка','habr.com/ru/articles/…')">🔗 Ссылка или видео</div><div onclick="fakeAdd('вакансия','Т-Банк · Go')">💼 Текст вакансии</div><div class="hint" style="cursor:default">или перетащите файл на эту карточку</div></div>`:''}
+ return `<div class="row"><span class="ttl">Материалы</span><span class="sp"></span>${editBtn('Добавить материалы','Изменить в настройке цели')}${pinBtn('mat')}</div>
+ <div style="margin-top:10px">
+ ${S.sources.map(s=>`<span class="chip" title="${s[0]}" onclick="toast('Открыть источник')">${SRCICON[s[0]]||'📄'} ${esc(s[1])}</span>`).join('')}
+ ${S.proc.map(p=>`<span class="chip proc" title="Агент разбирает в фоне"><span class="working"><i></i></span> ${esc(p.name)}<span class="pbar" style="width:${p.p}%"></span></span>`).join('')}
+ ${S.done.map(d=>`<span class="chip" onclick="S.report=!S.report;render()" title="Отчёт о разборе">✓ ${esc(d.name)} <span class="tag acc">+${d.added}</span></span>`).join('')}
+ <span class="chip add" onclick="openSetup('Добавить материалы')">＋ Добавить</span>
  ${S.report?`<div class="brief">${S.done[0].name}: добавил ${S.done[0].added} вопросов в «Go и конкурентность» и «PostgreSQL». Сомневаюсь в ${S.done[0].doubt}. <span style="color:var(--acc);cursor:pointer" onclick="S.onlyNew=true;openSheet('bank')">Посмотреть новые →</span></div>`:''}
  </div>
  <div class="pr" onclick="S.prefs=!S.prefs;render()" style="margin-top:4px;padding-left:2px"><span>⚙︎</span><span>Правила отбора</span><span class="tag">${S.prefsList.length}</span><span class="sp"></span><span class="mute">${S.prefs?'▴':'▾'}</span></div>
- ${S.prefs?`<div class="topics" style="padding-left:30px">${S.prefsList.map(p=>`<div>• ${esc(p)}</div>`).join('')}${input('pref','Новое правило своими словами…')}</div>`:''}`;
+ ${S.prefs?`<div class="topics" style="padding-left:30px">${S.prefsList.map(p=>`<div>• ${esc(p)}</div>`).join('')}</div>`:''}`;
 }
 function plan(){
- return `<div class="row"><span class="ttl">План</span><span class="sp"></span><button class="ghost ico" title="Изменить план с агентом" onclick="askAgent('Измени план: ')">✎</button><button class="ghost ico pin ${S.pin.plan?'on':''}" title="${S.pin.plan?'Открепить':'Закрепить у края экрана'}" onclick="S.pin.plan=!S.pin.plan;render()">📌</button></div>
- <div style="margin-top:8px">${SECTIONS.map(s=>`<div class="pr ${s.off?'off':''}" onclick="S.open['${s.id}']=!S.open['${s.id}'];render()" title="${s.kind}">
-  <span class="grip" title="Перетащить">⋮⋮</span><span>${KIND[s.kind]}</span><span style="flex:1">${esc(s.title)}</span><span>${dots(s.topics)}</span>
+ return `<div class="row"><span class="ttl">План</span><span class="sp"></span>${editBtn('Изменить план','Изменить в настройке цели')}${pinBtn('plan')}</div>
+ <div style="margin-top:8px">${SECTIONS.map(s=>`<div class="pr ${s.off?'off':''}" onclick="S.open['${s.id}']=!S.open['${s.id}'];render()" title="${s.kind}${s.off?' · выключена':''}">
+  <span>${KIND[s.kind]}</span><span style="flex:1">${esc(s.title)}</span><span>${dots(s.topics)}</span>
   <span class="cnt" onclick="event.stopPropagation();openSheet('bank','${s.title}')" title="Открыть вопросы секции">${s.q}${s.nw?` <b>+${s.nw}</b>`:''}</span></div>
-  ${S.open[s.id]?`<div class="topics">${s.topics.map(t=>`<div><span class="dot d-${t[1]}"></span> ${esc(t[0])}</div>`).join('')}<div class="row" style="margin-top:6px"><span class="sw ${s.off?'':'on'}" onclick="event.stopPropagation();toggleSec('${s.id}')"></span><span class="small mute">${s.off?'выключена':'в плане'}</span><span class="sp"></span><button class="ghost" onclick="askAgent('Секция «${s.title}»: ')">✎ с агентом</button></div></div>`:''}`).join('')}
- <div class="pr mute" onclick="askAgent('Добавь секцию: ')" style="padding-left:30px">＋ секция</div></div>`;
+  ${S.open[s.id]?`<div class="topics">${s.topics.map(t=>`<div><span class="dot d-${t[1]}"></span> ${esc(t[0])}</div>`).join('')}${s.off?'<div class="mute small">Секция выключена</div>':''}</div>`:''}`).join('')}</div>`;
+}
+function progress(){
+ const all=SECTIONS.filter(s=>!s.off).flatMap(s=>s.topics);const c={confident:0,shaky:0,none:0};all.forEach(t=>c[t[1]]++);const n=all.length;
+ const hard=[['Как работает GC',0,'Мок 2'],['Как безопасно закрыть канал',1,'Мок 1'],['Mutex и RWMutex',1,'Мок 1'],['Уровни изоляции',1,'Мок 2']];
+ const sec=(k,title,body)=>`<div class="pr" onclick="S.open['${k}']=!S.open['${k}'];render()" style="padding-left:2px"><span style="flex:1">${title}</span><span class="mute">${S.open[k]?'▴':'▾'}</span></div>${S.open[k]?`<div class="topics" style="padding-left:8px">${body}</div>`:''}`;
+ return `<div class="row"><span class="ttl">Прогресс</span><span class="sp"></span>${pinBtn('prog')}</div>
+ <div class="segbar" title="Темы активных секций"><i style="width:${c.confident/n*100}%;background:var(--ok)"></i><i style="width:${c.shaky/n*100}%;background:#f59f00"></i><i style="width:${c.none/n*100}%;background:#e3e1dc"></i></div>
+ <div class="row small wrap" style="gap:14px"><span><span class="dot d-confident"></span>${c.confident} уверенно</span><span><span class="dot d-shaky"></span>${c.shaky} шатко</span><span><span class="dot d-none"></span>${c.none} не начато</span></div>
+ <div style="margin-top:8px">
+ ${sec('ph',`Трудные вопросы <span class="tag">${hard.length}</span>`,hard.map(h=>`<div class="row"><span class="grade g${h[1]}" style="font-size:15px;width:16px">${h[1]}</span><span style="flex:1">${h[0]}</span><span class="mute small">${h[2]}</span></div>`).join(''))}
+ ${sec('pc',`Изучено <span class="tag">${c.confident}</span>`,all.filter(t=>t[1]==='confident').map(t=>`<div><span class="dot d-confident"></span> ${t[0]}</div>`).join(''))}
+ ${sec('pn',`Не начато <span class="tag">${c.none}</span>`,all.filter(t=>t[1]==='none').map(t=>`<div><span class="dot d-none"></span> ${t[0]}</div>`).join(''))}
+ </div>`;
 }
 function pastCard(id){const p=PAST[id];const open=S.sess[id];
  return{id,w:open?360:240,html:`<div class="row" style="cursor:pointer" onclick="S.sess.${id}=!S.sess.${id};render()"><span class="ttl">${p.t}</span><span class="sp"></span><span class="mute">${open?'▴':'▾'}</span></div><div class="mute small">${p.d}</div>
@@ -226,40 +260,39 @@ function debriefCard(){return `<span class="ttl">Итог · Мок 3</span><div
  <div class="acts"><button class="pri" onclick="openModal()">Следующий мок</button><button class="ghost" onclick="act('sideDebrief')">↗ Обсудить</button></div>`}
 
 // ---------- build ----------
-const CHAT_W=400,Q_W=460;
+const CHAT_W=480,Q_W=480,SETUP_W=520;
 function build(){
  const N=[],E=[],F=[];
- let x0=0;
  const left=[];
- if(!S.pin.mat)left.push({id:'mat',w:380,html:materials()});
+ if(!S.pin.prog)left.push({id:'prog',w:380,html:progress()});
  if(!S.pin.plan)left.push({id:'plan',w:380,html:plan()});
+ if(!S.pin.mat)left.push({id:'mat',w:380,html:materials()});
  left.forEach((n,i)=>{if(i===0){n.x=0;n.y=0}else{n.below=left[i-1].id;n.gap=36}N.push(n)});
- const sx=left.length?480:0;
+ let sx=left.length?480:0;
+ if(S.setupOpen){N.push({id:'setup',x:sx+20,y:20,w:SETUP_W,cls:'cnode',stroke:'#1e1e1e',html:setupChat()});
+  sx+=SETUP_W+140;}
  N.push({...pastCard('m1'),x:sx,y:0});
  N.push({...pastCard('m2'),rightOf:'m1',gap:40});
  if(!S.sess.m3){
   N.push({id:'m3c',rightOf:'m2',gap:40,w:280,stroke:'#6965db',html:`<div class="row" style="cursor:pointer" onclick="S.sess.m3=true;render()"><span class="ttl">Мок 3</span><span class="sp"></span><span class="mute">▾</span></div><div class="mute small">${S.debrief?'завершён':'идёт'} · ${S.qs.length} вопроса</div><div style="margin-top:8px">${S.qs.map(x=>`<span class="dot ${x.status==='current'?'d-none':'d-shaky'}"></span>`).join(' ')}</div>`});
   return{nodes:N,edges:E,frames:F};
  }
- // session 3 area: reserve a chat column on the left
- const reserve=S.variant==='3'?(S.chatOpen?CHAT_W+50:110):CHAT_W+50;
+ const reserve=S.variant==='3'?(S.chatOpen?CHAT_W+60:200):CHAT_W+60;
  N.push({id:'m3a',rightOf:'m2',gap:80+reserve,w:Q_W,h:1,bare:1,html:'',shape:'none'});
  let prev='m3a';
  S.qs.forEach((x,i)=>{N.push({id:x.id,below:prev,gap:i?70:30,w:Q_W,html:qCard(x),stroke:x.status==='current'?'#6965db':null,sw:x.status==='current'?2.4:null});if(i)E.push({from:prev,to:x.id,label:x.deeper?'глубже':'',cur:x.status==='current'});prev=x.id;});
  if(S.debrief){N.push({id:'deb',below:prev,gap:70,w:Q_W,html:debriefCard(),stroke:'#2f9e44'});E.push({from:prev,to:'deb'});prev='deb';}
  const anchor=curQ()?.id||prev;
- // main chat placement
- if(S.variant==='1')N.push({id:'chat',leftOf:anchor,gap:50,w:CHAT_W,html:agentChat(),alignBottom:1});
- if(S.variant==='2'){const p=S.pos.chat||{dx:0,dy:0};N.push({id:'chat',leftOf:'m3a',gap:50,w:CHAT_W,html:agentChat(),dx:p.dx,dy:p.dy+30});}
+ if(S.variant==='1')N.push({id:'chat',leftOf:anchor,gap:60,w:CHAT_W,cls:'cnode',html:agentChat(),alignBottom:1});
+ if(S.variant==='2'){const p=S.pos.chat||{dx:0,dy:0};N.push({id:'chat',leftOf:'m3a',gap:60,w:CHAT_W,cls:'cnode',html:agentChat(),dx:p.dx,dy:p.dy+30});}
  if(S.variant==='3'){
-  if(S.chatOpen)N.push({id:'chat',leftOf:anchor,gap:50,w:CHAT_W,html:agentChat(),stroke:'#6965db'});
-  else N.push({id:'chat',leftOf:anchor,gap:40,w:64,h:64,bare:1,shape:'circle',stroke:S.working?'#6965db':null,html:`<div class="avatar" title="Агент: открыть разговор" onclick="S.chatOpen=true;render()">🤖${S.unread?`<span class="badge">${S.unread}</span>`:''}</div>`});
+  if(S.chatOpen)N.push({id:'chat',leftOf:anchor,gap:60,w:CHAT_W,cls:'cnode',html:agentChat(),stroke:'#6965db'});
+  else N.push({id:'chat',leftOf:anchor,gap:40,w:150,stroke:S.working?'#6965db':null,html:`<div class="row" style="cursor:pointer;font-weight:600" title="Открыть разговор с интервьюером" onclick="S.chatOpen=true;S.unread=0;render()">Чат ${S.unread?`<span class="tag acc">${S.unread}</span>`:`<span class="tag">${S.chat.length}</span>`}<span class="sp"></span>${S.working===true?'<span class="working"><i></i></span>':'▸'}</div>`});
  }
- // side threads to the right of their source
  const used={};
  S.threads.forEach(t=>{const from=t.from;const prevT=used[from];
-  N.push({...threadNode(t),rightOf:prevT||from,gap:prevT?30:110});
-  E.push({from:prevT||from,to:t.id,dash:1,color:'#e8590c',label:prevT?'':'ветка'});used[from]=t.id;});
+  N.push({...threadNode(t),rightOf:prevT||from,gap:prevT?40:120});
+  E.push({from:prevT||from,to:t.id,dash:1,side:1,color:'#e8590c'});used[from]=t.id;});
  const ids=N.filter(n=>['m3a','chat','deb'].includes(n.id)||S.qs.some(x=>x.id===n.id)||S.threads.some(t=>t.id===n.id)).map(n=>n.id);
  F.push({ids,header:`<b>Мок 3</b><span class="mute small">${S.debrief?'завершён':'идёт'} · без лимита · Go и конкурентность</span>${S.debrief?'':`<button onclick="act('finish')">Завершить</button>`}<button class="ghost" onclick="S.sess.m3=false;render()" title="Свернуть область">▴ свернуть</button>`});
  return{nodes:N,edges:E,frames:F};
@@ -273,12 +306,14 @@ function render(){
  const spec=build(),world=$('#world');
  world.innerHTML='<svg id="sv" xmlns="http://www.w3.org/2000/svg"></svg>';
  const by={};
- spec.nodes.forEach(n=>{const el=document.createElement('div');el.className='node'+(n.bare?' bare':'');el.dataset.id=n.id;el.style.width=n.w+'px';if(n.h)el.style.height=n.h+'px';el.innerHTML=n.html;world.appendChild(el);n.el=el;by[n.id]=n;});
+ spec.nodes.forEach(n=>{const el=document.createElement('div');el.className='node'+(n.bare?' bare':'')+(n.cls?' '+n.cls:'');el.dataset.id=n.id;el.style.width=n.w+'px';if(n.h)el.style.height=n.h+'px';el.innerHTML=n.html;world.appendChild(el);n.el=el;by[n.id]=n;});
  spec.nodes.forEach(n=>{n.hh=n.h||n.el.offsetHeight;
   if(n.below){const p=by[n.below];n.x=p.x+p.w/2-n.w/2;n.y=p.y+p.hh+(n.gap??60);}
   else if(n.rightOf){const p=by[n.rightOf];n.x=p.x+p.w+(n.gap??100);n.y=p.y;}
   else if(n.leftOf){const p=by[n.leftOf];n.x=p.x-n.w-(n.gap??60);n.y=n.alignBottom?Math.max(by.m3a?by.m3a.y+30:0,p.y+p.hh-n.hh):p.y;}
-  n.x+=n.dx||0;n.y+=n.dy||0;n.el.style.left=n.x+'px';n.el.style.top=n.y+'px';});
+  n.x+=n.dx||0;n.y+=n.dy||0;
+  if(n.noOverlap){let moved=true;while(moved){moved=false;for(const o of spec.nodes){if(o===n)break;if(!o.noOverlap)continue;if(o.x<n.x+n.w&&n.x<o.x+o.w&&o.y<n.y+n.hh+40&&n.y<o.y+o.hh+40){n.y=o.y+o.hh+48;moved=true}}}}
+  n.el.style.left=n.x+'px';n.el.style.top=n.y+'px';});
  const sv=$('#sv'),hand=S.style==='hand'&&window.rough,rc=hand?rough.svg(sv):null,add=e=>sv.appendChild(e);
  const mk=(t,a)=>{const e=document.createElementNS('http://www.w3.org/2000/svg',t);for(const k in a)e.setAttribute(k,a[k]);return e};
  spec.frames.forEach(f=>{const ns=f.ids.map(i=>by[i]).filter(Boolean);const x0=Math.min(...ns.map(n=>n.x))-30,y0=Math.min(...ns.map(n=>n.y))-30,x1=Math.max(...ns.map(n=>n.x+n.w))+30,y1=Math.max(...ns.map(n=>n.y+n.hh))+30;
@@ -286,10 +321,15 @@ function render(){
   const l=document.createElement('div');l.className='fh';l.style.left=x0+'px';l.style.top=y0+'px';l.innerHTML=f.header;world.appendChild(l);});
  const mid=n=>n.h?n.hh/2:Math.min(n.hh/2,40);
  spec.edges.forEach(e=>{const a=by[e.from],b=by[e.to];if(!a||!b)return;let p1,p2,horiz=false;
-  if(b.y>=a.y+a.hh-2){p1=[a.x+a.w/2,a.y+a.hh+5];p2=[b.x+b.w/2,b.y-5]}
+  if(!e.side&&b.y>=a.y+a.hh-2){p1=[a.x+a.w/2,a.y+a.hh+5];p2=[b.x+b.w/2,b.y-5]}
   else{horiz=true;p1=[a.x+a.w+5,a.y+mid(a)];p2=[b.x-5,b.y+mid(b)]}
   const col=e.color||(e.cur?'#6965db':'#1e1e1e'),ang=Math.atan2(p2[1]-p1[1],p2[0]-p1[0]),L=13;
   const h1=[p2[0]-L*Math.cos(ang-.45),p2[1]-L*Math.sin(ang-.45)],h2=[p2[0]-L*Math.cos(ang+.45),p2[1]-L*Math.sin(ang+.45)];
+  let pts=[p1,p2];if(e.side&&Math.abs(p2[1]-p1[1])>8){const xm=p1[0]+36;pts=[p1,[xm,p1[1]],[xm,p2[1]],p2]}
+  if(e.side&&pts.length>2){const ang2=0;const g1=[p2[0]-L,p2[1]-L*.45],g2=[p2[0]-L,p2[1]+L*.45];
+   if(hand){const o={stroke:col,strokeWidth:1.5,roughness:.8,seed:hash(e.from+e.to)};add(rc.linearPath(pts,{...o,strokeLineDash:[8,7]}));add(rc.linearPath([g1,p2,g2],o));}
+   else{add(mk('path',{d:'M'+pts.join('L'),stroke:col,'stroke-width':1.5,fill:'none','stroke-dasharray':'7 6'}));add(mk('path',{d:`M${g1}L${p2}L${g2}`,stroke:col,'stroke-width':1.5,fill:'none'}));}
+   if(e.label){const t=mk('text',{x:pts[2][0]+12,y:p2[1]-10,class:'edge-label'});t.textContent=e.label;add(t);}return;}
   if(hand){const o={stroke:col,strokeWidth:1.5,roughness:1,seed:hash(e.from+e.to)};add(rc.line(...p1,...p2,{...o,strokeLineDash:e.dash?[8,7]:undefined}));add(rc.linearPath([h1,p2,h2],o));}
   else{add(mk('path',{d:`M${p1}L${p2}`,stroke:col,'stroke-width':1.5,fill:'none','stroke-dasharray':e.dash?'7 6':''}));add(mk('path',{d:`M${h1}L${p2}L${h2}`,stroke:col,'stroke-width':1.5,fill:'none'}));}
   // label never on the line: beside a vertical edge, above a horizontal one, away from the arrowhead
@@ -319,7 +359,7 @@ addEventListener('keyup',e=>{if(e.code==='Space'){spaceDown=false;$('#vp').class
  vp.addEventListener('mousedown',e=>{const h=e.target.closest('[data-drag]');
   if(e.button===1||(spaceDown&&e.button===0)){e.preventDefault();d={x:e.clientX-cam.x,y:e.clientY-cam.y};vp.classList.add('drag');return}
   if(h&&!e.target.closest('button,input')){const el=h.closest('.node');const p=S.pos.chat||{dx:0,dy:0};nd={el,sx:e.clientX,sy:e.clientY,p,l:parseFloat(el.style.left),t:parseFloat(el.style.top)};e.preventDefault();return}
-  if(e.target.closest('button,input,textarea,.chip,.pr,.opt,.avatar,.fh'))return;if(e.target.closest('.node'))return;
+  if(e.target.closest('button,input,textarea,.chip,.pr,.opt,.prop,.fh'))return;if(e.target.closest('.node'))return;
   d={x:e.clientX-cam.x,y:e.clientY-cam.y};vp.classList.add('drag')});
  addEventListener('mousemove',e=>{if(nd){const dx=(e.clientX-nd.sx)/cam.s,dy=(e.clientY-nd.sy)/cam.s;nd.el.style.left=nd.l+dx+'px';nd.el.style.top=nd.t+dy+'px';nd.d=[dx,dy];return}if(!d)return;cam.x=e.clientX-d.x;cam.y=e.clientY-d.y;applyCam()});
  addEventListener('mouseup',()=>{if(nd){if(nd.d)S.pos.chat={dx:nd.p.dx+nd.d[0],dy:nd.p.dy+nd.d[1]};nd=null;render();return}d=null;vp.classList.remove('drag')});
@@ -328,10 +368,10 @@ addEventListener('keyup',e=>{if(e.code==='Space'){spaceDown=false;$('#vp').class
 // ---------- chrome ----------
 function chrome(){
  let h=`<div id="tl" class="island"><button class="ghost" style="color:var(--ink)" onclick="$('#menuT').classList.toggle('on')"><b>Go middle</b> ▾</button></div>
- <div id="menuT" class="island"><div><b>Go middle</b> <span class="mute small">Авито · Ozon</span></div><div onclick="toast('В прототипе одна цель')"><b>Tech Lead</b> <span class="mute small">Яндекс</span></div><div style="color:var(--acc)" onclick="toast('Новая цель: пустой холст и разговор с агентом')">＋ Новая цель</div></div>
- <div id="tc" class="island"><button class="pri big" onclick="openModal()">▶ Начать мок</button><button class="ghost big" style="font-weight:500" onclick="openSheet('bank')">Банк вопросов</button></div>
+ <div id="menuT" class="island"><div><b>Go middle</b> <span class="mute small">Авито · Ozon</span></div><div onclick="openSetup();$('#menuT').classList.remove('on')">⚙︎ Настроить цель</div><div onclick="toast('В прототипе одна цель')"><b>Tech Lead</b> <span class="mute small">Яндекс</span></div><div style="color:var(--acc)" onclick="toast('Новая цель: пустой холст и разговор с агентом')">＋ Новая цель</div></div>
+ <div id="tc" class="island"><button class="pri big" onclick="openModal()">▶ Начать мок</button><button class="ghost big" style="font-weight:500" onclick="openSheet('bank')">Банк вопросов</button><button class="ghost big" style="font-weight:500" onclick="openSetup()">Настроить цель</button></div>
  <div id="zoom" class="island"><button onclick="zoom(1/1.2)">−</button><span id="zv" class="small" style="width:52px;text-align:center">${Math.round(cam.s*100)}%</span><button onclick="zoom(1.2)">+</button><button onclick="fit()" title="Показать всё">⤢</button>${curQ()&&S.sess.m3?`<button onclick="focusNode('${curQ().id}',1)">К вопросу</button>`:''}</div>`;
- if(S.pin.mat||S.pin.plan)h+=`<div id="pinCol">${S.pin.mat?`<div class="island">${materials()}</div>`:''}${S.pin.plan?`<div class="island">${plan()}</div>`:''}</div>`;
+ if(S.pin.mat||S.pin.plan||S.pin.prog)h+=`<div id="pinCol">${S.pin.prog?`<div class="island">${progress()}</div>`:''}${S.pin.mat?`<div class="island">${materials()}</div>`:''}${S.pin.plan?`<div class="island">${plan()}</div>`:''}</div>`;
  $('#chrome').innerHTML=h;
  const sh=$('#sheet');
  if(S.sheet){sh.classList.add('on');sh.innerHTML=`<div class="hd"><b>Банк вопросов</b><span class="sp"></span><button class="ghost" onclick="S.sheet=null;render()">✕</button></div><div class="bd">${bankHTML(S.sheetArg)}</div>`}else sh.classList.remove('on');
@@ -358,11 +398,27 @@ function reset(){S=Object.assign(initState(),{variant:S.variant,style:S.style});
 addEventListener('keydown',e=>{if(e.target.closest('input,textarea'))return;if(e.key==='ArrowLeft')cycle(-1);if(e.key==='ArrowRight')cycle(1)});
 
 // ---------- actions ----------
-function askAgent(prefix){if(S.variant==='3')S.chatOpen=true;if(!S.sess.m3)S.sess.m3=true;render();const i=$('#ci-main');if(i){focusNode('chat');i.value=prefix;i.focus()}}
-function toggleSec(id){const s=SECTIONS.find(x=>x.id===id);s.off=!s.off;render()}
-function fakeAdd(kind,name){S.plus=false;S.proc.push({name,p:5});render();toast('Агент разберёт «'+name+'» в фоне');}
-function dropFiles(e,el){e.preventDefault();el.classList.remove('over');const f=[...(e.dataTransfer.files||[])].map(f=>f.name);(f.length?f:['Материал']).forEach(n=>S.proc.push({name:n,p:5}));render();toast('Агент разберёт в фоне')}
-function agentLater(fn,who=true,ms=1500){S.working=who;render();setTimeout(()=>{S.working=false;fn();if(S.variant==='3'&&!S.chatOpen)S.unread=(S.unread||0)+1;render()},ms)}
+function openSetup(intent){S.setupOpen=true;if(intent)setupQuick(intent,true);else render();focusNode('setup');const i=$('#ci-setup');if(i)i.focus()}
+function setupQuick(x,silent){
+ if(x==='Добавить материалы'){S.setup.push({r:'c',t:'Хочу добавить материалы.'});agentLater(()=>S.setup.push({r:'a',t:'Пришлите файл, ссылку или текст вакансии: 📎 или перетащите сюда. Разбирать буду в фоне, вопросы появятся в банке.'}),'setup');return}
+ if(x==='Изменить план'){S.setup.push({r:'c',t:'Хочу поменять план.'});agentLater(()=>S.setup.push({r:'a',t:'В вакансии Авито есть Kafka, а в плане её нет. Предлагаю:',prop:{kind:'plan',text:'＋ Секция «Очереди и Kafka» · 🧩 проектирование · после System design'}}),'setup');return}
+ if(x==='Новое правило отбора'){S.setup.push({r:'c',t:'Хочу поменять, какие вопросы мне попадаются.'});agentLater(()=>S.setup.push({r:'a',t:'Опишите своими словами, что не так. Например: «слишком много вопросов на определения».'}),'setup');return}
+}
+function setupReply(t){
+ if(/план|секци/i.test(t))return{r:'a',t:'Понял. Предлагаю такое изменение:',prop:{kind:'plan',text:'＋ Секция «Очереди и Kafka» · 🧩 проектирование · после System design'}};
+ if(/http|www\.|\.com|\.ru/i.test(t)){S.proc.push({name:t.slice(0,28),p:5});return{r:'a',t:'Принял ссылку. Разбираю в фоне, прогресс виден в «Материалах».'}}
+ if(/правил|меньше|больше|без |слишком/i.test(t))return{r:'a',t:'Сформулирую правило так:',prop:{kind:'rule',text:'Правило отбора: «'+t+'»'}};
+ return{r:'a',t:'Понял. Здесь я меняю материалы, план и правила отбора. Что из этого поправить?'};
+}
+function applyProp(i,ok){const m=S.setup[i];m.prop.state=ok?'ok':'no';render();if(!ok)return;
+ if(m.prop.kind==='plan'){SECTIONS.push({id:'s5',kind:'проектирование',title:'Очереди и Kafka',topics:[['Kafka','none'],['Гарантии доставки','none']],q:0,nw:0});agentLater(()=>S.setup.push({r:'a',t:'Секция добавлена в план. Наполнить её вопросами из материалов?',prop:{kind:'fill',text:'Найти вопросы про Kafka в материалах и добавить в секцию'}}),'setup')}
+ if(m.prop.kind==='rule'){S.prefsList.push(m.prop.text.replace(/^Правило отбора: /,''));agentLater(()=>S.setup.push({r:'a',t:'Правило добавлено. Перепроверить базу под него?',prop:{kind:'fill',text:'Перепроверить 92 вопроса в фоне и показать, что скрою'}}),'setup')}
+ if(m.prop.kind==='fill'){S.proc.push({name:'Перепроверка базы',p:5});render();toast('Агент работает в фоне: смотрите «Материалы»')}
+}
+function attach(files){const f=[...files].map(f=>f.name);if(!f.length)return;f.forEach(n=>{S.setup.push({r:'c',t:'📎 '+n});S.proc.push({name:n,p:5})});agentLater(()=>S.setup.push({r:'a',t:`Принял ${f.length===1?'«'+f[0]+'»':f.length+' файла'}. Разбираю в фоне, прогресс виден в «Материалах». Отчёт пришлю сюда.`}),'setup')}
+function dropSetup(e,el){e.preventDefault();el.classList.remove('over');attach(e.dataTransfer.files||[])}
+function agentLater(fn,who=true,ms=1400){S.working=who;render();setTimeout(()=>{S.working=false;fn();if(who===true&&S.variant==='3'&&!S.chatOpen)S.unread=(S.unread||0)+1;render()},ms)}
+function takeDraft(id){const el=$('#'+id);const v=(el?.value||S.draft[id]?.v||'').trim();delete S.draft[id];return v}
 function act(a,arg){
  if(a==='reveal'){const x=q(arg);x.reveal=!x.reveal;render();return}
  if(a==='dispute'){q(arg).disputed=true;render();toast('Агент пересмотрит оценку');return}
@@ -370,20 +426,20 @@ function act(a,arg){
  if(a==='side'||a==='sideMsg'||a==='sideDebrief'){
   let from=arg,title,brief;
   if(a==='side'){const x=q(arg);title=x.topic.split(' ')[0]+': разобраться';brief=`Вопрос: «${x.text}». ${x.answer?'Ответ приложен.':'Ответа ещё нет.'}`;if(x.status==='current')x.hint=true;}
-  else if(a==='sideMsg'){from=curQ()?.id||'q3';title='Про реплику агента';brief=`Реплика: «${S.chat[arg].t.slice(0,60)}…»`}
+  else if(a==='sideMsg'){from=curQ()?.id||'q3';title='Про реплику интервьюера';brief=`Реплика: «${S.chat[arg].t.slice(0,60)}…»`}
   else{from='deb';title='Итог сессии';brief='Итог «Мок 3» и изменения тем.'}
   const id='t'+(S.threads.length+1);
   S.threads.push({id,from,title,open:true,hint:a==='side'&&q(arg).hint,msgs:[{r:'a',brief,t:'Что разобрать?'}]});
   render();focusNode(id);if(a==='side'&&q(arg).hint)toast('Ветка до ответа: попытка будет с подсказкой');return}
- if(a==='send'){const inp=$('#ci-'+arg);const t=inp.value.trim();if(!t)return;
-  if(arg==='pref'){S.prefsList.push(t);render();toast('Агент предлагает перепроверить базу под новое правило');return}
+ if(a==='send'){const t=takeDraft('ci-'+arg);if(!t)return;
+  if(arg==='setup'){S.setup.push({r:'c',t});agentLater(()=>S.setup.push(setupReply(t)),'setup');return}
   const list=arg==='main'?S.chat:S.threads.find(x=>x.id===arg).msgs;list.push({r:'c',t});
-  agentLater(()=>list.push({r:'a',t:arg==='main'?(t.startsWith('Измени')||t.startsWith('Добавь')||t.startsWith('Секция')?'Готово, план обновлён.':'Понял. Вернёмся к вопросу.'):'Коротко: рантайм отцепляет P от M в syscall и отдаёт его свободному M.'}),arg==='main'?true:arg);return}
- if(a==='submit'){const x=q(arg);const t=($('#ans-'+arg)?.value||'').trim()||'Рантайм отдаёт P другому потоку, чтобы горутины не стояли.';
+  agentLater(()=>list.push({r:'a',t:arg==='main'?'Понял. Вернёмся к вопросу на карточке. Материалы и план меняются в «Настроить цель».':'Коротко: рантайм отцепляет P от M в syscall и отдаёт его свободному M.'}),arg==='main'?true:arg);return}
+ if(a==='submit'){const x=q(arg);const t=takeDraft('ans-'+arg)||'Рантайм отдаёт P другому потоку, чтобы горутины не стояли.';
   if(x.answer==null){x.answer=t;agentLater(()=>x.fu.push({a:'Какой поток подхватит этот P и откуда он возьмётся?'}));}
   else{x.fu[x.fu.length-1].c=t;x.status='done';x.grade=2;x.gaps=['Не сказано про sysmon'];x.outline='Handoff P, sysmon, возврат M после syscall.';agentLater(()=>addQ(true))}
   return}
- if(a==='dunno'){const x=q(arg);x.answer='Не знаю';x.skipped=1;x.status='done';x.grade=0;x.gaps=['Тема не раскрыта'];x.outline='Разберите в ветке.';agentLater(()=>addQ(false));return}
+ if(a==='dunno'){const x=q(arg);delete S.draft['ans-'+arg];x.answer='Не знаю';x.skipped=1;x.status='done';x.grade=0;x.gaps=['Тема не раскрыта'];x.outline='Разберите в ветке.';agentLater(()=>addQ(false));return}
  if(a==='finish'){S.qs=S.qs.filter(x=>x.status!=='current');S.debrief=true;S.chat.push({r:'a',t:'Сессия завершена. Итог — внизу области.'});render();focusNode('deb');return}
 }
 function addQ(deeper){const p=S.qs[S.qs.length-1];const id='q'+(S.seq++);
