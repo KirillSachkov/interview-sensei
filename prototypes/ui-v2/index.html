@@ -64,6 +64,31 @@ textarea:focus,input:focus{outline:3px solid var(--accs);border-color:var(--acc)
 .ansbox{min-height:90px;max-height:300px;overflow:auto;margin-top:4px}
 .msg{max-width:90%}.msg.a{align-self:flex-start}.msg.c{align-self:flex-end;margin-left:0}.msg.sys{align-self:stretch;max-width:none}
 .prop{border:1px solid var(--line);border-left:3px solid var(--acc);border-radius:10px;padding:10px 12px;margin-top:8px;background:#fff}
+.att{padding:10px 14px 0;border-top:1px solid #efede8}.att .chip{margin:0 6px 6px 0;padding-right:2px}.att+.inp{border-top:0}
+.dropwrap.over{outline:3px dashed var(--acc);outline-offset:-6px;border-radius:12px}
+.sb{border:1px solid var(--line);border-left:4px solid var(--acc);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:#fff}
+.sb.k-talk{border-left-color:#0c8599}.sb.k-q{border-left-color:#6965db}.sb.k-design{border-left-color:#1971c2}
+.sb.off{border-style:dashed;border-left-style:solid;opacity:.55}
+.sb .num{width:26px;height:26px;border-radius:50%;background:#f1f0ec;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;flex:none}
+.sb .kind{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--mute)}
+.tp{margin:10px 0 8px;display:flex;flex-wrap:wrap;gap:6px}
+.pill{display:inline-flex;align-items:center;gap:2px;font-size:14px;padding:3px 10px;border-radius:14px;background:#f6f5f2}
+.pill.s-confident{background:var(--oks)}.pill.s-shaky{background:#fff4e0}
+.link{color:var(--acc);cursor:pointer}.link:hover{text-decoration:underline}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}
+.kpi{background:#f8f7f4;border-radius:12px;padding:14px 16px}.kv{font-size:30px;font-weight:650;line-height:1.1}.kv .mute{font-size:18px;font-weight:500}.kl{font-size:14px;color:var(--mute);margin-top:4px}
+.pgrid{display:grid;grid-template-columns:1.25fr 1fr;gap:16px}
+.pbox{border:1px solid #efede8;border-radius:12px;padding:14px 16px}.ph{font-weight:600;margin-bottom:10px}
+.psec{margin-bottom:12px}.tiles{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.tile{border-radius:10px;padding:8px 10px;font-size:14px;min-width:120px;flex:1;background:#f1f0ec;border:1px solid transparent}.tile .small{font-size:12px;color:var(--mute)}
+.tile.s-confident{background:var(--oks);border-color:#b2dfbc}.tile.s-shaky{background:#fff4e0;border-color:#f6d49b}.tile.s-none{background:#fff;border:1px dashed #cfccc4}
+.bars{display:flex;gap:22px;align-items:flex-end;height:170px;padding:0 6px;border-bottom:1px solid #e4e1da}
+.bcol{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;flex:1;height:100%;cursor:default}
+.bbar{width:36px;background:var(--acc);border-radius:4px 4px 0 0}.bcol:hover .bbar{background:#5753c9}
+.bval{font-size:14px;font-weight:600;margin-bottom:4px}.blab{font-size:13px;color:var(--mute);margin-top:6px;position:relative;top:24px}
+.bars+.hint{margin-top:30px}
+.hq{display:flex;gap:10px;align-items:flex-start;padding:8px 6px;border-radius:10px;cursor:pointer;font-size:15px}.hq:hover{background:#f6f5f2}
+.gb{width:26px;height:26px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex:none;background:#fde8e8}
 .segbar{display:flex;height:10px;border-radius:5px;overflow:hidden;margin:12px 0 8px;background:#eee}.segbar i{display:block;height:100%}
 .msg{margin:8px 0;font-size:15.5px;position:relative;line-height:1.5}.msg.c{background:var(--accs);border-radius:14px 14px 4px 14px;padding:8px 14px}
 .msg.a .sb{position:absolute;right:-4px;top:-6px;opacity:0}.msg.a:hover .sb{opacity:1}
@@ -148,7 +173,7 @@ const PAST={
 };
 function initState(){return{
  sheet:null,sheetArg:null,working:false,sel:new Set(),onlyNew:false,debrief:false,seq:4,
- pin:{mat:false,plan:false,prog:false},draft:{},setupOpen:false,setup:[{r:'a',t:'Это настройка цели «Go middle»: материалы, план и правила отбора. Интервью здесь не идёт. Что поменяем?'}],open:{},sess:{m1:false,m2:false,m3:true},pos:{},chatOpen:false,plus:false,prefs:false,report:false,
+ pin:{mat:false,plan:false,prog:false},draft:{},setupOpen:false,attach:[],progOpen:true,setup:[{r:'a',t:'Это настройка цели «Go middle»: материалы, план и правила отбора. Интервью здесь не идёт. Что поменяем?'}],open:{},sess:{m1:false,m2:false,m3:true},pos:{},chatOpen:false,plus:false,prefs:false,report:false,
  sources:[['вакансия','Авито · Go'],['вакансия','Ozon · Backend'],['резюме','Резюме 2026'],['видео','Мок собес Go #12'],['ссылка','Go Memory Model']],
  proc:[{name:'Собес в Яндекс: Go',p:45}],done:[{name:'Статья «Go Scheduler»',added:9,doubt:2}],
  prefsList:['Меньше определений, больше прикладных вопросов','Без вопросов про Go до 1.18'],
@@ -182,6 +207,7 @@ function qCard(x){
  if(x.kind==='quiz')h+=`<div class="code">${esc(x.code)}</div>`+x.opts.map((o,i)=>`<div class="opt ${i===x.pick?'on':''}">${esc(o)}</div>`).join('');
  if(x.answer!=null)h+=`<div class="ans">${esc(x.answer)}</div>`;
  x.fu.forEach(f=>{h+=`<div class="fu"><span class="mute">Уточнение:</span> ${esc(f.a)}${f.c?`<div class="ans">${esc(f.c)}</div>`:''}</div>`});
+ if(x.status==='open'){h+=`<div class="qh" style="margin-top:6px"><span class="tag">без ответа: сессия завершена</span></div><div class="acts"><button class="ghost" onclick="act('side','${x.id}')">↗ Обсудить</button></div>`;return h}
  if(x.status==='current'){
   h+=S.working?`<div style="margin-top:8px">${working()}</div>`:`${ta('ans-'+x.id,x.fu.length?'Уточните ответ…':'Ваш ответ…',null,'ansbox')}
   <div class="acts"><button class="pri" onclick="act('submit','${x.id}')">Ответить</button><button onclick="act('dunno','${x.id}')">Не знаю</button><span class="sp"></span><button class="ghost" title="Обсудить отдельно: откроется ветка, попытка будет с подсказкой" onclick="act('side','${x.id}')">↗ Обсудить</button></div>`;
@@ -199,7 +225,7 @@ function propHTML(p,tab,i){return `<div class="prop"><div>${esc(p.text)}</div>${
 function ta(id,ph,send,cls){const d=S.draft[id]||{v:'',h:0};return `<textarea id="${id}" class="${cls||''}" rows="1" placeholder="${ph}" style="${d.h?'height:'+d.h+'px':''}" oninput="grow(this)" ${send?`onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();${send}}"`:''}>${esc(d.v)}</textarea>`}
 function grow(el){const old=el.offsetHeight;el.style.height='auto';const max=el.classList.contains('ansbox')?300:160;const h=Math.min(el.scrollHeight+2,max);el.style.height=h+'px';S.draft[el.id]={v:el.value,h};
  if(Math.abs(h-old)>1){const pos=el.selectionStart;render();const n=document.getElementById(el.id);if(n){n.focus();n.setSelectionRange(pos,pos)}}}
-function input(tab,ph,extra){return `<div class="inp">${extra||''}${ta('ci-'+tab,ph,`act('send','${tab}')`)}<button class="send" title="Отправить (Enter)" onclick="act('send','${tab}')">↑</button></div>`}
+function input(tab,ph,extra,att){return `${att&&att.length?`<div class="att">${att.map((f,i)=>`<span class="chip">📎 ${esc(f)}<button class="ghost ico" title="Убрать" onclick="S.attach.splice(${i},1);render()">✕</button></span>`).join('')}</div>`:''}<div class="inp">${extra||''}${ta('ci-'+tab,ph,`act('send','${tab}')`)}<button class="send" title="Отправить (Enter)" onclick="act('send','${tab}')">↑</button></div>`}
 function agentChat(){
  const handle=S.variant==='2';
  return `<div class="chathd ${handle?'dh':''}" data-drag="chat">${handle?'<span class="grip">⋮⋮</span>':''}<b>Интервьюер</b><span class="mute small">Мок 3</span><span class="sp"></span>${S.working===true?working():''}${S.variant==='3'?`<button class="ghost ico" title="Свернуть" onclick="S.chatOpen=false;render()">–</button>`:''}</div>
@@ -208,9 +234,10 @@ function agentChat(){
 function setupChat(){
  const quick=['Добавить материалы','Изменить план','Новое правило отбора'];
  return `<div class="chathd"><b>Настройка цели</b><span class="mute small">Go middle</span><span class="sp"></span>${S.working==='setup'?working():''}<button class="ghost ico" title="Закрыть (разговор сохранится)" onclick="S.setupOpen=false;render()">✕</button></div>
- <div class="nodechat scroll" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="dropSetup(event,this)">${msgs(S.setup,false,'setup')}
+ <div ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="dropSetup(event,this)" class="dropwrap">
+ <div class="nodechat scroll">${msgs(S.setup,false,'setup')}
  ${S.setup.length<3?`<div class="row wrap" style="margin:6px 0 10px">${quick.map(x=>`<button onclick="setupQuick('${x}')">${x}</button>`).join('')}</div>`:''}</div>
- ${input('setup','Опишите, что поменять, или перетащите файл…',`<button class="ghost ico" title="Прикрепить файл" onclick="$('#fileIn').click()">📎</button>`)}`;
+ ${input('setup','Опишите, что поменять…',`<button class="ghost ico" title="Приложить файл" onclick="$('#fileIn').click()">📎</button>`,S.attach)}</div>`;
 }
 function threadNode(t){
  if(!t.open)return{id:t.id,w:280,stroke:'#e8590c',noOverlap:1,html:`<div class="row" style="cursor:pointer" onclick="act('topen','${t.id}')"><span style="font-size:20px">↗</span><b>${esc(t.title)}</b><span class="sp"></span><span class="tag">${t.msgs.length}</span><button class="ghost ico" title="Удалить ветку" onclick="event.stopPropagation();askDelThread('${t.id}')">✕</button></div>${t.hint?'<div class="hint" style="margin-top:4px">открыта до ответа: с подсказкой</div>':''}`};
@@ -218,37 +245,63 @@ function threadNode(t){
  <div class="nodechat scroll"><div class="msg sys">Отдельная ветка: оценок и записи попыток здесь нет.</div>${msgs(t.msgs)}</div>${input(t.id,'Спросить в ветке…')}`};
 }
 const pinBtn=k=>`<button class="ghost ico pin ${S.pin[k]?'on':''}" title="${S.pin[k]?'Открепить: вернуть на холст':'Закрепить у края экрана'}" onclick="S.pin.${k}=!S.pin.${k};render()">📌</button>`;
-const editBtn=(intent,t)=>`<button class="ghost ico" title="${t}" onclick="openSetup('${intent}')">✎</button>`;
+const editBtn=(intent,t,at)=>`<button class="ghost ico" title="${t}" onclick="openSetup('${intent}','${at}')">✎</button>`;
+const STATUS={confident:'уверенно',shaky:'шатко',none:'не начато'};
 function materials(){
- return `<div class="row"><span class="ttl">Материалы</span><span class="sp"></span>${editBtn('Добавить материалы','Изменить в настройке цели')}${pinBtn('mat')}</div>
+ const MAX=6,src=S.matAll?S.sources:S.sources.slice(0,MAX);
+ const proc=S.proc.length>2&&!S.procAll?`<span class="chip proc" onclick="S.procAll=true;render()" title="Показать все"><span class="working"><i></i></span> Разбирается ${S.proc.length} материалов<span class="pbar" style="width:20%"></span></span>`
+  :S.proc.map(p=>`<span class="chip proc" title="Агент разбирает в фоне"><span class="working"><i></i></span> ${esc(p.name)}<span class="pbar" style="width:${p.p}%"></span></span>`).join('');
+ return `<div class="row"><span class="ttl">Материалы</span><span class="mute small">${S.sources.length}</span><span class="sp"></span>${editBtn('Добавить материалы','Изменить в настройке цели','mat')}${pinBtn('mat')}</div>
  <div style="margin-top:10px">
- ${S.sources.map(s=>`<span class="chip" title="${s[0]}" onclick="toast('Открыть источник')">${SRCICON[s[0]]||'📄'} ${esc(s[1])}</span>`).join('')}
- ${S.proc.map(p=>`<span class="chip proc" title="Агент разбирает в фоне"><span class="working"><i></i></span> ${esc(p.name)}<span class="pbar" style="width:${p.p}%"></span></span>`).join('')}
+ ${src.map(s=>`<span class="chip" title="${s[0]}" onclick="toast('Открыть источник')">${SRCICON[s[0]]||'📄'} ${esc(s[1])}</span>`).join('')}
+ ${S.sources.length>MAX?`<span class="chip" onclick="S.matAll=!S.matAll;render()">${S.matAll?'свернуть':'ещё '+(S.sources.length-MAX)}</span>`:''}
+ ${proc}
  ${S.done.map(d=>`<span class="chip" onclick="S.report=!S.report;render()" title="Отчёт о разборе">✓ ${esc(d.name)} <span class="tag acc">+${d.added}</span></span>`).join('')}
- <span class="chip add" onclick="openSetup('Добавить материалы')">＋ Добавить</span>
+ <span class="chip add" onclick="openSetup('Добавить материалы','mat')">＋ Добавить</span>
  ${S.report?`<div class="brief">${S.done[0].name}: добавил ${S.done[0].added} вопросов в «Go и конкурентность» и «PostgreSQL». Сомневаюсь в ${S.done[0].doubt}. <span style="color:var(--acc);cursor:pointer" onclick="S.onlyNew=true;openSheet('bank')">Посмотреть новые →</span></div>`:''}
  </div>
- <div class="pr" onclick="S.prefs=!S.prefs;render()" style="margin-top:4px;padding-left:2px"><span>⚙︎</span><span>Правила отбора</span><span class="tag">${S.prefsList.length}</span><span class="sp"></span><span class="mute">${S.prefs?'▴':'▾'}</span></div>
- ${S.prefs?`<div class="topics" style="padding-left:30px">${S.prefsList.map(p=>`<div>• ${esc(p)}</div>`).join('')}</div>`:''}`;
+ <div class="pr" onclick="S.prefs=!S.prefs;render()" style="margin-top:4px;padding-left:2px"><span>Правила отбора</span><span class="tag">${S.prefsList.length}</span><span class="sp"></span><span class="mute">${S.prefs?'▴':'▾'}</span></div>
+ ${S.prefs?`<div class="topics" style="padding-left:12px">${S.prefsList.map(p=>`<div>• ${esc(p)}</div>`).join('')}</div>`:''}`;
 }
+const KINDNAME={'разговор':'Разговор','вопросы по темам':'Вопросы по темам','проектирование':'Проектирование'};
+const KINDCLS={'разговор':'k-talk','вопросы по темам':'k-q','проектирование':'k-design'};
 function plan(){
- return `<div class="row"><span class="ttl">План</span><span class="sp"></span>${editBtn('Изменить план','Изменить в настройке цели')}${pinBtn('plan')}</div>
- <div style="margin-top:8px">${SECTIONS.map(s=>`<div class="pr ${s.off?'off':''}" onclick="S.open['${s.id}']=!S.open['${s.id}'];render()" title="${s.kind}${s.off?' · выключена':''}">
-  <span>${KIND[s.kind]}</span><span style="flex:1">${esc(s.title)}</span><span>${dots(s.topics)}</span>
-  <span class="cnt" onclick="event.stopPropagation();openSheet('bank','${s.title}')" title="Открыть вопросы секции">${s.q}${s.nw?` <b>+${s.nw}</b>`:''}</span></div>
-  ${S.open[s.id]?`<div class="topics">${s.topics.map(t=>`<div><span class="dot d-${t[1]}"></span> ${esc(t[0])}</div>`).join('')}${s.off?'<div class="mute small">Секция выключена</div>':''}</div>`:''}`).join('')}</div>`;
+ return `<div class="row"><span class="ttl">План собеседования</span><span class="sp"></span>${editBtn('Изменить план','Изменить в настройке цели','plan')}${pinBtn('plan')}</div>
+ <div class="mute small" style="margin:2px 0 12px">Секции идут по порядку, как на настоящем интервью</div>
+ ${SECTIONS.map((s,i)=>`<div class="sb ${KINDCLS[s.kind]} ${s.off?'off':''}">
+  <div class="row"><span class="num">${i+1}</span><b style="flex:1">${esc(s.title)}</b><span class="kind">${KINDNAME[s.kind]}</span></div>
+  <div class="tp">${s.topics.map(t=>`<span class="pill s-${t[1]}" title="${STATUS[t[1]]}"><span class="dot d-${t[1]}"></span>${esc(t[0])}</span>`).join('')}</div>
+  <div class="row small"><span class="link" onclick="openSheet('bank','${s.title}')">${s.q} вопросов${s.nw?` · <b>${s.nw} новых</b>`:''} →</span><span class="sp"></span>${s.off?'<span class="mute">выключена</span>':''}</div>
+ </div>`).join('')}`;
 }
 function progress(){
- const all=SECTIONS.filter(s=>!s.off).flatMap(s=>s.topics);const c={confident:0,shaky:0,none:0};all.forEach(t=>c[t[1]]++);const n=all.length;
- const hard=[['Как работает GC',0,'Мок 2'],['Как безопасно закрыть канал',1,'Мок 1'],['Mutex и RWMutex',1,'Мок 1'],['Уровни изоляции',1,'Мок 2']];
- const sec=(k,title,body)=>`<div class="pr" onclick="S.open['${k}']=!S.open['${k}'];render()" style="padding-left:2px"><span style="flex:1">${title}</span><span class="mute">${S.open[k]?'▴':'▾'}</span></div>${S.open[k]?`<div class="topics" style="padding-left:8px">${body}</div>`:''}`;
- return `<div class="row"><span class="ttl">Прогресс</span><span class="sp"></span>${pinBtn('prog')}</div>
- <div class="segbar" title="Темы активных секций"><i style="width:${c.confident/n*100}%;background:var(--ok)"></i><i style="width:${c.shaky/n*100}%;background:#f59f00"></i><i style="width:${c.none/n*100}%;background:#e3e1dc"></i></div>
- <div class="row small wrap" style="gap:14px"><span><span class="dot d-confident"></span>${c.confident} уверенно</span><span><span class="dot d-shaky"></span>${c.shaky} шатко</span><span><span class="dot d-none"></span>${c.none} не начато</span></div>
- <div style="margin-top:8px">
- ${sec('ph',`Трудные вопросы <span class="tag">${hard.length}</span>`,hard.map(h=>`<div class="row"><span class="grade g${h[1]}" style="font-size:15px;width:16px">${h[1]}</span><span style="flex:1">${h[0]}</span><span class="mute small">${h[2]}</span></div>`).join(''))}
- ${sec('pc',`Изучено <span class="tag">${c.confident}</span>`,all.filter(t=>t[1]==='confident').map(t=>`<div><span class="dot d-confident"></span> ${t[0]}</div>`).join(''))}
- ${sec('pn',`Не начато <span class="tag">${c.none}</span>`,all.filter(t=>t[1]==='none').map(t=>`<div><span class="dot d-none"></span> ${t[0]}</div>`).join(''))}
+ const act=SECTIONS.filter(s=>!s.off),all=act.flatMap(s=>s.topics);const c={confident:0,shaky:0,none:0};all.forEach(t=>c[t[1]]++);const n=all.length;
+ const avg=a=>a.reduce((x,y)=>x+y,0)/a.length;
+ const cur=S.qs.filter(x=>x.status==='done').map(x=>x.grade);
+ const bars=[['Мок 1',avg(PAST.m1.qs.map(x=>x[1])),PAST.m1.qs.length],['Мок 2',avg(PAST.m2.qs.map(x=>x[1])),PAST.m2.qs.length],['Мок 3',cur.length?avg(cur):0,cur.length]];
+ const hard=[['Как работает GC в Go?',0,'GC и память','Мок 2'],['Как безопасно закрыть канал?',1,'Каналы и select','Мок 1'],['Чем Mutex отличается от RWMutex?',1,'Горутины и планировщик','Мок 1'],['Уровни изоляции транзакций',1,'Транзакции и изоляция','Мок 2']];
+ if(!S.progOpen)return `<div class="row" style="cursor:pointer" onclick="S.progOpen=true;render()"><span class="ttl">Прогресс</span><span class="sp"></span><span class="mute">▾ развернуть</span></div>
+  <div class="segbar"><i style="width:${c.confident/n*100}%;background:var(--ok)"></i><i style="width:${c.shaky/n*100}%;background:#f59f00"></i><i style="width:${c.none/n*100}%;background:#e3e1dc"></i></div>
+  <div class="row small" style="gap:14px"><span><span class="dot d-confident"></span>${c.confident} уверенно</span><span><span class="dot d-shaky"></span>${c.shaky} шатко</span><span><span class="dot d-none"></span>${c.none} не начато</span></div>`;
+ return `<div class="row"><span class="ttl">Прогресс</span><span class="mute small">Go middle · ${bars.reduce((a,b)=>a+b[2],0)} ответов в 3 сессиях</span><span class="sp"></span><button class="ghost" onclick="S.progOpen=false;render()">▴ свернуть</button></div>
+ <div class="kpis">
+  <div class="kpi"><div class="kv">${c.confident}<span class="mute"> из ${n}</span></div><div class="kl"><span class="dot d-confident"></span>тем уверенно</div></div>
+  <div class="kpi"><div class="kv">${c.shaky}</div><div class="kl"><span class="dot d-shaky"></span>тем шатко</div></div>
+  <div class="kpi"><div class="kv">${c.none}</div><div class="kl"><span class="dot d-none"></span>тем не начато</div></div>
+  <div class="kpi"><div class="kv">${bars[2][2]?bars[2][1].toFixed(1):'—'}<span class="mute"> / 3</span></div><div class="kl">средняя оценка в последнем моке</div></div>
+ </div>
+ <div class="pgrid">
+  <div class="pbox"><div class="ph">Темы по секциям</div>
+   ${act.map(s=>`<div class="psec"><div class="small mute">${esc(s.title)}</div><div class="tiles">${s.topics.map(t=>`<div class="tile s-${t[1]}" title="${esc(t[0])}: ${STATUS[t[1]]}"><div>${esc(t[0])}</div><div class="small">${STATUS[t[1]]}</div></div>`).join('')}</div></div>`).join('')}
+  </div>
+  <div style="display:flex;flex-direction:column;gap:16px">
+   <div class="pbox"><div class="ph">Средняя оценка по сессиям</div>
+    <div class="bars">${bars.map(b=>`<div class="bcol" title="${b[0]}: ${b[1].toFixed(1)} из 3, ответов ${b[2]}"><div class="bval">${b[2]?b[1].toFixed(1):'—'}</div><div class="bbar" style="height:${b[1]/3*110}px"></div><div class="blab">${b[0]}</div></div>`).join('')}</div>
+    <div class="hint">шкала 0–3, наведите на столбец</div></div>
+   <div class="pbox"><div class="ph">Трудные вопросы <span class="mute small">последняя оценка 0–1</span></div>
+    ${hard.map(h=>`<div class="hq" onclick="openSheet('bank')" title="Открыть в банке"><span class="gb g${h[1]}">${h[1]}</span><div style="flex:1"><div>${h[0]}</div><div class="mute small">${h[2]} · ${h[3]}</div></div></div>`).join('')}
+   </div>
+  </div>
  </div>`;
 }
 function pastCard(id){const p=PAST[id];const open=S.sess[id];
@@ -263,15 +316,17 @@ function debriefCard(){return `<span class="ttl">Итог · Мок 3</span><div
 const CHAT_W=480,Q_W=480,SETUP_W=520;
 function build(){
  const N=[],E=[],F=[];
+ const LW=440;
  const left=[];
- if(!S.pin.prog)left.push({id:'prog',w:380,html:progress()});
- if(!S.pin.plan)left.push({id:'plan',w:380,html:plan()});
- if(!S.pin.mat)left.push({id:'mat',w:380,html:materials()});
- left.forEach((n,i)=>{if(i===0){n.x=0;n.y=0}else{n.below=left[i-1].id;n.gap=36}N.push(n)});
- let sx=left.length?480:0;
- if(S.setupOpen){N.push({id:'setup',x:sx+20,y:20,w:SETUP_W,cls:'cnode',stroke:'#1e1e1e',html:setupChat()});
-  sx+=SETUP_W+140;}
- N.push({...pastCard('m1'),x:sx,y:0});
+ if(!S.pin.plan)left.push({id:'plan',w:LW,html:plan()});
+ if(!S.pin.mat)left.push({id:'mat',w:LW,html:materials()});
+ left.forEach((n,i)=>{if(i===0){n.x=0;n.y=0}else{n.below=left[i-1].id;n.gap=40}N.push(n)});
+ let sx=left.length?LW+100:0;
+ if(S.setupOpen){const at=left.find(n=>n.id===S.setupAt)?S.setupAt:left[0]?.id;
+  N.push(at?{id:'setup',rightOf:at,gap:60,w:SETUP_W,cls:'cnode',stroke:'#1e1e1e',html:setupChat()}:{id:'setup',x:0,y:0,w:SETUP_W,cls:'cnode',stroke:'#1e1e1e',html:setupChat()});
+  sx+=SETUP_W+100;}
+ N.push({id:'prog',x:sx,y:0,w:S.progOpen?980:460,html:progress()});
+ N.push({...pastCard('m1'),below:'prog',alignLeft:1,gap:150});
  N.push({...pastCard('m2'),rightOf:'m1',gap:40});
  if(!S.sess.m3){
   N.push({id:'m3c',rightOf:'m2',gap:40,w:280,stroke:'#6965db',html:`<div class="row" style="cursor:pointer" onclick="S.sess.m3=true;render()"><span class="ttl">Мок 3</span><span class="sp"></span><span class="mute">▾</span></div><div class="mute small">${S.debrief?'завершён':'идёт'} · ${S.qs.length} вопроса</div><div style="margin-top:8px">${S.qs.map(x=>`<span class="dot ${x.status==='current'?'d-none':'d-shaky'}"></span>`).join(' ')}</div>`});
@@ -308,7 +363,9 @@ function render(){
  const by={};
  spec.nodes.forEach(n=>{const el=document.createElement('div');el.className='node'+(n.bare?' bare':'')+(n.cls?' '+n.cls:'');el.dataset.id=n.id;el.style.width=n.w+'px';if(n.h)el.style.height=n.h+'px';el.innerHTML=n.html;world.appendChild(el);n.el=el;by[n.id]=n;});
  spec.nodes.forEach(n=>{n.hh=n.h||n.el.offsetHeight;
-  if(n.below){const p=by[n.below];n.x=p.x+p.w/2-n.w/2;n.y=p.y+p.hh+(n.gap??60);}
+  if(n.below&&!by[n.below])n.below=null;if(n.rightOf&&!by[n.rightOf])n.rightOf=null;if(n.leftOf&&!by[n.leftOf])n.leftOf=null;
+  if(n.x==null&&!n.below&&!n.rightOf&&!n.leftOf){n.x=0;n.y=0}
+  if(n.below){const p=by[n.below];n.x=n.alignLeft?p.x:p.x+p.w/2-n.w/2;n.y=p.y+p.hh+(n.gap??60);}
   else if(n.rightOf){const p=by[n.rightOf];n.x=p.x+p.w+(n.gap??100);n.y=p.y;}
   else if(n.leftOf){const p=by[n.leftOf];n.x=p.x-n.w-(n.gap??60);n.y=n.alignBottom?Math.max(by.m3a?by.m3a.y+30:0,p.y+p.hh-n.hh):p.y;}
   n.x+=n.dx||0;n.y+=n.dy||0;
@@ -371,7 +428,7 @@ function chrome(){
  <div id="menuT" class="island"><div><b>Go middle</b> <span class="mute small">Авито · Ozon</span></div><div onclick="openSetup();$('#menuT').classList.remove('on')">⚙︎ Настроить цель</div><div onclick="toast('В прототипе одна цель')"><b>Tech Lead</b> <span class="mute small">Яндекс</span></div><div style="color:var(--acc)" onclick="toast('Новая цель: пустой холст и разговор с агентом')">＋ Новая цель</div></div>
  <div id="tc" class="island"><button class="pri big" onclick="openModal()">▶ Начать мок</button><button class="ghost big" style="font-weight:500" onclick="openSheet('bank')">Банк вопросов</button><button class="ghost big" style="font-weight:500" onclick="openSetup()">Настроить цель</button></div>
  <div id="zoom" class="island"><button onclick="zoom(1/1.2)">−</button><span id="zv" class="small" style="width:52px;text-align:center">${Math.round(cam.s*100)}%</span><button onclick="zoom(1.2)">+</button><button onclick="fit()" title="Показать всё">⤢</button>${curQ()&&S.sess.m3?`<button onclick="focusNode('${curQ().id}',1)">К вопросу</button>`:''}</div>`;
- if(S.pin.mat||S.pin.plan||S.pin.prog)h+=`<div id="pinCol">${S.pin.prog?`<div class="island">${progress()}</div>`:''}${S.pin.mat?`<div class="island">${materials()}</div>`:''}${S.pin.plan?`<div class="island">${plan()}</div>`:''}</div>`;
+ if(S.pin.mat||S.pin.plan)h+=`<div id="pinCol">${S.pin.mat?`<div class="island">${materials()}</div>`:''}${S.pin.plan?`<div class="island">${plan()}</div>`:''}</div>`;
  $('#chrome').innerHTML=h;
  const sh=$('#sheet');
  if(S.sheet){sh.classList.add('on');sh.innerHTML=`<div class="hd"><b>Банк вопросов</b><span class="sp"></span><button class="ghost" onclick="S.sheet=null;render()">✕</button></div><div class="bd">${bankHTML(S.sheetArg)}</div>`}else sh.classList.remove('on');
@@ -402,7 +459,7 @@ function askDelThread(id){const t=S.threads.find(x=>x.id===id);const m=$('#modal
  <div>«${esc(t.title)}» и вся переписка в ней исчезнут без возможности вернуть.</div>${t.hint?'<div class="hint" style="margin-top:8px">Отметка «с подсказкой» у попытки останется: попытки не меняются.</div>':''}
  <div class="acts" style="margin-top:18px"><span class="sp"></span><button onclick="$('#modal').classList.remove('on')">Отмена</button><button class="pri" style="background:#c92a2a;border-color:#c92a2a" onclick="delThread('${id}')">Удалить</button></div></div>`}
 function delThread(id){S.threads=S.threads.filter(x=>x.id!==id);$('#modal').classList.remove('on');render();toast('Ветка удалена')}
-function openSetup(intent){S.setupOpen=true;if(intent)setupQuick(intent,true);else render();focusNode('setup');const i=$('#ci-setup');if(i)i.focus()}
+function openSetup(intent,at){S.setupOpen=true;S.setupAt=at||'plan';if(intent)setupQuick(intent,true);else render();focusNode('setup');const i=$('#ci-setup');if(i)i.focus()}
 function setupQuick(x,silent){
  if(x==='Добавить материалы'){S.setup.push({r:'c',t:'Хочу добавить материалы.'});agentLater(()=>S.setup.push({r:'a',t:'Пришлите файл, ссылку или текст вакансии: 📎 или перетащите сюда. Разбирать буду в фоне, вопросы появятся в банке.'}),'setup');return}
  if(x==='Изменить план'){S.setup.push({r:'c',t:'Хочу поменять план.'});agentLater(()=>S.setup.push({r:'a',t:'В вакансии Авито есть Kafka, а в плане её нет. Предлагаю:',prop:{kind:'plan',text:'＋ Секция «Очереди и Kafka» · 🧩 проектирование · после System design'}}),'setup');return}
@@ -419,7 +476,7 @@ function applyProp(i,ok){const m=S.setup[i];m.prop.state=ok?'ok':'no';render();i
  if(m.prop.kind==='rule'){S.prefsList.push(m.prop.text.replace(/^Правило отбора: /,''));agentLater(()=>S.setup.push({r:'a',t:'Правило добавлено. Перепроверить базу под него?',prop:{kind:'fill',text:'Перепроверить 92 вопроса в фоне и показать, что скрою'}}),'setup')}
  if(m.prop.kind==='fill'){S.proc.push({name:'Перепроверка базы',p:5});render();toast('Агент работает в фоне: смотрите «Материалы»')}
 }
-function attach(files){const f=[...files].map(f=>f.name);if(!f.length)return;f.forEach(n=>{S.setup.push({r:'c',t:'📎 '+n});S.proc.push({name:n,p:5})});agentLater(()=>S.setup.push({r:'a',t:`Принял ${f.length===1?'«'+f[0]+'»':f.length+' файла'}. Разбираю в фоне, прогресс виден в «Материалах». Отчёт пришлю сюда.`}),'setup')}
+function attach(files){const f=[...files].map(f=>f.name);if(!f.length)return;S.setupOpen=true;S.attach.push(...f);render();const i=$('#ci-setup');if(i)i.focus()}
 function dropSetup(e,el){e.preventDefault();el.classList.remove('over');attach(e.dataTransfer.files||[])}
 function agentLater(fn,who=true,ms=1400){S.working=who;render();setTimeout(()=>{S.working=false;fn();if(who===true&&S.variant==='3'&&!S.chatOpen)S.unread=(S.unread||0)+1;render()},ms)}
 function takeDraft(id){const el=$('#'+id);const v=(el?.value||S.draft[id]?.v||'').trim();delete S.draft[id];return v}
@@ -435,8 +492,9 @@ function act(a,arg){
   const id='t'+(S.threads.length+1);
   S.threads.push({id,from,title,open:true,hint:a==='side'&&q(arg).hint,msgs:[{r:'a',brief,t:'Что разобрать?'}]});
   render();focusNode(id);if(a==='side'&&q(arg).hint)toast('Ветка до ответа: попытка будет с подсказкой');return}
- if(a==='send'){const t=takeDraft('ci-'+arg);if(!t)return;
-  if(arg==='setup'){S.setup.push({r:'c',t});agentLater(()=>S.setup.push(setupReply(t)),'setup');return}
+ if(a==='send'){const t=takeDraft('ci-'+arg);if(!t&&!(arg==='setup'&&S.attach.length))return;
+  if(arg==='setup'){const files=S.attach.splice(0);if(!t&&!files.length)return;if(t)S.setup.push({r:'c',t});files.forEach(n=>{S.setup.push({r:'c',t:'📎 '+n});S.proc.push({name:n,p:5})});
+   agentLater(()=>S.setup.push(files.length?{r:'a',t:`Принял ${files.length===1?'«'+files[0]+'»':files.length+' файла'}. Разбираю в фоне, прогресс виден в «Материалах». Отчёт пришлю сюда.`}:setupReply(t)),'setup');return}
   const list=arg==='main'?S.chat:S.threads.find(x=>x.id===arg).msgs;list.push({r:'c',t});
   agentLater(()=>list.push({r:'a',t:arg==='main'?'Понял. Вернёмся к вопросу на карточке. Материалы и план меняются в «Настроить цель».':'Коротко: рантайм отцепляет P от M в syscall и отдаёт его свободному M.'}),arg==='main'?true:arg);return}
  if(a==='submit'){const x=q(arg);const t=takeDraft('ans-'+arg)||'Рантайм отдаёт P другому потоку, чтобы горутины не стояли.';
@@ -444,7 +502,7 @@ function act(a,arg){
   else{x.fu[x.fu.length-1].c=t;x.status='done';x.grade=2;x.gaps=['Не сказано про sysmon'];x.outline='Handoff P, sysmon, возврат M после syscall.';agentLater(()=>addQ(true))}
   return}
  if(a==='dunno'){const x=q(arg);delete S.draft['ans-'+arg];x.answer='Не знаю';x.skipped=1;x.status='done';x.grade=0;x.gaps=['Тема не раскрыта'];x.outline='Разберите в ветке.';agentLater(()=>addQ(false));return}
- if(a==='finish'){S.qs=S.qs.filter(x=>x.status!=='current');S.debrief=true;S.chat.push({r:'a',t:'Сессия завершена. Итог — внизу области.'});render();focusNode('deb');return}
+ if(a==='finish'){S.qs.forEach(x=>{if(x.status==='current'){x.status='open';delete S.draft['ans-'+x.id]}});S.debrief=true;S.chat.push({r:'a',t:'Сессия завершена. Итог — внизу области.'});render();focusNode('deb');return}
 }
 function addQ(deeper){const p=S.qs[S.qs.length-1];const id='q'+(S.seq++);
  if(deeper&&DEEPER.length)S.qs.push({id,deeper:1,topic:p.topic,text:DEEPER.shift(),fu:[],status:'current'});
