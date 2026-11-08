@@ -47,13 +47,21 @@ It allows a request in two cases, and only with that session's MCP server name:
 
 Then the server picks `allow_once`; without that option, and for an agent kind it does not know, the Candidate decides.
 The runtime keeps announced tool calls only until they complete or fail, or the turn ends.
-When #24 adds an agent, add its marker to `mcpServerOf` and unit tests to `agent-runtime/permissions.test.ts`.
+Each agent's marker lives in `mcpServerReaders`:
+
+- Claude Code: the request's `_meta.claudeCode.mcpServer` with `source: "dynamic"` and our `name`.
+- Codex: the announced `tool_call` with `_meta.is_mcp_tool_call: true` and our `rawInput.server`; the request repeats its `toolCallId` and `kind`.
+- OpenCode: no marker; it asks no permission for MCP tools.
+
+A new agent or adapter version needs its marker there and unit tests in `agent-runtime/permissions.test.ts`.
 Other workspaces reach core only through the subpaths in `packages/core/package.json` `exports`.
 
 ### Storage
 
 Only the server opens the data directory (ADR-0002); `packages/core/src/shared/storage` holds the lock, PGlite, migrations and dumps.
 The application writes only inside the data directory.
+It never writes into the Candidate's agent directories, such as `~/.claude`, `~/.codex` or `~/.config/opencode`: it only checks the login there and links to `auth.json`.
+Launch recipes in `agent-runtime/domain/launch-recipe.ts` put every directory, file and link into the data directory; their unit tests check it.
 A slice that stores data owns a Postgres schema named after it, with its Drizzle tables and drizzle-kit migrations in `infrastructure/`.
 The slice keeps its tables in `infrastructure/schema.ts` and its drizzle-kit config in `infrastructure/drizzle.config.ts`, with the output in `infrastructure/migrations/`.
 Generate migrations with `db:generate`; never write or edit them by hand. Prettier ignores them.

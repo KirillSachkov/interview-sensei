@@ -22,11 +22,14 @@ function text(value: unknown): string | null {
  */
 const mcpServerReaders: Readonly<Record<AgentKind, (toolCall: ToolCallFields) => string | null>> = {
   // claude-agent-acp copies the SDK's `mcpServer` of an `mcp__*` tool into the permission
-  // request as `_meta.claudeCode.mcpServer`.
-  claude: (toolCall) =>
-    text(field(field(field(field(toolCall, "_meta"), "claudeCode"), "mcpServer"), "name")),
-  // codex-acp marks an MCP tool call with `_meta.is_mcp_tool_call` and names its server in
-  // `rawInput.server`.
+  // request as `_meta.claudeCode.mcpServer`. The SDK gives a server from `session/new` the source
+  // `dynamic`; servers from settings or plugins have other sources.
+  claude: (toolCall) => {
+    const server = field(field(field(toolCall, "_meta"), "claudeCode"), "mcpServer");
+    return field(server, "source") === "dynamic" ? text(field(server, "name")) : null;
+  },
+  // codex-acp marks the `tool_call` of an MCP tool with `_meta.is_mcp_tool_call` and names its
+  // server in `rawInput.server`; the permission request then carries only the same id and kind.
   codex: (toolCall) =>
     field(field(toolCall, "_meta"), "is_mcp_tool_call") === true
       ? text(field(field(toolCall, "rawInput"), "server"))

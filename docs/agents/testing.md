@@ -36,10 +36,15 @@ Pass repeated and delayed work through the injected `Timer`; tests run its tasks
 Give each test its own temporary data directory and remove it when the test finishes.
 Tests never call real agents: they need subscriptions.
 Tests use the fake ACP agent instead: `buildServer({ fakeAgent: true })` in process, `INTERVIEW_SENSEI_FAKE_AGENT=1` for `src/main.ts`.
+With the fake agent the server offers only it and never looks into the real home.
+Without it the server offers Claude Code, Codex and OpenCode from `userEnvironment`; `run-server.ts` passes the real home and env.
+Tests that check the real agents' availability pass a temporary directory as `userEnvironment.home` and PATH, and start no real agent.
+Launch recipes are pure: unit tests give them made-up paths, and nothing touches the disk.
 The fake agent streams a reply in chunks; the prompt `/wait` waits for a cancel, `/fail` answers with a JSON-RPC error, and `/crash` exits with code 1.
 `/brief` calls `get_brief` on the session's MCP address after a permission request that the server allows by itself.
 `/permission` asks permission for a foreign tool and replies with the Candidate's choice; `/mcp` replies with the session's MCP server name and address.
 `/late` asks permission after its turn ends and sends the outcome it gets, which is `cancelled`.
+A new fake session starts in the mode `candidate-mode`, which stands for the Candidate's own mode; `/mode` replies with the current mode and `/meta` with the `_meta` of `session/new`.
 In-process API tests listen on a free loopback port: the agent reaches the session's MCP address over real HTTP.
 `INTERVIEW_SENSEI_FAKE_AGENT_MODE=silent` makes it a hung agent; `ignore-sigterm` makes it ignore SIGTERM.
 
@@ -50,12 +55,14 @@ In-process API tests listen on a free loopback port: the agent reaches the sessi
 `pnpm test:e2e` uses port 4320; set `E2E_SERVER_PORT` to change it.
 A server on a taken port exits with code 1 and a message that names the port.
 Give each worktree its own ports when several run at once.
+`SERVER_HOST` must be a loopback address such as the default `127.0.0.1` (#23): agents always get their MCP address on `127.0.0.1`.
 
 ## Data directory
 
 The server keeps all data in `~/.interview-sensei`; the `INTERVIEW_SENSEI_DATA_DIR` variable overrides it.
 `pnpm dev` and `pnpm start` use the default directory. `pnpm test:e2e` uses `e2e/.data`, which Git ignores.
 Each agent session works in its own directory under `sessions/` in the data directory.
+The agents' own homes and configs live under `agents/` in the data directory, with symlinks to the Candidate's `auth.json`.
 One running server owns a data directory: a second server on it exits with code 1 and an error message.
 Give each worktree its own data directory when several servers run at once.
 
