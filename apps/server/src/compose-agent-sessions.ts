@@ -3,8 +3,9 @@ import path from "node:path";
 import {
   acpLauncher,
   createAgentRuntime,
-  localInstallation,
+  inspectAgentHost,
 } from "@interview-sensei/core/agent-runtime";
+import type { UserEnvironment } from "@interview-sensei/core/agent-runtime";
 import {
   createAgentSessions,
   drizzleSessionRepository,
@@ -17,7 +18,9 @@ import { mountMcpGateway } from "./mcp.ts";
 
 /**
  * The agents and AgentSessions of this server, on its storage. Each session gets its own MCP
- * address on this server.
+ * address on this server. With the fake agent the server offers only it, so tests never start a
+ * real agent; otherwise it offers the real agents of the Candidate's environment, or none without
+ * one.
  */
 export function composeAgentSessions(
   server: FastifyInstance,
@@ -27,11 +30,22 @@ export function composeAgentSessions(
     timer,
     dataDirectory,
     fakeAgent,
-  }: { clock: Clock; timer: Timer; dataDirectory: string; fakeAgent: boolean },
+    userEnvironment,
+  }: {
+    clock: Clock;
+    timer: Timer;
+    dataDirectory: string;
+    fakeAgent: boolean;
+    userEnvironment: UserEnvironment | undefined;
+  },
 ) {
+  // The fake agent never needs the Candidate's home, so tests do not look into the real one.
+  const environment = fakeAgent ? undefined : userEnvironment;
+  const realAgents = environment === undefined ? [] : (["claude", "codex", "opencode"] as const);
   const runtime = createAgentRuntime({
-    agents: fakeAgent ? ["fake"] : [],
-    installation: localInstallation(),
+    agents: fakeAgent ? ["fake"] : realAgents,
+    inspectHost: inspectAgentHost(environment ?? { home: dataDirectory, env: {} }),
+    dataDirectory,
     launch: acpLauncher({ timer }),
   });
   const sessions = createAgentSessions({

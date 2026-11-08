@@ -150,7 +150,8 @@ function registerStartRoute(
     { schema: { body } },
     async (request, reply) => {
       const { kind, agent } = request.body;
-      const offered = runtime.listAgents().find((availability) => availability.agent === agent);
+      const agents = await runtime.listAgents();
+      const offered = agents.find((availability) => availability.agent === agent);
       if (offered?.available !== true) {
         return reply.code(400).send({ error: "agent_unavailable" });
       }
@@ -161,7 +162,7 @@ function registerStartRoute(
 
 /**
  * The HTTP and WebSocket API of agents and AgentSessions:
- * - `GET /api/agents`: the agents and whether each is available.
+ * - `GET /api/agents`: the agents and whether each is available, with the reason when not.
  * - `POST /api/sessions` `{ kind, agent }`: creates a session and starts its agent.
  * - `GET /api/sessions`: every session, the newest first; `GET /api/sessions/:id`: its view.
  * - WebSocket `/api/sessions/:id/events`: sends `{ type: "session", session }` at once and after
@@ -173,7 +174,7 @@ export function registerAgentSessionRoutes(
   server: FastifyInstance,
   { runtime, sessions, onError }: RouteDependencies,
 ): void {
-  server.get("/api/agents", () => runtime.listAgents());
+  server.get("/api/agents", async () => runtime.listAgents());
   registerStartRoute(server, { runtime, sessions });
   server.get("/api/sessions", async () => sessions.list());
   server.get<{ Params: { id: string } }>(

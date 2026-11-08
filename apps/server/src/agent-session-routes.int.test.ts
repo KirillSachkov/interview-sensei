@@ -35,7 +35,7 @@ const brokenSessions: AgentSessions = {
 };
 
 const runtime: AgentRuntime = {
-  listAgents: () => [],
+  listAgents: () => Promise.resolve([]),
   start: () => Promise.reject(new Error("not used")),
 };
 

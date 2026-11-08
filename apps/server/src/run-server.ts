@@ -57,6 +57,7 @@ async function start({ webDirectory, onListening, logLevel = "info" }: RunOption
     logLevel,
     // Tests and manual checks without a subscription; the Candidate's agents need no variable.
     fakeAgent: process.env.INTERVIEW_SENSEI_FAKE_AGENT === "1",
+    userEnvironment: { home: homedir(), env: process.env },
     ...(webDirectory === undefined ? {} : { webDirectory }),
   });
   for (const signal of ["SIGINT", "SIGTERM"] as const) {

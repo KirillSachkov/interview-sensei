@@ -3,6 +3,7 @@ import { agentSessionsMigrations } from "@interview-sensei/core/agent-sessions";
 import type { AgentSessions } from "@interview-sensei/core/agent-sessions";
 import { checkHealth } from "@interview-sensei/core/health";
 import { openStorage } from "@interview-sensei/core/storage";
+import type { UserEnvironment } from "@interview-sensei/core/agent-runtime";
 import type { SliceMigrations, Storage } from "@interview-sensei/core/storage";
 import type { Clock, Timer } from "@interview-sensei/core/time";
 import { fastify } from "fastify";
@@ -28,8 +29,16 @@ export interface ServerDependencies {
   dataDirectory: string;
   /** The lowest level of the Fastify JSON logs; no logs when omitted, as in tests. */
   logLevel?: LogLevel;
-  /** Offers the fake ACP agent, for tests and manual checks without a subscription. */
+  /**
+   * Offers only the fake ACP agent, for tests and manual checks without a subscription. Tests
+   * never start a real agent: they need subscriptions.
+   */
   fakeAgent?: boolean;
+  /**
+   * The Candidate's home and env, where the server looks for Claude Code, Codex and OpenCode and
+   * their logins. Without it the server offers no real agent.
+   */
+  userEnvironment?: UserEnvironment;
   /** The built web app to serve beside `/api`; `pnpm dev` serves the web app from Vite instead. */
   webDirectory?: string;
 }
@@ -65,6 +74,7 @@ export async function buildServer({
   dataDirectory,
   logLevel,
   fakeAgent = false,
+  userEnvironment,
   webDirectory,
 }: ServerDependencies): Promise<FastifyInstance> {
   const server = fastify({ logger: logLevel === undefined ? false : { level: logLevel } });
@@ -82,6 +92,7 @@ export async function buildServer({
     timer,
     dataDirectory,
     fakeAgent,
+    userEnvironment,
   });
   await prepare(server, storage, sessions);
   server.get("/api/health", () => checkHealth(clock));

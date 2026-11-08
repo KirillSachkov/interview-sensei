@@ -1,4 +1,7 @@
 const agentNames: Readonly<Record<string, string>> = {
+  claude: "Claude Code",
+  codex: "Codex",
+  opencode: "OpenCode",
   fake: "Фейковый агент",
 };
 

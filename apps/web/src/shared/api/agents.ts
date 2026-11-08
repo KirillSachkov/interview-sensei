@@ -1,21 +1,21 @@
-/** One agent from GET /api/agents and whether the Candidate can choose it now. */
-export interface AgentAvailability {
-  readonly agent: string;
-  readonly available: boolean;
-}
+/**
+ * One agent from GET /api/agents and whether the Candidate can choose it now; `reason` says in
+ * Russian why not and what to do.
+ */
+export type AgentAvailability =
+  | { readonly agent: string; readonly available: true }
+  | { readonly agent: string; readonly available: false; readonly reason: string };
 
-function isAgentList(value: unknown): value is AgentAvailability[] {
+function isAvailability(item: unknown): item is AgentAvailability {
+  if (typeof item !== "object" || item === null || !("agent" in item) || !("available" in item)) {
+    return false;
+  }
+  if (typeof item.agent !== "string") {
+    return false;
+  }
   return (
-    Array.isArray(value) &&
-    value.every(
-      (item: unknown) =>
-        typeof item === "object" &&
-        item !== null &&
-        "agent" in item &&
-        typeof item.agent === "string" &&
-        "available" in item &&
-        typeof item.available === "boolean",
-    )
+    item.available === true ||
+    (item.available === false && "reason" in item && typeof item.reason === "string")
   );
 }
 
@@ -26,7 +26,7 @@ export async function fetchAgents(): Promise<AgentAvailability[]> {
     throw new Error(`HTTP ${response.status}`);
   }
   const body: unknown = await response.json();
-  if (!isAgentList(body)) {
+  if (!Array.isArray(body) || !body.every((item: unknown) => isAvailability(item))) {
     throw new Error("неожиданный ответ");
   }
   return body;
