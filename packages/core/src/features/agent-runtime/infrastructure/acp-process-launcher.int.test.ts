@@ -2,16 +2,7 @@
 // agent that never answers and one that ignores SIGTERM; the test passes time by hand. The
 // recipe's files and links go to a temporary data directory; a temporary file stands for the
 // Candidate's login.
-import {
-  lstat,
-  mkdir,
-  mkdtemp,
-  readFile,
-  readlink,
-  rm,
-  symlink,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readlink, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -205,33 +196,30 @@ describe("acp launcher", () => {
     await expect(readFile(login, "utf8")).resolves.toBe("token");
   });
 
-  it("replaces a link at a file's path instead of writing through it", async () => {
-    const { recipe, home, login: userConfig } = await agentHome("the Candidate's own config");
-    await mkdir(home, { recursive: true });
-    await symlink(userConfig, path.join(home, "config.toml"));
+  it("refuses to start when a recipe directory is a link to the Candidate's directory", async () => {
+    const { recipe, home, login } = await agentHome("token");
+    const userDirectory = await temporaryDirectory();
+    await writeFile(path.join(userDirectory, "config.toml"), "the Candidate's own config");
+    await writeFile(path.join(userDirectory, "auth.json"), "the Candidate's own login");
+    await mkdir(path.dirname(home), { recursive: true });
+    await symlink(userDirectory, home);
 
-    await startPrepared({
-      ...recipe,
-      files: [{ path: path.join(home, "config.toml"), content: "ours" }],
-    });
+    const { launched } = launch(
+      {
+        ...recipe,
+        directories: [home, ...recipe.directories],
+        files: [{ path: path.join(home, "config.toml"), content: "ours" }],
+        symlinks: [{ path: path.join(home, "auth.json"), target: login }],
+      },
+      idleTimer,
+    );
 
-    await expect(readFile(userConfig, "utf8")).resolves.toBe("the Candidate's own config");
-    const entry = await lstat(path.join(home, "config.toml"));
-    expect(entry.isSymbolicLink()).toBe(false);
-    await expect(readFile(path.join(home, "config.toml"), "utf8")).resolves.toBe("ours");
-  });
-
-  it("puts the link back where a copy of the Candidate's login appeared", async () => {
-    const { recipe, home, login } = await agentHome("fresh token");
-    await mkdir(home, { recursive: true });
-    await writeFile(path.join(home, "auth.json"), "stale copy");
-
-    await startPrepared({
-      ...recipe,
-      symlinks: [{ path: path.join(home, "auth.json"), target: login }],
-    });
-
-    await expect(readlink(path.join(home, "auth.json"))).resolves.toBe(login);
-    await expect(readFile(login, "utf8")).resolves.toBe("fresh token");
+    await expect(launched).rejects.toThrow(/link/u);
+    await expect(readFile(path.join(userDirectory, "config.toml"), "utf8")).resolves.toBe(
+      "the Candidate's own config",
+    );
+    await expect(readFile(path.join(userDirectory, "auth.json"), "utf8")).resolves.toBe(
+      "the Candidate's own login",
+    );
   });
 });

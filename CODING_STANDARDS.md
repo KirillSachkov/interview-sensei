@@ -62,6 +62,7 @@ Only the server opens the data directory (ADR-0002); `packages/core/src/shared/s
 The application writes only inside the data directory.
 It never writes into the Candidate's agent directories, such as `~/.claude`, `~/.codex` or `~/.config/opencode`: it only checks the login there and links to `auth.json`.
 Launch recipes in `agent-runtime/domain/launch-recipe.ts` put every directory, file and link into the data directory; their unit tests check it.
+`prepareRecipe` refuses a recipe path outside the data directory or through a link inside it, and never removes a directory.
 A slice that stores data owns a Postgres schema named after it, with its Drizzle tables and drizzle-kit migrations in `infrastructure/`.
 The slice keeps its tables in `infrastructure/schema.ts` and its drizzle-kit config in `infrastructure/drizzle.config.ts`, with the output in `infrastructure/migrations/`.
 Generate migrations with `db:generate`; never write or edit them by hand. Prettier ignores them.

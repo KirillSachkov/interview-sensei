@@ -76,6 +76,7 @@ describe("launch recipe", () => {
       },
       mode: "default",
       cwd: sessionDirectory,
+      dataDirectory,
       directories: [sessionDirectory],
       files: [],
       symlinks: [],
@@ -97,6 +98,7 @@ describe("launch recipe", () => {
       sessionMeta: null,
       mode: "read-only",
       cwd: sessionDirectory,
+      dataDirectory,
       directories: [codexHome, home, sessionDirectory],
       files: [
         {
@@ -127,6 +129,7 @@ describe("launch recipe", () => {
       sessionMeta: null,
       mode: null,
       cwd: sessionDirectory,
+      dataDirectory,
       directories: [
         `${root}/config`,
         `${root}/data/opencode`,
@@ -159,6 +162,7 @@ describe("launch recipe", () => {
       sessionMeta: null,
       mode: null,
       cwd: sessionDirectory,
+      dataDirectory,
       directories: [sessionDirectory],
       files: [],
       symlinks: [],
@@ -190,4 +194,20 @@ describe("launch recipe", () => {
     expect(() => recipe("codex", { codexAdapter: null })).toThrow(/codex/u);
     expect(() => recipe("opencode", { opencodeBinary: null })).toThrow(/opencode/u);
   });
+});
+
+describe("launch recipe paths", () => {
+  it.each(agentKinds)(
+    "keeps every directory, file and link of %s in its data directory",
+    (agent) => {
+      const launch = recipe(agent);
+      const prepared = [
+        ...launch.directories,
+        ...launch.files.map((file) => file.path),
+        ...launch.symlinks.map((symlink) => symlink.path),
+      ];
+      expect(launch.dataDirectory).toBe(dataDirectory);
+      expect(prepared.filter((location) => !isInside(dataDirectory, location))).toStrictEqual([]);
+    },
+  );
 });

@@ -38,6 +38,8 @@ export interface LaunchRecipe {
   readonly mode: string | null;
   /** The session directory inside the data directory. */
   readonly cwd: string;
+  /** The data directory; every directory, file and link below lies inside it. */
+  readonly dataDirectory: string;
   /** Directories to create before the start, `cwd` included. */
   readonly directories: readonly string[];
   readonly files: readonly PreparedFile[];
@@ -66,7 +68,7 @@ function required(program: string | null, name: string): string {
   return program;
 }
 
-function claudeRecipe({ host, sessionDirectory }: LaunchRequest): LaunchRecipe {
+function claudeRecipe({ host, dataDirectory, sessionDirectory }: LaunchRequest): LaunchRecipe {
   return {
     command: host.nodeExecutable,
     args: [required(host.claudeAdapter, "claude-agent-acp")],
@@ -93,6 +95,7 @@ function claudeRecipe({ host, sessionDirectory }: LaunchRequest): LaunchRecipe {
     },
     mode: "default",
     cwd: sessionDirectory,
+    dataDirectory,
     directories: [sessionDirectory],
     files: [],
     symlinks: [],
@@ -121,6 +124,7 @@ function codexRecipe({
     sessionMeta: null,
     mode,
     cwd: sessionDirectory,
+    dataDirectory,
     directories: [codexHome, home, sessionDirectory],
     files: [
       {
@@ -163,6 +167,7 @@ function opencodeRecipe({ host, dataDirectory, sessionDirectory }: LaunchRequest
     sessionMeta: null,
     mode: null,
     cwd: sessionDirectory,
+    dataDirectory,
     directories: [
       homes.XDG_CONFIG_HOME,
       ownData,
@@ -198,6 +203,7 @@ export function launchRecipe(request: LaunchRequest): LaunchRecipe {
         sessionMeta: null,
         mode: null,
         cwd: request.sessionDirectory,
+        dataDirectory: request.dataDirectory,
         directories: [request.sessionDirectory],
         files: [],
         symlinks: [],

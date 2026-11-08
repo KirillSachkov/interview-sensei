@@ -1,4 +1,5 @@
-import { lstat, mkdir, readlink, rm, symlink, writeFile } from "node:fs/promises";
+import { chmod, lstat, mkdir, readlink, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import path from "node:path";
 
 import type { LaunchRecipe } from "../domain/launch-recipe.ts";
 
@@ -15,31 +16,95 @@ async function entryAt(file: string) {
 }
 
 /**
- * Writes the file in place of whatever is at its path. A link there is removed first, so the
- * write never follows it out of the data directory.
+ * The names from the data directory down to the directory that holds the recipe's path, the
+ * path itself excluded. Throws when the path lies outside the data directory.
  */
-async function writeOwnFile({ path, content }: LaunchRecipe["files"][number]): Promise<void> {
-  const entry = await entryAt(path);
-  if (entry?.isSymbolicLink() === true) {
-    await rm(path);
+function namesBelow(dataDirectory: string, location: string): string[] {
+  const relative = path.relative(dataDirectory, path.dirname(location));
+  if (relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new Error(`The recipe's path ${location} is outside the data directory`);
   }
-  await writeFile(path, content, { mode: 0o600 });
+  return relative === "" ? [] : relative.split(path.sep);
 }
 
-/** Points the link at the Candidate's file; a file in its place is replaced, never copied. */
-async function linkUserFile({ path, target }: LaunchRecipe["symlinks"][number]): Promise<void> {
-  const entry = await entryAt(path);
-  if (entry?.isSymbolicLink() === true && (await readlink(path)) === target) {
+/**
+ * Refuses a path whose existing parents inside the data directory are links or not directories,
+ * so `mkdir` and writes cannot follow a link into the Candidate's directories. The data
+ * directory itself may be a link: it is resolved first.
+ */
+async function checkParents(dataDirectory: string, location: string): Promise<void> {
+  let current = await realpath(dataDirectory);
+  for (const name of namesBelow(dataDirectory, location)) {
+    current = path.join(current, name);
+    // oxlint-disable-next-line eslint/no-await-in-loop -- each parent holds the next one
+    const entry = await entryAt(current);
+    if (entry === null) {
+      return;
+    }
+    if (entry.isSymbolicLink()) {
+      throw new Error(`The recipe's directory ${current} is a link`);
+    }
+    if (!entry.isDirectory()) {
+      throw new Error(`The recipe's directory ${current} is not a directory`);
+    }
+  }
+}
+
+/** Checks every path of the recipe before anything is created. */
+async function checkRecipe(recipe: LaunchRecipe): Promise<void> {
+  const locations = [
+    // A directory is checked as the parent of a name inside it, so it may not be a link either.
+    ...recipe.directories.map((directory) => path.join(directory, "_")),
+    ...recipe.files.map((file) => file.path),
+    ...recipe.symlinks.map((link) => link.path),
+  ];
+  for (const location of locations) {
+    // oxlint-disable-next-line eslint/no-await-in-loop -- refuses at the first bad path
+    await checkParents(recipe.dataDirectory, location);
+  }
+}
+
+/**
+ * Writes the file in place of whatever is at its path, readable only by the Candidate. A link
+ * there is removed first, so the write never follows it out of the data directory.
+ */
+async function writeOwnFile({ path: file, content }: LaunchRecipe["files"][number]): Promise<void> {
+  const entry = await entryAt(file);
+  if (entry?.isSymbolicLink() === true) {
+    await rm(file);
+  }
+  await writeFile(file, content, { mode: 0o600 });
+  // `mode` applies only to a new file.
+  await chmod(file, 0o600);
+}
+
+/**
+ * Points the link at the Candidate's file. Only a file or a link at the exact path is replaced; a
+ * directory there is refused, never removed.
+ */
+async function linkUserFile({
+  path: link,
+  target,
+}: LaunchRecipe["symlinks"][number]): Promise<void> {
+  const entry = await entryAt(link);
+  if (entry?.isSymbolicLink() === true && (await readlink(link)) === target) {
     return;
   }
-  if (entry !== null) {
-    await rm(path, { recursive: true });
+  if (entry?.isDirectory() === true) {
+    throw new Error(`A directory is in place of the recipe's link ${link}`);
   }
-  await symlink(target, path);
+  if (entry !== null) {
+    await rm(link);
+  }
+  await symlink(target, link);
 }
 
-/** Creates the directories, files and links of the recipe; all of them are in the data directory. */
+/**
+ * Creates the directories, files and links of the recipe. It refuses a recipe whose paths lie
+ * outside the data directory or go through a link inside it.
+ */
 export async function prepareRecipe(recipe: LaunchRecipe): Promise<void> {
+  await checkRecipe(recipe);
   for (const directory of recipe.directories) {
     // oxlint-disable-next-line eslint/no-await-in-loop -- a directory may hold the next one
     await mkdir(directory, { recursive: true, mode: 0o700 });
