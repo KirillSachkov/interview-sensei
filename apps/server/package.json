@@ -3,9 +3,11 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "bin": {
+    "interview-sensei": "./src/launch.ts"
+  },
   "scripts": {
     "dev": "node --watch src/main.ts",
-    "start": "node src/main.ts",
     "lint": "oxlint",
     "boundaries": "depcruise src --output-type err-long",
     "test": "vitest run --passWithNoTests",
