@@ -10,11 +10,11 @@
   },
   "overrides": [
     {
-      // The generated route tree stays in the run so that the compiler checks it; its style is the
-      // generator's. Start Vite to regenerate it instead of editing.
+      // The router generator writes `/* eslint-disable */` and `// @ts-nocheck` into the route tree,
+      // so neither oxlint rules nor the type check inspect that file. This override only allows the
+      // generator's blanket directive. Start Vite to regenerate the file instead of editing it.
       "files": ["src/app/route-tree.gen.ts"],
       "rules": {
-        "typescript/consistent-indexed-object-style": "off",
         "unicorn/no-abusive-eslint-disable": "off"
       }
     }
