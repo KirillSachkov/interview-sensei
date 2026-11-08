@@ -24,7 +24,11 @@ The spec's «Приёмка» section names its mode under [human participation]
 In integration PR mode, the spec's «Приёмка» section may name checkpoints after tickets.
 At a checkpoint, integrate the ticket and pass project checks first.
 Then the orchestrator posts the [five-part report](human-review.md#level-1-every-pr) in the ticket and in the draft PR.
-Pause the spec's work until the owner replies: accepted, or remarks.
+Then wait for the owner's reply: accepted, or remarks.
+Tickets that depend on the checked ticket wait; independent tickets continue under [Ask the owner](human-review.md#ask-the-owner).
+
+Owner remarks at a checkpoint or on a ticket PR stay within the same ticket.
+The implementer fixes them, posts a new five-part report and waits for the owner again.
 
 ## Verification evidence
 
