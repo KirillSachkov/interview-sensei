@@ -24,7 +24,12 @@ Stopping early keeps every recorded Attempt and still produces a Debrief.
 _Avoid_: Training session; explanations happen in a Side thread instead.
 
 **Follow-up**:
-A clarifying question the agent asks about the current Question. Its answer belongs to the same Attempt.
+A clarification of the Candidate's current answer: "what did you mean", "give an example". It belongs to the same Attempt.
+
+**Deeper question**:
+A new Question that goes deeper into the same Topic after a confident answer. It gets its own Attempt, linked to the previous one.
+The agent keeps going deeper until the Candidate becomes unsure, which shows how deep the Candidate knows the Topic.
+_Avoid_: Question chain.
 
 **Debrief**:
 The review of an Attempt: its Grade, gaps and an outline of a strong answer. The Candidate opens it for any answered Question. At the end of a Mock interview, a summary Debrief shows Topic status changes and the next step.
@@ -51,8 +56,12 @@ Material that the Candidate added and the agent has not processed yet: links, fi
 After processing, an Inbox item becomes a Source and draft Questions.
 
 **Side thread**:
-A separate conversation that branches from a session at a chosen moment and receives its context.
-The Candidate discusses or clarifies something there without changing the main session.
+A separate conversation that branches from a session at a chosen moment, for clarification and explanation.
+It starts from a Handoff brief, not from the whole session history. A Side thread cannot record Attempts or change Grades.
+A Side thread opened before the Candidate answers the current Question marks that Attempt as received with a hint.
+
+**Handoff brief**:
+The compact context a Side thread starts from: the Target, the current Question, the Candidate's answer and Follow-ups, the selected fragment and the Candidate's question. It never contains Grades the Candidate has not opened.
 
 **Question rating**:
 The Candidate's opinion of a Question itself: useful, irrelevant, or wrong.
