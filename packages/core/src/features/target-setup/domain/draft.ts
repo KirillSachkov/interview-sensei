@@ -27,7 +27,7 @@ export interface PlanSection {
  * A Section as the agent proposes it in a plan. An omitted field keeps the value of the Section with
  * that name; a new Section takes no criteria, no Topics and is enabled.
  */
-export interface ProposedSection {
+interface ProposedSection {
   readonly name: string;
   readonly kind: SectionKind;
   readonly gradingCriteria?: string | undefined;
