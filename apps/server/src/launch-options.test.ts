@@ -66,6 +66,18 @@ describe("command line", () => {
     );
   });
 
+  it.each([
+    [["--port", "--no-browser"], "--port"],
+    [["--data-dir", "-h"], "--data-dir"],
+    [["--port", "-5"], "--port"],
+  ])("refuses %j: a flag followed by another flag has no value", (args, flag) => {
+    expect(() => launchOptions({ args, env: {} })).toThrow(`Флагу ${flag} нужно значение.`);
+  });
+
+  it("takes a value that starts with a dash after an equals sign", () => {
+    expect(launchOptions({ args: ["--data-dir=-data"], env: {} }).dataDirectory).toBe("-data");
+  });
+
   it("refuses a flag without its value", () => {
     expect(() => launchOptions({ args: ["--port"], env: {} })).toThrow(
       "Флагу --port нужно значение.",
