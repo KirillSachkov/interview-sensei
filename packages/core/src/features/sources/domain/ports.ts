@@ -1,4 +1,6 @@
-import type { Source } from "./source.ts";
+import type { InboxProposal, InboxReport, InboxRun } from "./inbox.ts";
+import type { Source, SourceStatus } from "./source.ts";
+import type { TextFormat } from "./source-text.ts";
 
 /**
  * Stores the Sources of each Target in the order they were added. `Transaction` is the storage's
@@ -6,9 +8,23 @@ import type { Source } from "./source.ts";
  */
 export interface SourceRepository<Transaction> {
   readonly add: (source: Source) => Promise<void>;
-  readonly list: (targetId: string) => Promise<readonly Source[]>;
+  readonly list: (targetId: string, transaction?: Transaction) => Promise<readonly Source[]>;
   /** The Source only when it belongs to the Target. */
   readonly get: (targetId: string, id: string) => Promise<Source | undefined>;
+  /** Moves the Target's Sources to the status; `failure` only with `failed`. */
+  readonly setStatus: (
+    targetId: string,
+    change: {
+      readonly ids: readonly string[];
+      readonly status: SourceStatus;
+      readonly failure?: string;
+      /** Only the Sources that have this status now. */
+      readonly from?: SourceStatus;
+    },
+    transaction?: Transaction,
+  ) => Promise<void>;
+  /** Stores how many parts the server cut the Source's text into. */
+  readonly setParts: (targetId: string, id: string, parts: number) => Promise<void>;
   /** Erases the Target's Sources in the open transaction; their files stay. */
   readonly erase: (targetId: string, transaction: Transaction) => Promise<void>;
 }
@@ -38,10 +54,199 @@ export interface SourceFiles {
   readonly removeTarget: (targetId: string) => Promise<void>;
   /** The absolute path of a file that `save` wrote. */
   readonly absolute: (file: string) => string;
+  /** The size of a file that `save` wrote, in bytes; null when it is gone. */
+  readonly size: (file: string) => Promise<number | null>;
 }
 
-/** The targets slice: a Source belongs to an existing Target. */
-export interface SourceTargets {
+/** The numbered parts of each Source's text in the data directory, from 1. */
+export interface SourceTexts {
+  /** Replaces the Source's parts with these. */
+  readonly write: (targetId: string, sourceId: string, parts: readonly string[]) => Promise<void>;
+  /** Null for a part the Source does not have. */
+  readonly read: (targetId: string, sourceId: string, part: number) => Promise<string | null>;
+}
+
+/** Reads the text of a Source; rejects with UnreadableSourceError and the reason. */
+export interface TextExtractor {
+  readonly extract: (source: {
+    readonly format: TextFormat;
+    /** The absolute path of the Source's file; null for a link. */
+    readonly path: string | null;
+    readonly url: string | null;
+  }) => Promise<string>;
+}
+
+/**
+ * Stores the proposals, runs and reports of Inbox processing. A Target has at most one running
+ * run: `createRun` refuses a second one.
+ */
+export interface InboxRepository<Transaction> {
+  /** Closes the Target's open proposal as `dismissed`, then stores the new one. */
+  readonly saveProposal: (proposal: InboxProposal) => Promise<void>;
+  readonly openProposal: (targetId: string) => Promise<InboxProposal | undefined>;
+  /** Closes the Target's open proposal with the status; false when it has none. */
+  readonly closeProposal: (
+    targetId: string,
+    status: "started" | "dismissed",
+    transaction?: Transaction,
+  ) => Promise<boolean>;
+  /** Stores the run; `running` when the Target already has a running one, and nothing is stored. */
+  readonly createRun: (run: InboxRun, transaction: Transaction) => Promise<"created" | "running">;
+  readonly runningRun: (
+    targetId: string,
+    transaction?: Transaction,
+  ) => Promise<InboxRun | undefined>;
+  readonly setRunSession: (runId: string, sessionId: string) => Promise<void>;
+  /** Adds the Questions and the count of duplicates to what the run's agent added. */
+  readonly recordAdded: (
+    runId: string,
+    added: { readonly questionIds: readonly string[]; readonly duplicates: number },
+    transaction: Transaction,
+  ) => Promise<void>;
+  readonly finishRun: (
+    runId: string,
+    finishedAt: string,
+    transaction: Transaction,
+  ) => Promise<void>;
+  readonly addReport: (report: InboxReport, transaction: Transaction) => Promise<void>;
+  /** The Target's report; undefined for another Target's report and an unknown one. */
+  readonly report: (targetId: string, id: string) => Promise<InboxReport | undefined>;
+  readonly latestReport: (targetId: string) => Promise<InboxReport | undefined>;
+  /** Erases the Target's proposals, runs and reports in the open transaction. */
+  readonly erase: (targetId: string, transaction: Transaction) => Promise<void>;
+}
+
+type SectionKind = "conversation" | "topics" | "design";
+
+/** A Target as Inbox processing reads it: its fields and its whole Interview plan. */
+export interface InboxTarget {
+  readonly id: string;
+  readonly name: string;
+  readonly level: "junior" | "middle" | "senior" | null;
+  readonly tone: "friendly" | "neutral" | "strict";
+  readonly language: string;
+  readonly status: "draft" | "active" | "archived";
+  readonly sections: readonly {
+    readonly id: string;
+    readonly position: number;
+    readonly name: string;
+    readonly kind: SectionKind;
+    readonly gradingCriteria: string;
+    readonly enabled: boolean;
+    readonly topicIds: readonly string[];
+    readonly topics: readonly { readonly id: string; readonly name: string }[];
+  }[];
+  /** The active Preferences. */
+  readonly preferences: readonly { readonly text: string }[];
+}
+
+/**
+ * The targets slice: a Source belongs to an existing Target; Inbox processing reads its plan and
+ * agent, and `create_topic` adds a Topic to a Section of the plan.
+ */
+export interface SourceTargets<Transaction> {
   /** Resolves undefined for an unknown Target. */
-  readonly get: (id: string) => Promise<object | undefined>;
+  readonly get: (id: string, transaction?: Transaction) => Promise<InboxTarget | undefined>;
+  /** The Target's agent; null when none is available; undefined for an unknown Target. */
+  readonly agent: (id: string) => Promise<{ readonly agent: string | null } | undefined>;
+  /** Stores the Target's fields, status and whole plan; the Sections keep their ids. */
+  readonly update: (
+    id: string,
+    change: Omit<InboxTarget, "id" | "sections" | "preferences"> & {
+      readonly sections: readonly Omit<InboxTarget["sections"][number], "topics">[];
+    },
+    transaction?: Transaction,
+  ) => Promise<unknown>;
+}
+
+/** The agent-runtime slice: whether an agent can run now and, if not, why. */
+export interface InboxAgents {
+  readonly listAgents: () => Promise<
+    readonly (
+      | { readonly agent: string; readonly available: true }
+      | { readonly agent: string; readonly available: false; readonly reason: string }
+    )[]
+  >;
+}
+
+/** A Question of the bank as Inbox processing reads it. */
+export interface InboxBankQuestion {
+  readonly id: string;
+  readonly topicId: string;
+  readonly text: string;
+  readonly level: "junior" | "middle" | "senior";
+  readonly sectionKind: SectionKind | null;
+  readonly hidden: boolean;
+}
+
+/** A Question from a material, as `add_bank_questions` writes it to the bank. */
+export interface InboxNewQuestion {
+  readonly id: string;
+  readonly topicId: string;
+  readonly text: string;
+  readonly format: "open" | "quiz";
+  readonly options: readonly { readonly id: string; readonly text: string }[];
+  readonly correctOptionIds: readonly string[];
+  readonly level: "junior" | "middle" | "senior";
+  readonly hidden: false;
+  readonly rating: null;
+  readonly createdAt: string;
+  readonly sourceIds: readonly string[];
+  readonly sourcePart: number;
+  readonly sectionKind: SectionKind;
+  readonly referenceAnswer: {
+    readonly points: readonly string[];
+    readonly sample: string;
+    readonly origin: "material";
+    readonly sourceId: string;
+    readonly part: number;
+  } | null;
+}
+
+/** The question-bank slice: the Target's Topics and Questions. */
+export interface InboxQuestions<Transaction> {
+  readonly topics: (
+    targetId: string,
+    transaction?: Transaction,
+  ) => Promise<readonly { readonly id: string; readonly name: string }[]>;
+  /** One Topic per name, the existing one of that name or a new one. */
+  readonly ensureTopics: (
+    targetId: string,
+    names: readonly string[],
+    transaction?: Transaction,
+  ) => Promise<readonly { readonly id: string; readonly name: string }[]>;
+  /** Every Question of the Target, hidden ones too. */
+  readonly questions: (
+    targetId: string,
+    transaction?: Transaction,
+  ) => Promise<readonly InboxBankQuestion[]>;
+  /** Rejects a Question whose Topic is not the Target's. */
+  readonly addQuestions: (
+    targetId: string,
+    questions: readonly InboxNewQuestion[],
+    transaction?: Transaction,
+  ) => Promise<void>;
+}
+
+/**
+ * The rule of duplicates that the Target setup's `add_questions` follows (#45): the same words,
+ * ignoring case, spaces and punctuation; the target-setup slice supplies it.
+ */
+export interface DuplicateFilter {
+  readonly withoutDuplicates: <Candidate extends { readonly text: string }>(
+    candidates: readonly Candidate[],
+    existing: readonly string[],
+  ) => { kept: Candidate[]; duplicates: Candidate[] };
+}
+
+/** The agent-sessions slice runs the Inbox processing agent. */
+export interface InboxSessions {
+  readonly start: (request: {
+    kind: "inbox-processing";
+    agent: string;
+    targetId: string;
+    opening: string;
+  }) => Promise<{ readonly id: string }>;
+  /** Stops the agent after its current turn. */
+  readonly end: (sessionId: string) => Promise<void>;
 }

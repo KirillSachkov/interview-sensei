@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   foreignKey,
+  integer,
   jsonb,
   pgSchema,
   text,
@@ -10,7 +11,13 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import type { Level, QuestionRating, QuizOption } from "../domain/question.ts";
+import type {
+  Level,
+  QuestionRating,
+  QuizOption,
+  ReferenceAnswer,
+  SectionKind,
+} from "../domain/question.ts";
 
 export const questionBankSchema = pgSchema("question_bank");
 export const topics = questionBankSchema.table(
@@ -43,6 +50,9 @@ export const questions = questionBankSchema.table(
       .$type<readonly string[]>()
       .notNull()
       .default(sql`'[]'::jsonb`),
+    sourcePart: integer("source_part"),
+    sectionKind: text("section_kind").$type<SectionKind>(),
+    referenceAnswer: jsonb("reference_answer").$type<ReferenceAnswer>(),
     unconfirmed: boolean("unconfirmed").notNull().default(false),
     hidden: boolean("hidden").notNull().default(false),
     rating: text("rating").$type<QuestionRating>(),

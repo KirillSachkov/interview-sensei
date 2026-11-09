@@ -1,4 +1,4 @@
-import type { Question, QuestionRating, Topic, TopicSummary } from "./question.ts";
+import type { Question, QuestionRating, StoredQuestion, Topic, TopicSummary } from "./question.ts";
 
 export interface QuestionFilter {
   readonly text?: string;
@@ -12,7 +12,7 @@ export interface QuestionFilter {
  * server applies the changes of several slices at once.
  */
 export interface QuestionRepository<Transaction> {
-  readonly seed: (topics: readonly Topic[], questions: readonly Question[]) => Promise<void>;
+  readonly seed: (topics: readonly Topic[], questions: readonly StoredQuestion[]) => Promise<void>;
   readonly addTopics: (topics: readonly Topic[], transaction?: Transaction) => Promise<void>;
   readonly topics: (
     targetId: string,
@@ -26,7 +26,7 @@ export interface QuestionRepository<Transaction> {
   /** Every Question of the Target, hidden ones too, in the order of creation. */
   readonly questions: (targetId: string, transaction?: Transaction) => Promise<readonly Question[]>;
   readonly addQuestions: (
-    questions: readonly Question[],
+    questions: readonly StoredQuestion[],
     transaction?: Transaction,
   ) => Promise<void>;
   /** Stores the given fields of the Target's Question. */

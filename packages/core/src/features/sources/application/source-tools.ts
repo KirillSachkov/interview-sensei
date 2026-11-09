@@ -72,7 +72,7 @@ function listSources(sources: Sources) {
   });
 }
 
-function getSource(sources: Sources) {
+export function getSource(sources: Sources) {
   return sessionTool({
     name: "get_source",
     description:

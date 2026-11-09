@@ -2,10 +2,21 @@
 // Topics. Each runs in the transaction it gets, so the draft is applied as a whole or not at all.
 import type { Transaction } from "../../../shared/storage/index.ts";
 import type { QuestionEdit, QuestionRepository } from "../domain/ports.ts";
-import type { Question, QuestionContent, QuizOption } from "../domain/question.ts";
+import type {
+  Question,
+  QuestionContent,
+  QuizOption,
+  ReferenceAnswer,
+  SectionKind,
+  StoredQuestion,
+} from "../domain/question.ts";
 import { topicKey, validateQuestion } from "../domain/question.ts";
 
-/** A new Question of a Target: its content is checked before it is stored. */
+/**
+ * A new Question of a Target: its content is checked before it is stored. The Target setup gives
+ * no Sources; Inbox processing gives the Source, its part, the Section kind and the reference
+ * answer.
+ */
 export interface NewQuestion {
   readonly id: string;
   readonly topicId: string;
@@ -17,6 +28,10 @@ export interface NewQuestion {
   readonly hidden: boolean;
   readonly rating: Question["rating"];
   readonly createdAt: string;
+  readonly sourceIds?: readonly string[];
+  readonly sourcePart?: number | null;
+  readonly sectionKind?: SectionKind | null;
+  readonly referenceAnswer?: ReferenceAnswer | null;
 }
 
 type Repository = QuestionRepository<Transaction>;
@@ -36,13 +51,19 @@ async function checkTopics(
   }
 }
 
-function stored(targetId: string, question: NewQuestion): Question {
+function stored(targetId: string, question: NewQuestion): StoredQuestion {
   validateQuestion(question);
   const content: QuestionContent =
     question.format === "open"
       ? { format: "open", options: [], correctOptionIds: [] }
       : { format: "quiz", options: question.options, correctOptionIds: question.correctOptionIds };
-  return { ...question, ...content, targetId, sourceIds: [], unconfirmed: false };
+  return {
+    ...question,
+    ...content,
+    targetId,
+    sourceIds: question.sourceIds ?? [],
+    unconfirmed: false,
+  };
 }
 
 export async function addQuestions(

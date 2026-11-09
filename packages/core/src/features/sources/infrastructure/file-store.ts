@@ -1,5 +1,5 @@
 import { createWriteStream } from "node:fs";
-import { mkdir, rm } from "node:fs/promises";
+import { mkdir, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
@@ -62,5 +62,13 @@ export function sourceFileStore(dataDirectory: string): SourceFiles {
       await rm(absolute(path.join("targets", targetId)), { recursive: true, force: true });
     },
     absolute,
+    size: async (file) => {
+      try {
+        const info = await stat(absolute(file));
+        return info.size;
+      } catch {
+        return null;
+      }
+    },
   };
 }

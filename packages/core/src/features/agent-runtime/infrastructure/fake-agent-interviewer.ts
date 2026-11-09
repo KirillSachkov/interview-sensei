@@ -21,6 +21,7 @@ import { randomUUID } from "node:crypto";
 
 import type { AgentContext } from "@agentclientprotocol/sdk/unstable";
 
+import { inboxTurn } from "./fake-agent-inbox.ts";
 import { moveToNextSection, presentNext } from "./fake-agent-interviewer-questions.ts";
 import type { InterviewerActions } from "./fake-agent-interviewer-questions.ts";
 import { callMcpTool } from "./fake-agent-mcp.ts";
@@ -175,7 +176,15 @@ const turns: readonly (readonly [string, (text: string) => Steps])[] = [
 ];
 
 /** The interviewer's turn for a template message, or null for another prompt. */
-export function interviewerTurn(text: string) {
+function interviewerTurn(text: string) {
   const found = turns.find(([sentence]) => text.startsWith(sentence));
   return found === undefined ? null : turnOf(found[1](text));
+}
+
+/**
+ * The turn for a template message of the server: the interviewer's, or the Inbox processor's for
+ * the opening of an Inbox processing; null for another prompt.
+ */
+export function templateTurn(text: string) {
+  return interviewerTurn(text) ?? inboxTurn(text);
 }

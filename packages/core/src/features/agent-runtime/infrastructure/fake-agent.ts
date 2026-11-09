@@ -22,6 +22,7 @@
 // - `/system`, `/skills` and `/tools` reply with the role, skills and bans of the session's
 //   profile; see `fake-agent-profile.ts`.
 // - The template messages of a mock interview get the interviewer's turns of `fake-agent-interviewer.ts`.
+// - The opening of an Inbox processing gets the processor's turn of `fake-agent-inbox.ts`.
 // - Any other text gets the reply «Фейковый агент получил: «<text>»» in several chunks.
 //
 // The variable INTERVIEW_SENSEI_FAKE_AGENT_MODE stands for broken agents in launcher tests:
@@ -43,7 +44,7 @@ import {
 } from "@agentclientprotocol/sdk/unstable";
 import type { AgentContext, McpServer } from "@agentclientprotocol/sdk/unstable";
 
-import { interviewerTurn } from "./fake-agent-interviewer.ts";
+import { templateTurn } from "./fake-agent-interviewer.ts";
 import { callBrief, callTool, toolCommand } from "./fake-agent-tool.ts";
 import type { ToolCall } from "./fake-agent-tool.ts";
 import { fakeAgentModes } from "./fake-agent-modes.ts";
@@ -234,7 +235,7 @@ const app = agent({ name: "interview-sensei-fake-agent" })
     if (profile !== null) {
       return reply(client, sessionId, await profile);
     }
-    const interview = interviewerTurn(text);
+    const interview = templateTurn(text);
     if (interview !== null) {
       return interview({ client, sessionId, server: mcpServerOf(sessionId) });
     }
