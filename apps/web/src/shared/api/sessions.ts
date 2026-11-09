@@ -53,6 +53,8 @@ export interface SessionView {
 export interface SessionSummary {
   readonly id: string;
   readonly kind: string;
+  /** The Target of the session; absent for the agent check. */
+  readonly targetId?: string | null;
   readonly agent: string;
   readonly status: SessionStatus;
   readonly createdAt: string;

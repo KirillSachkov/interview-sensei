@@ -56,7 +56,7 @@ function SetupSession({ targetId }: { targetId: string }) {
  */
 export function SetupChat({ targetId, onClose }: { targetId: string; onClose: () => void }) {
   return (
-    <aside className="island setup-chat" aria-labelledby="setup-chat-title">
+    <aside className="island setup-chat nodrag nopan nowheel" aria-labelledby="setup-chat-title">
       <header className="setup-chat-head">
         <h2 id="setup-chat-title">Настройка цели</h2>
         <button type="button" className="ghost" onClick={onClose}>

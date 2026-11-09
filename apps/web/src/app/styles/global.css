@@ -353,17 +353,31 @@ textarea {
 
 /* «Настройка цели»: the setup chat beside the canvas */
 
+.setup-anchor {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* The chat stands to the right of the card or the Section where the Candidate opened it. */
 .setup-chat {
-  position: fixed;
-  top: 88px;
-  right: var(--space-4);
-  bottom: var(--space-4);
+  position: absolute;
+  top: 0;
+  left: calc(100% + var(--space-6));
   z-index: 10;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  width: min(560px, calc(100vw - 2 * var(--space-4)));
+  width: 560px;
+  height: 720px;
   padding: var(--space-4) var(--space-5);
+  cursor: auto;
+}
+
+/* The zone with the open chat stays above the zones to its right. */
+.react-flow__node:has(.setup-chat) {
+  z-index: 5 !important;
 }
 
 .setup-chat-head {
@@ -433,12 +447,44 @@ textarea {
 }
 
 .plan-section {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   border: 1px solid var(--color-line);
+  border-left: 6px solid var(--color-line);
   border-radius: var(--radius-card);
   padding: var(--space-3) var(--space-4);
+}
+
+.plan-kind-conversation {
+  border-left-color: var(--color-kind-conversation);
+}
+
+.plan-kind-topics {
+  border-left-color: var(--color-kind-topics);
+}
+
+.plan-kind-design {
+  border-left-color: var(--color-kind-design);
+}
+
+.plan-off > :not(.setup-chat) {
+  opacity: 0.55;
+}
+
+.plan-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+
+.plan-count {
+  align-self: flex-start;
+  padding: 2px var(--space-2);
+  color: var(--color-accent);
+  font-size: var(--font-size-small);
 }
 
 .plan-head {
@@ -538,4 +584,192 @@ textarea {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+button.tag.topic-chip {
+  border: 0;
+  cursor: pointer;
+}
+
+button.tag.topic-chip:hover {
+  background: var(--color-accent-soft);
+}
+
+/* A switch: the checkbox of a Section */
+
+input.switch {
+  appearance: none;
+  position: relative;
+  width: 40px;
+  height: 22px;
+  margin: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-off);
+  padding: 0;
+  cursor: pointer;
+}
+
+input.switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  transition: left 0.15s;
+}
+
+input.switch:checked {
+  background: var(--color-accent);
+}
+
+input.switch:checked::after {
+  left: 21px;
+}
+
+/* The side panel of a Section's or a Topic's Questions */
+
+.side-panel {
+  position: fixed;
+  top: 88px;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: min(520px, calc(100vw - 2 * var(--space-4)));
+  padding: var(--space-4) var(--space-5);
+}
+
+.side-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.question-group h3 {
+  font-size: var(--font-size-body);
+  font-weight: 600;
+}
+
+.questions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.question {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--color-line-soft);
+  padding-bottom: var(--space-2);
+}
+
+.question p {
+  margin: 0;
+}
+
+.question-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.question-rating button[aria-pressed="true"] {
+  background: var(--color-accent-soft);
+}
+
+/* Confirmations and the archive */
+
+button.danger {
+  border-color: var(--color-danger);
+  background: var(--color-danger);
+  color: var(--color-on-accent);
+}
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  background: rgb(0 0 0 / 20%);
+  place-items: center;
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 520px;
+  padding: var(--space-5);
+}
+
+.dialog p {
+  margin: 0;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.menu-heading {
+  margin: 0;
+  padding: var(--space-2) 12px 0;
+  font-size: var(--font-size-small);
+  color: var(--color-muted);
+}
+
+.archive {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
+.archive-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.archive-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  padding: var(--space-3) var(--space-4);
+}
+
+.archive-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.archive-name {
+  flex: 1;
+  font-weight: 600;
+}
+
+.delete-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
 }

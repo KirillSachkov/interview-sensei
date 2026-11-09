@@ -40,7 +40,7 @@ export interface TargetAgent {
   readonly chosen: boolean;
 }
 
-function isTargetSummary(value: unknown): value is TargetSummary {
+export function isTargetSummary(value: unknown): value is TargetSummary {
   return (
     typeof value === "object" &&
     value !== null &&

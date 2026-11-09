@@ -10,20 +10,21 @@ import { Canvas } from "@/shared/ui/canvas";
 import type { CanvasZone } from "@/shared/ui/canvas";
 
 import { GoalZone } from "./goal-zone";
+import type { GoalZoneProps, QuestionsView, SetupAnchor } from "./goal-zone";
+import { QuestionsPanel } from "./questions-panel";
 import { SessionsPlaceholder } from "./sessions-placeholder";
-import { SetupChat } from "./setup-chat";
 
 /**
  * The zones of the Target's canvas. A slice adds its widget to a zone's `content` here and leaves
  * the canvas itself unchanged.
  */
-function targetZones(target: TargetView, openSetup: () => void): CanvasZone[] {
+function targetZones(goal: GoalZoneProps): CanvasZone[] {
   return [
     {
       id: "goal",
       title: "Цель",
       width: 440,
-      content: <GoalZone target={target} onSetup={openSetup} />,
+      content: <GoalZone zone={goal} />,
     },
     {
       id: "sessions",
@@ -38,13 +39,22 @@ function targetZones(target: TargetView, openSetup: () => void): CanvasZone[] {
 
 function TargetCanvas({ target }: { target: TargetView }) {
   // A draft Target opens with its setup chat: the agent starts the onboarding there.
-  const [setupOpen, setSetupOpen] = useState(target.status === "draft");
+  const [setupAnchor, setSetupAnchor] = useState<SetupAnchor>(
+    target.status === "draft" ? "target" : null,
+  );
+  const [questions, setQuestions] = useState<QuestionsView | null>(null);
   const zones = useMemo(
     () =>
-      targetZones(target, () => {
-        setSetupOpen(true);
+      targetZones({
+        target,
+        setupAnchor,
+        onSetup: setSetupAnchor,
+        onCloseSetup: () => {
+          setSetupAnchor(null);
+        },
+        onQuestions: setQuestions,
       }),
-    [target],
+    [target, setupAnchor],
   );
   useEffect(() => {
     rememberTarget(target.id);
@@ -54,14 +64,16 @@ function TargetCanvas({ target }: { target: TargetView }) {
       <TopBar target={target} />
       <main>
         <Canvas zones={zones} label="Холст цели" />
-        {setupOpen ? (
-          <SetupChat
+        {questions === null ? null : (
+          <QuestionsPanel
+            key={JSON.stringify(questions.scope)}
             targetId={target.id}
+            view={questions}
             onClose={() => {
-              setSetupOpen(false);
+              setQuestions(null);
             }}
           />
-        ) : null}
+        )}
       </main>
     </>
   );
