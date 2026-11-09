@@ -20,6 +20,8 @@ class AgentUnavailableError extends Error {
 const agentUnavailableMessage =
   "Агент цели недоступен. Выберите доступного агента в верхней панели и откройте настройку снова.";
 
+const targetArchivedMessage = "Цель в архиве. Верните её из архива, чтобы настроить.";
+
 /** The Target's agent when the server can start it now. */
 async function availableAgent({ targets, runtime }: Dependencies, targetId: string) {
   const chosen = await targets.agent(targetId);
@@ -51,21 +53,28 @@ async function openSetup(dependencies: Dependencies, targetId: string) {
   }
 }
 
+/** The status and body of each reason why the setup session does not open. */
+const setupRefusals = {
+  target_not_found: [404, { error: "target_not_found" }],
+  target_archived: [409, { error: "target_archived", message: targetArchivedMessage }],
+  agent_unavailable: [400, { error: "agent_unavailable", message: agentUnavailableMessage }],
+  server_closing: [503, { error: "server_closing", message: serverClosingMessage }],
+} as const;
+
 function registerSetupSession(server: FastifyInstance, dependencies: Dependencies) {
   server.post<{ Params: { id: string } }>(
     "/api/targets/:id/setup-session",
     { schema: { params } },
     async (request, reply) => {
       const { id } = request.params;
-      if ((await dependencies.targets.get(id)) === undefined) {
-        return reply.code(404).send({ error: "target_not_found" });
-      }
-      const opened = await openSetup(dependencies, id);
-      if (opened === "agent_unavailable") {
-        return reply.code(400).send({ error: opened, message: agentUnavailableMessage });
-      }
-      if (opened === "server_closing") {
-        return reply.code(503).send({ error: opened, message: serverClosingMessage });
+      const target = await dependencies.targets.get(id);
+      const opened =
+        target?.status === "archived"
+          ? "target_archived"
+          : await (target === undefined ? "target_not_found" : openSetup(dependencies, id));
+      if (typeof opened === "string") {
+        const [code, body] = setupRefusals[opened];
+        return reply.code(code).send(body);
       }
       return reply.code(opened.created ? 201 : 200).send(opened.session);
     },
@@ -114,7 +123,8 @@ function registerDraft(server: FastifyInstance, { targets, targetSetup }: Depend
  * The HTTP API of the Target setup:
  * - `POST /api/targets/:id/setup-session`: the Target's running setup session, 200, or a new one,
  *   201; a draft Target's new session starts with the onboarding. 400 `agent_unavailable` when
- *   the Target's agent cannot start, 503 `server_closing` once the server shuts down.
+ *   the Target's agent cannot start, 409 `target_archived` for an archived Target, 503
+ *   `server_closing` once the server shuts down.
  * - `GET /api/targets/:id/draft`: `{ changes }`, the draft of changes in the order of recording.
  * - `POST /api/targets/:id/draft/apply`: writes the whole draft and answers the Target; 409
  *   `draft_empty`, or 409 `draft_invalid` with `problems` and the Target unchanged.

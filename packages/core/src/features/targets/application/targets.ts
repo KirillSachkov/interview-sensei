@@ -2,7 +2,13 @@ import { randomUUID } from "node:crypto";
 
 import type { Transaction } from "../../../shared/storage/index.ts";
 import type { Clock } from "../../../shared/time/index.ts";
-import type { TargetAgents, TargetRepository, TargetTopics } from "../domain/ports.ts";
+import type {
+  DefaultAgent,
+  TargetAgents,
+  TargetRepository,
+  TargetTopics,
+} from "../domain/ports.ts";
+import { archive, deletion, restore } from "./target-archive.ts";
 import type {
   NewTarget,
   Section,
@@ -17,6 +23,7 @@ interface Dependencies {
   repository: TargetRepository<Transaction>;
   topics: TargetTopics<Transaction>;
   agents: TargetAgents;
+  defaults: DefaultAgent;
   clock: Clock;
 }
 
@@ -25,10 +32,20 @@ export class UnknownAgentError extends Error {
   override name = "UnknownAgentError";
 }
 
-/** The choice, or the first available agent with `chosen: false`; null when none is available. */
-async function targetAgent(agents: TargetAgents, chosen: string | null): Promise<TargetAgent> {
+/**
+ * The choice; otherwise the default agent, or the first available one, with `chosen: false`; null
+ * when none is available.
+ */
+async function targetAgent(
+  { agents, defaults }: Pick<Dependencies, "agents" | "defaults">,
+  chosen: string | null,
+): Promise<TargetAgent> {
   if (chosen !== null) {
     return { agent: chosen, chosen: true };
+  }
+  const preset = await defaults.defaultAgent();
+  if (preset !== null) {
+    return { agent: preset, chosen: false };
   }
   const offered = await agents.listAgents();
   return { agent: offered.find((entry) => entry.available)?.agent ?? null, chosen: false };
@@ -39,15 +56,16 @@ async function targetAgent(agents: TargetAgents, chosen: string | null): Promise
  * Rejects with UnknownAgentError for an agent the server does not offer; an unavailable one stays.
  */
 async function setAgent(
-  { repository, agents }: Dependencies,
+  dependencies: Dependencies,
   id: string,
   agent: string | null,
 ): Promise<TargetAgent | undefined> {
+  const { repository, agents } = dependencies;
   const offered = agent === null ? [] : await agents.listAgents();
   if (agent !== null && !offered.some((entry) => entry.agent === agent)) {
     throw new UnknownAgentError(`The server does not offer the agent ${agent}`);
   }
-  return (await repository.setAgent(id, agent)) ? targetAgent(agents, agent) : undefined;
+  return (await repository.setAgent(id, agent)) ? targetAgent(dependencies, agent) : undefined;
 }
 
 function withTopics(plan: readonly Section[], topics: readonly TopicSummary[]) {
@@ -165,11 +183,26 @@ export function createTargets(dependencies: Dependencies) {
     update: async (id: string, change: TargetUpdate, transaction?: Transaction) =>
       update(dependencies, { id, change, transaction }),
     list: repository.list,
+    archived: repository.archived,
+    /** The archived Target; a string names why it cannot go to the archive. */
+    archive: async (id: string) => {
+      const outcome = await archive(repository, id);
+      return outcome === "archived" ? get(dependencies, id) : outcome;
+    },
+    /** The restored Target; a string names why it cannot come back from the archive. */
+    restore: async (id: string) => {
+      const outcome = await restore(repository, id);
+      return outcome === "restored" ? get(dependencies, id) : outcome;
+    },
+    deletion: async (id: string, typedName?: string, transaction?: Transaction) =>
+      deletion(repository, { id, typedName, transaction }),
+    /** Erases the Target in the transaction that erases its data in the other slices. */
+    eraseTarget: async (id: string, transaction: Transaction) => repository.erase(id, transaction),
     activeDemo: repository.activeDemo,
     /** The Target's agent; undefined for an unknown Target. */
     agent: async (id: string) => {
       const target = await repository.get(id);
-      return target === undefined ? undefined : targetAgent(dependencies.agents, target.agent);
+      return target === undefined ? undefined : targetAgent(dependencies, target.agent);
     },
     setAgent: async (id: string, agent: string | null) => setAgent(dependencies, id, agent),
     /** The Target after the Section is switched on or off; a string names what is missing. */

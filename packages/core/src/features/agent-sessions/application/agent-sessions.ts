@@ -45,6 +45,10 @@ export interface AgentSessions {
   readonly open: OpenSession;
   /** Every session, the newest first. */
   readonly list: () => Promise<readonly AgentSession[]>;
+  /** Whether a live session of the Target runs on this server now. */
+  readonly running: (targetId: string) => boolean;
+  /** Stops the agents of the Target's live sessions and marks the sessions as ended. */
+  readonly endTarget: (targetId: string) => Promise<void>;
   readonly view: (sessionId: string) => Promise<SessionView | undefined>;
   readonly prompt: (sessionId: string, text: string) => Promise<PromptOutcome>;
   /**
@@ -235,6 +239,20 @@ async function end(session: LiveSession): Promise<void> {
   await session.written;
 }
 
+function liveOf({ live }: Context, targetId: string): LiveSession[] {
+  return [...live.values()].filter(
+    (session) => session.view.targetId === targetId && isLive(session.view.status),
+  );
+}
+
+async function endTarget(context: Context, targetId: string): Promise<void> {
+  const sessions = liveOf(context, targetId);
+  for (const session of sessions) {
+    context.live.delete(session.view.id);
+  }
+  await Promise.all(sessions.map(async (session) => end(session)));
+}
+
 async function close(context: Context): Promise<void> {
   context.closing = true;
   // A session being created ends in its start, before the storage closes.
@@ -260,6 +278,8 @@ export function createAgentSessions(dependencies: AgentSessionsDependencies): Ag
       start: async (request) => start(context, request),
     }),
     list: async () => dependencies.repository.list(),
+    running: (targetId) => liveOf(context, targetId).length > 0,
+    endTarget: async (targetId) => endTarget(context, targetId),
     view: async (sessionId) => view(context, sessionId),
     prompt: async (sessionId, text) => prompt(context, sessionId, text),
     answerPermission: async (sessionId, request) => answer(context, sessionId, request),

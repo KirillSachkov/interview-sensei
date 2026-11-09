@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 
 import { UnknownAgentError } from "./composition.ts";
 import type { Features } from "./composition.ts";
+import { registerTargetArchiveRoutes } from "./target-archive-routes.ts";
 
 type Dependencies = Pick<Features, "targets" | "questionBank" | "createDemo">;
 const params = {
@@ -147,7 +148,10 @@ function registerTargetAgent(server: FastifyInstance, { targets }: Dependencies)
   );
 }
 
-export function registerTargetRoutes(server: FastifyInstance, dependencies: Dependencies) {
+export function registerTargetRoutes(
+  server: FastifyInstance,
+  dependencies: Dependencies & Parameters<typeof registerTargetArchiveRoutes>[1],
+) {
   const { targets, createDemo } = dependencies;
   server.post("/api/targets/demo", async (_request, reply) => {
     const { target, created } = await createDemo();
@@ -166,5 +170,6 @@ export function registerTargetRoutes(server: FastifyInstance, dependencies: Depe
   registerQuestions(server, dependencies);
   registerQuestionWrites(server, dependencies);
   registerSections(server, dependencies);
+  registerTargetArchiveRoutes(server, dependencies);
   registerTargetAgent(server, dependencies);
 }

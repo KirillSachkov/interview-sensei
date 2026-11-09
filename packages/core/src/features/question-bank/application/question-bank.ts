@@ -73,6 +73,9 @@ export function createQuestionBank(repository: QuestionRepository<Transaction>) 
       repository.search(targetId, filter),
     rate: repository.rate,
     hide: repository.hide,
+    /** Erases the Target's Topics and Questions when the Target is deleted for good. */
+    eraseTarget: async (targetId: string, transaction: Transaction) =>
+      repository.erase(targetId, transaction),
   };
 }
 export type QuestionBank = ReturnType<typeof createQuestionBank>;

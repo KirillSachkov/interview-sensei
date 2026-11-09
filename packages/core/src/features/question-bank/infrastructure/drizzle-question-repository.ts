@@ -55,6 +55,12 @@ async function topicSummaries(executor: Executor, targetId: string) {
     .orderBy(asc(topics.name));
 }
 
+/** The Questions go first: they reference their Topics. */
+async function erase(executor: Executor, targetId: string) {
+  await executor.delete(questions).where(eq(questions.targetId, targetId));
+  await executor.delete(topics).where(eq(topics.targetId, targetId));
+}
+
 export function drizzleQuestionRepository(database: Database): QuestionRepository<Transaction> {
   return {
     seed: async (newTopics, newQuestions) => {
@@ -80,6 +86,7 @@ export function drizzleQuestionRepository(database: Database): QuestionRepositor
     topics: async (targetId, transaction) =>
       topicSummaries(executorOf(database, transaction), targetId),
     search: async (targetId, filter) => search(database, targetId, filter),
+    erase: async (targetId, transaction) => erase(transaction, targetId),
     rate: async (id, rating) => {
       const rows = await database
         .update(questions)

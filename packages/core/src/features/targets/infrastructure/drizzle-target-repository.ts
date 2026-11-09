@@ -1,4 +1,5 @@
 import { and, asc, eq, ne } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 
 import { executorOf } from "../../../shared/storage/index.ts";
 import type { Database, Executor, Transaction } from "../../../shared/storage/index.ts";
@@ -33,7 +34,10 @@ export function drizzleTargetRepository(database: Database): TargetRepository<Tr
         .where(eq(targets.id, id));
       return row === undefined ? undefined : toTarget(row);
     },
-    list: async () => list(database),
+    list: async () => list(database, ne(targets.status, "archived")),
+    archived: async () => list(database, eq(targets.status, "archived")),
+    setStatus: async (id, status) => setFields(database, id, { status }),
+    erase: async (id, transaction) => erase(transaction, id),
     activeDemo: async () => {
       const [row] = await database
         .select()
@@ -41,7 +45,7 @@ export function drizzleTargetRepository(database: Database): TargetRepository<Tr
         .where(and(eq(targets.demo, true), eq(targets.status, "active")));
       return row === undefined ? undefined : toTarget(row);
     },
-    setAgent: async (id, agent) => setAgent(database, id, agent),
+    setAgent: async (id, agent) => setFields(database, id, { agent }),
     setSectionEnabled: async (targetId, sectionId, enabled) =>
       setSectionEnabled(database, { targetId, sectionId, enabled }),
     update: async (id, change, transaction) =>
@@ -78,18 +82,29 @@ async function update(
   return true;
 }
 
-async function list(database: Database) {
+async function list(database: Database, condition: SQL) {
   return database
     .select({ id: targets.id, name: targets.name, status: targets.status, level: targets.level })
     .from(targets)
-    .where(ne(targets.status, "archived"))
+    .where(condition)
     .orderBy(asc(targets.createdAt), asc(targets.id));
 }
 
-async function setAgent(database: Database, id: string, agent: string | null) {
+/** The Interview plan and the Preferences go first: they reference the Target. */
+async function erase(executor: Executor, id: string) {
+  await executor.delete(sections).where(eq(sections.targetId, id));
+  await executor.delete(preferences).where(eq(preferences.targetId, id));
+  await executor.delete(targets).where(eq(targets.id, id));
+}
+
+async function setFields(
+  database: Database,
+  id: string,
+  fields: Partial<Pick<Target, "agent" | "status">>,
+) {
   const updated = await database
     .update(targets)
-    .set({ agent })
+    .set(fields)
     .where(eq(targets.id, id))
     .returning({ id: targets.id });
   return updated.length > 0;

@@ -1,10 +1,10 @@
 import path from "node:path";
 
-import type { Database } from "../../shared/storage/index.ts";
+import type { Database, Transaction } from "../../shared/storage/index.ts";
 import type { Clock } from "../../shared/time/index.ts";
 import { createAgentSessions } from "./application/agent-sessions.ts";
 import type { AgentSessions } from "./application/agent-sessions.ts";
-import type { AgentLauncher, McpAddresses } from "./domain/ports.ts";
+import type { AgentLauncher, McpAddresses, SessionErasure } from "./domain/ports.ts";
 import { drizzleSessionRepository } from "./infrastructure/drizzle-session-repository.ts";
 
 export interface AgentSessionsModuleDependencies {
@@ -21,7 +21,10 @@ export interface AgentSessionsModuleDependencies {
   readonly onError: (error: unknown) => void;
 }
 
-/** AgentSessions on the server's database, with a journal of each session's events. */
+/**
+ * AgentSessions on the server's database, with a journal of each session's events. Deleting a
+ * Target erases its sessions with `eraseTarget`.
+ */
 export function agentSessionsModule({
   database,
   launcher,
@@ -29,13 +32,15 @@ export function agentSessionsModule({
   clock,
   dataDirectory,
   onError,
-}: AgentSessionsModuleDependencies): AgentSessions {
-  return createAgentSessions({
-    repository: drizzleSessionRepository(database),
+}: AgentSessionsModuleDependencies): AgentSessions & SessionErasure<Transaction> {
+  const repository = drizzleSessionRepository(database);
+  const sessions = createAgentSessions({
+    repository,
     launcher,
     clock,
     mcp,
     sessionsDirectory: path.join(dataDirectory, "sessions"),
     onError,
   });
+  return { ...sessions, eraseTarget: repository.eraseTarget };
 }

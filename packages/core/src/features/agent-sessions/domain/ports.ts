@@ -28,6 +28,14 @@ export interface SessionRepository {
   readonly journal: (sessionId: string) => Promise<readonly RecordedEvent[]>;
 }
 
+/**
+ * Erases the sessions of a Target with their journals. `Transaction` is the storage's open
+ * transaction, opaque to the domain: deleting a Target erases the data of every slice in it.
+ */
+export interface SessionErasure<Transaction> {
+  readonly eraseTarget: (targetId: string, transaction: Transaction) => Promise<void>;
+}
+
 /** How the agent process ended without a request from the server. */
 interface AgentExit {
   readonly exitCode: number | null;

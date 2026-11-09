@@ -152,6 +152,8 @@ export function createTargetSetup(dependencies: TargetSetupDependencies) {
     /** Writes the whole draft to the Target in one transaction, or nothing. */
     apply: async (targetId: string): Promise<ApplyOutcome> =>
       transaction(async (opened) => applyIn(dependencies, targetId, opened)),
+    /** Erases the Target's draft when the Target is deleted for good. */
+    eraseTarget: async (targetId: string, opened: Transaction) => drafts.clear(targetId, opened),
     /** The brief of the Target's setup session; undefined for an unknown Target. */
     brief: async (targetId: string) => {
       const target = await targets.get(targetId);

@@ -11,7 +11,14 @@ export interface TargetRepository<Transaction> {
     preferences: readonly Preference[],
   ) => Promise<void>;
   readonly get: (id: string, transaction?: Transaction) => Promise<Target | undefined>;
+  /** The Targets that are not archived, the oldest first. */
   readonly list: () => Promise<readonly Pick<Target, "id" | "name" | "status" | "level">[]>;
+  /** The archived Targets, the oldest first. */
+  readonly archived: () => Promise<readonly Pick<Target, "id" | "name" | "status" | "level">[]>;
+  /** Stores the Target's status; resolves false when the Target does not exist. */
+  readonly setStatus: (id: string, status: Target["status"]) => Promise<boolean>;
+  /** Erases the Target with its Interview plan and Preferences in the open transaction. */
+  readonly erase: (id: string, transaction: Transaction) => Promise<void>;
   readonly activeDemo: () => Promise<Target | undefined>;
   /** Stores the Target's agent; resolves false when the Target does not exist. */
   readonly setAgent: (id: string, agent: string | null) => Promise<boolean>;
@@ -53,4 +60,10 @@ interface OfferedAgent {
 /** The agent-runtime slice supplies the agents the server offers, in the order of preference. */
 export interface TargetAgents {
   readonly listAgents: () => Promise<readonly OfferedAgent[]>;
+}
+
+/** The app-settings slice supplies the default agent of Targets without their own agent. */
+export interface DefaultAgent {
+  /** Null when the Candidate has not chosen a default agent. */
+  readonly defaultAgent: () => Promise<string | null>;
 }

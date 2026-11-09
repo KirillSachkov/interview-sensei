@@ -21,6 +21,8 @@ export interface QuestionRepository<Transaction> {
   readonly search: (targetId: string, filter: QuestionFilter) => Promise<readonly Question[]>;
   readonly rate: (id: string, rating: QuestionRating | null) => Promise<boolean>;
   readonly hide: (id: string, hidden: boolean) => Promise<boolean>;
+  /** Erases the Target's Topics and Questions in the open transaction. */
+  readonly erase: (targetId: string, transaction: Transaction) => Promise<void>;
 }
 /** Resolves a Section only within the current Target; undefined means it does not belong to it. */
 export interface SectionTopics {

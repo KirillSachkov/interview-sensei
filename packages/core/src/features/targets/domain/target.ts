@@ -71,3 +71,45 @@ export interface TargetAgent {
   readonly agent: string | null;
   readonly chosen: boolean;
 }
+
+/** Why the Target cannot go to the archive: a draft is deleted instead, an archived one is there. */
+export function archiveProblem(target: Target): "target_draft" | "target_archived" | null {
+  switch (target.status) {
+    case "draft": {
+      return "target_draft";
+    }
+    case "archived": {
+      return "target_archived";
+    }
+    case "active": {
+      return null;
+    }
+    default: {
+      return target.status satisfies never;
+    }
+  }
+}
+
+/**
+ * Why the Target cannot be deleted for good: an active Target goes to the archive first, and an
+ * archived one needs its exact name typed. A draft goes at once, without a name.
+ */
+export function deletionProblem(
+  target: Target,
+  typedName: string | undefined,
+): "target_active" | "name_mismatch" | null {
+  switch (target.status) {
+    case "draft": {
+      return null;
+    }
+    case "active": {
+      return "target_active";
+    }
+    case "archived": {
+      return typedName?.trim() === target.name.trim() ? null : "name_mismatch";
+    }
+    default: {
+      return target.status satisfies never;
+    }
+  }
+}

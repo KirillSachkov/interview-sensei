@@ -1,8 +1,8 @@
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq, inArray } from "drizzle-orm";
 
-import type { Database } from "../../../shared/storage/index.ts";
+import type { Database, Executor, Transaction } from "../../../shared/storage/index.ts";
 import type { AgentSession } from "../domain/agent-session.ts";
-import type { SessionRepository } from "../domain/ports.ts";
+import type { SessionErasure, SessionRepository } from "../domain/ports.ts";
 import type { RecordedEvent } from "../domain/session-event.ts";
 import { events, sessions } from "./schema.ts";
 
@@ -79,13 +79,26 @@ async function journal(database: Database, sessionId: string): Promise<readonly 
     .orderBy(asc(events.id));
 }
 
+/** The journals go first: their events reference the sessions. */
+async function eraseTarget(executor: Executor, targetId: string): Promise<void> {
+  const owned = executor
+    .select({ id: sessions.id })
+    .from(sessions)
+    .where(eq(sessions.targetId, targetId));
+  await executor.delete(events).where(inArray(events.sessionId, owned));
+  await executor.delete(sessions).where(eq(sessions.targetId, targetId));
+}
+
 /** Sessions and journals in the `agent_sessions` Postgres schema. */
-export function drizzleSessionRepository(database: Database): SessionRepository {
+export function drizzleSessionRepository(
+  database: Database,
+): SessionRepository & SessionErasure<Transaction> {
   return {
     create: async (session) => create(database, session),
     append: async (entry) => append(database, entry),
     load: async (sessionId) => load(database, sessionId),
     list: async () => list(database),
     journal: async (sessionId) => journal(database, sessionId),
+    eraseTarget: async (targetId, transaction) => eraseTarget(transaction, targetId),
   };
 }
