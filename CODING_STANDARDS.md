@@ -26,7 +26,31 @@ A feature slice has the layers `domain/`, `application/` and `infrastructure/`; 
 Technical ports such as `Clock` live in `src/shared/`; application code may use them too.
 Slices never import each other. `src/shared/` is technical and never imports slices.
 When a slice needs another slice, it defines a port in its `domain/`, and the server passes the other slice in; `agent-sessions` gets `agent-runtime` and `mcp-gateway` this way.
-A new session kind in `agent-sessions` needs a launch recipe in `agent-runtime` (`RuntimeSessionKind`): `launcher: runtime` in `compose-agent-sessions.ts` fails to compile otherwise.
+
+### Composition
+
+Each slice exports one module factory from `module.ts` at the slice root, such as `mcpGatewayModule`.
+The factory takes only what the server owns: database, clock, timer, data directory, callbacks and other slices' services.
+It creates the slice's infrastructure itself and returns the slice's service.
+The slice's `index.ts` exports the factory, its migrations, its MCP tools and the types of its service.
+It does not export application or infrastructure parts.
+
+`apps/server/src/composition.ts` is the only server file that imports core features; `server-composes-features-in-one-module` checks it.
+`composeFeatures` opens the storage and calls each factory once.
+Routes take composed services and their types from `composition.ts`.
+Shared subpaths, such as `time`, `storage` and `session-kinds`, stay open to every server file.
+
+The session kinds live in `packages/core/src/shared/session-kinds` (`@interview-sensei/core/session-kinds`).
+`agent-sessions` treats a kind as an opaque label, as it treats the agent.
+A new slice plugs in like this:
+
+1. Write its module factory and export it from `index.ts`.
+2. Add one call of the factory to `composeFeatures` in `composition.ts`.
+3. Add its migrations to `sliceMigrations` there, when it stores data.
+4. Add its MCP tools to its session kinds in `sessionTools` there.
+5. For a new session kind, add it to `sessionKinds` in `shared/session-kinds`.
+   Then add its launch recipe to `RuntimeSessionKind` in `agent-runtime` and its entry to `sessionTools`.
+   Both fail to compile until they have them.
 
 ### Local requests
 
@@ -47,7 +71,7 @@ It names the session's MCP server `interview-sensei-<random hex>`, so a server n
 A tool lives in the `application/` of the slice that owns its data: define it there with `sessionTool` from `src/shared/mcp` and export it from the slice's `index.ts`.
 Content that differs by session kind lives in that slice's `domain/`.
 `get_brief` is the template: the tool is in `mcp-gateway/application/get-brief.ts`, and the brief of each kind is in `briefFor` in `mcp-gateway/domain/brief.ts`.
-`sessionTools` in `apps/server/src/mcp.ts` lists the tools of each session kind; add the new tool there.
+`sessionTools` in `apps/server/src/composition.ts` lists the tools of each session kind; add the new tool there.
 A tool acts only on the session it receives. Write its name in snake_case and its description in English.
 
 The server allows calls of our MCP tools without asking the Candidate; `automaticAnswer` in `agent-runtime/domain/permissions.ts` decides.
@@ -93,7 +117,7 @@ The slice keeps its tables in `infrastructure/schema.ts` and its drizzle-kit con
 Generate migrations with `db:generate`; never write or edit them by hand. Prettier ignores them.
 `db:generate` turns the first `CREATE SCHEMA` into `CREATE SCHEMA IF NOT EXISTS`, because the migrator first creates the schema for the history table.
 `schema.ts` exports its `pgSchema`: drizzle-kit reads only exported objects and would otherwise drop the schema.
-The slice exports its `SliceMigrations` from `index.ts`, and `sliceMigrations` in `apps/server/src/server.ts` lists it.
+The slice exports its `SliceMigrations` from `index.ts`, and `sliceMigrations` in `apps/server/src/composition.ts` lists it.
 A slice queries only its own schema.
 
 ### Mechanical rules
@@ -108,6 +132,7 @@ A slice queries only its own schema.
 | `shared-is-technical`                       | dependency-cruiser | `src/shared/` does not depend on feature slices.                        |
 | `no-circular`                               | dependency-cruiser | No import cycles, type-only imports included. In web and e2e, oxlint `import/no-cycle` reports value-import cycles. |
 | `server-uses-core-exports`                  | dependency-cruiser | The server imports core by package subpath, never by a path into `packages/core/src`. |
+| `server-composes-features-in-one-module`    | dependency-cruiser | Only `apps/server/src/composition.ts` imports core features; other server files take services from it. |
 | `not-to-unresolvable`                       | dependency-cruiser | Every import resolves, including core subpath exports.                  |
 | `tsPreCompilationDeps` (option)             | dependency-cruiser | An option, not a rule: the rules above count type-only imports as dependencies. |
 | `interview-sensei/require-disable-reason`   | oxlint             | Every disable directive gives a reason after `--`.                      |
