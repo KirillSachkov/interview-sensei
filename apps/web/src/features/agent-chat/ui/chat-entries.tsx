@@ -1,4 +1,5 @@
 import type { ChatEntry } from "@/shared/api";
+import { AgentMarkdown } from "@/shared/ui/markdown";
 
 import { PermissionRequest } from "./permission-request";
 
@@ -30,9 +31,9 @@ function EntryLine({
     }
     case "agent_message": {
       return (
-        <p>
-          <strong>Агент:</strong> {entry.text}
-        </p>
+        <div className="agent-message">
+          <strong>Агент:</strong> <AgentMarkdown text={entry.text} />
+        </div>
       );
     }
     case "turn_interrupted": {

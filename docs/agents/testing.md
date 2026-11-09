@@ -57,6 +57,7 @@ The fake agent streams a reply in chunks; the prompt `/wait` waits for a cancel,
 It replies «Результат <name>: <text>», or «Ошибка <name>: <text>» when the tool reports an error.
 API tests drive an agent's work with our tools this way, such as `/tool update_target {"name":"Go"}` in a Target setup session.
 `/permission` asks permission for a foreign tool and replies with the Candidate's choice; `/mcp` replies with the session's MCP server name and address.
+`/markdown` replies with Markdown and raw HTML, so a test checks how the chat shows the agent's text.
 `/late` asks permission after its turn ends and sends the outcome it gets, which is `cancelled`.
 A new fake session starts in the mode `candidate-mode`, which stands for the Candidate's own mode; `/mode` replies with the current mode and `/meta` with the `_meta` of `session/new`.
 `/env` replies with the names of the fake agent's environment variables.

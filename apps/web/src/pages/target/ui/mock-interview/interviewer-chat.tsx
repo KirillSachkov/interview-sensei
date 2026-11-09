@@ -3,6 +3,7 @@ import type { SubmitEvent } from "react";
 
 import { useSessionEvents } from "@/entities/session";
 import type { ChatEntry } from "@/shared/api";
+import { AgentMarkdown } from "@/shared/ui/markdown";
 
 /** A line of the interviewer chat; tool calls never reach it. */
 function Line({ entry }: { entry: ChatEntry }) {
@@ -16,7 +17,11 @@ function Line({ entry }: { entry: ChatEntry }) {
       );
     }
     case "agent_message": {
-      return <p className="chat-line">{entry.text}</p>;
+      return (
+        <div className="chat-line">
+          <AgentMarkdown text={entry.text} />
+        </div>
+      );
     }
     case "turn_failed": {
       return <p role="alert">Интервьюер не смог ответить: {entry.message}</p>;

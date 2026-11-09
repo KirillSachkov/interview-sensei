@@ -17,6 +17,8 @@
 //   `candidate-mode`, which stands for the mode in the Candidate's own settings.
 // - `/meta` replies with the `_meta` of `session/new` as JSON: «_meta: <json>».
 // - `/env` replies with the sorted names of its environment variables as JSON: «env: <json>».
+// - `/markdown` replies with Markdown: bold, inline code, a list, a code block, a table, a link
+//   and raw HTML.
 // - `/system`, `/skills` and `/tools` reply with the role, skills and bans of the session's
 //   profile; see `fake-agent-profile.ts`.
 // - The template messages of a mock interview get the interviewer's turns of `fake-agent-interviewer.ts`.
@@ -48,7 +50,7 @@ import { fakeAgentModes } from "./fake-agent-modes.ts";
 import { askPermission, permissionOptions } from "./fake-agent-permission.ts";
 import { profileReply, profileSettings, sessionCapabilities } from "./fake-agent-profile.ts";
 import type { ProfileSettings } from "./fake-agent-profile.ts";
-import { sendChunk, sendText } from "./fake-agent-text.ts";
+import { markdownSample, sendChunk, sendText } from "./fake-agent-text.ts";
 
 /** The MCP servers each session got in `session/new`. */
 const sessionMcpServers = new Map<string, McpServer[]>();
@@ -171,6 +173,7 @@ const commands = new Map<
   ["/brief", readBrief],
   ["/permission", askForeignTool],
   ["/late", askAfterTurn],
+  ["/markdown", async (client, sessionId) => reply(client, sessionId, markdownSample)],
   [
     "/mode",
     async (client, sessionId) =>

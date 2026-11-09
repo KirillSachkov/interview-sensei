@@ -1,6 +1,6 @@
 // The ticket's acceptance criterion: «Привет» in the service chat gets the fake agent's reply.
 import { expect, test } from "@playwright/test";
-import type { Page, Request } from "@playwright/test";
+import type { Locator, Page, Request } from "@playwright/test";
 
 /** Opens the page, starts a chat with the fake agent and returns its message list items. */
 async function startNewChat(page: Page) {
@@ -58,6 +58,33 @@ test("the Candidate answers the agent's permission request in the chat", async (
   await expect(request).toContainText("Ваш ответ: Разрешить");
   await expect(request.getByRole("button")).toHaveCount(0);
   await expect(messages.last()).toHaveText("Агент: Фейковый агент получил ответ: «Разрешить»");
+});
+
+/** The bold text, list, code block, table and safe link of the fake agent's `/markdown`. */
+async function expectFormatted(reply: Locator) {
+  await expect(reply.getByRole("strong")).toHaveText(["Агент:", "Жирный"]);
+  await expect(reply.getByRole("list").getByRole("listitem")).toHaveText([
+    "первый пункт",
+    "второй пункт",
+  ]);
+  await expect(reply.locator("pre code")).toHaveText("const answer = 42;");
+  await expect(reply.getByRole("cell")).toHaveText(["Горутины", "шатко"]);
+  const link = reply.getByRole("link", { name: "Документация" });
+  await expect(link).toHaveAttribute("target", "_blank");
+  await expect(link).toHaveAttribute("rel", "noopener noreferrer");
+}
+
+test("the chat shows the agent's Markdown formatted and raw HTML as text", async ({ page }) => {
+  await startNewChat(page);
+
+  // The fake agent's `/markdown` replies with Markdown and raw HTML.
+  await sendMessage(page, "/markdown");
+
+  // The reply's own list items are nested inside the chat's message item.
+  const reply = page.getByRole("list", { name: "Сообщения" }).locator(":scope > li").last();
+  await expectFormatted(reply);
+  await expect(reply).toContainText("<b>сырой HTML</b>");
+  await expect(reply.locator("b")).toHaveCount(0);
 });
 
 test("the chat shows that the agent works until the Candidate stops the turn", async ({ page }) => {

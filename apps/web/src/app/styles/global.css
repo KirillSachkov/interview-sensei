@@ -351,6 +351,56 @@ textarea {
   list-style: none;
 }
 
+/* The agent's Markdown in a chat message */
+.agent-markdown > * + * {
+  margin-top: var(--space-2);
+}
+
+.agent-markdown p,
+.agent-markdown ul,
+.agent-markdown ol {
+  margin: 0;
+}
+
+.agent-markdown ul,
+.agent-markdown ol {
+  padding-left: var(--space-5);
+}
+
+.agent-markdown code {
+  border-radius: 4px;
+  background: var(--color-surface-muted);
+  padding: 0 var(--space-1);
+  font: 0.9em var(--font-mono);
+}
+
+.agent-markdown pre {
+  margin: 0;
+  overflow-x: auto;
+  border-radius: var(--radius-control);
+  background: var(--color-surface-muted);
+  padding: var(--space-2) var(--space-3);
+}
+
+.agent-markdown pre code {
+  padding: 0;
+}
+
+.agent-markdown table {
+  border-collapse: collapse;
+}
+
+.agent-markdown th,
+.agent-markdown td {
+  border: 1px solid var(--color-line);
+  padding: var(--space-1) var(--space-2);
+  text-align: left;
+}
+
+.agent-markdown a {
+  color: var(--color-accent);
+}
+
 /* The agent's whole command in a permission request: long lines wrap, a long command scrolls. */
 .permission-input {
   max-height: 240px;
