@@ -154,7 +154,7 @@ export interface SetupQuestions<Transaction> {
 }
 
 /** The Topic `from` merged into the Topic `into`, by ids. */
-export interface TopicMerge {
+interface TopicMerge {
   readonly from: string;
   readonly into: string;
 }
