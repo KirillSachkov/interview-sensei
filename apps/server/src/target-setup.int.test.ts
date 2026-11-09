@@ -157,6 +157,22 @@ describe("new Target and onboarding", () => {
     expect(reopened.json()).toMatchObject({ id: session.id, kind: "target-setup" });
   });
 
+  it("starts one setup session when the Candidate opens the setup twice at once", async () => {
+    const { server } = await startServer(await temporaryDirectory());
+    const created = await newTarget(server);
+
+    const opened = await Promise.all([
+      openSetup(server, created.id),
+      openSetup(server, created.id),
+    ]);
+
+    expect(
+      opened.map((response) => response.statusCode).toSorted((left, right) => left - right),
+    ).toStrictEqual([200, 201]);
+    const [first, second] = opened.map((response) => response.json<{ id: string }>().id);
+    expect(first).toBe(second);
+  });
+
   it("refuses a setup session of an unknown Target", async () => {
     const { server } = await startServer(await temporaryDirectory());
 
