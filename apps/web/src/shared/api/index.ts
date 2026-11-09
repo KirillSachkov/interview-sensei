@@ -45,7 +45,7 @@ export type {
 } from "./progress";
 export { fetchQuestionMarks } from "./questions";
 export { deleteSideThread, openSideThread } from "./side-threads";
-export type { SideThread, SideThreadOrigin } from "./side-threads";
+export type { SideThread, SideThreadOpening, SideThreadOrigin } from "./side-threads";
 export type { ChatEntry, PermissionEntry, SessionView } from "./sessions";
 export {
   chooseTargetAgent,

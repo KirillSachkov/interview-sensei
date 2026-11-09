@@ -3,7 +3,7 @@ import { useState } from "react";
 import type { PointerEvent, SubmitEvent } from "react";
 
 import { openSideThread } from "@/shared/api";
-import type { SideThreadOrigin } from "@/shared/api";
+import type { SideThreadOpening, SideThreadOrigin } from "@/shared/api";
 
 import { useRefreshSideThreads } from "./side-thread-refresh";
 
@@ -33,8 +33,7 @@ export function FragmentQuote({ fragment }: { fragment: string | null }) {
 function useOpening(interviewId: string, onClose: () => void) {
   const refresh = useRefreshSideThreads(interviewId);
   return useMutation({
-    mutationFn: async (request: Parameters<typeof openSideThread>[1]) =>
-      openSideThread(interviewId, request),
+    mutationFn: async (request: SideThreadOpening) => openSideThread(interviewId, request),
     onSuccess: () => {
       refresh();
       onClose();
@@ -59,7 +58,7 @@ function DiscussForm({
   const submit = (event: SubmitEvent) => {
     event.preventDefault();
     if (!opening.isPending) {
-      opening.mutate({ origin, fragment, question });
+      opening.mutate({ origin, fragment, question: question.trim() === "" ? null : question });
     }
   };
   return (

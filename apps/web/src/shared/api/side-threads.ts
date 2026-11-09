@@ -38,19 +38,28 @@ function isSideThread(value: unknown): value is SideThread {
   );
 }
 
+/** What «Обсудить отдельно» sends; the server trims the texts and takes an empty one as none. */
+export interface SideThreadOpening {
+  readonly origin: SideThreadOrigin;
+  /** The text the Candidate selected; null without a selection. */
+  readonly fragment: string | null;
+  /** The Candidate's question; null without one. */
+  readonly question: string | null;
+}
+
 /** «Обсудить отдельно» at the origin, with the selected fragment and the Candidate's question. */
 export async function openSideThread(
   interviewId: string,
-  {
-    origin,
-    fragment,
-    question,
-  }: { origin: SideThreadOrigin; fragment: string | null; question: string },
+  { origin, fragment, question }: SideThreadOpening,
 ): Promise<SideThread> {
   const response = await fetch(`/api/interviews/${path(interviewId)}/side-threads`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ origin, ...(fragment === null ? {} : { fragment }), question }),
+    body: JSON.stringify({
+      origin,
+      ...(fragment === null ? {} : { fragment }),
+      ...(question === null ? {} : { question }),
+    }),
   });
   return checked(response, isSideThread);
 }

@@ -1,13 +1,12 @@
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
-import type { SubmitEvent } from "react";
 
 import { useSessionEvents } from "@/entities/session";
 import { PermissionRequest } from "@/features/agent-chat";
 import { deleteSideThread } from "@/shared/api";
 import type { ChatEntry, SessionView, SideThread } from "@/shared/api";
-import { AgentMarkdown } from "@/shared/ui/markdown";
 
+import { AgentLine, CandidateLine, ChatForm } from "./chat-parts";
 import { FragmentQuote } from "./discuss-separately";
 import { useRefreshSideThreads } from "./side-thread-refresh";
 
@@ -30,19 +29,10 @@ function Line({
 }) {
   switch (entry.type) {
     case "candidate_message": {
-      return (
-        <p className="chat-line mine">
-          <span className="muted">Вы: </span>
-          {entry.text}
-        </p>
-      );
+      return <CandidateLine text={entry.text} />;
     }
     case "agent_message": {
-      return (
-        <div className="chat-line">
-          <AgentMarkdown text={entry.text} />
-        </div>
-      );
+      return <AgentLine text={entry.text} />;
     }
     case "turn_interrupted": {
       return <p className="muted">Ход остановлен.</p>;
@@ -87,41 +77,6 @@ function ThreadState({ view, onCancel }: { view: SessionView; onCancel: () => vo
       </button>
     </p>
   ) : null;
-}
-
-/** The Candidate types while the agent works, and sends once it waits for a message. */
-function ThreadForm({
-  status,
-  onSend,
-}: {
-  status: SessionView["status"] | null;
-  onSend: (text: string) => void;
-}) {
-  const [text, setText] = useState("");
-  const submit = (event: SubmitEvent) => {
-    event.preventDefault();
-    if (text.trim() !== "" && status === "idle") {
-      onSend(text);
-      setText("");
-    }
-  };
-  return (
-    <form className="interviewer-form" onSubmit={submit}>
-      <input
-        className="nodrag nopan"
-        aria-label="Сообщение в ветку"
-        placeholder="Спросить ещё"
-        value={text}
-        disabled={status !== "idle" && status !== "working"}
-        onChange={(event) => {
-          setText(event.target.value);
-        }}
-      />
-      <button type="submit" disabled={status !== "idle" || text.trim() === ""}>
-        Отправить
-      </button>
-    </form>
-  );
 }
 
 /** ✕ asks first: «Удалить» deletes the Side thread and its chat for good. */
@@ -193,12 +148,7 @@ export function SideThreadChat({ thread, number }: { thread: SideThread; number:
         <DeleteThread thread={thread} />
       </header>
       <FragmentQuote fragment={thread.fragment} />
-      {thread.question === null ? null : (
-        <p className="chat-line mine">
-          <span className="muted">Вы: </span>
-          {thread.question}
-        </p>
-      )}
+      {thread.question === null ? null : <CandidateLine text={thread.question} />}
       <ol className="interviewer-lines nowheel" aria-label="Сообщения ветки">
         {(view?.entries ?? []).map((entry) => (
           <li key={entry.id}>
@@ -209,7 +159,12 @@ export function SideThreadChat({ thread, number }: { thread: SideThread; number:
       {view === null ? null : <ThreadState view={view} onCancel={cancel} />}
       {lost === null ? null : <p role="alert">{lost}</p>}
       {notice === null ? null : <output>{notice}</output>}
-      <ThreadForm status={status} onSend={prompt} />
+      <ChatForm
+        status={status}
+        onSend={prompt}
+        label="Сообщение в ветку"
+        placeholder="Спросить ещё"
+      />
     </aside>
   );
 }
