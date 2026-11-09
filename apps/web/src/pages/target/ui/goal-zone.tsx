@@ -1,7 +1,7 @@
 import type { TargetView } from "@/shared/api";
 
 import { Readiness } from "./readiness/readiness";
-import { SetupChat } from "./setup-chat";
+import { SetupChat, setupChatReach } from "./setup-chat";
 import { SourcesCard } from "./sources-card";
 import { TargetCard } from "./target-card";
 import { TargetPlan } from "./target-plan";
@@ -11,6 +11,14 @@ export type { QuestionsView } from "./target-plan";
 
 /** Where the setup chat is open: beside the Target card, beside a Section, or nowhere. */
 export type SetupAnchor = "target" | { readonly sectionId: string } | null;
+
+/**
+ * How far the zone's widgets reach beyond its width: the open setup chat stands to the right of
+ * the zone, and the canvas moves «Сессии» aside for it (#71).
+ */
+export function goalZoneAside(anchor: SetupAnchor): number {
+  return anchor === null ? 0 : setupChatReach;
+}
 
 export interface GoalZoneProps {
   readonly target: TargetView;

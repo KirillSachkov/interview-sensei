@@ -1,6 +1,6 @@
-// The setup chat tests of the live check of spec #45 (D1, D2) with their helpers. canvas.test.ts
+// The setup chat tests of the live check of spec #45 (D1, D2) and of issue #71 with their helpers. canvas.test.ts
 // declares them after its own tests: «Новая цель» creates «Python-разработчик», and the next
-// test works on it in the same serial order.
+// tests work on it in the same serial order.
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 
@@ -124,6 +124,30 @@ function draftChatTests() {
   });
 }
 
+/** The left element ends before the right one starts, so it covers no part of it. */
+async function expectLeftOf(left: Locator, right: Locator) {
+  const [leftBox, rightBox] = await Promise.all([left.boundingBox(), right.boundingBox()]);
+  expect((leftBox?.x ?? 0) + (leftBox?.width ?? 0)).toBeLessThan(rightBox?.x ?? 0);
+}
+
+// Issue #71: the open setup chat used to cover the left part of the «Сессии» zone.
+function sessionsZoneTest() {
+  test("the open setup chat leaves the «Сессии» zone free, and «Начать мок» works", async ({
+    page,
+  }) => {
+    const chat = await openPythonChat(page);
+    const { sessions } = zones(page);
+    const start = sessions.getByRole("button", { name: "Начать мок" });
+
+    await expect(start).toBeVisible();
+    await start.click();
+
+    await expect(sessions.getByRole("dialog", { name: "Начать мок" })).toBeVisible();
+    await expect(chat.panel).toBeVisible();
+    await expectLeftOf(chat.panel, sessions);
+  });
+}
+
 export function setupChatTests() {
   test.describe("the setup chat beside a large screen's canvas", () => {
     // The live check ran on a 1600×1000 window, where the whole chat panel is on the screen.
@@ -169,4 +193,5 @@ export function setupChatTests() {
 
     draftChatTests();
   });
+  sessionsZoneTest();
 }

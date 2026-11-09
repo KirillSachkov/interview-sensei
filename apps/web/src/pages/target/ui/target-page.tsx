@@ -9,11 +9,10 @@ import { rememberTarget } from "@/shared/lib";
 import { Canvas } from "@/shared/ui/canvas";
 import type { CanvasZone } from "@/shared/ui/canvas";
 
-import { GoalZone } from "./goal-zone";
+import { GoalZone, goalZoneAside } from "./goal-zone";
 import type { GoalZoneProps, QuestionsView, SetupAnchor } from "./goal-zone";
 import { MockInterviews } from "./mock-interview/mock-interviews";
 import { QuestionsPanel } from "./questions-panel";
-import { setupChatReach } from "./setup-chat";
 
 /**
  * The zones of the Target's canvas. A slice adds its widget to a zone's `content` here and leaves
@@ -26,8 +25,7 @@ function targetZones(goal: GoalZoneProps): CanvasZone[] {
       id: "goal",
       title: "Цель",
       width: 440,
-      // The open setup chat stands to the right of the zone; «Сессии» moves aside for it (#71).
-      aside: goal.setupAnchor === null ? 0 : setupChatReach,
+      aside: goalZoneAside(goal.setupAnchor),
       content: <GoalZone zone={goal} />,
     },
     {
