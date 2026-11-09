@@ -7,16 +7,20 @@ import type { TopicRename } from "./draft-topics.ts";
 /**
  * Stores the draft of changes of each Target, in the order of recording. `Transaction` is the
  * storage's open transaction, opaque to the domain: applying the draft clears it in the same
- * transaction that writes the Target.
+ * transaction that writes the Target, and a new plan replaces the earlier one in one transaction.
  */
 export interface DraftRepository<Transaction> {
-  readonly add: (change: DraftChange) => Promise<void>;
+  readonly add: (change: DraftChange, transaction?: Transaction) => Promise<void>;
   readonly changes: (
     targetId: string,
     transaction?: Transaction,
   ) => Promise<readonly DraftChange[]>;
   /** Removes the change from the Target's draft; resolves false when the draft has no such change. */
-  readonly remove: (targetId: string, changeId: string) => Promise<boolean>;
+  readonly remove: (
+    targetId: string,
+    changeId: string,
+    transaction?: Transaction,
+  ) => Promise<boolean>;
   /** Empties the Target's draft and resolves with the number of removed changes. */
   readonly clear: (targetId: string, transaction?: Transaction) => Promise<number>;
 }

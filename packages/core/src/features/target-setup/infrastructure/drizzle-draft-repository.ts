@@ -18,8 +18,10 @@ function toChange(row: typeof changes.$inferSelect): DraftChange {
 /** The drafts of changes in the `target_setup` Postgres schema. */
 export function drizzleDraftRepository(database: Database): DraftRepository<Transaction> {
   return {
-    add: async (change) => {
-      await database.insert(changes).values({ ...change, createdAt: new Date(change.createdAt) });
+    add: async (change, transaction) => {
+      await executorOf(database, transaction)
+        .insert(changes)
+        .values({ ...change, createdAt: new Date(change.createdAt) });
     },
     changes: async (targetId, transaction) => {
       const rows = await executorOf(database, transaction)
@@ -29,8 +31,8 @@ export function drizzleDraftRepository(database: Database): DraftRepository<Tran
         .orderBy(asc(changes.number));
       return rows.map((row) => toChange(row));
     },
-    remove: async (targetId, changeId) => {
-      const removed = await database
+    remove: async (targetId, changeId, transaction) => {
+      const removed = await executorOf(database, transaction)
         .delete(changes)
         .where(and(eq(changes.targetId, targetId), eq(changes.id, changeId)))
         .returning({ id: changes.id });

@@ -5,6 +5,7 @@ import type { Clock } from "../../../shared/time/index.ts";
 import { onboardingPrompt, setupBrief } from "../domain/brief.ts";
 import { draftProblems, stateAfter } from "../domain/draft.ts";
 import type { DraftChange, DraftOperation } from "../domain/draft.ts";
+import { planReplacement } from "../domain/draft-plan.ts";
 import { withoutDuplicates } from "../domain/draft-questions.ts";
 import type { NewQuestion } from "../domain/draft-questions.ts";
 import type {
@@ -39,12 +40,18 @@ export type ApplyOutcome =
   | { readonly outcome: "invalid"; readonly problems: readonly string[] };
 
 /**
- * - `recorded`: the draft has the change and `size` changes in all.
+ * - `recorded`: the draft has the change and `size` changes in all; the change took the place of
+ *   the `replaced` ones, as a new plan does of the earlier plan.
  * - `not_found`: no Target has this id.
  * - `refused`: the change names things the Target and its draft do not have; nothing recorded.
  */
 export type RecordOutcome =
-  | { readonly outcome: "recorded"; readonly change: DraftChange; readonly size: number }
+  | {
+      readonly outcome: "recorded";
+      readonly change: DraftChange;
+      readonly size: number;
+      readonly replaced: readonly string[];
+    }
   | { readonly outcome: "not_found" }
   | { readonly outcome: "refused"; readonly problems: readonly string[] };
 
@@ -101,31 +108,76 @@ async function applyIn(
 }
 
 /**
- * Records the change in the Target's draft, unless it changes something that neither the Target
- * nor its draft has.
+ * The change to record in the draft, and the earlier changes it replaces, as a new plan does the
+ * earlier plan; `problems` for the things the change names that neither the Target nor its draft
+ * has.
  */
-async function record(
+function nextDraft(draft: Draft, operation: DraftOperation) {
+  const {
+    replaced,
+    operation: recorded,
+  }: { replaced: readonly string[]; operation: DraftOperation } =
+    operation.type === "set_interview_plan"
+      ? planReplacement(draft.changes, operation)
+      : { replaced: [], operation };
+  const kept = draft.changes
+    .filter((change) => !replaced.includes(change.id))
+    .map((change) => change.operation);
+  const before = stateAfter(draft.state, kept);
+  const after = stateAfter(draft.state, [...kept, recorded]);
+  return {
+    replaced,
+    recorded,
+    size: kept.length + 1,
+    problems: after.missing.slice(before.missing.length),
+  };
+}
+
+/** Adds the change to the draft in place of the `replaced` changes. */
+async function store(
+  drafts: DraftRepository<Transaction>,
+  { change, replaced }: { change: DraftChange; replaced: readonly string[] },
+  transaction: Transaction,
+) {
+  for (const id of replaced) {
+    // oxlint-disable-next-line eslint/no-await-in-loop -- the removals share one transaction
+    await drafts.remove(change.targetId, id, transaction);
+  }
+  await drafts.add(change, transaction);
+}
+
+/** Records the change in the Target's draft in the transaction, unless the change has problems. */
+async function recordIn(
   dependencies: TargetSetupDependencies,
-  targetId: string,
-  operation: DraftOperation,
+  { targetId, operation }: { targetId: string; operation: DraftOperation },
+  transaction: Transaction,
 ): Promise<RecordOutcome> {
-  const draft = await withDraft(dependencies, targetId);
+  const draft = await withDraft(dependencies, targetId, transaction);
   if (draft === null) {
     return { outcome: "not_found" };
   }
-  const next = stateAfter(draft.state, [...draft.operations, operation]);
-  const problems = next.missing.slice(draft.after.missing.length);
+  const { replaced, recorded, size, problems } = nextDraft(draft, operation);
   if (problems.length > 0) {
     return { outcome: "refused", problems };
   }
   const change: DraftChange = {
     id: randomUUID(),
     targetId,
-    operation,
+    operation: recorded,
     createdAt: dependencies.clock.now().toISOString(),
   };
-  await dependencies.drafts.add(change);
-  return { outcome: "recorded", change, size: draft.changes.length + 1 };
+  await store(dependencies.drafts, { change, replaced }, transaction);
+  return { outcome: "recorded", change, size, replaced };
+}
+
+async function record(
+  dependencies: TargetSetupDependencies,
+  targetId: string,
+  operation: DraftOperation,
+): Promise<RecordOutcome> {
+  return dependencies.transaction(async (opened) =>
+    recordIn(dependencies, { targetId, operation }, opened),
+  );
 }
 
 /** The new Question with its id, by which the agent can edit it before the draft is applied. */

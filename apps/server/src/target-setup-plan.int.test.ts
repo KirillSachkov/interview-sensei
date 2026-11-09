@@ -9,7 +9,9 @@ import {
   api,
   applied,
   appliedTarget,
+  applyDraft,
   callTool,
+  draftOf,
   questionsOf,
   setupChat,
   setupPlan,
@@ -130,6 +132,31 @@ describe("the Interview plan through the draft", () => {
     ]);
 
     expect(topicOf(after, "Конкурентность")?.questionCount).toBe(2);
+  });
+
+  it("a new plan replaces the earlier plan change of the draft and keeps its Topic renames", async () => {
+    const { server } = await startServer(await temporaryDirectory());
+    const { target, events } = await appliedTarget(server);
+    const goroutines = topicOf(target, "Горутины");
+    await callTool(events, "set_interview_plan", {
+      sections: [{ name: "Go", kind: "topics", topics: ["Планировщик"] }],
+      renameTopics: [{ from: "Горутины", to: "Планировщик" }],
+    });
+
+    await callTool(events, "set_interview_plan", {
+      sections: [
+        { name: "Go", kind: "topics", topics: ["Планировщик", "Каналы"] },
+        { name: "Опыт", kind: "conversation" },
+      ],
+    });
+
+    await expect(draftOf(server, target.id)).resolves.toMatchObject([
+      { operation: { type: "set_interview_plan" } },
+    ]);
+    const response = await applyDraft(server, target.id);
+    const after = response.json<TargetView>();
+    expect(sectionNames(after)).toStrictEqual(["Go", "Опыт"]);
+    expect(topicOf(after, "Планировщик")).toMatchObject({ id: goroutines?.id, questionCount: 1 });
   });
 
   it("refuses to rename a Topic the Target does not have", async () => {
