@@ -144,6 +144,7 @@ A page waits at most 30 seconds on the injected `Timer` and may hold at most 20 
 linkedom and Readability type their DOM with TypeScript's DOM library, which server code does not load.
 So only `sources/infrastructure/page-text.ts` touches their DOM, under a file-level disable of the unsafe-value rules with that reason.
 A Source the server cannot read gets the Source status «ошибка» with the reason in Russian.
+A link to a web page is the exception: it stays «разбирается» without parts, and the Inbox processing agent opens it on the web.
 
 ### Local requests
 

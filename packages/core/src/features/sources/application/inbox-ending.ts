@@ -1,7 +1,7 @@
 // How an Inbox processing ends without the agent's report: «Остановить разбор», a failed agent, an
 // agent that ended its turn without the report, a restart of the server, an agent that did not
-// start or no readable material. The server closes
-// the run with a partial Inbox report from what the agent wrote; the added Questions stay.
+// start or no readable material. The server closes the run with a partial Inbox report from what
+// the agent wrote; the added Questions stay. moveSettled also serves the agent's own report.
 import { randomUUID } from "node:crypto";
 
 import type { Transaction } from "../../../shared/storage/index.ts";
