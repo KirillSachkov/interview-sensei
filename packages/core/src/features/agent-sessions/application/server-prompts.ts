@@ -77,8 +77,8 @@ export async function enqueue(
 /** Queues the server's prompt; see `AgentSessions.queuePrompt`. */
 export async function queuePrompt(
   context: QueueContext,
-  sessionId: string,
-  { text, showAgentText = false }: { text: string; showAgentText: boolean | undefined },
+  { sessionId, text }: { sessionId: string; text: string },
+  { showAgentText }: { readonly showAgentText: boolean },
 ): Promise<QueueOutcome> {
   return enqueue(context, sessionId, (settle) => ({ type: "prompt", text, showAgentText, settle }));
 }

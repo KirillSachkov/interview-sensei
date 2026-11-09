@@ -16,12 +16,15 @@ import {
   minutes,
   quizShown,
 } from "./interview-flow-test-support.ts";
+import { agentTexts } from "./chat-test-support.ts";
 import {
   agentTextWith,
   cardAt,
+  everyAgentText,
   hasQuestions,
   interviewApi,
   isGraded,
+  repliedTo,
   saysWhenIdle,
 } from "./interview-test-support.ts";
 
@@ -117,6 +120,26 @@ describe("mock interview Follow-ups", () => {
     await events.waitFor(isGraded(0));
     const late = await answerFollowUp(api, interview.id, "Поздно");
     expect(late.json()).toMatchObject({ error: "no_follow_up" });
+  });
+
+  it("keeps the agent's reply to a chat message out of the browser while a Follow-up waits for its answer", async () => {
+    const api = await interviewApi();
+    const { interview, events, chat } = await api.answered(["Опыт и резюме"], "Ответ [followup]");
+    await events.waitFor(followUpsOf(1));
+    await chat.waitFor(saysWhenIdle("Ответ получен."));
+
+    // The fake agent echoes a chat message: «Фейковый агент получил: «…»».
+    chat.send({ type: "prompt", text: "Подскажи пример" });
+    await chat.waitFor(repliedTo("Подскажи пример"));
+    await answerFollowUp(api, interview.id, "Пример [grade:2] [last]");
+
+    const after = await chat.waitFor(saysWhenIdle("Уточнение получено."));
+    expect(agentTexts(after)).toStrictEqual([
+      "Начинаем мок-собеседование.",
+      "Ответ получен.",
+      "Уточнение получено.",
+    ]);
+    expect(everyAgentText(chat.views).join("\n")).not.toContain("Фейковый агент получил");
   });
 });
 

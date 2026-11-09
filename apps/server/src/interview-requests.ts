@@ -1,6 +1,6 @@
 // The bodies of the Mock interview requests. The checks keep JSON types strict, without Fastify's
 // coercion, and give the services typed requests.
-import type { Features, StartRequest } from "./composition.ts";
+import type { CandidateReply, StartRequest } from "./composition.ts";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 
@@ -59,8 +59,6 @@ export function startRequestOf(targetId: string, body: unknown): StartRequest | 
   }
   return { targetId, sectionIds, limitMinutes, ...(difficulty === null ? {} : { difficulty }) };
 }
-
-type CandidateReply = Parameters<Features["interviews"]["answer"]>[1];
 
 /** The answer of the body: `{ text }`, `{ optionIds }` or `{ skipped: true }` for «Не знаю». */
 export function replyOf(

@@ -27,16 +27,18 @@ import { openStorage } from "@interview-sensei/core/storage";
 import type { SliceMigrations, Storage } from "@interview-sensei/core/storage";
 import type { Clock, Timer } from "@interview-sensei/core/time";
 import type { Targets } from "@interview-sensei/core/targets";
+import type { Interviews } from "@interview-sensei/core/interviews";
+import type { Progress } from "@interview-sensei/core/progress";
 import type { QuestionBank } from "@interview-sensei/core/question-bank";
 
 export type { AgentRuntime, UserEnvironment } from "@interview-sensei/core/agent-runtime";
 export { SessionsClosedError } from "@interview-sensei/core/agent-sessions";
 export { UnknownAgentError } from "@interview-sensei/core/targets";
 export type { AgentSessions, SessionView } from "@interview-sensei/core/agent-sessions";
-export { mcpRoute } from "@interview-sensei/core/mcp-gateway";
+export { mcpGatewayModule, mcpRoute } from "@interview-sensei/core/mcp-gateway";
 export type { McpGateway } from "@interview-sensei/core/mcp-gateway";
 export { grades } from "@interview-sensei/core/interviews";
-export type { Grade, InterviewView, StartRequest } from "@interview-sensei/core/interviews";
+export type * from "@interview-sensei/core/interviews";
 
 /**
  * The migrations of every core slice that stores data, applied at each start in this order. A
@@ -54,8 +56,8 @@ type SessionToolSets = Parameters<typeof mcpGatewayModule>[0]["tools"];
 
 /** The services whose MCP tools the session kinds use; composeFeatures builds them after the gateway. */
 interface ToolServices {
-  interviews: ReturnType<typeof interviewsModule>;
-  progress: ReturnType<typeof progressModule>;
+  interviews: Interviews;
+  progress: Progress;
   targets: Targets;
   questionBank: QuestionBank;
 }
@@ -296,5 +298,3 @@ function composeAgents(
 
 /** The composed services that the routes and the server lifecycle receive. */
 export type Features = Awaited<ReturnType<typeof composeFeatures>>;
-
-export { mcpGatewayModule } from "@interview-sensei/core/mcp-gateway";

@@ -104,7 +104,9 @@ Only that Agent session's agent gets it, and it closes when that agent stops.
 
 **Permission request**:
 The agent's request to perform an action, such as a shell command, with the options it offers.
-The server answers requests for our own MCP tools; every other request goes to the Candidate in the chat.
+The server answers requests for our own MCP tools.
+Every other request goes to the Candidate in the chat, when the session kind asks the Candidate.
+In a Mock interview it does not: its chat shows no requests, so the server refuses them itself.
 
 **Source**:
 Material attached to a Target: a vacancy, a resume, a link, a video transcript, a file or the Candidate's own note.

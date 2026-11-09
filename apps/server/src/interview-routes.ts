@@ -2,7 +2,13 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 import type { WebSocket } from "ws";
 
 import { SessionsClosedError } from "./composition.ts";
-import type { Features, InterviewView, StartRequest } from "./composition.ts";
+import type {
+  AnswerOutcome,
+  Features,
+  InterviewView,
+  StartOutcome,
+  StartRequest,
+} from "./composition.ts";
 import { onlyField, replyOf, startRequestOf } from "./interview-requests.ts";
 import { attemptParams, params } from "./route-params.ts";
 
@@ -10,14 +16,13 @@ type Dependencies = Pick<Features, "interviews" | "targets">;
 
 const otherAgentHint = "Или выберите другого агента в меню «Агент» в верхней панели.";
 
-type StartOutcome =
-  Awaited<ReturnType<Features["interviews"]["start"]>> | { readonly type: "server_closing" };
+type StartOrClosing = StartOutcome | { readonly type: "server_closing" };
 
 /** The start's outcome; `server_closing` once the server shuts down and starts no agent. */
 async function startOrClosing(
   interviews: Features["interviews"],
   request: StartRequest,
-): Promise<StartOutcome> {
+): Promise<StartOrClosing> {
   try {
     return await interviews.start(request);
   } catch (error) {
@@ -29,7 +34,7 @@ async function startOrClosing(
 }
 
 /** The refusal of a start in Russian, with what the Candidate can do. */
-function refuseStart(reply: FastifyReply, outcome: Exclude<StartOutcome, { type: "started" }>) {
+function refuseStart(reply: FastifyReply, outcome: Exclude<StartOrClosing, { type: "started" }>) {
   switch (outcome.type) {
     case "server_closing": {
       return reply.code(503).send({
@@ -103,10 +108,7 @@ const invalidOptions = {
 } as const;
 
 /** The reply to an answer the Mock interview did not take. */
-function refuseAnswer(
-  reply: FastifyReply,
-  outcome: Exclude<Awaited<ReturnType<Features["interviews"]["answer"]>>, "accepted">,
-) {
+function refuseAnswer(reply: FastifyReply, outcome: Exclude<AnswerOutcome, "accepted">) {
   if (outcome === "not_found") {
     return reply.code(404).send({ error: "interview_not_found" });
   }

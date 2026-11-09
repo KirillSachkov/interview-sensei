@@ -1,4 +1,4 @@
-import { serverMessage } from "./http";
+import { sent } from "./http";
 
 /** One line of the chat; the server folds the agent's events into these. */
 export type ChatEntry =
@@ -79,9 +79,7 @@ export function isSessionView(value: unknown): value is SessionView {
 }
 
 async function readJson(response: Response): Promise<unknown> {
-  if (!response.ok) {
-    throw new Error((await serverMessage(response)) ?? `HTTP ${response.status}`);
-  }
+  await sent(response);
   return response.json();
 }
 

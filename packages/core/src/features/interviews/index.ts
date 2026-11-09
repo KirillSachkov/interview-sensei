@@ -4,8 +4,9 @@ import type { SliceMigrations } from "../../shared/storage/index.ts";
 
 export { interviewsModule } from "./module.ts";
 export { interviewTools } from "./application/interview-tools.ts";
+export type { AnswerOutcome, CandidateReply } from "./application/candidate-answer.ts";
 export type { Interviews } from "./application/interviews.ts";
-export type { StartRequest } from "./application/start-interview.ts";
+export type { StartOutcome, StartRequest } from "./application/start-interview.ts";
 export { grades } from "./domain/interview.ts";
 export type { Difficulty, Grade } from "./domain/interview.ts";
 export type { InterviewView } from "./domain/interview-view.ts";

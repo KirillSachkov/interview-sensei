@@ -4,7 +4,7 @@
 // fake-agent-interviewer.ts in core.
 import { describe, expect, it } from "vitest";
 
-import { agentTexts, fixedTime, isIdle } from "./chat-test-support.ts";
+import { agentTexts, fixedTime } from "./chat-test-support.ts";
 import {
   agentTextWith,
   ask,
@@ -15,6 +15,7 @@ import {
   interviewApi,
   isGraded,
   lastAgentText,
+  repliedTo,
   saysWhenIdle,
   sectionNamed,
 } from "./interview-test-support.ts";
@@ -35,9 +36,7 @@ async function chatThenAnswer(api: Awaited<ReturnType<typeof interviewApi>>, ans
   await run.events.waitFor(hasQuestions(1));
   await run.chat.waitFor(hasSpoken);
   run.chat.send({ type: "prompt", text: "Подскажи ответ" });
-  const asked = await run.chat.waitFor(
-    (view) => isIdle(view) && view.entries.some((entry) => entry.text === "Подскажи ответ"),
-  );
+  const asked = await run.chat.waitFor(repliedTo("Подскажи ответ"));
   await api.answer(run.interview.id, answer);
   return { ...run, asked };
 }

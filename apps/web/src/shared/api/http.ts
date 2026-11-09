@@ -5,7 +5,7 @@ export function isObject(value: unknown): value is Record<string, unknown> {
 }
 
 /** The Russian message the server put in an error body, if there is one. */
-export async function serverMessage(response: Response): Promise<string | undefined> {
+async function serverMessage(response: Response): Promise<string | undefined> {
   const body: unknown = await response.json().catch(() => null);
   return isObject(body) && typeof body.message === "string" ? body.message : undefined;
 }

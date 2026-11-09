@@ -110,6 +110,10 @@ export const lastAgentText = (view: SessionView) => agentTexts(view).at(-1) ?? "
 export const saysWhenIdle = (fragment: string) => (view: SessionView) =>
   isIdle(view) && agentTexts(view).some((text) => text.includes(fragment));
 
+/** The chat waits for a prompt after the agent's turn on the Candidate's chat message. */
+export const repliedTo = (text: string) => (view: SessionView) =>
+  isIdle(view) && view.entries.some((entry) => entry.text === text);
+
 /** The first agent text with the fragment, or an empty text. */
 export const agentTextWith = (view: SessionView, fragment: string) =>
   agentTexts(view).find((text) => text.includes(fragment)) ?? "";

@@ -142,7 +142,7 @@ export function tellInterviewer(context: Context, sessionId: string, text: strin
  * turn. The agent's text stays hidden while a question or Follow-up waits for the answer (#41,
  * story 26); from this message on it goes to the chat again.
  */
-export function tellAnswer(context: Context, sessionId: string, text: string): void {
+export function tellAndShowAgentText(context: Context, sessionId: string, text: string): void {
   inBackground(context, async () =>
     context.dependencies.sessions.queuePrompt(sessionId, text, { showAgentText: true }),
   );

@@ -60,7 +60,7 @@ export interface AgentSessions {
   readonly queuePrompt: (
     sessionId: string,
     text: string,
-    options?: { readonly showAgentText?: boolean },
+    options: { readonly showAgentText: boolean },
   ) => Promise<QueueOutcome>;
   /** Hides the agent's text from the chat until a prompt with `showAgentText`; only when live. */
   readonly hideAgentText: (sessionId: string) => Promise<void>;
@@ -279,7 +279,7 @@ export function createAgentSessions(dependencies: AgentSessionsDependencies): Ag
     view: async (sessionId) => view(context, sessionId),
     prompt: async (sessionId, text) => prompt(context, sessionId, text),
     queuePrompt: async (sessionId, text, options) =>
-      queuePrompt(context.queue, sessionId, { text, showAgentText: options?.showAgentText }),
+      queuePrompt(context.queue, { sessionId, text }, options),
     hideAgentText: async (sessionId) => hideAgentText(context.queue, sessionId),
     end: async (sessionId) => {
       await enqueue(context.queue, sessionId, (settle) => ({ type: "end", settle }));

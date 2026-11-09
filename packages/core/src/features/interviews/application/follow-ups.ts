@@ -4,7 +4,7 @@ import { followUpAnswered } from "../domain/agent-messages.ts";
 import { maxFollowUps, pendingFollowUp } from "../domain/follow-ups.ts";
 import type { AskedQuestion } from "../domain/interview.ts";
 import { presentedQuestion } from "../domain/interview.ts";
-import { change, tellAnswer } from "./context.ts";
+import { change, tellAndShowAgentText } from "./context.ts";
 import type { Context } from "./context.ts";
 import {
   answeredQuestion,
@@ -92,7 +92,7 @@ export async function answerFollowUp(
         presented.followUps.with(presented.followUps.length - 1, { ...last, answer: text }),
       );
     }
-    tellAnswer(context, interview.sessionId, followUpAnswered(text));
+    tellAndShowAgentText(context, interview.sessionId, followUpAnswered(text));
     return "accepted";
   });
 }
