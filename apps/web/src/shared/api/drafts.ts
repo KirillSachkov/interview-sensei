@@ -3,13 +3,13 @@ import type { TargetView } from "./targets";
 
 type Level = "junior" | "middle" | "senior";
 
-/** One Section of the plan that the agent proposes; its Topics by name. */
+/** One Section of the plan that the agent proposes; its Topics by name. An omitted field stays as it is. */
 interface ProposedSection {
   readonly name: string;
   readonly kind: "conversation" | "topics" | "design";
-  readonly gradingCriteria: string;
-  readonly enabled: boolean;
-  readonly topics: readonly string[];
+  readonly gradingCriteria?: string;
+  readonly enabled?: boolean;
+  readonly topics?: readonly string[];
 }
 
 type Rating = "useful" | "irrelevant" | "wrong";

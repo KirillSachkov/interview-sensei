@@ -17,6 +17,8 @@ export function api(server: FastifyInstance) {
   return {
     get: async (url: string) => server.inject({ url, headers }),
     post: async (url: string) => server.inject({ method: "POST", url, headers }),
+    put: async (url: string, payload: object) =>
+      server.inject({ method: "PUT", url, headers, payload }),
     delete: async (url: string) => server.inject({ method: "DELETE", url, headers }),
   };
 }

@@ -23,6 +23,18 @@ export interface PlanSection {
   readonly topics: readonly string[];
 }
 
+/**
+ * A Section as the agent proposes it in a plan. An omitted field keeps the value of the Section with
+ * that name; a new Section takes no criteria, no Topics and is enabled.
+ */
+export interface ProposedSection {
+  readonly name: string;
+  readonly kind: SectionKind;
+  readonly gradingCriteria?: string | undefined;
+  readonly enabled?: boolean | undefined;
+  readonly topics?: readonly string[] | undefined;
+}
+
 /** What a draft can change in a Target. */
 export interface SetupState {
   readonly name: string;
@@ -57,7 +69,7 @@ export type DraftOperation =
     }
   | {
       readonly type: "set_interview_plan";
-      readonly sections: readonly PlanSection[];
+      readonly sections: readonly ProposedSection[];
       /** Topic renames and merges, made before the plan's Topics are created. */
       readonly renameTopics?: readonly TopicRename[];
     }
@@ -79,15 +91,25 @@ function sectionKey(name: string): string {
   return name.trim().replaceAll(/\s+/gu, " ").toLowerCase();
 }
 
-/** The new plan replaces the old one; a Section with the name of an old one keeps its id. */
-function withPlan(state: SetupState, sections: readonly PlanSection[]): SetupState {
-  const ids = new Map(state.sections.map((section) => [sectionKey(section.name), section.id]));
+/**
+ * The new plan replaces the old one. A Section with the name of an old one keeps its id and the
+ * values that the plan leaves out.
+ */
+function withPlan(state: SetupState, sections: readonly ProposedSection[]): SetupState {
+  const current = new Map(state.sections.map((section) => [sectionKey(section.name), section]));
   return {
     ...state,
-    sections: sections.map((section) => ({
-      id: ids.get(sectionKey(section.name)) ?? null,
-      ...section,
-    })),
+    sections: sections.map((section) => {
+      const kept = current.get(sectionKey(section.name));
+      return {
+        id: kept?.id ?? null,
+        name: section.name,
+        kind: section.kind,
+        gradingCriteria: section.gradingCriteria ?? kept?.gradingCriteria ?? "",
+        enabled: section.enabled ?? kept?.enabled ?? true,
+        topics: section.topics ?? kept?.topics ?? [],
+      };
+    }),
   };
 }
 

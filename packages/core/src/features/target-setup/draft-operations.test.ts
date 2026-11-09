@@ -99,6 +99,48 @@ describe("the Interview plan in the draft", () => {
     expect(state.topics).toContain("Горутины");
   });
 
+  it("keeps the switch, criteria and Topics that a plan entry leaves out; a new Section is on", () => {
+    const switchedOff: SetupState = {
+      ...target,
+      sections: [
+        {
+          id: "section-2",
+          name: "Go",
+          kind: "topics",
+          gradingCriteria: "Модель памяти",
+          enabled: false,
+          topics: ["Горутины", "Каналы"],
+        },
+      ],
+    };
+
+    const state = stateAfter(switchedOff, [
+      plan([
+        { name: "Go", kind: "topics" },
+        { name: "Алгоритмы", kind: "topics" },
+      ]),
+    ]);
+
+    expect(state.sections).toStrictEqual([
+      {
+        id: "section-2",
+        name: "Go",
+        kind: "topics",
+        gradingCriteria: "Модель памяти",
+        enabled: false,
+        topics: ["Горутины", "Каналы"],
+      },
+      {
+        id: null,
+        name: "Алгоритмы",
+        kind: "topics",
+        gradingCriteria: "",
+        enabled: true,
+        topics: [],
+      },
+    ]);
+  });
+
   it("renames a Topic in the plan and in its Questions", () => {
     const state = stateAfter(target, [
       {

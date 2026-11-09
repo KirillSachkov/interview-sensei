@@ -76,16 +76,16 @@ export function setInterviewPlan(setup: TargetSetup) {
   return sessionTool({
     name: "set_interview_plan",
     description:
-      "Records the whole Interview plan in the draft of changes: every Section in order, with its kind, short grading criteria and Topics by name. It replaces the previous plan, so it also deletes, reorders and switches Sections; a Section with the name of an existing one keeps it. Applying creates new Topics and reuses a Topic of the same name; a Topic left out of the plan keeps its Questions. `renameTopics` renames a Topic, keeping its Questions, or merges it into the existing Topic named `to`; name the Topic by its new name in the plan. The Target stays unchanged until the draft is applied.",
+      "Records the whole Interview plan in the draft of changes: every Section in order, with its kind, short grading criteria and Topics by name. It replaces the previous plan, so it also deletes, reorders and switches Sections; a Section with the name of an existing one keeps it. An omitted `gradingCriteria`, `enabled` or `topics` keeps the Section's current value; a new Section gets no criteria and no Topics and is enabled. Applying creates new Topics and reuses a Topic of the same name; a Topic left out of the plan keeps its Questions. `renameTopics` renames a Topic, keeping its Questions, or merges it into the existing Topic named `to`; name the Topic by its new name in the plan. The Target stays unchanged until the draft is applied.",
     input: z.strictObject({
       sections: z
         .array(
           z.strictObject({
             name: z.string().trim().min(1),
             kind: z.enum(sectionKinds),
-            gradingCriteria: z.string().trim().default(""),
-            enabled: z.boolean().default(true),
-            topics: z.array(z.string().trim().min(1)).default([]),
+            gradingCriteria: z.string().trim().optional(),
+            enabled: z.boolean().optional(),
+            topics: z.array(z.string().trim().min(1)).optional(),
           }),
         )
         .min(1),

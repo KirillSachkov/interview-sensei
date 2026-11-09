@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { startServer, temporaryDirectory } from "./chat-test-support.ts";
 import type { TargetView } from "./model-test-support.ts";
 import {
+  api,
   applied,
   appliedTarget,
   callTool,
@@ -50,6 +51,33 @@ describe("the Interview plan through the draft", () => {
       { id: go?.id, name: "Go", gradingCriteria: "Практика", enabled: true },
       { id: experience?.id, name: "Опыт", gradingCriteria: "", enabled: false },
     ]);
+  });
+
+  it("keeps the switch, criteria and Topics of a Section whose plan entry leaves them out", async () => {
+    const { server } = await startServer(await temporaryDirectory());
+    const { target, events } = await appliedTarget(server);
+    const go = target.sections.find((section) => section.name === "Go");
+    const switched = await api(server).put(`/api/targets/${target.id}/sections/${go?.id}/enabled`, {
+      enabled: false,
+    });
+    expect(switched.statusCode).toBe(200);
+
+    const after = await applied({ server, events, targetId: target.id }, [
+      "set_interview_plan",
+      {
+        sections: [
+          { name: "Опыт", kind: "conversation" },
+          { name: "Go", kind: "topics" },
+        ],
+      },
+    ]);
+
+    expect(after.sections.find((section) => section.name === "Go")).toMatchObject({
+      id: go?.id,
+      enabled: false,
+      gradingCriteria: "Модель памяти",
+      topics: [{ name: "Горутины" }, { name: "Каналы" }],
+    });
   });
 
   it("keeps the Questions of a Topic that the plan leaves out", async () => {
