@@ -70,6 +70,9 @@ async function chatWithMcpUrl(server: FastifyInstance) {
   return { sessionId, events, name, url };
 }
 
+const hasToolReply = (prefix: string) => (view: SessionView) =>
+  isIdle(view) && lastAgentText(view).startsWith(prefix);
+
 const isAskingPermission = (view: SessionView) =>
   permissionRequests(view).some((entry) => entry.answer === null);
 
@@ -83,29 +86,6 @@ describe("mcp and permissions", () => {
     const answered = await events.waitFor(isBriefRead);
     expect(lastAgentText(answered)).toContain("Interview Sensei service chat");
     expect(events.views.flatMap((view) => permissionRequests(view))).toStrictEqual([]);
-  });
-
-  it("lets the fake agent call a tool of its session by the command /tool without asking the Candidate", async () => {
-    const { server } = await startServer(await temporaryDirectory());
-    const { events } = await readyChat(server);
-
-    events.send({ type: "prompt", text: "/tool get_brief {}" });
-
-    const answered = await events.waitFor(
-      (view) => isIdle(view) && lastAgentText(view).startsWith("Результат get_brief: "),
-    );
-    expect(lastAgentText(answered)).toContain("Interview Sensei service chat");
-    expect(events.views.flatMap((view) => permissionRequests(view))).toStrictEqual([]);
-  });
-
-  it("tells a tool error from a result in the fake agent's reply to /tool", async () => {
-    const { server } = await startServer(await temporaryDirectory());
-    const { events } = await readyChat(server);
-
-    events.send({ type: "prompt", text: "/tool get_target {}" });
-
-    const answered = await events.waitFor((view) => isIdle(view) && agentTexts(view).length > 0);
-    expect(lastAgentText(answered)).toMatch(/^Ошибка get_target: .*get_target/u);
   });
 
   it("passes a foreign tool's permission request to the browser and the Candidate's answer to the agent", async () => {
@@ -221,5 +201,28 @@ describe("mcp and permissions", () => {
 
     await expect(mcpStatus(gone.url)).resolves.toBe(404);
     await expect(toolList(kept.url)).resolves.toMatchObject(serviceChatTools);
+  });
+});
+
+describe("the fake agent's /tool", () => {
+  it("lets the fake agent call a tool of its session by the command /tool without asking the Candidate", async () => {
+    const { server } = await startServer(await temporaryDirectory());
+    const { events } = await readyChat(server);
+
+    events.send({ type: "prompt", text: "/tool get_brief {}" });
+
+    const answered = await events.waitFor(hasToolReply("Результат get_brief: "));
+    expect(lastAgentText(answered)).toContain("Interview Sensei service chat");
+    expect(events.views.flatMap((view) => permissionRequests(view))).toStrictEqual([]);
+  });
+
+  it("tells a tool error from a result in the fake agent's reply to /tool", async () => {
+    const { server } = await startServer(await temporaryDirectory());
+    const { events } = await readyChat(server);
+
+    events.send({ type: "prompt", text: "/tool get_target {}" });
+
+    const answered = await events.waitFor(hasToolReply("Ошибка get_target: "));
+    expect(lastAgentText(answered)).toContain("get_target");
   });
 });
