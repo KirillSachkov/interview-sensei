@@ -786,9 +786,11 @@ textarea {
   list-style: none;
 }
 
-.inbox-proposal-item {
+/* Beats `.draft-change-list > li`: its space-between would push each material to the right edge. */
+.draft-change-list > .inbox-proposal-item {
   display: flex;
   align-items: flex-start;
+  justify-content: flex-start;
   gap: var(--space-2);
   cursor: pointer;
 }

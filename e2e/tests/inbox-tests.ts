@@ -61,7 +61,20 @@ async function proposeVacancy(page: Page, chat: SetupChat) {
   const card = chat.panel.getByRole("region", { name: "Разбор материалов" });
   await expect(card).toContainText("vacancy.md");
   await expect(card).toContainText("вакансия — добавит темы");
+  await expectTitleBesideCheckbox(card, "vacancy.md");
   return card;
+}
+
+/** The material's title starts right after its checkbox, not pushed to the card's right edge. */
+async function expectTitleBesideCheckbox(card: Locator, title: string) {
+  const [checkbox, text] = await Promise.all([
+    card.getByRole("checkbox", { name: `Разобрать «${title}»` }).boundingBox(),
+    card.getByText(title, { exact: true }).boundingBox(),
+  ]);
+  if (checkbox === null || text === null) {
+    throw new Error("The checkbox or the title has no box on the page");
+  }
+  expect(text.x - (checkbox.x + checkbox.width)).toBeLessThanOrEqual(16);
 }
 
 /** The added Question names its material and part and unfolds its reference answer. */
