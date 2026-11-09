@@ -1,4 +1,4 @@
-import { sessionKinds } from "../../../shared/session-kinds/index.ts";
+import { isSessionKind } from "../../../shared/session-kinds/index.ts";
 import type { AgentAvailability, AgentHost, AgentKind } from "../domain/agent.ts";
 import { agentAvailability, isAgentKind } from "../domain/agent.ts";
 import { launchRecipe } from "../domain/launch-recipe.ts";
@@ -111,18 +111,14 @@ function forgettingTurns(agent: LiveAgent, endTurn: () => void): LiveAgent {
 }
 
 /**
- * The session kinds with a launch recipe. It compiles only while every kind in
- * `shared/session-kinds` is a RuntimeSessionKind: a new kind needs its recipe first.
+ * The session kind of a launch recipe; throws for a kind without one. It compiles only while
+ * every kind in `shared/session-kinds` is a RuntimeSessionKind: a new kind needs its recipe first.
  */
-const recipeKinds: readonly RuntimeSessionKind[] = sessionKinds;
-
-/** The session kind of a launch recipe; throws for a kind without one. */
 function recipeKind(kind: string): RuntimeSessionKind {
-  const known = recipeKinds.find((candidate) => candidate === kind);
-  if (known === undefined) {
+  if (!isSessionKind(kind)) {
     throw new Error(`The session kind ${kind} has no launch recipe`);
   }
-  return known;
+  return kind;
 }
 
 /** The agent's availability on this machine now; throws the reason when it is unavailable. */
