@@ -129,7 +129,7 @@ async function callTool(
 }
 
 /** Runs the turn's steps; a failure becomes the turn's last text. */
-function turnOf(steps: Steps) {
+export function turnOf(steps: Steps) {
   return async (session: InterviewerSession) => {
     try {
       await steps({
@@ -145,7 +145,7 @@ function turnOf(steps: Steps) {
   };
 }
 
-type Steps = (actions: InterviewerActions) => Promise<void>;
+export type Steps = (actions: InterviewerActions) => Promise<void>;
 
 /** The steps for each template message, by its first sentence; each gets the whole message. */
 const turns: readonly (readonly [string, (text: string) => Steps])[] = [

@@ -1,6 +1,7 @@
 // The template messages the server sends the interviewer as `session/prompt` (#10). They are in
 // English; the Candidate's answer goes inside as written. The fake agent's interviewer mode knows
-// them by their first sentence.
+// them by their first sentence. The note about a Side thread is the sixth message of #10: it goes
+// before the next prompt rather than as a prompt of its own.
 
 export const interviewStarted = [
   "The mock interview has started.",
@@ -68,3 +69,14 @@ export const fiveMinutesLeft = [
   "Do not finish the interview yourself: the Candidate ends it with «Завершить».",
   "If a question waits for the Candidate's answer, end your turn without a chat message.",
 ].join(" ");
+
+/**
+ * The note that the Candidate opened a Side thread on the question with the number, from 1. It
+ * goes before the interviewer's next prompt and never carries the Side thread's content (#80).
+ */
+export function discussedInSideThread(questionNumber: number): string {
+  return [
+    `The Candidate discussed question ${questionNumber} in a side thread.`,
+    "You do not see that thread; do not ask about it, and go on with the interview.",
+  ].join(" ");
+}

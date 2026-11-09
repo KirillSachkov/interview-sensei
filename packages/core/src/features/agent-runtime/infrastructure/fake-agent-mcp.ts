@@ -49,8 +49,7 @@ function toolText(result: unknown): string {
     .join("");
 }
 
-/** Initializes an MCP session at the address and calls the tool with the arguments. */
-export async function callMcpTool(url: string, name: string, input: object = {}): Promise<string> {
+async function initialize(url: string): Promise<void> {
   resultOf(
     await post(url, {
       id: nextId++,
@@ -63,8 +62,26 @@ export async function callMcpTool(url: string, name: string, input: object = {})
     }),
   );
   await post(url, { method: "notifications/initialized" });
+}
+
+/** Initializes an MCP session at the address and calls the tool with the arguments. */
+export async function callMcpTool(url: string, name: string, input: object = {}): Promise<string> {
+  await initialize(url);
   const result = resultOf(
     await post(url, { id: nextId++, method: "tools/call", params: { name, arguments: input } }),
   );
   return toolText(result);
+}
+
+/** Initializes an MCP session at the address and lists the names of its tools, sorted. */
+export async function listMcpTools(url: string): Promise<string[]> {
+  await initialize(url);
+  const result = resultOf(await post(url, { id: nextId++, method: "tools/list", params: {} }));
+  const tools =
+    typeof result === "object" && result !== null && "tools" in result ? result.tools : [];
+  return (Array.isArray(tools) ? tools : [])
+    .map((tool: unknown) =>
+      typeof tool === "object" && tool !== null && "name" in tool ? String(tool.name) : "",
+    )
+    .toSorted();
 }

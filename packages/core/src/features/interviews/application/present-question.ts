@@ -234,6 +234,7 @@ export async function present(
       presentedAt: clock.now().toISOString(),
       answer: null,
       followUps: [],
+      hinted: false,
     });
     // Until the Candidate answers, the agent's text could hint at the answer, its replies to the
     // Candidate's chat messages included; the chat leaves it out.

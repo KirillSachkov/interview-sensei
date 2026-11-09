@@ -31,6 +31,9 @@ const brokenSessions: AgentSessions = {
   answerPermission: () => Promise.reject(new Error("not used")),
   queuePrompt: () => Promise.reject(new Error("not used")),
   hideAgentText: () => Promise.reject(new Error("not used")),
+  addNote: () => {
+    throw new Error("not used");
+  },
   end: () => Promise.reject(new Error("not used")),
   subscribe: () => () => {},
   endInterrupted: async () => {},

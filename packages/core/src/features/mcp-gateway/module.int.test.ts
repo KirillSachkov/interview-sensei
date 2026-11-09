@@ -87,7 +87,7 @@ async function listedTools(gateway: McpGateway, session: { sessionId: string; ki
 
 describe("mcp gateway module", () => {
   const gateway = mcpGatewayModule({
-    tools: { "service-chat": [ping], "mock-interview": [] },
+    tools: { "service-chat": [ping], "mock-interview": [], "side-thread": [] },
     origin: () => origin,
     onError: () => {},
   });

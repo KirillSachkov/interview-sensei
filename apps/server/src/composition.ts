@@ -13,6 +13,7 @@ import {
   interviewsMigrations,
   interviewsModule,
   interviewTools,
+  sideThreadTools,
 } from "@interview-sensei/core/interviews";
 import { getProgress, progressModule } from "@interview-sensei/core/progress";
 import { agentRuntimeModule } from "@interview-sensei/core/agent-runtime";
@@ -76,16 +77,18 @@ function sessionTools() {
     }
     return services;
   };
+  const readTools = ({ targets, questionBank, progress }: ToolServices) => [
+    getTarget(targets),
+    searchQuestions(questionBank, targets),
+    getProgress(progress),
+  ];
   const sets: SessionToolSets = {
     "service-chat": [getBrief],
     get "mock-interview"() {
-      const { interviews, progress, targets, questionBank } = built();
-      return [
-        ...interviewTools(interviews),
-        getTarget(targets),
-        searchQuestions(questionBank, targets),
-        getProgress(progress),
-      ];
+      return [...interviewTools(built().interviews), ...readTools(built())];
+    },
+    get "side-thread"() {
+      return [...sideThreadTools(built().interviews), ...readTools(built())];
     },
   };
   return {
@@ -121,11 +124,8 @@ export async function composeFeatures({
   clock,
   timer,
   dataDirectory,
-  skillsDirectory,
-  fakeAgent,
-  userEnvironment,
-  origin,
   log,
+  ...agentSettings
 }: FeatureDependencies) {
   const storage = await openStorage({
     dataDirectory,
@@ -139,7 +139,7 @@ export async function composeFeatures({
   const tools = sessionTools();
   const { runtime, mcp, sessions } = composeAgents(
     storage,
-    { timer, dataDirectory, skillsDirectory, fakeAgent, userEnvironment, origin, log, clock },
+    { clock, timer, dataDirectory, log, ...agentSettings },
     tools.sets,
   );
   const { questionBank, targets } = composeTargets(storage, clock, runtime);

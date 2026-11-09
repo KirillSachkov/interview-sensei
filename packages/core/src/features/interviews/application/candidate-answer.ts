@@ -113,7 +113,7 @@ async function recordByApp(
     askedQuestionId: question.id,
     ...judgment,
     gradedBy: skipped ? "skip" : "quiz",
-    hinted: false,
+    hinted: question.hinted,
     recordedAt: clock.now().toISOString(),
   });
   tellAndShowAgentText(

@@ -55,10 +55,18 @@ export async function debrief(
   };
 }
 
+/** The Candidate's correction of the Grade of the Mock interview's Attempt, with its reason. */
+export interface DisputeRequest {
+  readonly id: string;
+  readonly attemptId: string;
+  readonly grade: Grade;
+  readonly reason: string;
+}
+
 /** Records the Candidate's Dispute of the Attempt's Grade; undefined for an unknown Attempt. */
 export async function dispute(
   context: Context,
-  { id, attemptId, grade, reason }: { id: string; attemptId: string; grade: Grade; reason: string },
+  { id, attemptId, grade, reason }: DisputeRequest,
 ): Promise<AttemptDebrief | undefined> {
   const { dependencies } = context;
   return change(context, id, async () => {

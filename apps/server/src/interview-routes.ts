@@ -11,6 +11,7 @@ import type {
 } from "./composition.ts";
 import { onlyField, replyOf, startRequestOf } from "./interview-requests.ts";
 import { attemptParams, params } from "./route-params.ts";
+import { registerSideThreadRoutes } from "./side-thread-routes.ts";
 
 type Dependencies = Pick<Features, "interviews" | "targets">;
 
@@ -242,4 +243,6 @@ export function registerInterviewRoutes(server: FastifyInstance, dependencies: D
   registerStart(server, dependencies);
   registerCandidateActions(server, dependencies);
   registerReads(server, dependencies);
+  // Side threads of the Mock interview: side-thread-routes.ts.
+  registerSideThreadRoutes(server, dependencies);
 }

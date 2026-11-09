@@ -15,6 +15,13 @@
       "when": 1794226133893,
       "tag": "0001_disputes",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794244225553,
+      "tag": "0002_side_threads",
+      "breakpoints": true
     }
   ]
 }

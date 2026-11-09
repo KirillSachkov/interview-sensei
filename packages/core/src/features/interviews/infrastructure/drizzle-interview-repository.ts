@@ -12,6 +12,7 @@ import type {
 } from "../domain/interview.ts";
 import type { InterviewRepository } from "../domain/ports.ts";
 import { drizzleHistoryQueries } from "./drizzle-history-queries.ts";
+import { drizzleSideThreadQueries } from "./drizzle-side-thread-queries.ts";
 import { toAttempt, toGrade, toInterview } from "./rows.ts";
 import { askedQuestions, attempts, disputes, interviews } from "./schema.ts";
 
@@ -169,5 +170,6 @@ export function drizzleInterviewRepository(database: Database): InterviewReposit
     ...attemptQueries(database),
     history: async (targetId) => history(database, targetId),
     ...drizzleHistoryQueries(database),
+    ...drizzleSideThreadQueries(database),
   };
 }

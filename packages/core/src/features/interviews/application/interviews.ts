@@ -1,5 +1,4 @@
 import type { HistoryFilter, HistoryPage, TopicAttempt } from "../domain/history.ts";
-import type { Grade } from "../domain/interview.ts";
 import type { InterviewView } from "../domain/interview-view.ts";
 import { answerPresented } from "./candidate-answer.ts";
 import type { AnswerOutcome, CandidateReply } from "./candidate-answer.ts";
@@ -14,12 +13,14 @@ import type { FinishOutcome } from "./endings.ts";
 import { createInterviewer } from "./interviewer.ts";
 import type { Interviewer } from "./interviewer.ts";
 import { debrief, dispute, history, interviewSummary, targetTopicAttempts } from "./records.ts";
-import type { AttemptDebrief, InterviewSummary } from "./records.ts";
+import type { AttemptDebrief, DisputeRequest, InterviewSummary } from "./records.ts";
+import { createSideThreads } from "./side-threads.ts";
+import type { SideThreads } from "./side-threads.ts";
 
 /** How many of a Target's newest Mock interviews the canvas shows. */
 const latestCount = 5;
 
-export interface Interviews {
+export interface Interviews extends SideThreads {
   /** Starts a Mock interview with the Target's agent as the interviewer. */
   readonly start: (request: StartRequest) => Promise<StartOutcome>;
   readonly view: (id: string) => Promise<InterviewView | undefined>;
@@ -43,12 +44,7 @@ export interface Interviews {
    */
   readonly attempt: (id: string, attemptId: string) => Promise<AttemptDebrief | undefined>;
   /** Records the Candidate's correction of the Grade; the latest one applies. */
-  readonly dispute: (request: {
-    id: string;
-    attemptId: string;
-    grade: Grade;
-    reason: string;
-  }) => Promise<AttemptDebrief | undefined>;
+  readonly dispute: (request: DisputeRequest) => Promise<AttemptDebrief | undefined>;
   /** How the Mock interview ended, for its summary Debrief. */
   readonly summary: (id: string) => Promise<InterviewSummary | undefined>;
   /** One page of the Target's session history, from 1, the newest first. */
@@ -104,5 +100,6 @@ export function createInterviews(dependencies: InterviewsDependencies): Intervie
     endInterrupted: async () => endInterrupted(context),
     subscribe: (id, listener) => subscribe(context, id, listener),
     interviewer: createInterviewer(context),
+    ...createSideThreads(context),
   };
 }

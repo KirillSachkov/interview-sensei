@@ -60,7 +60,7 @@ async function record(context: Context, sessionId: string, judgment: Judgment) {
       askedQuestionId: presented.id,
       ...judgment,
       gradedBy: "agent",
-      hinted: false,
+      hinted: presented.hinted,
       recordedAt: clock.now().toISOString(),
     });
     if (outcome === "exists") {

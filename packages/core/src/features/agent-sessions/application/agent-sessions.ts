@@ -12,25 +12,23 @@ import {
   launch,
   liveSession,
   record,
-  runTurn,
 } from "./live-session.ts";
 import type { LiveSession, LiveSessionDependencies, SessionListener } from "./live-session.ts";
-import { drain, enqueue, hideAgentText, queuePrompt } from "./server-prompts.ts";
-import type { QueueContext, QueueOutcome } from "./server-prompts.ts";
+import {
+  addNote,
+  candidatePrompt,
+  drain,
+  enqueue,
+  hideAgentText,
+  queuePrompt,
+} from "./server-prompts.ts";
+import type { PromptOutcome, QueueContext, QueueOutcome } from "./server-prompts.ts";
 
 export interface AgentSessionsDependencies extends LiveSessionDependencies {
   readonly launcher: AgentLauncher;
   /** Each session gets its own directory here, inside the data directory. */
   readonly sessionsDirectory: string;
 }
-
-/**
- * - `accepted`: the agent got the prompt.
- * - `busy`: the agent still starts or handles the previous prompt.
- * - `closed`: the session failed or ended and takes no prompts.
- * - `not_found`: no session has this id.
- */
-type PromptOutcome = "accepted" | "busy" | "closed" | "not_found";
 
 /** What starts a session; `roleAddition` goes after the role of the kind's profile. */
 interface StartRequest {
@@ -64,6 +62,8 @@ export interface AgentSessions {
   ) => Promise<QueueOutcome>;
   /** Hides the agent's text from the chat until a prompt with `showAgentText`; only when live. */
   readonly hideAgentText: (sessionId: string) => Promise<void>;
+  /** See `addNote` in server-prompts.ts, such as the mock interview's note about a Side thread. */
+  readonly addNote: (sessionId: string, text: string) => void;
   /**
    * Stops the agent after its current turn and the server's queued prompts, and marks the session
    * as ended. Does nothing for a session that is not live.
@@ -175,22 +175,6 @@ async function view({ dependencies, live }: Context, sessionId: string) {
   return stored === undefined ? undefined : replay(stored, await repository.journal(sessionId));
 }
 
-async function prompt(context: Context, sessionId: string, text: string): Promise<PromptOutcome> {
-  const session = context.live.get(sessionId);
-  if (session === undefined) {
-    return (await context.dependencies.repository.load(sessionId)) ? "closed" : "not_found";
-  }
-  const { agent } = session;
-  if (agent === null || session.turnActive || !isLive(session.view.status)) {
-    return isLive(session.view.status) ? "busy" : "closed";
-  }
-  // Set before the first await, so a second prompt in the meantime sees the turn.
-  session.turnActive = true;
-  await record(session, { type: "prompt_sent", text });
-  void runTurn(session, agent, text);
-  return "accepted";
-}
-
 async function cancel({ live }: Context, sessionId: string): Promise<void> {
   const session = live.get(sessionId);
   const agent = session?.agent ?? null;
@@ -277,10 +261,13 @@ export function createAgentSessions(dependencies: AgentSessionsDependencies): Ag
     start: async (request) => start(context, request),
     list: async () => dependencies.repository.list(),
     view: async (sessionId) => view(context, sessionId),
-    prompt: async (sessionId, text) => prompt(context, sessionId, text),
+    prompt: async (sessionId, text) => candidatePrompt(context.queue, sessionId, text),
     queuePrompt: async (sessionId, text, options) =>
       queuePrompt(context.queue, { sessionId, text }, options),
     hideAgentText: async (sessionId) => hideAgentText(context.queue, sessionId),
+    addNote: (sessionId, text) => {
+      addNote(context.queue, sessionId, text);
+    },
     end: async (sessionId) => {
       await enqueue(context.queue, sessionId, (settle) => ({ type: "end", settle }));
     },

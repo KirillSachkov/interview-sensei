@@ -32,6 +32,8 @@ export interface LiveSession {
   readonly listeners: Set<SessionListener>;
   /** The server's prompts and the end that wait for the agent, the first one first. */
   readonly queued: QueuedItem[];
+  /** The server's notes that go before the next prompt, the Candidate's or the server's. */
+  readonly notes: string[];
   readonly dependencies: LiveSessionDependencies;
   /** Called after the write that ends or fails the session: nothing changes it any more. */
   readonly onFinished: () => void;
@@ -69,6 +71,7 @@ export function liveSession(
     written: Promise.resolve(),
     listeners: new Set(),
     queued: [],
+    notes: [],
     dependencies,
     onFinished,
     onIdle,
@@ -223,8 +226,27 @@ export async function launch(
   }
 }
 
+/**
+ * Records the prompt with the server's waiting notes and starts its turn; the agent gets the notes
+ * first. `turnActive` is already set.
+ */
+export async function sendPrompt(
+  session: LiveSession,
+  agent: LiveAgent,
+  { text, origin }: { text: string; origin?: "server" },
+): Promise<void> {
+  const notes = session.notes.splice(0);
+  await record(session, {
+    type: "prompt_sent",
+    text,
+    ...(origin === undefined ? {} : { origin }),
+    ...(notes.length === 0 ? {} : { notes }),
+  });
+  void runTurn(session, agent, [...notes, text].join("\n\n"));
+}
+
 /** Sends the prompt and records how the turn ended. */
-export async function runTurn(session: LiveSession, agent: LiveAgent, text: string) {
+async function runTurn(session: LiveSession, agent: LiveAgent, text: string) {
   try {
     const outcome = await agent.prompt(text);
     await record(

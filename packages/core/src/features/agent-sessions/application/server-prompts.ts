@@ -1,10 +1,19 @@
-// What the server, rather than the Candidate, asks of a live session: its prompts, such as the
-// template messages of a mock interview, wait in the session's queue for the agent's current
-// turn, and so does the end of the session. The Candidate's prompts never queue: they are refused
-// while the agent works.
+// The prompts to a live session. The server's prompts, such as the template messages of a mock
+// interview, wait in the session's queue for the agent's current turn, and so does the end of the
+// session. The Candidate's prompts never queue: they are refused while the agent works. The
+// server's notes wait for the next prompt of either.
+import { isLive } from "../domain/agent-session.ts";
 import type { LiveAgent, SessionRepository } from "../domain/ports.ts";
-import { record, runTurn } from "./live-session.ts";
+import { record, sendPrompt } from "./live-session.ts";
 import type { LiveSession, QueuedItem } from "./live-session.ts";
+
+/**
+ * - `accepted`: the agent got the prompt.
+ * - `busy`: the agent still starts or handles the previous prompt.
+ * - `closed`: the session failed or ended and takes no prompts.
+ * - `not_found`: no session has this id.
+ */
+export type PromptOutcome = "accepted" | "busy" | "closed" | "not_found";
 
 /** How a queued item went: it ran, the session ended first, or no session has the id. */
 export type QueueOutcome = "accepted" | "closed" | "not_found";
@@ -54,8 +63,7 @@ async function prompt(
   if (showAgentText && session.view.agentText === "hidden") {
     await record(session, { type: "agent_text_shown" });
   }
-  await record(session, { type: "prompt_sent", text, origin: "server" });
-  void runTurn(session, agent, text);
+  await sendPrompt(session, agent, { text, origin: "server" });
 }
 
 /** Puts the item into the session's queue; resolves when it ran or the session ended first. */
@@ -89,4 +97,32 @@ export async function hideAgentText(context: QueueContext, sessionId: string): P
   if (session !== undefined) {
     await record(session, { type: "agent_text_hidden" });
   }
+}
+
+/**
+ * Puts the server's note before the next prompt that the agent gets, the Candidate's or the
+ * server's; the current turn goes on. Nothing for a session that is not live.
+ */
+export function addNote(context: QueueContext, sessionId: string, text: string): void {
+  context.live.get(sessionId)?.notes.push(text);
+}
+
+/** Sends the Candidate's prompt to the agent; refuses it while the agent works. */
+export async function candidatePrompt(
+  context: QueueContext,
+  sessionId: string,
+  text: string,
+): Promise<PromptOutcome> {
+  const session = context.live.get(sessionId);
+  if (session === undefined) {
+    return (await context.repository.load(sessionId)) ? "closed" : "not_found";
+  }
+  const { agent } = session;
+  if (agent === null || session.turnActive || !isLive(session.view.status)) {
+    return isLive(session.view.status) ? "busy" : "closed";
+  }
+  // Set before the first await, so a second prompt in the meantime sees the turn.
+  session.turnActive = true;
+  await sendPrompt(session, agent, { text });
+  return "accepted";
 }

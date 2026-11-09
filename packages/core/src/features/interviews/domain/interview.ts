@@ -88,6 +88,11 @@ export interface AskedQuestion {
   readonly presentedAt: string;
   readonly answer: CandidateAnswer | null;
   readonly followUps: readonly FollowUp[];
+  /**
+   * A Side thread was opened on it before the Candidate's answer: its Attempt is recorded as
+   * received with a hint, even after that Side thread is deleted.
+   */
+  readonly hinted: boolean;
 }
 
 /** The judgment of one answer: from the agent, or from the quiz rule. */
@@ -105,7 +110,7 @@ export interface Attempt extends Judgment {
   readonly interviewId: string;
   readonly askedQuestionId: string;
   readonly gradedBy: GradedBy;
-  /** Whether the Candidate got a hint before answering; slice 4 sets it. */
+  /** Whether the Candidate got a hint before answering: a Side thread opened before the answer. */
   readonly hinted: boolean;
   readonly recordedAt: string;
 }
