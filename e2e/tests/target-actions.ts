@@ -15,7 +15,12 @@ export async function newKotlinTarget(page: Page) {
   await chat.callTool("update_target", { name: kotlinName, level: "middle" });
   await chat.callTool("set_interview_plan", setupPlan);
   await chat.panel.getByRole("button", { name: "Применить (2)" }).click();
-  await expect(zones(page).goal.getByRole("list", { name: "План собеседования" })).toBeVisible();
+  const { goal } = zones(page);
+  await expect(goal.getByRole("list", { name: "План собеседования" })).toBeVisible();
+  // The canvas fitted its view once, to whatever content had loaded by then, so the plan could
+  // end up under the zoom island. «Показать всё» fits the view to the loaded plan and «Готовность».
+  await expect(goal.getByRole("region", { name: "Готовность" })).toContainText("0 из 2");
+  await page.getByRole("button", { name: "Показать всё" }).click();
 }
 
 /** The item of the Target in the switcher's menu, opened from the start page. */
