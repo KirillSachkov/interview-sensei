@@ -12,6 +12,11 @@ const newTarget: SetupState = {
   language: "ru",
   status: "draft",
   sections: [],
+  topics: [],
+  topicRenames: [],
+  preferences: [],
+  questions: [],
+  missing: [],
 };
 
 const experience = {
@@ -42,10 +47,10 @@ describe("draft of changes", () => {
     ]);
 
     expect(state).toStrictEqual({
+      ...newTarget,
       name: "Go-разработчик",
       level: "middle",
       tone: "strict",
-      language: "ru",
       status: "active",
       sections: [
         { id: null, ...experience },
