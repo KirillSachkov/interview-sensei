@@ -182,7 +182,7 @@ It opens the database `immutable` and read-only, so it creates no `-shm` or `-wa
 Without either, every provider gets its key, because OpenCode may then pick any of them.
 An OAuth credential gives no key, because a copied refresh token could rotate.
 An unreadable database gives no keys and a warning in the server log with its path and SQLite's reason, never its content.
-OpenCode 2.2.6 does rotate it: each refresh stores the provider's new refresh token (#69).
+OpenCode 2.2.6 does rotate an OAuth refresh token: each refresh stores the provider's new refresh token (#69).
 So until #69 is resolved, OpenCode 2.x works in sessions only with an API key login.
 `opencodeSubscriptionProviders` names the session's providers whose chosen credential is OAuth; the runtime warns of each in the server log.
 The README and the OpenCode note of «Проверка агента» tell the Candidate to log in with an API key.
