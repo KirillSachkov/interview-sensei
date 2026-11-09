@@ -8,11 +8,10 @@ The person who prepares for an interview.
 **Target**:
 What the Candidate prepares for, shown as a preparation direction: a role and level, such as a middle Go developer.
 A Target owns its Sources, Topics, Questions, Interview plan and progress. Targets do not share progress.
-The Candidate creates and changes a Target together with the agent.
-"New target" creates a draft Target at once, and the setup agent asks the first question.
-A Target stores the agent that runs its Agent sessions; it starts as the agent from the application settings. A change applies only to new Agent sessions: a paused Mock interview and its Side threads keep their own agent.
-The Candidate can archive a Target and restore it. Archiving is unavailable while an Agent session of the Target runs.
-The Candidate can delete an archived Target for good after typing its name. Deletion erases its Sources, Questions, Attempts and Agent sessions.
+The Candidate creates and changes a Target together with the agent in a Target setup session.
+A new Target starts as a draft, and the agent asks the first question in its Target setup session.
+A Target stores the selected agent for its new Agent sessions. A Mock interview keeps its own agent, and its Side threads use that agent.
+The Candidate can archive a Target, restore it, or delete an archived Target for good with all its data.
 
 **Interview plan**:
 The ordered list of Sections that a full Mock interview for a Target goes through.
@@ -70,13 +69,11 @@ The share of Topics with the confident Topic status in the enabled Sections of a
 
 **Inbox**:
 Material that the Candidate added to a Target and the agent has not processed yet: links, files and video transcripts.
-The Candidate adds material in the setup chat. The setup agent answers with a card of the material. Processing starts only after the Candidate confirms the card.
+The Candidate adds material in a Target setup session, and Inbox processing starts only after the Candidate confirms it.
 The agent processes it in the background: it creates Sources and adds Questions to Sections and Topics, then writes an Inbox report.
-A Target has at most one processing at a time.
-Inbox accepts files of any type up to 100 MB. If the agent extracts no text, the Source gets the error status with a reason.
 
 **Inbox report**:
-The agent's summary of one Inbox processing: what it processed, which Questions it added where, and which Questions it doubts.
+The agent's summary of one Inbox processing session: what it processed, which Questions it added where, and which Questions it doubts.
 
 **Preference**:
 A rule the Candidate gave for a Target in plain language, with rejected Questions as examples, such as "fewer definitions, more applied questions".
@@ -84,7 +81,7 @@ Every Inbox processing and Mock interview for that Target follows the active Pre
 
 **Side thread**:
 A separate Agent session that branches from a Mock interview at a chosen moment, for clarification and explanation.
-It starts from a Handoff brief, not from the whole session history. A Side thread cannot record Attempts or change Grades.
+It starts from a Handoff brief, not from the whole Mock interview history. A Side thread cannot record Attempts or change Grades.
 A Side thread opened before the Candidate answers the current Question marks that Attempt as received with a hint.
 The Candidate can delete a Side thread for good; the hint mark on the Attempt stays.
 
@@ -99,12 +96,12 @@ _Avoid_: Grade, which assesses the Candidate's answer, not the Question.
 One conversation of the application with the Candidate's agent: its kind, agent, ACP session id, status and event journal.
 There are four kinds: Target setup, Inbox processing, Mock interview and Side thread. Each kind has its own skill, MCP tools and limits.
 The server records every event in the journal; the chat and its history after a restart come from the journal, not from the agent's log.
-The code calls it `AgentSession`. The agent check of the skeleton, «Проверка агента» in the UI, also runs in one; it is not a domain kind.
+The code calls it `AgentSession`. The skeleton's agent check also runs in one, but it is not a domain kind.
 _Avoid_: Session, when the kind of session matters.
 
 **MCP address**:
-The URL of our MCP server that one Agent session gets in `session/new`, under a server name of its own. It offers the tools of the session kind and acts only on that session.
-Only that session's agent gets it, and it closes when that agent stops.
+The URL of our MCP server that one Agent session gets in `session/new`, under a server name of its own. It offers the tools of the session kind and acts only on that Agent session.
+Only that Agent session's agent gets it, and it closes when that agent stops.
 
 **Permission request**:
 The agent's request to perform an action, such as a shell command, with the options it offers.
