@@ -301,6 +301,7 @@ textarea {
   font-weight: 650;
 }
 
+/* `setupChatOverhang` in setup-chat.tsx counts this padding and border: change them together. */
 .zone-frame {
   display: flex;
   flex-direction: column;
@@ -423,7 +424,10 @@ textarea {
   gap: var(--space-3);
 }
 
-/* The chat stands to the right of the card or the Section where the Candidate opened it. */
+/*
+ * The chat stands to the right of the card or the Section where the Candidate opened it. The canvas
+ * moves «Сессии» aside by `setupChatOverhang` in setup-chat.tsx: change it with the width or the gap.
+ */
 .setup-chat {
   position: absolute;
   top: 0;
