@@ -1,8 +1,10 @@
 // Seam 1 of spec #47: the setup agent proposes Inbox processing with a card in the chat, and only
 // the Candidate's button starts it.
-import { describe, expect, it } from "vitest";
+import path from "node:path";
 
-import { startServer, temporaryDirectory } from "./chat-test-support.ts";
+import { describe, expect, it, onTestFinished } from "vitest";
+
+import { browserHeaders, fixedTime, startServer, temporaryDirectory } from "./chat-test-support.ts";
 import {
   addLink,
   attach,
@@ -13,7 +15,37 @@ import {
 } from "./inbox-test-support.ts";
 import { first } from "./model-test-support.ts";
 import { api, appliedTarget, callTool, setupChat, toolResult } from "./setup-test-support.ts";
+import { buildServer } from "./server.ts";
 import { sources } from "./source-test-support.ts";
+
+/**
+ * A server that offers Claude Code, Codex and OpenCode from an empty temporary home, where Codex is
+ * unavailable, and the demo Target with Codex as its agent and a vacancy in the Inbox. No agent
+ * starts.
+ */
+async function targetWithUnavailableAgent() {
+  const home = await temporaryDirectory();
+  const server = await buildServer({
+    clock: { now: () => new Date(fixedTime) },
+    timer: { repeat: () => () => {}, after: () => () => {} },
+    dataDirectory: path.join(home, ".interview-sensei"),
+    userEnvironment: { home, env: { PATH: path.join(home, "bin") } },
+  });
+  onTestFinished(async () => server.close());
+  await server.listen({ host: "127.0.0.1", port: 0 });
+  const headers = browserHeaders(server);
+  const created = await server.inject({ method: "POST", url: "/api/targets/demo", headers });
+  const { id } = created.json<{ id: string }>();
+  const chosen = await server.inject({
+    method: "PUT",
+    url: `/api/targets/${id}/agent`,
+    headers,
+    payload: { agent: "codex" },
+  });
+  expect(chosen.statusCode).toBe(200);
+  await attach(server, { targetId: id, name: "vacancy.md", body: vacancy });
+  return { server, targetId: id, home };
+}
 
 async function activeTarget() {
   const { server } = await startServer(await temporaryDirectory());
@@ -153,5 +185,33 @@ describe("the start of Inbox processing", () => {
     expect(empty.json()).toMatchObject({ error: "no_sources" });
     expect(unknown.json()).toMatchObject({ error: "invalid_sources" });
     expect(first(await sources(server, target.id)).status).toBe("inbox");
+  });
+});
+
+describe("the start with the Target's agent unavailable", () => {
+  it("«Запустить разбор» and «Перепроверить» answer with a clear error, and the materials stay in the Inbox", async () => {
+    const { server, targetId, home } = await targetWithUnavailableAgent();
+
+    const processing = await startProcessing(server, targetId);
+    const recheck = await server.inject({
+      method: "POST",
+      url: `/api/targets/${targetId}/inbox/recheck`,
+      headers: browserHeaders(server),
+    });
+
+    const error = {
+      error: "agent_unavailable",
+      message: `Агент цели недоступен. Нет входа в Codex: не найден ${path.join(home, ".codex", "auth.json")}. Выполните \`codex login\` и обновите страницу. Или выберите другого агента в меню «Агент» в верхней панели.`,
+    };
+    expect({ status: processing.statusCode, body: processing.json<unknown>() }).toStrictEqual({
+      status: 400,
+      body: error,
+    });
+    expect({ status: recheck.statusCode, body: recheck.json<unknown>() }).toStrictEqual({
+      status: 400,
+      body: error,
+    });
+    await expect(sources(server, targetId)).resolves.toMatchObject([{ status: "inbox" }]);
+    await expect(inboxOf(server, targetId)).resolves.toMatchObject({ run: null, unprocessed: 1 });
   });
 });
