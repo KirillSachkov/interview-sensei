@@ -21,10 +21,6 @@ export function opencodeConfigSchema(version: string | null): OpencodeConfigSche
 
 const agentDescription = "The agent of an Interview Sensei session";
 
-/**
- * OpenCode 1.x. It has no permission modes; its config asks the Candidate before changes. Our
- * agent's `prompt` replaces OpenCode's base prompt, and its bans deny tools over the shared `ask`.
- */
 /** The agent's own rule for the web tools: denied, allowed without asking, or the shared `ask`. */
 function webEffect(profile: LaunchProfile): "deny" | "allow" | null {
   if (!profile.web) {
@@ -35,6 +31,11 @@ function webEffect(profile: LaunchProfile): "deny" | "allow" | null {
 
 const webActions = ["webfetch", "websearch"];
 
+/**
+ * OpenCode 1.x. It has no permission modes; its config asks the Candidate before changes. Our
+ * agent's `prompt` replaces OpenCode's base prompt; its bans deny tools over the shared `ask`, and
+ * a web without asking allows the web tools over it.
+ */
 function configV1(profile: LaunchProfile, skillsPath: string) {
   const { role, shell } = profile;
   const web = webEffect(profile);

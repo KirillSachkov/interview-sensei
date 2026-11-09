@@ -19,7 +19,7 @@ import {
 } from "./launch-recipe-test-support.ts";
 
 /** The `_meta` of Claude Code's session as JSON, for the profile. */
-function disallowed(profile: LaunchProfile): string {
+function claudeMeta(profile: LaunchProfile): string {
   return JSON.stringify(recipe("claude", {}, profile).sessionMeta);
 }
 
@@ -132,11 +132,11 @@ describe("session profile role and skill in the launch recipe", () => {
 
 describe("session profile bans in the launch recipe", () => {
   it("removes shell and web tools from Claude Code only when the profile forbids them", () => {
-    expect(disallowed({ ...openProfile, shell: false })).toContain('"disallowedTools":["Bash"]');
-    expect(disallowed({ ...openProfile, web: false })).toContain(
+    expect(claudeMeta({ ...openProfile, shell: false })).toContain('"disallowedTools":["Bash"]');
+    expect(claudeMeta({ ...openProfile, web: false })).toContain(
       '"disallowedTools":["WebFetch","WebSearch"]',
     );
-    expect(disallowed(openProfile)).toContain('"disallowedTools":[]');
+    expect(claudeMeta(openProfile)).toContain('"disallowedTools":[]');
   });
 
   it("turns off the shell tool and web search of Codex only when the profile forbids them", () => {
@@ -199,9 +199,9 @@ describe("session profile bans in the launch recipe", () => {
 describe("web without permission requests in the launch recipe", () => {
   it("lets Claude Code use an allowed web without asking only when no Candidate answers its requests", () => {
     const background = { ...openProfile, askCandidate: false };
-    expect(disallowed(background)).toContain('"allowedTools":["WebFetch","WebSearch"]');
-    expect(disallowed(openProfile)).toContain('"allowedTools":[]');
-    expect(disallowed({ ...background, web: false })).toContain('"allowedTools":[]');
+    expect(claudeMeta(background)).toContain('"allowedTools":["WebFetch","WebSearch"]');
+    expect(claudeMeta(openProfile)).toContain('"allowedTools":[]');
+    expect(claudeMeta({ ...background, web: false })).toContain('"allowedTools":[]');
   });
 
   it("lets the OpenCode agent use an allowed web without asking only when no Candidate answers its requests", () => {
@@ -220,8 +220,10 @@ describe("web without permission requests in the launch recipe", () => {
   it("gives the Inbox processing agent the web without permission requests: it has no chat", () => {
     const { role, shell, web, askCandidate } = sessionProfiles["inbox-processing"];
     const profile = { ...lockedProfile, role, shell, web, askCandidate };
-    expect(disallowed(profile)).toContain('"allowedTools":["WebFetch","WebSearch"]');
-    expect(permissions(profile)).toContain('"effect":"allow"');
+    expect(claudeMeta(profile)).toContain('"allowedTools":["WebFetch","WebSearch"]');
+    expect(permissions(profile)).toContain(
+      '"permissions":[{"action":"shell","resource":"*","effect":"deny"},{"action":"webfetch","resource":"*","effect":"allow"},{"action":"websearch","resource":"*","effect":"allow"}]',
+    );
   });
 });
 
