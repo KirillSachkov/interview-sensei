@@ -1,7 +1,6 @@
+import { request } from "./request";
 import { isTargetView } from "./targets";
-import type { TargetView } from "./targets";
-
-type Level = "junior" | "middle" | "senior";
+import type { Level, TargetView } from "./targets";
 
 /** One Section of the plan that the agent proposes; its Topics by name. An omitted field stays as it is. */
 interface ProposedSection {
@@ -90,11 +89,7 @@ function draftUrl(targetId: string): string {
 
 /** The Target's draft of changes in the order the agent recorded them. */
 export async function fetchDraft(targetId: string): Promise<DraftChange[]> {
-  const response = await fetch(draftUrl(targetId));
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-  const body: unknown = await response.json();
+  const body = await request(draftUrl(targetId));
   const changes =
     typeof body === "object" && body !== null && "changes" in body ? body.changes : [];
   if (!Array.isArray(changes) || !changes.every((change: unknown) => isDraftChange(change))) {
@@ -141,8 +136,5 @@ export async function removeDraftChange(targetId: string, changeId: string): Pro
 
 /** «Отменить изменения»: empties the Target's draft; the Target stays as it is. */
 export async function discardDraft(targetId: string): Promise<void> {
-  const response = await fetch(draftUrl(targetId), { method: "DELETE" });
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
+  await request(draftUrl(targetId), { method: "DELETE" });
 }

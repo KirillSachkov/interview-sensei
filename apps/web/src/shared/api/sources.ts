@@ -1,3 +1,5 @@
+import { request } from "./request";
+
 /** What the material is. */
 export type SourceType = "vacancy" | "resume" | "link" | "file" | "note" | "transcript";
 
@@ -41,11 +43,7 @@ function messageOf(body: unknown, status: number): string {
 
 /** The Target's materials in the order they were added. */
 export async function fetchSources(targetId: string): Promise<SourceView[]> {
-  const response = await fetch(sourcesUrl(targetId));
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-  const body: unknown = await response.json();
+  const body = await request(sourcesUrl(targetId));
   const sources =
     typeof body === "object" && body !== null && "sources" in body ? body.sources : [];
   if (!Array.isArray(sources) || !sources.every((source: unknown) => isSourceView(source))) {

@@ -1,4 +1,4 @@
-type Level = "junior" | "middle" | "senior";
+export type Level = "junior" | "middle" | "senior";
 
 /** A Target in the list from GET /api/targets; archived Targets are not in it. */
 export interface TargetSummary {

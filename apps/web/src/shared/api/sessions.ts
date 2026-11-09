@@ -1,3 +1,5 @@
+import { request } from "./request";
+
 /** One line of the chat; the server folds the agent's events into these. */
 export type ChatEntry =
   | { readonly id: string; readonly type: "candidate_message"; readonly text: string }
@@ -125,10 +127,9 @@ export async function startServiceChat(agent: string): Promise<SessionView> {
  * of a draft Target. Throws with the server's message when the Target's agent is unavailable.
  */
 export async function openSetupSession(targetId: string): Promise<SessionView> {
-  const response = await fetch(`/api/targets/${encodeURIComponent(targetId)}/setup-session`, {
+  const body = await request(`/api/targets/${encodeURIComponent(targetId)}/setup-session`, {
     method: "POST",
   });
-  const body = await readJson(response);
   if (!isSessionView(body)) {
     throw new Error("неожиданный ответ");
   }
@@ -137,12 +138,9 @@ export async function openSetupSession(targetId: string): Promise<SessionView> {
 
 /** «Завершить»: ends the Target's running setup session; its draft of changes stays. */
 export async function endSetupSession(targetId: string): Promise<void> {
-  const response = await fetch(`/api/targets/${encodeURIComponent(targetId)}/setup-session/end`, {
+  await request(`/api/targets/${encodeURIComponent(targetId)}/setup-session/end`, {
     method: "POST",
   });
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
 }
 
 /** The WebSocket address of the session's events, on the page's own host. */
