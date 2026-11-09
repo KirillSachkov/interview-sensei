@@ -195,6 +195,14 @@ The repository runs its queries on `executorOf(database, transaction)`: on the t
 Inside the transaction every query of the change uses it, reads included: PGlite runs one transaction at a time, so a query on the database would wait for the transaction and never finish.
 Any rejection rolls back the writes of every slice; `shared-transaction.int.test.ts` in `apps/server` checks it.
 
+Deleting a Target for good erases its data in every slice in one such transaction (#51).
+Each slice that keeps data of a Target gives its service `eraseTarget(targetId, transaction)`.
+`targetData` in `composeFeatures` lists these slices; a new slice with Target data joins the list.
+`deleteTarget` in `apps/server/src/target-deletion.ts` runs the erasure; files are not in the transaction.
+So a slice with files of a Target also gives `eraseTargetFiles(targetId)`, which runs after the commit, as `sources` does.
+The agents of the Target's live sessions stop before the transaction: their journal writes would wait for it.
+`target-deletion.int.test.ts` counts the rows with the Target's `target_id` in every schema, so a new slice is checked too.
+
 ### Canvas zones
 
 The web app opens on the canvas of one Target, `pages/target`, built on React Flow (`@xyflow/react`).
@@ -209,6 +217,7 @@ A slice adds content to a zone like this:
 
 The slice leaves `Canvas` and the top bar (`widgets/top-bar`) unchanged.
 The owner approved one exception in #45: the top bar gets «Новая цель» and «Настройки».
+Spec #45 also puts «Меню цели» there, with «В архив», and the item «Архив» in the Target switcher.
 A new zone is a new entry in `targetZones` and needs the owner's decision.
 An input or a scrolled list inside a widget gets the React Flow classes `nodrag`, `nopan` and `nowheel` where the canvas must not take its pointer or wheel.
 
