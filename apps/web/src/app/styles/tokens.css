@@ -44,6 +44,8 @@
   --space-5: 24px;
   --space-6: 32px;
 
+  /* Inline code in text. */
+  --radius-inline: 4px;
   --radius-control: 10px;
   --radius-card: 12px;
   --radius-island: 14px;
