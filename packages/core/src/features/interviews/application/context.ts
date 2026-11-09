@@ -1,9 +1,10 @@
-import type { Clock } from "../../../shared/time/index.ts";
+import type { Clock, Timer } from "../../../shared/time/index.ts";
 import type { MockInterview } from "../domain/interview.ts";
 import { interviewView } from "../domain/interview-view.ts";
 import type { InterviewView } from "../domain/interview-view.ts";
 import type {
   InterviewAgents,
+  InterviewProgress,
   InterviewQuestions,
   InterviewRepository,
   InterviewSessions,
@@ -17,6 +18,10 @@ export interface InterviewsDependencies {
   readonly questions: InterviewQuestions;
   readonly sessions: InterviewSessions;
   readonly clock: Clock;
+  /** Waits for `finish_interview` after «Завершить». */
+  readonly timer: Timer;
+  /** The Topics to work on first, for the brief. */
+  readonly progress: InterviewProgress;
   /** Receives errors of background work, such as a template message that failed to send. */
   readonly onError: (error: unknown) => void;
 }

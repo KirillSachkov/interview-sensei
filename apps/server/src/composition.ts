@@ -14,7 +14,7 @@ import {
   interviewsModule,
   interviewTools,
 } from "@interview-sensei/core/interviews";
-import type { Interviews } from "@interview-sensei/core/interviews";
+import { getProgress, progressModule } from "@interview-sensei/core/progress";
 
 import { agentRuntimeModule } from "@interview-sensei/core/agent-runtime";
 import type { AgentRuntime, UserEnvironment } from "@interview-sensei/core/agent-runtime";
@@ -29,7 +29,6 @@ import type { SliceMigrations, Storage } from "@interview-sensei/core/storage";
 import type { Clock, Timer } from "@interview-sensei/core/time";
 import type { Targets } from "@interview-sensei/core/targets";
 import type { QuestionBank } from "@interview-sensei/core/question-bank";
-import type { FastifyBaseLogger } from "fastify";
 
 export type { AgentRuntime, UserEnvironment } from "@interview-sensei/core/agent-runtime";
 export { SessionsClosedError } from "@interview-sensei/core/agent-sessions";
@@ -55,7 +54,8 @@ type SessionToolSets = Parameters<typeof mcpGatewayModule>[0]["tools"];
 
 /** The services whose MCP tools the session kinds use; composeFeatures builds them after the gateway. */
 interface ToolServices {
-  interviews: Interviews;
+  interviews: ReturnType<typeof interviewsModule>;
+  progress: ReturnType<typeof progressModule>;
   targets: Targets;
   questionBank: QuestionBank;
 }
@@ -77,11 +77,12 @@ function sessionTools() {
   const sets: SessionToolSets = {
     "service-chat": [getBrief],
     get "mock-interview"() {
-      const { interviews, targets, questionBank } = built();
+      const { interviews, progress, targets, questionBank } = built();
       return [
         ...interviewTools(interviews),
         getTarget(targets),
         searchQuestions(questionBank, targets),
+        getProgress(progress),
       ];
     },
   };
@@ -106,8 +107,8 @@ export interface FeatureDependencies {
   userEnvironment: UserEnvironment | undefined;
   /** The server's own loopback origin for the MCP addresses; throws before it listens. */
   origin: () => string;
-  /** Receives the failures of background work. */
-  log: FastifyBaseLogger;
+  /** Receives the failures of background work: the server's logger. */
+  log: Pick<Console, "error" | "warn">;
 }
 
 /**
@@ -140,9 +141,9 @@ export async function composeFeatures({
     tools.sets,
   );
   const { questionBank, targets } = composeTargets(storage, clock, runtime);
-  const services = { clock, targets, sessions, agents: runtime, questions: questionBank };
-  const interviews = composeInterviews(storage, log, services);
-  tools.bind({ interviews, targets, questionBank });
+  const services = { clock, timer, targets, sessions, agents: runtime, questions: questionBank };
+  const { interviews, progress } = composeInterviews(storage, log, services);
+  tools.bind({ interviews, progress, targets, questionBank });
   const modelTools = {
     getTarget: getTarget(targets),
     searchQuestions: searchQuestions(questionBank, targets),
@@ -156,25 +157,27 @@ export async function composeFeatures({
     targets,
     questionBank,
     interviews,
+    progress,
     createDemo,
     modelTools,
     health: healthModule({ clock }),
   };
 }
 
-/** Mock interviews: the Target's agent is the interviewer in an AgentSession. */
+/** Mock interviews and the progress of their Attempts; the interviews' brief reads progress back. */
 function composeInterviews(
   storage: Storage,
-  log: FastifyBaseLogger,
-  services: Omit<Parameters<typeof interviewsModule>[0], "database" | "onError">,
+  log: FeatureDependencies["log"],
+  services: Omit<Parameters<typeof interviewsModule>[0], "database" | "onError" | "progress">,
 ) {
-  return interviewsModule({
+  const interviews: ToolServices["interviews"] = interviewsModule({
     database: storage.database,
     ...services,
-    onError: (error) => {
-      log.error({ err: error }, "A mock interview failed in the background");
-    },
+    progress: { focus: async (targetId) => progress.focus(targetId) },
+    onError: (error) => log.error({ err: error }, "A mock interview failed in the background"),
   });
+  const progress = progressModule({ plans: services.targets, attempts: interviews });
+  return { interviews, progress };
 }
 
 /** Targets and their Questions; a Target's agent is one of the agents that `runtime` offers. */

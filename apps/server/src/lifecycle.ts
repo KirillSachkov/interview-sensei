@@ -5,17 +5,18 @@ import type { Features } from "./composition.ts";
 import { acceptLocalRequestsOnly } from "./local-requests.ts";
 
 /**
- * Ends sessions of the last run and registers the shutdown order, the WebSocket plugin and the
- * check that only the Candidate's own browser reaches the server.
+ * Ends sessions of the last run, marks its running Mock interviews «прерван», and registers the
+ * shutdown order, the WebSocket plugin and the check that only the Candidate's own browser reaches
+ * the server.
  */
 export async function prepare(
   server: FastifyInstance,
   {
-    features: { storage, sessions },
+    features: { storage, sessions, interviews },
     allowedOrigins,
     exemptRoutes,
   }: {
-    features: Pick<Features, "storage" | "sessions">;
+    features: Pick<Features, "storage" | "sessions" | "interviews">;
     allowedOrigins: readonly string[];
     /** Routes with their own Host and Origin checks; see acceptLocalRequestsOnly. */
     exemptRoutes: readonly string[];
@@ -32,6 +33,7 @@ export async function prepare(
   });
   try {
     await sessions.endInterrupted();
+    await interviews.endInterrupted();
     await server.register(fastifyWebsocket);
   } catch (error) {
     await storage.close();

@@ -13,7 +13,8 @@
     "./time": "./src/shared/time/index.ts",
     "./targets": "./src/features/targets/index.ts",
     "./question-bank": "./src/features/question-bank/index.ts",
-    "./interviews": "./src/features/interviews/index.ts"
+    "./interviews": "./src/features/interviews/index.ts",
+    "./progress": "./src/features/progress/index.ts"
   },
   "scripts": {
     "lint": "oxlint",

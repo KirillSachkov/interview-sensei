@@ -1,3 +1,5 @@
+import type { Dispute } from "./dispute.ts";
+import type { AttemptRecord, HistoryFilter } from "./history.ts";
 import type {
   AskedQuestion,
   Attempt,
@@ -83,10 +85,41 @@ export interface InterviewSessions {
   readonly hideAgentText: (sessionId: string) => Promise<void>;
   /** Stops the agent after its current turn. */
   readonly end: (sessionId: string) => Promise<void>;
+  /** Calls the listener after each change of a live session; returns the unsubscribe. */
+  readonly subscribe: (
+    sessionId: string,
+    listener: (view: { readonly status: string }) => void,
+  ) => () => void;
+  readonly view: (sessionId: string) => Promise<{ readonly status: string } | undefined>;
+}
+
+/** The progress slice supplies the Topics «подтянуть в первую очередь» for the brief. */
+export interface InterviewProgress {
+  readonly focus: (
+    targetId: string,
+  ) => Promise<readonly { readonly id: string; readonly name: string; readonly status: string }[]>;
+}
+
+/** Reads the Target's past Mock interviews for its history, its progress and the brief. */
+export interface HistoryRepository {
+  /** Every running Mock interview of every Target. */
+  readonly allRunning: () => Promise<readonly MockInterview[]>;
+  /** One page of the Target's Mock interviews, the newest first, and how many match. */
+  readonly history: (
+    targetId: string,
+    filter: HistoryFilter,
+    page: { readonly offset: number; readonly limit: number },
+  ) => Promise<{ readonly interviews: readonly MockInterview[]; readonly total: number }>;
+  /** The Attempts of the Target's Mock interviews from the earliest to the latest. */
+  readonly targetAttempts: (targetId: string) => Promise<readonly AttemptRecord[]>;
+  readonly dispute: (dispute: Dispute) => Promise<void>;
+  /** The Disputes in the order they were made: of one Mock interview, or of a Target. */
+  readonly disputes: (interviewId: string) => Promise<readonly Dispute[]>;
+  readonly targetDisputes: (targetId: string) => Promise<readonly Dispute[]>;
 }
 
 /** Stores Mock interviews, their asked questions and Attempts in the `interviews` schema. */
-export interface InterviewRepository {
+export interface InterviewRepository extends HistoryRepository {
   /** `running` when the Target already has a running Mock interview; nothing is stored then. */
   readonly create: (interview: MockInterview) => Promise<"created" | "running">;
   readonly get: (id: string) => Promise<MockInterview | undefined>;

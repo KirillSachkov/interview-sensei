@@ -10,6 +10,7 @@ import { Canvas } from "@/shared/ui/canvas";
 import type { CanvasZone } from "@/shared/ui/canvas";
 
 import { MockInterviews } from "./mock-interview/mock-interviews";
+import { Readiness } from "./readiness/readiness";
 import { TargetCard } from "./target-card";
 
 /**
@@ -18,7 +19,17 @@ import { TargetCard } from "./target-card";
  */
 function targetZones(target: TargetSummary): CanvasZone[] {
   return [
-    { id: "goal", title: "Цель", width: 440, content: <TargetCard target={target} /> },
+    {
+      id: "goal",
+      title: "Цель",
+      width: 440,
+      content: (
+        <>
+          <TargetCard target={target} />
+          <Readiness targetId={target.id} />
+        </>
+      ),
+    },
     {
       id: "sessions",
       title: "Сессии",

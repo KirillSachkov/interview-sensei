@@ -72,6 +72,9 @@ On «The Candidate finished the mock interview.» it calls `finish_interview` an
 A failed step ends the turn with «Фейковый интервьюер сломался: <error>».
 Other prompts in a mock interview's chat, such as `/system` or `/tools`, get the replies above.
 `interview-test-support.ts` in the server starts a mock interview on the demo Target and follows its socket and its chat.
+`time-test-support.ts` gives a Clock and a Timer that a test moves by hand; `startServer` takes them as `clock` and `timer`.
+A test runs the 2-minute wait for `finish_interview` with the Timer; `/wait` in the interviewer chat keeps the message that the Candidate finished from the agent.
+`/crash` in the interviewer chat makes the mock interview «прерван».
 
 ## Ports
 

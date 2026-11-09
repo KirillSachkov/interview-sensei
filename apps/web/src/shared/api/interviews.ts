@@ -50,6 +50,8 @@ export interface AttemptDebrief {
   readonly gaps: string;
   readonly justification: string;
   readonly strongAnswer: string;
+  /** The Candidate's latest Dispute: its Grade applies instead of `grade`. */
+  readonly dispute: { readonly grade: number; readonly reason: string } | null;
 }
 
 /** A Section of the Target's plan, for the choice of Sections at the start. */
@@ -191,4 +193,9 @@ export function interviewMessage(data: unknown): InterviewView | null {
 export function interviewEventsUrl(interviewId: string): string {
   const protocol = globalThis.location.protocol === "https:" ? "wss:" : "ws:";
   return `${protocol}//${globalThis.location.host}/api/interviews/${path(interviewId)}/events`;
+}
+
+/** One Mock interview, such as one the Candidate opens from the session history. */
+export async function fetchInterview(interviewId: string): Promise<InterviewView> {
+  return checked(await fetch(`/api/interviews/${path(interviewId)}`), isInterviewView);
 }

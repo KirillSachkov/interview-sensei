@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import type { FastifyInstance } from "fastify";
+import type { Clock, Timer } from "@interview-sensei/core/time";
 import { expect, onTestFinished } from "vitest";
 
 import { buildServer } from "./server.ts";
@@ -20,27 +21,32 @@ export async function temporaryDirectory(): Promise<string> {
   return directory;
 }
 
+export interface ServerOptions {
+  host?: string;
+  allowedOrigins?: readonly string[];
+  skillsDirectory?: string;
+  /** The fixed time `fixedTime` by default. */
+  clock?: Clock;
+  timer?: Timer;
+}
+
 /**
  * Builds the server with the fake agent on the data directory and listens on a free port of the
  * host, `127.0.0.1` by default: the agent reaches the session's MCP address over real HTTP.
- * `allowedOrigins` and `skillsDirectory` go to buildServer. `stop` closes it early.
+ * `allowedOrigins`, `skillsDirectory`, `clock` and `timer` go to buildServer. `stop` closes it early.
  */
 export async function startServer(
   dataDirectory: string,
-  {
-    host = "127.0.0.1",
-    allowedOrigins = [],
-    skillsDirectory,
-  }: { host?: string; allowedOrigins?: readonly string[]; skillsDirectory?: string } = {},
+  { host = "127.0.0.1", allowedOrigins = [], ...options }: ServerOptions = {},
 ) {
   const server = await buildServer({
-    clock: { now: () => new Date(fixedTime) },
-    // Dumps and agent timeouts are not under test here; the timer never runs a task.
-    timer: { repeat: () => () => {}, after: () => () => {} },
+    clock: options.clock ?? { now: () => new Date(fixedTime) },
+    // Dumps and agent timeouts are not under test here; by default the timer never runs a task.
+    timer: options.timer ?? { repeat: () => () => {}, after: () => () => {} },
     dataDirectory,
     fakeAgent: true,
     allowedOrigins,
-    ...(skillsDirectory === undefined ? {} : { skillsDirectory }),
+    ...(options.skillsDirectory === undefined ? {} : { skillsDirectory: options.skillsDirectory }),
   });
   let closed: Promise<void> | null = null;
   const stop = async () => {

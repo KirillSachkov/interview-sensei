@@ -21,7 +21,7 @@ export function interviewTools({ interviewer }: Interviews): readonly SessionToo
     sessionTool({
       name: "get_brief",
       description:
-        "Returns the brief of this mock interview as JSON: the Target, the selected Sections with their grading criteria and Topics, the tone, the language and the active Preferences. Call it once at the start.",
+        "Returns the brief of this mock interview as JSON: the Target, the selected Sections with their grading criteria and Topics, the tone, the language, the active Preferences, the last mock interview's summary, the weak Topics, and the Candidate's corrections of earlier Grades. Treat the corrections as calibration: grade similar answers the way the Candidate corrected them. Call it once at the start.",
       input: z.strictObject({}),
       run: async (_input, session) => interviewer.brief(session.sessionId),
     }),

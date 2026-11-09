@@ -65,6 +65,8 @@ A new slice plugs in like this:
 
 The gateway reads a tool set when a session starts, after `composeFeatures` has built every service.
 So a tool set may use services built after the gateway, such as `interviews`: `sessionTools` reads them in a getter, and `bind` hands them over.
+`progress` counts the Attempts of `interviews`, and the brief of `interviews` reads `progress` back.
+`composeInterviews` gives `interviews` a function that calls `progress`, which exists by the first call.
 
 ### Session profiles
 

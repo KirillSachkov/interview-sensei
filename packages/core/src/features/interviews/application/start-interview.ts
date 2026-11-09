@@ -8,6 +8,7 @@ import { interviewerRole } from "../domain/interviewer-role.ts";
 import type { InterviewView } from "../domain/interview-view.ts";
 import type { PlanSection, TargetPlan } from "../domain/ports.ts";
 import { tellInterviewer, viewOf } from "./context.ts";
+import { watchAgent } from "./endings.ts";
 import type { Context, InterviewsDependencies } from "./context.ts";
 
 export interface StartRequest {
@@ -138,6 +139,12 @@ async function stored(
   return false;
 }
 
+/** Watches the stored Mock interview's agent and sends it the first template message. */
+function begin(context: Context, interview: MockInterview): void {
+  watchAgent(context, interview);
+  tellInterviewer(context, interview.sessionId, interviewStarted);
+}
+
 export async function start(context: Context, request: StartRequest): Promise<StartOutcome> {
   const { dependencies } = context;
   const checked = await checkStart(dependencies, request);
@@ -153,6 +160,6 @@ export async function start(context: Context, request: StartRequest): Promise<St
   if (!(await stored(dependencies, interview))) {
     return { type: "interview_running" };
   }
-  tellInterviewer(context, session.id, interviewStarted);
+  begin(context, interview);
   return { type: "started", interview: await viewOf(dependencies, interview) };
 }

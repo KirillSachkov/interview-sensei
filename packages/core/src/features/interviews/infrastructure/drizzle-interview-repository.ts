@@ -10,6 +10,7 @@ import type {
   MockInterview,
 } from "../domain/interview.ts";
 import type { InterviewRepository } from "../domain/ports.ts";
+import { drizzleHistoryQueries } from "./drizzle-history-queries.ts";
 import { askedQuestions, attempts, interviews } from "./schema.ts";
 
 const iso = (date: Date | null) => date?.toISOString() ?? null;
@@ -145,5 +146,6 @@ export function drizzleInterviewRepository(database: Database): InterviewReposit
     },
     ...askedQueries(database),
     ...attemptQueries(database),
+    ...drizzleHistoryQueries(database),
   };
 }

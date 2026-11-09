@@ -14,6 +14,7 @@ import type {
 } from "../domain/ports.ts";
 import { change, inBackground } from "./context.ts";
 import type { Context } from "./context.ts";
+import { briefHistory } from "./records.ts";
 
 /** A refused tool call; the agent gets the message as the tool's error. */
 class InterviewToolError extends Error {
@@ -62,7 +63,11 @@ function selected(plan: TargetPlan, interview: MockInterview): readonly PlanSect
 
 async function brief(context: Context, sessionId: string): Promise<string> {
   const interview = await interviewOf(context, sessionId);
-  return JSON.stringify(interviewBrief(interview, await planOf(context, interview)));
+  const [plan, past] = await Promise.all([
+    planOf(context, interview),
+    briefHistory(context.dependencies, interview),
+  ]);
+  return JSON.stringify(interviewBrief(interview, plan, past));
 }
 
 /** A candidate as the agent sees it: no correct options. */

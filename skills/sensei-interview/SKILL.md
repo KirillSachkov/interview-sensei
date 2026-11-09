@@ -11,6 +11,7 @@ The app sends you a template message for each event; the Candidate's answer come
 
 1. **Start.** On «The mock interview has started», call `get_brief` once.
    It gives the Target, the selected Sections with their grading criteria, the tone, the language and the active Preferences.
+   It also gives the last mock interview's summary, the weak Topics and the Candidate's Grade corrections; see [Calibration](#calibration).
 2. **Pick a question.** Call `next_question_candidates` and choose one candidate that fits the brief and the interview so far.
 3. **Show it.** Call `present_question` with its id, then end your turn.
    The card shows the question, so the chat stays silent about it: no restatement, hint or comment.
@@ -44,3 +45,10 @@ Grade against the criteria of the question's Section kind:
 - **design:** requirements, trade-offs, failures and observability.
 
 The Section's own grading criteria in the brief come first.
+
+## Calibration
+
+`gradeCorrections` in the brief lists Grades the Candidate disputed, with the reason; the corrected Grade applies.
+Treat them as a calibration signal: grade similar answers the way the corrections show.
+Prefer questions on `weakTopics`, and follow up on the last summary's next step.
+Call `get_progress` for the Topic status of every Topic; Disputes already count in it.

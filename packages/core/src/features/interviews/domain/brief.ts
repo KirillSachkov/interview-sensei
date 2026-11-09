@@ -1,12 +1,30 @@
+import type { GradeCorrection } from "./history.ts";
 import type { MockInterview } from "./interview.ts";
 import type { TargetPlan } from "./ports.ts";
 
+/** What the brief tells of the Target's earlier Mock interviews and progress. */
+export interface BriefHistory {
+  /** The newest earlier Mock interview that ended, with the agent's summary and next step. */
+  readonly lastInterview: Pick<
+    MockInterview,
+    "status" | "finishedAt" | "summary" | "nextStep"
+  > | null;
+  /** The Topics «подтянуть в первую очередь»: shaky ones first, then not started ones. */
+  readonly weakTopics: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly status: string;
+  }[];
+  /** The Candidate's corrections of earlier Grades: a calibration signal for the agent. */
+  readonly gradeCorrections: readonly GradeCorrection[];
+}
+
 /**
  * The brief of a Mock interview for `get_brief`: the Target, the selected Sections with their
- * criteria and Topics, the tone, the language and the active Preferences. Later slices add the last
- * Mock interview's summary, weak Topics and the Candidate's Disputes.
+ * criteria and Topics, the tone, the language, the active Preferences, the last Mock interview's
+ * summary, the weak Topics and the Candidate's Grade corrections.
  */
-export function interviewBrief(interview: MockInterview, target: TargetPlan) {
+export function interviewBrief(interview: MockInterview, target: TargetPlan, past: BriefHistory) {
   const selected = interview.sectionIds.flatMap((id) =>
     target.sections.filter((section) => section.id === id),
   );
@@ -27,5 +45,6 @@ export function interviewBrief(interview: MockInterview, target: TargetPlan) {
       gradingCriteria: section.gradingCriteria,
       topics: section.topics.map((topic) => ({ id: topic.id, name: topic.name })),
     })),
+    ...past,
   };
 }

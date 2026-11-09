@@ -1,9 +1,10 @@
 import type { Database } from "../../shared/storage/index.ts";
-import type { Clock } from "../../shared/time/index.ts";
+import type { Clock, Timer } from "../../shared/time/index.ts";
 import { createInterviews } from "./application/interviews.ts";
 import type { Interviews } from "./application/interviews.ts";
 import type {
   InterviewAgents,
+  InterviewProgress,
   InterviewQuestions,
   InterviewSessions,
   InterviewTargets,
@@ -14,6 +15,10 @@ export interface InterviewsModuleDependencies {
   /** The server's database, migrated with interviewsMigrations. */
   readonly database: Database;
   readonly clock: Clock;
+  /** Waits for `finish_interview` after «Завершить». */
+  readonly timer: Timer;
+  /** The Topics to work on first for the brief: the progress module. */
+  readonly progress: InterviewProgress;
   /** The Target's plan and agent: the targets module. */
   readonly targets: InterviewTargets;
   /** Whether the Target's agent can run now: the agent-runtime module. */

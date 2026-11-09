@@ -2,6 +2,7 @@ import { fastify } from "fastify";
 import { onTestFinished } from "vitest";
 
 import { browserHeaders, fixedTime, startServer, temporaryDirectory } from "./chat-test-support.ts";
+import type { ServerOptions } from "./chat-test-support.ts";
 import { composeFeatures, mcpGatewayModule } from "./composition.ts";
 import type { Features } from "./composition.ts";
 
@@ -16,8 +17,8 @@ export function first<Item>(items: readonly Item[]): Item {
   return item;
 }
 
-export async function demoApi(dataDirectory?: string) {
-  const started = await startServer(dataDirectory ?? (await temporaryDirectory()));
+export async function demoApi(dataDirectory?: string, options: ServerOptions = {}) {
+  const started = await startServer(dataDirectory ?? (await temporaryDirectory()), options);
   const { server } = started;
   const headers = browserHeaders(server);
   const createDemo = async () =>

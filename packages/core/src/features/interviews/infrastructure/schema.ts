@@ -11,6 +11,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+import type { Dispute } from "../domain/dispute.ts";
 import type {
   AskedQuestion,
   CandidateAnswer,
@@ -95,4 +96,20 @@ export const attempts = interviewsSchema.table("attempts", {
   strongAnswer: text("strong_answer").notNull(),
   hinted: boolean("hinted").notNull().default(false),
   recordedAt: moment("recorded_at").notNull(),
+});
+
+/** The Candidate's Disputes of Grades; the latest one of an Attempt applies. */
+export const disputes = interviewsSchema.table("disputes", {
+  id: uuid("id").primaryKey(),
+  /** The order the Disputes were made in, for Disputes at the same moment. */
+  sequence: integer("sequence").notNull().generatedAlwaysAsIdentity(),
+  interviewId: uuid("interview_id")
+    .notNull()
+    .references(() => interviews.id),
+  attemptId: uuid("attempt_id")
+    .notNull()
+    .references(() => attempts.id),
+  grade: integer("grade").$type<Dispute["grade"]>().notNull(),
+  reason: text("reason").notNull(),
+  disputedAt: moment("disputed_at").notNull(),
 });

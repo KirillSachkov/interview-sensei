@@ -9,6 +9,7 @@ import type { FeatureDependencies, Features, UserEnvironment } from "./compositi
 import { registerInterviewRoutes } from "./interview-routes.ts";
 import { prepare } from "./lifecycle.ts";
 import { loopbackOrigin, registerMcpRoute } from "./mcp.ts";
+import { registerProgressRoutes } from "./progress-routes.ts";
 import { registerTargetRoutes } from "./target-routes.ts";
 import { registerWebApp } from "./web-app.ts";
 
@@ -55,6 +56,7 @@ function registerApi(server: FastifyInstance, features: Features) {
   server.get("/api/health", features.health);
   registerTargetRoutes(server, features);
   registerInterviewRoutes(server, features);
+  registerProgressRoutes(server, features);
   registerAgentSessionRoutes(server, {
     runtime: features.runtime,
     sessions: features.sessions,

@@ -1,11 +1,12 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 
 import { fetchLatestInterviews } from "@/shared/api";
 import type { InterviewView } from "@/shared/api";
 
 import { InterviewArea } from "./interview-area";
-import { InterviewResult } from "./interview-result";
+import { PastSessions } from "./past-sessions";
+import { ShownSession } from "./shown-session";
 import { StartMock } from "./start-form";
 import "./mock-interview.css";
 
@@ -18,8 +19,15 @@ function useLatestInterviews(targetId: string) {
     queryKey: interviewsKey(targetId),
     queryFn: async () => fetchLatestInterviews(targetId),
   });
+  // An ended Mock interview changes the Readiness and the session history too.
   const refresh = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: interviewsKey(targetId) });
+    for (const queryKey of [
+      interviewsKey(targetId),
+      ["progress", targetId],
+      ["history", targetId],
+    ]) {
+      void queryClient.invalidateQueries({ queryKey });
+    }
   }, [queryClient, targetId]);
   const started = (interview: InterviewView) => {
     queryClient.setQueryData(interviewsKey(targetId), [interview, ...(latest.data ?? [])]);
@@ -27,12 +35,35 @@ function useLatestInterviews(targetId: string) {
   return { latest, refresh, started };
 }
 
+/** Which ended session the canvas shows; at first the newest one, while none runs. */
+function useShownSession(latest: readonly InterviewView[] | undefined) {
+  const [chosen, setChosen] = useState<{ id: string | null; focus: number } | null>(null);
+  const [current] = latest ?? [];
+  const newest = current === undefined || current.status === "running" ? null : current.id;
+  const handleShow = (id: string | null, from: "card" | "history") => {
+    setChosen((previous) => ({
+      id,
+      focus: from === "history" ? (previous?.focus ?? 0) + 1 : (previous?.focus ?? 0),
+    }));
+  };
+  return {
+    shownId: chosen === null ? newest : chosen.id,
+    focus: chosen?.focus ?? 0,
+    handleShow,
+    reset: () => {
+      setChosen(null);
+    },
+  };
+}
+
 /**
- * The «Сессии» zone: the running Mock interview, or «Начать мок» with the result of the last one.
- * A Target has at most one running Mock interview.
+ * The «Сессии» zone: the running Mock interview, or «Начать мок»; then the last ended sessions as
+ * collapsed cards, and the one the Candidate opened, the newest by default. A Target has at most
+ * one running Mock interview.
  */
 export function MockInterviews({ targetId }: { targetId: string }) {
   const { latest, refresh, started } = useLatestInterviews(targetId);
+  const shown = useShownSession(latest.data);
   if (latest.isError) {
     return <p role="alert">Сессии не загрузились: {latest.error.message}</p>;
   }
@@ -45,32 +76,28 @@ export function MockInterviews({ targetId }: { targetId: string }) {
       {current?.status === "running" ? (
         <InterviewArea key={current.id} interview={current} onEnded={refresh} />
       ) : (
-        <LastInterview current={current} targetId={targetId} onStarted={started} />
+        <StartMock
+          targetId={targetId}
+          onStarted={(interview) => {
+            shown.reset();
+            started(interview);
+          }}
+        />
       )}
-    </div>
-  );
-}
-
-/** «Начать мок» with the result of the last Mock interview, or the empty state without one. */
-function LastInterview({
-  current,
-  targetId,
-  onStarted,
-}: {
-  current: InterviewView | undefined;
-  targetId: string;
-  onStarted: (interview: InterviewView) => void;
-}) {
-  return (
-    <>
-      <StartMock targetId={targetId} onStarted={onStarted} />
       {current === undefined ? (
         <p className="placeholder muted">
           Сессий пока нет. Здесь появятся мок-собеседования по цели.
         </p>
-      ) : (
-        <InterviewResult interview={current} />
+      ) : null}
+      <PastSessions targetId={targetId} shownId={shown.shownId} onShow={shown.handleShow} />
+      {shown.shownId === null ? null : (
+        <ShownSession
+          key={shown.shownId}
+          id={shown.shownId}
+          latest={latest.data}
+          focus={shown.focus}
+        />
       )}
-    </>
+    </div>
   );
 }

@@ -4,7 +4,7 @@ import type { FastifyInstance } from "fastify";
 import { onTestFinished } from "vitest";
 
 import { agentTexts, browserHeaders, isIdle, openEvents } from "./chat-test-support.ts";
-import type { SessionView } from "./chat-test-support.ts";
+import type { ServerOptions, SessionView } from "./chat-test-support.ts";
 import { demoApi } from "./model-test-support.ts";
 import type { TargetView } from "./model-test-support.ts";
 
@@ -137,9 +137,15 @@ async function debriefOf(server: FastifyInstance, { id, card }: { id: string; ca
   return response.json<unknown>();
 }
 
-/** The demo Target on a server with the fake agent, and the Mock interview API on it. */
-export async function interviewApi() {
-  const api = await demoApi();
+/**
+ * The demo Target on a server with the fake agent, and the Mock interview API on it. A data
+ * directory of an earlier server keeps its demo Target.
+ */
+export async function interviewApi({
+  dataDirectory,
+  ...options
+}: ServerOptions & { dataDirectory?: string } = {}) {
+  const api = await demoApi(dataDirectory, options);
   const { server, target } = api;
   const headers = browserHeaders(server);
   const post = async (url: string, payload?: object) =>

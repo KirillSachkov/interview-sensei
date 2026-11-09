@@ -170,3 +170,125 @@
   flex: 1;
   min-width: 0;
 }
+
+/* The Dispute in a Debrief and the summary Debrief (#54). */
+
+.dispute-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.dispute-form fieldset {
+  display: flex;
+  gap: var(--space-3);
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.dispute-form legend {
+  margin-bottom: var(--space-1);
+  font-weight: 600;
+}
+
+.grade-choice,
+.dispute-reason {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.dispute-reason {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.topic-changes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.topic-changes .topic-dot {
+  vertical-align: middle;
+}
+
+/* Past sessions as collapsed cards and «История сессий» (#54). */
+
+.past-sessions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.past-sessions h3 {
+  font-size: var(--font-size-card-title);
+}
+
+.session-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.session-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  padding: var(--space-2) var(--space-4);
+  text-align: left;
+}
+
+.session-card[aria-pressed="true"] {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.session-date {
+  font-weight: 600;
+}
+
+.history-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.history-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.history-filters label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.history-list {
+  max-height: 640px;
+  overflow-y: auto;
+}
+
+.history-pages {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
