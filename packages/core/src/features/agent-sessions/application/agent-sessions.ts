@@ -35,7 +35,11 @@ export interface AgentSessions {
    * Creates the session and starts its agent in the background; the view reports progress.
    * Rejects with SessionsClosedError once close has begun.
    */
-  readonly start: (request: { kind: SessionKind; agent: string }) => Promise<SessionView>;
+  readonly start: (request: {
+    kind: SessionKind;
+    agent: string;
+    targetId?: string | null;
+  }) => Promise<SessionView>;
   /** Every session, the newest first. */
   readonly list: () => Promise<readonly AgentSession[]>;
   readonly view: (sessionId: string) => Promise<SessionView | undefined>;
@@ -80,11 +84,16 @@ interface Context {
 /** Creates the session and starts its agent; close ends it when close began meanwhile. */
 async function createAndLaunch(
   context: Context,
-  { kind, agent }: { kind: SessionKind; agent: string },
+  { kind, agent, targetId }: { kind: SessionKind; agent: string; targetId?: string | null },
 ): Promise<SessionView> {
   const { dependencies } = context;
   const { repository, clock } = dependencies;
-  const created = await repository.create({ kind, agent, createdAt: clock.now() });
+  const created = await repository.create({
+    kind,
+    agent,
+    ...(targetId === undefined ? {} : { targetId }),
+    createdAt: clock.now(),
+  });
   // A finished session leaves `live`: later reads come from the journal.
   const session = liveSession(created, dependencies, () => {
     context.live.delete(created.id);
@@ -108,7 +117,7 @@ function launchLive({ dependencies, live }: Context, session: LiveSession): void
 
 async function start(
   context: Context,
-  request: { kind: SessionKind; agent: string },
+  request: { kind: SessionKind; agent: string; targetId?: string | null },
 ): Promise<SessionView> {
   if (context.closing) {
     throw new SessionsClosedError();

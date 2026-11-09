@@ -1,6 +1,15 @@
 // The only server module that imports core features (`server-composes-features-in-one-module`).
 // Each feature gives one module factory that hides its infrastructure; this module calls each
 // factory once and hands the routes finished services. Routes take the types they need from here.
+import {
+  questionBankModule,
+  questionBankMigrations,
+  searchQuestions,
+  demoTarget,
+  demoQuestions,
+} from "@interview-sensei/core/question-bank";
+import { targetsModule, targetsMigrations, getTarget } from "@interview-sensei/core/targets";
+
 import { agentRuntimeModule } from "@interview-sensei/core/agent-runtime";
 import type { UserEnvironment } from "@interview-sensei/core/agent-runtime";
 import {
@@ -12,8 +21,10 @@ import { getBrief, mcpGatewayModule } from "@interview-sensei/core/mcp-gateway";
 import type { SessionTool } from "@interview-sensei/core/mcp-gateway";
 import type { SessionKind } from "@interview-sensei/core/session-kinds";
 import { openStorage } from "@interview-sensei/core/storage";
-import type { SliceMigrations } from "@interview-sensei/core/storage";
+import type { SliceMigrations, Storage } from "@interview-sensei/core/storage";
 import type { Clock, Timer } from "@interview-sensei/core/time";
+import type { Targets } from "@interview-sensei/core/targets";
+import type { QuestionBank } from "@interview-sensei/core/question-bank";
 import type { FastifyBaseLogger } from "fastify";
 
 export type { AgentRuntime, UserEnvironment } from "@interview-sensei/core/agent-runtime";
@@ -26,7 +37,11 @@ export type { McpGateway } from "@interview-sensei/core/mcp-gateway";
  * The migrations of every core slice that stores data, applied at each start in this order. A
  * slice exports its SliceMigrations from its index.ts; add it here.
  */
-const sliceMigrations: readonly SliceMigrations[] = [agentSessionsMigrations];
+const sliceMigrations: readonly SliceMigrations[] = [
+  agentSessionsMigrations,
+  questionBankMigrations,
+  targetsMigrations,
+];
 
 /**
  * The MCP tool set of each session kind. A slice exports its tools from its index.ts; add them to
@@ -73,6 +88,139 @@ export async function composeFeatures({
       log.error({ err: error }, "The periodic database dump failed");
     },
   });
+  const questionBank = questionBankModule({ database: storage.database });
+  const targets = targetsModule({ database: storage.database, clock, topics: questionBank });
+  const modelTools = {
+    getTarget: getTarget(targets),
+    searchQuestions: searchQuestions(questionBank, targets),
+  };
+  const createDemo = demoCreator({ targets, questionBank, clock });
+  const { runtime, mcp, sessions } = composeAgents(storage, {
+    timer,
+    dataDirectory,
+    fakeAgent,
+    userEnvironment,
+    origin,
+    log,
+    clock,
+  });
+  return {
+    storage,
+    runtime,
+    mcp,
+    sessions,
+    targets,
+    questionBank,
+    createDemo,
+    modelTools,
+    health: healthModule({ clock }),
+  };
+}
+
+interface DemoDependencies {
+  targets: Targets;
+  questionBank: QuestionBank;
+  clock: Clock;
+}
+
+function demoTopics(targetId: string) {
+  return demoTarget.topics.map((topic) => ({
+    id: crypto.randomUUID(),
+    targetId,
+    name: topic.name,
+    key: topic.key,
+  }));
+}
+function demoTopicId(topics: ReturnType<typeof demoTopics>, key: string) {
+  const topic = topics.find((entry) => entry.key === key);
+  if (topic === undefined) {
+    throw new Error(`Unknown demo Topic: ${key}`);
+  }
+  return topic.id;
+}
+function questionsForDemo(topics: ReturnType<typeof demoTopics>, targetId: string, clock: Clock) {
+  return demoQuestions.map((question) => {
+    const common = {
+      id: crypto.randomUUID(),
+      targetId,
+      topicId: demoTopicId(topics, question.topicKey),
+      text: question.text,
+      level: demoTarget.level,
+      sourceIds: [],
+      unconfirmed: false,
+      hidden: false,
+      rating: null,
+      createdAt: clock.now().toISOString(),
+    };
+    return question.format === "open"
+      ? Object.assign(common, {
+          format: "open" as const,
+          options: [] as const,
+          correctOptionIds: [] as const,
+        })
+      : Object.assign(common, {
+          format: "quiz" as const,
+          options: question.options,
+          correctOptionIds: question.correctOptionIds,
+        });
+  });
+}
+async function createDemoTarget({ targets, questionBank, clock }: DemoDependencies) {
+  const targetId = crypto.randomUUID();
+  const topics = demoTopics(targetId);
+  await questionBank.seed(topics, questionsForDemo(topics, targetId, clock));
+  // Publish the Target only after its Question bank is ready.
+  return targets.create({
+    id: targetId,
+    name: demoTarget.name,
+    level: demoTarget.level,
+    status: "active",
+    demo: true,
+    sections: demoTarget.sections.map((section, position) => ({
+      id: crypto.randomUUID(),
+      position,
+      name: section.name,
+      kind: section.kind,
+      gradingCriteria: section.gradingCriteria,
+      enabled: true,
+      topicIds: section.topicKeys.map((key) => demoTopicId(topics, key)),
+    })),
+  });
+}
+async function existingDemo(targets: Targets) {
+  const existing = await targets.activeDemo();
+  if (existing === undefined) {
+    return null;
+  }
+  const target = await targets.get(existing.id);
+  if (target === undefined) {
+    throw new Error("The demo Target disappeared");
+  }
+  return target;
+}
+function demoCreator(dependencies: DemoDependencies) {
+  let creating: Promise<Awaited<ReturnType<typeof createDemoTarget>>> | null = null;
+  return async () => {
+    const target = await existingDemo(dependencies.targets);
+    if (target !== null) {
+      return { target, created: false };
+    }
+    if (creating !== null) {
+      return { target: await creating, created: false };
+    }
+    creating = createDemoTarget(dependencies);
+    try {
+      return { target: await creating, created: true };
+    } finally {
+      creating = null;
+    }
+  };
+}
+
+function composeAgents(
+  storage: Storage,
+  { timer, dataDirectory, fakeAgent, userEnvironment, origin, log, clock }: FeatureDependencies,
+) {
   const runtime = agentRuntimeModule({ timer, dataDirectory, fakeAgent, userEnvironment });
   const mcp = mcpGatewayModule({
     tools: sessionTools,
@@ -91,8 +239,10 @@ export async function composeFeatures({
       log.error({ err: error }, "An agent session failed in the background");
     },
   });
-  return { storage, runtime, mcp, sessions, health: healthModule({ clock }) };
+  return { runtime, mcp, sessions };
 }
 
 /** The composed services that the routes and the server lifecycle receive. */
 export type Features = Awaited<ReturnType<typeof composeFeatures>>;
+
+export { mcpGatewayModule } from "@interview-sensei/core/mcp-gateway";

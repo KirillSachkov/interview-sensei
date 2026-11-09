@@ -162,12 +162,16 @@ export async function launch(
   { launcher, workingDirectory }: { launcher: AgentLauncher; workingDirectory: string },
 ): Promise<void> {
   try {
-    const { id: sessionId, kind, agent: agentKind } = session.view;
+    const { id: sessionId, kind, agent: agentKind, targetId } = session.view;
     const agent = await launcher.start({
       agent: agentKind,
       kind,
       workingDirectory,
-      mcpServer: session.dependencies.mcp.open({ sessionId, kind }),
+      mcpServer: session.dependencies.mcp.open({
+        sessionId,
+        kind,
+        ...(targetId === undefined ? {} : { targetId }),
+      }),
       onUpdate: (update) => {
         void record(session, { type: "agent_update", update });
       },

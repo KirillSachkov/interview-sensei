@@ -6,6 +6,7 @@ import { composeFeatures, mcpRoute } from "./composition.ts";
 import type { FeatureDependencies, UserEnvironment } from "./composition.ts";
 import { prepare } from "./lifecycle.ts";
 import { loopbackOrigin, registerMcpRoute } from "./mcp.ts";
+import { registerTargetRoutes } from "./target-routes.ts";
 import { registerWebApp } from "./web-app.ts";
 
 /** `info` logs every request; `warn` keeps only problems. */
@@ -70,6 +71,7 @@ export async function buildServer({
   registerMcpRoute(server, features.mcp);
   await prepare(server, { features, allowedOrigins, exemptRoutes: [mcpRoute] });
   server.get("/api/health", features.health);
+  registerTargetRoutes(server, features);
   registerAgentSessionRoutes(server, {
     runtime: features.runtime,
     sessions: features.sessions,

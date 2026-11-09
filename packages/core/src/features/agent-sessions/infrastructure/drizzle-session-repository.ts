@@ -13,6 +13,7 @@ function toSession(row: typeof sessions.$inferSelect): AgentSession {
     id: row.id,
     kind: row.kind,
     agent: row.agent,
+    ...(row.targetId === null ? {} : { targetId: row.targetId }),
     status: row.status,
     createdAt: row.createdAt.toISOString(),
   };
@@ -20,11 +21,17 @@ function toSession(row: typeof sessions.$inferSelect): AgentSession {
 
 async function create(
   database: Database,
-  { kind, agent, createdAt }: Parameters<SessionRepository["create"]>[0],
+  { kind, agent, targetId, createdAt }: Parameters<SessionRepository["create"]>[0],
 ): Promise<AgentSession> {
   const [row] = await database
     .insert(sessions)
-    .values({ kind, agent, status: "starting", createdAt })
+    .values({
+      kind,
+      agent,
+      ...(targetId === undefined ? {} : { targetId }),
+      status: "starting",
+      createdAt,
+    })
     .returning();
   if (row === undefined) {
     throw new Error("The new session row was not returned");

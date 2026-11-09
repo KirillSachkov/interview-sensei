@@ -3,6 +3,8 @@ import type { z } from "zod";
 /** The AgentSession whose MCP address received the tool call. */
 export interface ToolSession {
   readonly sessionId: string;
+  /** Absent for sessions without a Target, including the service chat. */
+  readonly targetId?: string | null;
   /** The session kind, such as `service-chat`. */
   readonly kind: string;
 }
