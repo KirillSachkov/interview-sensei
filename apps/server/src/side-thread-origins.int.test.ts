@@ -64,6 +64,12 @@ async function briefOf(chat: Awaited<ReturnType<typeof openedSideThread>>["chat"
   return briefIn(await ask(chat, "/brief", "Фейковый агент прочитал brief"));
 }
 
+/** The brief of a new Side thread at the card. */
+async function briefAtCard(api: Api, { interviewId, card }: { interviewId: string; card: Card }) {
+  const { chat } = await openedSideThread(api, { interviewId, cardId: card.id });
+  return briefOf(chat);
+}
+
 describe("side thread origins", () => {
   it("opens at an interviewer message beside the current question, with the whole message as the fragment", async () => {
     const api = await interviewApi();
@@ -92,7 +98,8 @@ describe("side thread origins", () => {
   it("opens at an interviewer message on the question that was shown when the message came, without a hint for the next one", async () => {
     const api = await interviewApi();
     const run = await api.answered(["Опыт и резюме"], "Ответ [grade:2]");
-    const shown = await run.events.waitFor((view) => isGraded(0)(view) && hasQuestions(2)(view));
+    await run.events.waitFor(isGraded(0));
+    const shown = await run.events.waitFor(hasQuestions(2));
     const chatView = await run.chat.waitFor(saysWhenIdle("Ответ получен."));
 
     const { thread } = await openedSideThread(api, {
@@ -153,29 +160,29 @@ describe("side thread origins", () => {
 });
 
 describe("side thread brief and the Debrief", () => {
-  it("holds no Grade until the Candidate opens the Debrief of the Attempt, and holds it after", async () => {
+  it("holds no Grade while the Candidate has not opened the Debrief, even after the Debrief was read", async () => {
     const api = await interviewApi();
     const { run, card } = await gradedFirst(api, 3);
-    /** The brief of a new Side thread at the card. */
-    const briefAtCard = async () => {
-      const { chat } = await openedSideThread(api, {
-        interviewId: run.interview.id,
-        cardId: card.id,
-      });
-      return briefOf(chat);
-    };
 
-    const before = await briefAtCard();
+    const before = await briefAtCard(api, { interviewId: run.interview.id, card });
     await api.debrief(run.interview.id, card);
-    const afterRead = await briefAtCard();
-    const opened = await openDebrief(api, run.interview.id, card);
-    const after = await briefAtCard();
+    const afterRead = await briefAtCard(api, { interviewId: run.interview.id, card });
 
     expect(before).toMatchObject({ origin: "question", debrief: null });
     expect(JSON.stringify(before)).not.toMatch(/Фейковый интервьюер/u);
     expect(afterRead).toMatchObject({ debrief: null });
+  });
+
+  it("holds the Grade once the Candidate opened the Debrief of the Attempt", async () => {
+    const api = await interviewApi();
+    const { run, card } = await gradedFirst(api, 3);
+
+    const opened = await openDebrief(api, run.interview.id, card);
+
     expect(opened.statusCode).toBe(204);
-    expect(after).toMatchObject({ debrief: fakeDebrief(3) });
+    await expect(briefAtCard(api, { interviewId: run.interview.id, card })).resolves.toMatchObject({
+      debrief: fakeDebrief(3),
+    });
   });
 
   it("refuses to record the opening of a Debrief that the mock interview does not have", async () => {

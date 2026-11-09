@@ -22,7 +22,8 @@ async function interviewerMessage(
   interview: MockInterview,
   id: string,
 ): Promise<{ text: string; index: number } | undefined> {
-  const entries = (await sessions.view(interview.sessionId))?.entries ?? [];
+  const chat = await sessions.view(interview.sessionId);
+  const entries = chat?.entries ?? [];
   const index = entries.findIndex((line) => line.id === id && line.type === "agent_message");
   const text = entries[index]?.text;
   return text === undefined ? undefined : { text, index };
@@ -79,7 +80,7 @@ async function messagePlace(
  * without a selection gives its whole text. A message opens on the question that was shown when it
  * came, so a message from before the next question neither discusses nor hints at it.
  */
-export async function placeOf(
+export async function originPlace(
   dependencies: InterviewsDependencies,
   interview: MockInterview,
   { origin, fragment }: { origin: SideThreadOrigin; fragment: string | null },

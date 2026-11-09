@@ -12,7 +12,14 @@ import { endInterrupted, finish } from "./endings.ts";
 import type { FinishOutcome } from "./endings.ts";
 import { createInterviewer } from "./interviewer.ts";
 import type { Interviewer } from "./interviewer.ts";
-import { debrief, dispute, openDebrief, history, interviewSummary, targetTopicAttempts } from "./records.ts";
+import {
+  debrief,
+  dispute,
+  openDebrief,
+  history,
+  interviewSummary,
+  targetTopicAttempts,
+} from "./records.ts";
 import type { AttemptDebrief, DisputeRequest, InterviewSummary } from "./records.ts";
 import { createSideThreads } from "./side-threads.ts";
 import type { SideThreads } from "./side-threads.ts";

@@ -12,7 +12,7 @@ import type { SideThread, SideThreadOrigin } from "../domain/side-thread.ts";
 import { change, inBackground } from "./context.ts";
 import type { Context, InterviewsDependencies } from "./context.ts";
 import { debrief } from "./records.ts";
-import { placeOf } from "./side-thread-origins.ts";
+import { originPlace } from "./side-thread-origins.ts";
 import type { OriginRefusal } from "./side-thread-origins.ts";
 import { InterviewToolError, planOf } from "./tool-session.ts";
 
@@ -69,7 +69,7 @@ async function checkOpening(
   if (interview === undefined || plan === undefined) {
     return { type: "interview_not_found" };
   }
-  const place = await placeOf(dependencies, interview, request);
+  const place = await originPlace(dependencies, interview, request);
   if ("type" in place) {
     return place;
   }

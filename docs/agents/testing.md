@@ -96,6 +96,7 @@ A test runs the 2-minute wait for `finish_interview` with that timer; `/wait` in
 
 The fake agent has a side thread mode for Side threads (`fake-agent-side-thread.ts`).
 On «The Candidate opened a side thread from a mock interview.» it calls `get_brief` and replies «Разбираю вопрос кандидата: «<candidateQuestion>»».
+A failed step there ends the turn with «Фейковый агент ветки сломался: <error>».
 `/brief` in the Side thread's chat replies with the whole Handoff brief as JSON.
 `/tool-list` replies with the sorted names of the session's MCP tools: «MCP tools: <json>».
 A prompt that starts with the server's note «The Candidate discussed question N in a side thread.» first gets «Отметка: <note>», then the reply to the rest.

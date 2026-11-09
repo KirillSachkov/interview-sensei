@@ -5,7 +5,7 @@ import type { TargetPlan } from "./ports.ts";
 import type { SideThread } from "./side-thread.ts";
 
 /** The Section and Topic names of the asked question in the Target's plan. */
-function placeOf(plan: TargetPlan, question: AskedQuestion) {
+function sectionAndTopicOf(plan: TargetPlan, question: AskedQuestion) {
   const section = plan.sections.find((entry) => entry.id === question.sectionId);
   const topic = section?.topics.find((entry) => entry.id === question.topicId);
   return { section: section?.name ?? null, topic: topic?.name ?? null };
@@ -61,7 +61,7 @@ export function handoffBrief(
       text: question.text,
       format: question.format,
       options: question.options.map((option) => option.text),
-      ...placeOf(plan, question),
+      ...sectionAndTopicOf(plan, question),
     },
     answer: answerOf(question),
     followUps: question.followUps.map(({ question: asked, answer }) => ({

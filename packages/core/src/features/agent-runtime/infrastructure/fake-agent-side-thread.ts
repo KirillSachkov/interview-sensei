@@ -4,7 +4,7 @@
 //   вопрос кандидата: «<candidateQuestion of the brief>»».
 // - A prompt that starts with the server's note «The Candidate discussed question N in a side
 //   thread.» first gets «Отметка: <note> », then the reply to the rest of the prompt.
-// A failed step ends the turn with «Фейковый интервьюер сломался: <error>».
+// A failed step ends the turn with «Фейковый агент ветки сломался: <error>».
 import type { AgentContext } from "@agentclientprotocol/sdk/unstable";
 
 import { interviewerTurn, turnOf } from "./fake-agent-interviewer.ts";
@@ -29,7 +29,7 @@ const opened: Steps = async (actions) => {
 /** The explaining agent's turn for the server's opening message, or null for another prompt. */
 function sideThreadTurn(text: string) {
   return text.startsWith("The Candidate opened a side thread from a mock interview.")
-    ? turnOf(opened)
+    ? turnOf(opened, "Фейковый агент ветки сломался")
     : null;
 }
 
