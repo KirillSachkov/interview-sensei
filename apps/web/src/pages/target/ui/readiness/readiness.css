@@ -58,13 +58,8 @@
   gap: var(--space-2);
 }
 
-.focus-topics,
-.plan-topics {
+.focus-topics {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-}
-
-.plan-topics > li > ul {
-  margin-left: var(--space-4);
 }

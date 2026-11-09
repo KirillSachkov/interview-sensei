@@ -141,7 +141,9 @@ export function setupChatTests() {
       await chat.callTool("apply_changes", {});
 
       const plan = zones(page).goal.getByRole("list", { name: "План собеседования" });
-      await expect(plan.getByRole("list", { name: "Темы" })).toHaveText("ГенераторыGIL");
+      await expect(plan.getByRole("list", { name: "Темы" })).toHaveText(
+        "Генераторы: не начатоGIL: не начато",
+      );
       await expect(zones(page).goal).toContainText("Уровень: Middle");
       await expect(page.getByRole("button", { name: pythonName })).not.toContainText("черновик");
     });
