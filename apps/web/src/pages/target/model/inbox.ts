@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 
-import { fetchInbox, startInboxProcessing } from "@/shared/api";
+import { fetchInbox, startInboxProcessing, stopInboxProcessing } from "@/shared/api";
 import type { SessionView } from "@/shared/api";
 
 import { refreshAppliedViews } from "./plan-views";
@@ -45,6 +45,20 @@ export function useStartProcessing(targetId: string) {
     /** The chosen materials; null for every material in the Inbox. */
     mutationFn: async (sourceIds: readonly string[] | null) =>
       startInboxProcessing(targetId, sourceIds ?? undefined),
+    onSettled: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: inboxQueryKey(targetId) }),
+        queryClient.invalidateQueries({ queryKey: sourcesQueryKey(targetId) }),
+      ]);
+    },
+  });
+}
+
+/** «Остановить разбор»: the server answers once the processing is closed with a partial report. */
+export function useStopProcessing(targetId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => stopInboxProcessing(targetId),
     onSettled: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: inboxQueryKey(targetId) }),

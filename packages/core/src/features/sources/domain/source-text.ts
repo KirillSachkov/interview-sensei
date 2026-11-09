@@ -4,8 +4,12 @@
 /** The longest part of a Source's text, in characters: a part fits an agent's tool result. */
 const partLength = 8000;
 
-/** How the server reads a Source's text. */
-export type TextFormat = "pdf" | "docx" | "text" | "subtitles" | "html" | "web" | "unsupported";
+/**
+ * How the server reads a Source's text. A `video` has no text the server can read: the Candidate
+ * attaches its transcript as a material of its own (#36 decides on transcription).
+ */
+export type TextFormat =
+  "pdf" | "docx" | "text" | "subtitles" | "html" | "web" | "video" | "unsupported";
 
 const formatsByExtension: Readonly<Record<string, TextFormat>> = {
   pdf: "pdf",
@@ -18,20 +22,44 @@ const formatsByExtension: Readonly<Record<string, TextFormat>> = {
   vtt: "subtitles",
   html: "html",
   htm: "html",
+  mp4: "video",
+  mov: "video",
+  mkv: "video",
+  webm: "video",
+  avi: "video",
+  m4v: "video",
 };
 
-/** How to read the Source: a file by its extension, a link as a web page. */
+/** Video hostings: a link to one of them is a video, not a page with text. */
+const videoHosts = ["youtube.com", "youtu.be", "vimeo.com", "rutube.ru", "vkvideo.ru"];
+
+/** The lowercase extension of the last part of a path, or "" without one. */
+function extensionOf(path: string): string {
+  const name = path.split(/[/\\]/u).at(-1) ?? "";
+  const dot = name.lastIndexOf(".");
+  return dot > 0 ? name.slice(dot + 1).toLowerCase() : "";
+}
+
+/** A link to a video hosting or to a video file is a video; any other link is a web page. */
+function linkFormat(url: string): TextFormat {
+  const parsed = URL.parse(url);
+  if (parsed === null) {
+    return "web";
+  }
+  const host = parsed.hostname.toLowerCase();
+  const hosting = videoHosts.some((video) => host === video || host.endsWith(`.${video}`));
+  return hosting || formatsByExtension[extensionOf(parsed.pathname)] === "video" ? "video" : "web";
+}
+
+/** How to read the Source: a file by its extension, a link as a web page or a video. */
 export function textFormat(source: {
   readonly file: string | null;
   readonly url: string | null;
 }): TextFormat {
   if (source.file === null) {
-    return source.url === null ? "unsupported" : "web";
+    return source.url === null ? "unsupported" : linkFormat(source.url);
   }
-  const name = source.file.split(/[/\\]/u).at(-1) ?? "";
-  const dot = name.lastIndexOf(".");
-  const extension = dot > 0 ? name.slice(dot + 1).toLowerCase() : "";
-  return formatsByExtension[extension] ?? "unsupported";
+  return formatsByExtension[extensionOf(source.file)] ?? "unsupported";
 }
 
 const namedEntities: Readonly<Record<string, string>> = {

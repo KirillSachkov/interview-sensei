@@ -71,6 +71,9 @@ function Proposals({ proposals }: { proposals: InboxReport["proposals"] }) {
 function ReportBody({ report }: { report: InboxReport }) {
   return (
     <div className="side-panel-body nowheel">
+      {report.partial ? (
+        <p className="muted">Отчёт частичный: разбор закончился раньше, чем агент написал отчёт.</p>
+      ) : null}
       <p>{report.summary}</p>
       <section className="report-block" aria-label="Разобрано">
         <h3>Разобрано</h3>

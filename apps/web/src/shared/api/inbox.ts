@@ -110,6 +110,14 @@ export async function startInboxProcessing(
   });
 }
 
+/**
+ * «Остановить разбор»: the server closes the processing with a partial report; the unread materials
+ * go back to the Inbox. Throws the server's Russian message when no processing runs.
+ */
+export async function stopInboxProcessing(targetId: string): Promise<void> {
+  await request(`${inboxUrl(targetId)}/processing/stop`, { method: "POST" });
+}
+
 /** «Не сейчас»: the card closes and the materials stay in the Inbox. */
 export async function dismissInboxProposal(targetId: string): Promise<void> {
   await request(`${inboxUrl(targetId)}/proposal/dismiss`, { method: "POST" });

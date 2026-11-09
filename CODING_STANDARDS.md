@@ -90,6 +90,9 @@ The language rule itself stays in the profile's role.
 `inbox-processing` (#47) has the skill `sensei-inbox`, no shell, the web, and `askCandidate: false`: it has no chat, so the server refuses other requests itself.
 The server extracts the text of the Sources before the agent starts, so the agent needs no shell for a PDF or a page.
 The server's close waits for the started processings to read their texts (`inbox.settle`), then stops the agents.
+A run without the agent's report ends through `closeRun` in `sources/application/inbox-ending.ts`, with the partial report of `partialReport`: «Остановить разбор» (`inbox.stop`), the agent's failure (`watchAgent` follows the session as in `interviews`), a failed start, no readable Source, and the server's start (`inbox.endInterrupted` after `sessions.endInterrupted`).
+`closeRun` acts only on a run that still runs, so the agent's own report and an early end never both close it.
+The run records each part the agent reads with `read_source` (`readParts`): a partial report counts only a Source read to its last part as processed.
 
 A slice adds a session kind like this:
 

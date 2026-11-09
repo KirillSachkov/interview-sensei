@@ -99,6 +99,8 @@ It reads `get_brief` and `list_inbox`, puts one Question per part into the first
 A material whose title has `[manual]` makes it stop at «Жду команд.», so an API test drives the processing with `/tool` in the processing session's chat.
 `inbox-test-support.ts` starts a processing, finds its session and waits for the fake processor's first turn; `material-test-support.ts` makes a PDF, a DOCX and a web page on a local HTTP server, so no test needs the network.
 The server reads the texts and starts the agent in the background, so the tests wait for them with `vi.waitFor`.
+`/wait` and `/crash` in the processing session's chat keep its agent in a turn and make it fail, for the tests of «Остановить разбор» and of a failed agent.
+A test of a restart stops the server and starts another one on the same data directory, as the Mock interview tests do.
 The fake agent streams a reply word by word, so a test of a long text uses words without spaces.
 
 ## Ports

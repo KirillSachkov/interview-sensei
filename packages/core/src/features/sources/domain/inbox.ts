@@ -1,6 +1,7 @@
 // Inbox processing of spec #47: the setup agent proposes it, the Candidate starts it by a button, an
 // agent of its own reads the Sources part by part, adds Questions to the bank and writes an Inbox
 // report. The server keeps the statuses and counts what the agent added.
+import type { SourceStatus } from "./source.ts";
 
 /** What an Inbox processing does: reads materials. Spec #47 adds the recheck of the bank later. */
 export type InboxMode = "processing";
@@ -23,7 +24,11 @@ export interface InboxProposal {
   readonly createdAt: string;
 }
 
-/** An Inbox processing of a Target: `running` until the agent writes its Inbox report. */
+/**
+ * An Inbox processing of a Target: `running` until the agent writes its Inbox report, or until the
+ * server closes it with a partial one: on «Остановить разбор», when the agent fails or does not
+ * start, after a restart of the server, or when the server could not read any material.
+ */
 export interface InboxRun {
   readonly id: string;
   readonly targetId: string;
@@ -37,6 +42,8 @@ export interface InboxRun {
   readonly questionIds: readonly string[];
   /** How many of the agent's Questions the server left out as duplicates. */
   readonly duplicates: number;
+  /** The parts of each Source that the agent read with read_source, by Source id. */
+  readonly readParts: Readonly<Record<string, readonly number[]>>;
   readonly startedAt: string;
   readonly finishedAt: string | null;
 }
@@ -76,6 +83,80 @@ export interface InboxReport {
   readonly proposals: ReportProposals;
   readonly partial: boolean;
   readonly createdAt: string;
+}
+
+/**
+ * Why the server closed a run with a partial Inbox report:
+ * - `stopped`: the Candidate pressed «Остановить разбор»;
+ * - `agent_failed`: the agent's process failed;
+ * - `interrupted`: the server stopped while the run ran;
+ * - `agent_not_started`: the agent did not start;
+ * - `nothing_readable`: the server could not read the text of any material.
+ */
+export type RunEnding =
+  "stopped" | "agent_failed" | "interrupted" | "agent_not_started" | "nothing_readable";
+
+const endings: Readonly<Record<RunEnding, string>> = {
+  stopped: "Разбор остановлен кандидатом.",
+  agent_failed: "Агент разбора упал.",
+  interrupted: "Разбор прерван: приложение перезапустилось.",
+  agent_not_started: "Агент разбора не запустился.",
+  nothing_readable: "Сервер не смог прочитать ни один материал: причина — у каждого материала.",
+};
+
+/** A Source of the run as the partial report reads it. */
+export interface RunSource {
+  readonly id: string;
+  readonly status: SourceStatus;
+  readonly parts: number | null;
+}
+
+/** Whether the agent read every part of the Source's text. */
+function readWhole(run: InboxRun, { id, parts }: RunSource): boolean {
+  const read = new Set(run.readParts[id]);
+  return (
+    parts !== null &&
+    Array.from({ length: parts }, (_item, index) => index + 1).every((part) => read.has(part))
+  );
+}
+
+/**
+ * The partial Inbox report of a run the server closes without the agent's report, from what the
+ * agent wrote: its Questions and duplicates stay. Of the Sources still «разбирается», those whose
+ * every part the agent read become «готов» (`ready`); the rest go back to the Inbox (`back`). A
+ * Source with «ошибка» keeps it.
+ */
+export function partialReport(
+  run: InboxRun,
+  sources: readonly RunSource[],
+  { id, reason, createdAt }: { id: string; reason: RunEnding; createdAt: string },
+): { readonly report: InboxReport; readonly ready: string[]; readonly back: string[] } {
+  const own = sources.filter((source) => run.sourceIds.includes(source.id));
+  const processing = own.filter((source) => source.status === "processing");
+  const ready = processing.filter((source) => readWhole(run, source)).map((source) => source.id);
+  const back = processing.map((source) => source.id).filter((source) => !ready.includes(source));
+  const failed = own.filter((source) => source.status === "failed").length;
+  const summary = [
+    endings[reason],
+    `Разобрано полностью: ${ready.length} из ${run.sourceIds.length}.`,
+    ...(back.length > 0 ? [`Вернулись в Inbox: ${back.length}.`] : []),
+    ...(failed > 0 ? [`С ошибкой: ${failed}.`] : []),
+  ].join(" ");
+  const report: InboxReport = {
+    id,
+    targetId: run.targetId,
+    runId: run.id,
+    mode: run.mode,
+    sourceIds: run.sourceIds,
+    questionIds: run.questionIds,
+    duplicates: run.duplicates,
+    summary,
+    doubtful: [],
+    proposals: { sections: [], preferences: [] },
+    partial: true,
+    createdAt,
+  };
+  return { report, ready, back };
 }
 
 /** The server or the agent could not read the Source; the reason is in Russian. */

@@ -110,6 +110,32 @@ function registerReads(server: FastifyInstance, { sources }: Dependencies) {
   );
 }
 
+function registerStop(server: FastifyInstance, { sources }: Dependencies) {
+  server.post<{ Params: { id: string } }>(
+    "/api/targets/:id/inbox/processing/stop",
+    { schema: { params } },
+    async (request, reply) => {
+      const outcome = await sources.inbox.stop(request.params.id);
+      switch (outcome.type) {
+        case "stopped": {
+          return { reportId: outcome.report.id };
+        }
+        case "target_not_found": {
+          return reply.code(404).send({ error: outcome.type });
+        }
+        case "not_running": {
+          return reply
+            .code(409)
+            .send({ error: outcome.type, message: "Разбор уже закончился. Обновите страницу." });
+        }
+        default: {
+          return outcome satisfies never;
+        }
+      }
+    },
+  );
+}
+
 /**
  * Inbox processing of a Target (spec #47):
  * - `GET /api/targets/:id/inbox`: the open proposal of the setup chat with its materials, the
@@ -118,12 +144,16 @@ function registerReads(server: FastifyInstance, { sources }: Dependencies) {
  *   materials, of every material in the Inbox without `sourceIds`; 202 with the run. 409
  *   `processing_running` while a processing runs, 400 `no_sources`, `invalid_sources` or
  *   `agent_unavailable` with a Russian `message`.
+ * - `POST /api/targets/:id/inbox/processing/stop`: «Остановить разбор»; the server closes the
+ *   processing with a partial Inbox report and stops its agent; 200 `{ reportId }`, 409
+ *   `not_running` when no processing runs.
  * - `POST /api/targets/:id/inbox/proposal/dismiss`: «Не сейчас»; the materials stay in the Inbox.
  * - `GET /api/targets/:id/inbox-reports/:reportId`: the Inbox report with the added Questions by
  *   Section and Topic.
  */
 export function registerInboxRoutes(server: FastifyInstance, dependencies: Dependencies) {
   registerStart(server, dependencies);
+  registerStop(server, dependencies);
   registerReads(server, dependencies);
   server.post<{ Params: { id: string } }>(
     "/api/targets/:id/inbox/proposal/dismiss",

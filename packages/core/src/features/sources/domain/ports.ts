@@ -96,7 +96,12 @@ export interface InboxRepository<Transaction> {
     targetId: string,
     transaction?: Transaction,
   ) => Promise<InboxRun | undefined>;
-  readonly setRunSession: (runId: string, sessionId: string) => Promise<void>;
+  /** Gives the running run its session; false when the run no longer runs. */
+  readonly setRunSession: (runId: string, sessionId: string) => Promise<boolean>;
+  /** Every running run of every Target. */
+  readonly allRunning: () => Promise<readonly InboxRun[]>;
+  /** Records that the run's agent read the part of the Source. */
+  readonly recordRead: (runId: string, read: { sourceId: string; part: number }) => Promise<void>;
   /** Adds the Questions and the count of duplicates to what the run's agent added. */
   readonly recordAdded: (
     runId: string,
@@ -249,4 +254,12 @@ export interface InboxSessions {
   }) => Promise<{ readonly id: string }>;
   /** Stops the agent after its current turn. */
   readonly end: (sessionId: string) => Promise<void>;
+  /** Stops the agent at once, even in a turn, and ends the session. */
+  readonly stop: (sessionId: string) => Promise<unknown>;
+  /** Calls the listener after each change of a live session; returns the unsubscribe. */
+  readonly subscribe: (
+    sessionId: string,
+    listener: (view: { readonly status: string }) => void,
+  ) => () => void;
+  readonly view: (sessionId: string) => Promise<{ readonly status: string } | undefined>;
 }

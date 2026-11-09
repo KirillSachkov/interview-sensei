@@ -9,7 +9,7 @@ import { inboxBrief } from "../domain/inbox.ts";
 import type { DoubtfulQuestion, InboxReport, InboxRun, ReportProposals } from "../domain/inbox.ts";
 import type { InboxNewQuestion, InboxTarget } from "../domain/ports.ts";
 import type { Source } from "../domain/source.ts";
-import { runOf, sessionTarget } from "./inbox-context.ts";
+import { runOf } from "./inbox-context.ts";
 import type { InboxContext } from "./inbox-context.ts";
 
 /** A material of the processing as the agent sees it. */
@@ -39,27 +39,6 @@ export async function listInbox(context: InboxContext, session: ToolSession) {
   const { run } = await runOf(context, session);
   const sources = await runSources(context, run);
   return sources.map((source) => listed(source));
-}
-
-/** One part of a material's text; the agent reads every part from 1 to `parts`. */
-export async function readSource(
-  { dependencies }: InboxContext,
-  session: ToolSession,
-  { id, part }: { id: string; part: number },
-) {
-  const targetId = sessionTarget(session);
-  const source = await dependencies.repository.get(targetId, id);
-  if (source === undefined) {
-    throw new Error("Source not found");
-  }
-  if (source.parts === null) {
-    throw new Error("The server has not read this material's text");
-  }
-  const text = part <= source.parts ? await dependencies.texts.read(targetId, id, part) : undefined;
-  if (text === undefined) {
-    throw new Error(`The material has parts 1 to ${source.parts}`);
-  }
-  return { sourceId: id, part, parts: source.parts, text };
 }
 
 /** A Question of `add_bank_questions` as the agent gives it. */

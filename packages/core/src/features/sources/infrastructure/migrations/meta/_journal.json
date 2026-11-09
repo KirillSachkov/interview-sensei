@@ -15,6 +15,13 @@
       "when": 1794247935217,
       "tag": "0001_inbox_processing",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794251846589,
+      "tag": "0002_inbox_read_parts",
+      "breakpoints": true
     }
   ]
 }

@@ -17,9 +17,11 @@ Everything the Candidate should know goes into the [report](#report).
    Read every part: a long material is never cut, and the last part may hold the best questions.
    The server has already extracted the text of PDF, DOCX, subtitles and web pages; shell commands are not available.
 4. **Add.** After each part, add its Questions with `add_bank_questions`; see [Questions](#questions).
+   When you cannot read a material at all, see [Unreadable materials](#unreadable-materials) and go on with the next one.
 5. **Report.** After the last part of the last material, call `write_inbox_report` once; it finishes the processing.
 
 A step is done when its tool call succeeds. A tool error names the rule it enforces: follow it and call again.
+The Candidate may stop the processing at any time. The Questions you added stay, and only a material you read to its last part counts as processed, so finish one material before the next.
 `get_source` gives a material's metadata and file path; `get_target` and `search_questions` show the Target as it is now.
 
 ## Questions
@@ -57,6 +59,12 @@ Call `write_inbox_report` with:
 - `proposals.preferences`: new Preferences in the Candidate's words and the reason in Russian.
 
 The server adds what it counted itself: the processed materials, the added Questions by Section and Topic, and the number of duplicates.
+
+## Unreadable materials
+
+A material the server could not read is not in this processing's work: `list_inbox` shows it with the status `failed` and the reason, such as «приложите транскрипт» for a video. Skip it.
+When the text of a material is garbled, or a link does not open on the web either, call `mark_source_failed` with its id and a short reason in Russian, such as «страница не открылась».
+A readable material that is off the topic is not an error: say so in the report's summary.
 
 ## Web
 

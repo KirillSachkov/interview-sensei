@@ -144,6 +144,7 @@ function readers(timer: Timer): Record<TextFormat, (source: Source) => Promise<s
     subtitles: async (source) => subtitleText(await decoded(source)),
     html: async (source) => pageText(await decoded(source)),
     web: async ({ url }) => webText(url, timer),
+    video: () => Promise.reject(new UnreadableSourceError("приложите транскрипт")),
     unsupported: () => Promise.reject(new UnreadableSourceError(unsupported)),
   };
 }

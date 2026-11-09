@@ -204,20 +204,36 @@ export const vacancy = "Вакансия Go\n\nНужно знать горут�
 
 /**
  * An active Target with the plan of setupPlan, its setup chat, and a running Inbox processing of a
- * `[manual]` vacancy, whose agent waits for `/tool`.
+ * `[manual]` vacancy, whose agent waits for `/tool`. With `notes`, a text file of notes is processed
+ * after the vacancy.
  */
-export async function manualProcessing() {
-  const { server } = await startServer(await temporaryDirectory());
+export async function manualProcessing({
+  dataDirectory,
+  notes = false,
+}: { dataDirectory?: string; notes?: boolean } = {}) {
+  const { server, stop } = await startServer(dataDirectory ?? (await temporaryDirectory()));
   const { target, events: setup } = await appliedTarget(server);
   const file = await attach(server, {
     targetId: target.id,
     name: "vacancy [manual].md",
     body: vacancy,
   });
+  const notesFile = notes
+    ? await attach(server, { targetId: target.id, name: "notes.md", body: "Каналы и select." })
+    : null;
   const started = await startProcessing(server, target.id);
   expect(started.statusCode).toBe(202);
   const { session, events } = await processingEvents(server, target.id);
-  return { server, target, setup, file, session, events };
+  return { server, stop, target, setup, file, notes: notesFile, session, events };
+}
+
+/** «Остановить разбор». */
+export async function stopProcessing(server: FastifyInstance, targetId: string) {
+  return server.inject({
+    method: "POST",
+    url: `/api/targets/${targetId}/inbox/processing/stop`,
+    headers: browserHeaders(server),
+  });
 }
 
 /** The Section of the Target's plan by name. */

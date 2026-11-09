@@ -104,13 +104,19 @@ The agent there proposes Inbox processing with a card, and only the Candidate's 
 The background work on Sources of the Inbox: the server reads the text of each Source into numbered parts, then an Agent session of its own reads every part, adds Questions to the Topics of existing Sections and writes an Inbox report.
 It may create a Topic inside a Section, but never changes Sections or the Interview plan: it proposes them in the Inbox report.
 A Target has at most one Inbox processing at a time; Sources added meanwhile wait for the next one.
+«Остановить разбор», a failed agent or a restart of the server ends it early; so does a start where the server could not read any Source.
+Then the Questions already added stay, a Source whose every part the agent read becomes «готов», the other Sources «разбирается» go back to the Inbox, and the server writes a partial Inbox report.
 
 **Source status**:
 Where a Source is in Inbox processing: «в Inbox» until processing starts, «разбирается» during it, «готов» after it, or «ошибка» with the reason when the Source could not be read.
+The server gives «ошибка» to a format it cannot read, archives included, to a Source without text, and to a video file or a video link: «приложите транскрипт».
+The Candidate attaches the video's transcript as a Source of its own, and Inbox processing reads it as text.
+The agent gives «ошибка» with its reason to a Source it cannot read either.
 
 **Inbox report**:
 The summary of one Inbox processing: the processed Sources, the added Questions by Section and Topic, the number of duplicates the server left out, the Questions the agent doubts, and its proposals of new Sections and Preferences.
 The server counts the Sources, Questions and duplicates; the agent writes the summary, the doubts and the proposals.
+A partial Inbox report comes from the server when Inbox processing ended without the agent's report: its summary says why and how many Sources were read to the end, and it has no doubts or proposals.
 
 **Preference**:
 A rule the Candidate gave for a Target in plain language, with rejected Questions as examples, such as "fewer definitions, more applied questions".

@@ -114,6 +114,10 @@ function inboxSessions(sessions: () => AgentSessions) {
   return {
     start: async (request: Parameters<AgentSessions["start"]>[0]) => sessions().start(request),
     end: async (sessionId: string) => sessions().end(sessionId),
+    stop: async (sessionId: string) => sessions().stop(sessionId),
+    subscribe: (...subscription: Parameters<AgentSessions["subscribe"]>) =>
+      sessions().subscribe(...subscription),
+    view: async (sessionId: string) => sessions().view(sessionId),
   };
 }
 

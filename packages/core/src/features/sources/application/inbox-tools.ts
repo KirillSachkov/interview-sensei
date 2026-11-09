@@ -100,6 +100,16 @@ function createTopic(inbox: Inbox) {
   });
 }
 
+function markSourceFailed(inbox: Inbox) {
+  return sessionTool({
+    name: "mark_source_failed",
+    description:
+      "Marks a material of this processing «ошибка» with a short reason in Russian, such as «страница не открылась» or «текст нечитаем». Use it only when you cannot read the material: its text is garbled, or a link the server could not read does not open through your web tools either. A readable material off the topic is not an error: say so in the report. The Candidate sees the reason on the card «Материалы».",
+    input: z.strictObject({ id: z.uuid(), reason: z.string().trim().min(1).max(300) }),
+    run: async (input, session) => JSON.stringify(await inbox.markSourceFailed(session, input)),
+  });
+}
+
 function writeInboxReport(inbox: Inbox) {
   return sessionTool({
     name: "write_inbox_report",
@@ -150,6 +160,7 @@ export function inboxTools(inbox: Inbox) {
     readSource(inbox),
     addBankQuestions(inbox),
     createTopic(inbox),
+    markSourceFailed(inbox),
     writeInboxReport(inbox),
   ];
 }
