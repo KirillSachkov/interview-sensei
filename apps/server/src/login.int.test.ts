@@ -63,7 +63,7 @@ describe("interview-sensei login opencode", () => {
     expect(code).toBe(3);
     const record = await readFile(candidate.record, "utf8");
     expect(record).toContain("args=auth login --standalone");
-    expect(record).toContain(`data=${path.join(dataDirectory, "agents", "opencode", "data")}`);
+    expect(record).toContain(`data=${path.join(dataDirectory, "agents", "opencode", "data-2")}\n`);
     expect(record).toContain(`cwd=${own}`);
   });
 

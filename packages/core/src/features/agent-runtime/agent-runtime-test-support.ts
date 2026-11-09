@@ -36,7 +36,7 @@ export function skillReader() {
 
 /** The database of the application's own OpenCode 2.x in the test's data directory. */
 export const ownDatabase =
-  "/home/candidate/.interview-sensei/agents/opencode/data/opencode/opencode.db";
+  "/home/candidate/.interview-sensei/agents/opencode/data-2/opencode/opencode.db";
 
 /** The Candidate's OpenCode 2.x API keys of two providers. */
 export const apiKeyCredentials: readonly OpencodeCredentialRow[] = [

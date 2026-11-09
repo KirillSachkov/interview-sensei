@@ -88,13 +88,15 @@ export function opencodeRoot(dataDirectory: string): string {
 }
 
 /**
- * OpenCode's own XDG directories in the data directory. Every session and the application's
- * login (#69) share them, so OpenCode 2.x keeps one database there.
+ * OpenCode's own XDG directories in the data directory. Every 2.x session and the application's
+ * login (#69) share them, so OpenCode 2.x keeps one database there. 2.x gets a data home of its
+ * own: migrating a database that 1.x left in `data`, 2.x would import the linked `auth.json` of
+ * the Candidate, refresh token and all, and both would then refresh one rotating token.
  */
-export function opencodeHomes(root: string) {
+export function opencodeHomes(root: string, schema: OpencodeConfigSchema) {
   return {
     XDG_CONFIG_HOME: child(root, "config"),
-    XDG_DATA_HOME: child(root, "data"),
+    XDG_DATA_HOME: child(root, schema === "2.x" ? "data-2" : "data"),
     XDG_STATE_HOME: child(root, "state"),
     XDG_CACHE_HOME: child(root, "cache"),
   };
@@ -162,9 +164,12 @@ function opencodeConfigContent(
 /** The session's variables: OpenCode's own homes, the flags, the config and the 2.x keys. */
 function opencodeEnv(
   { host, opencodeKeys, profile }: LaunchRequest,
-  { homes, skillsPath }: { homes: Record<string, string>; skillsPath: string },
+  {
+    schema,
+    homes,
+    skillsPath,
+  }: { schema: OpencodeConfigSchema; homes: Record<string, string>; skillsPath: string },
 ): Record<string, string> {
-  const schema = opencodeConfigSchema(host.opencodeVersion);
   return {
     ...homes,
     OPENCODE_DISABLE_CLAUDE_CODE: "1",
@@ -186,12 +191,13 @@ export function opencodeRecipe(request: LaunchRequest): LaunchRecipe {
   const root = opencodeRoot(dataDirectory);
   const skillsPath = child(root, "skills", profile.skill.name);
   const skill = skillCopy(child(skillsPath, profile.skill.name), profile.skill);
-  const homes = opencodeHomes(root);
+  const schema = opencodeConfigSchema(host.opencodeVersion);
+  const homes = opencodeHomes(root, schema);
   const ownData = child(homes.XDG_DATA_HOME, "opencode");
   return {
     command: required(host.opencodeBinary, "opencode"),
     args: ["acp"],
-    env: opencodeEnv(request, { homes, skillsPath }),
+    env: opencodeEnv(request, { schema, homes, skillsPath }),
     sessionMeta: null,
     // OpenCode has no ACP system prompt; its own agent carries the role.
     systemPrompt: null,
@@ -209,11 +215,13 @@ export function opencodeRecipe(request: LaunchRequest): LaunchRecipe {
       sessionDirectory,
     ],
     files: skill.files,
-    // 1.x reads the keys here; 2.x imports this file only into a database it migrates from 1.x.
-    // A link to a missing file would make OpenCode create the Candidate's file on login.
-    symlinks: host.opencodeAuth.exists
-      ? [{ path: child(ownData, "auth.json"), target: host.opencodeAuth.path }]
-      : [],
+    // Only 1.x reads the keys here; 2.x gets the Candidate's API keys in its env and would import
+    // this file into a database it migrates. A link to a missing file would make OpenCode create
+    // the Candidate's file on login.
+    symlinks:
+      schema === "1.x" && host.opencodeAuth.exists
+        ? [{ path: child(ownData, "auth.json"), target: host.opencodeAuth.path }]
+        : [],
     syncedDirectories: [skill.directory],
   };
 }

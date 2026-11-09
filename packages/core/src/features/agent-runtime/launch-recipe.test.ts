@@ -129,9 +129,24 @@ describe("launch recipe", () => {
     });
   });
 
-  it.each(Object.entries(opencodeVersions))(
-    "starts OpenCode %s from PATH with its own XDG directories and its own config",
-    (_schema, opencodeVersion) => {
+  // 2.x gets a data home of its own without the link: migrating a database that 1.x left there,
+  // 2.x would import the Candidate's auth.json, refresh token and all (#69).
+  it.each([
+    {
+      schema: "1.x",
+      opencodeVersion: opencodeVersions.v1,
+      dataHome: "data",
+      symlinks: [
+        {
+          path: `${dataDirectory}/agents/opencode/data/opencode/auth.json`,
+          target: host.opencodeAuth.path,
+        },
+      ],
+    },
+    { schema: "2.x", opencodeVersion: opencodeVersions.v2, dataHome: "data-2", symlinks: [] },
+  ])(
+    "starts OpenCode $schema from PATH with its own XDG directories and its own config",
+    ({ opencodeVersion, dataHome, symlinks }) => {
       const root = `${dataDirectory}/agents/opencode`;
       const skills = `${root}/skills/probe-skill`;
       const { env, ...launch } = recipe("opencode", { opencodeVersion });
@@ -142,7 +157,7 @@ describe("launch recipe", () => {
         args: ["acp"],
         env: {
           XDG_CONFIG_HOME: `${root}/config`,
-          XDG_DATA_HOME: `${root}/data`,
+          XDG_DATA_HOME: `${root}/${dataHome}`,
           XDG_STATE_HOME: `${root}/state`,
           XDG_CACHE_HOME: `${root}/cache`,
           OPENCODE_DISABLE_CLAUDE_CODE: "1",
@@ -158,7 +173,7 @@ describe("launch recipe", () => {
         dataDirectory,
         directories: [
           `${root}/config`,
-          `${root}/data/opencode`,
+          `${root}/${dataHome}/opencode`,
           `${root}/state`,
           `${root}/cache`,
           `${skills}/probe-skill`,
@@ -169,7 +184,7 @@ describe("launch recipe", () => {
           { path: `${skills}/probe-skill/SKILL.md`, content: skillText },
           { path: `${skills}/probe-skill/references/notes.md`, content: notesText },
         ],
-        symlinks: [{ path: `${root}/data/opencode/auth.json`, target: host.opencodeAuth.path }],
+        symlinks,
         syncedDirectories: [`${skills}/probe-skill`],
       });
     },
@@ -177,6 +192,7 @@ describe("launch recipe", () => {
 
   it("links no OpenCode login that the Candidate does not have", () => {
     const launch = recipe("opencode", {
+      opencodeVersion: opencodeVersions.v1,
       opencodeAuth: { path: host.opencodeAuth.path, exists: false },
     });
     expect(launch.symlinks).toStrictEqual([]);

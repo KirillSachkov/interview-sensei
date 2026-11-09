@@ -108,7 +108,8 @@ The server keeps all data in `~/.interview-sensei`; the `INTERVIEW_SENSEI_DATA_D
 All e2e test files share that data directory, so only `e2e/tests/canvas.test.ts` creates Targets.
 Its tests run in order: the first sees no Targets and opens the demo Target, the rest use it.
 Each agent session works in its own directory under `sessions/` in the data directory.
-The agents' own homes and configs live under `agents/` in the data directory, with symlinks to the Candidate's `auth.json`.
+The agents' own homes and configs live under `agents/` in the data directory, with symlinks to the Candidate's `auth.json` for Codex and OpenCode 1.x.
+OpenCode 2.x keeps its data, the application's own login among it, in `agents/opencode/data-2` (#69).
 Claude Code is the exception (#24): it keeps the Candidate's config directory and writes its own state there.
 One running server owns a data directory: a second server on it exits with code 1 and an error message.
 Give each worktree its own data directory when several servers run at once.

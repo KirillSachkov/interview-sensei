@@ -47,6 +47,7 @@ It creates the slice's infrastructure itself and returns the slice's service.
 The slice's `index.ts` exports the factory, its migrations, its MCP tools and the types of its service.
 It also exports the constants, errors and dependency types that the server needs, such as `SessionsClosedError`.
 It does not export application or infrastructure parts.
+`agent-runtime` also exports `opencodeLoginModule` for `interview-sensei login opencode` (#69): that command runs without a server, storage or lock.
 
 `apps/server/src/composition.ts` is the only server file that imports core features; `server-composes-features-in-one-module` checks it.
 `composeFeatures` opens the storage and calls each factory once.
@@ -187,6 +188,9 @@ So a subscription login needs the application's own login, which the owner chose
 It runs `opencode auth login --standalone` in the recipe's OpenCode homes in the data directory; `opencodeLoginCommand` builds it.
 `--standalone` keeps the login off the Candidate's background OpenCode service, which would write the Candidate's database.
 OpenCode keeps the login in its database there, and every session shares that database and refreshes the login itself.
+Sessions refresh it one at a time: OpenCode locks the refresh in `$XDG_STATE_HOME/opencode/locks`, which they share too.
+2.x gets its own data home, `agents/opencode/data-2`, without the link to `auth.json`; 1.x keeps `data` and the link.
+Otherwise 2.x, migrating a database that 1.x left in `data`, would import the Candidate's `auth.json`, refresh token and all.
 The command refuses OpenCode 1.x: 1.x would write the login through the link to the Candidate's `auth.json`.
 At the start of a 2.x session the server also reads the credentials of that database, in the same way.
 `opencodeLoginsToRepeat` names the session's providers with a subscription login of the Candidate and no login of the application; the runtime warns of each in the server log.

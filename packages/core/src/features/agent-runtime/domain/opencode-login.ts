@@ -5,10 +5,15 @@
 import type { AgentHost } from "./agent.ts";
 import { agentEnvironment } from "./launch-recipe.ts";
 import { opencodeConfigSchema, opencodeHomes, opencodeRoot } from "./opencode-recipe.ts";
+import { child } from "./recipe.ts";
 
 /** The database of the application's own OpenCode 2.x, which holds its login. */
 export function opencodeOwnDatabase(dataDirectory: string): string {
-  return `${opencodeHomes(opencodeRoot(dataDirectory)).XDG_DATA_HOME}/opencode/opencode.db`;
+  return child(
+    opencodeHomes(opencodeRoot(dataDirectory), "2.x").XDG_DATA_HOME,
+    "opencode",
+    "opencode.db",
+  );
 }
 
 /** The program to run for the login, or why the application refuses it. */
@@ -61,7 +66,7 @@ export function opencodeLoginCommand(
     args: ["auth", "login", "--standalone"],
     cwd: root,
     env: agentEnvironment(env, {
-      ...opencodeHomes(root),
+      ...opencodeHomes(root, "2.x"),
       OPENCODE_DISABLE_CLAUDE_CODE: "1",
       OPENCODE_DISABLE_PROJECT_CONFIG: "1",
     }),

@@ -16,7 +16,7 @@ describe("opencode login command", () => {
       cwd: own,
       env: {
         XDG_CONFIG_HOME: `${own}/config`,
-        XDG_DATA_HOME: `${own}/data`,
+        XDG_DATA_HOME: `${own}/data-2`,
         XDG_STATE_HOME: `${own}/state`,
         XDG_CACHE_HOME: `${own}/cache`,
         OPENCODE_DISABLE_CLAUDE_CODE: "1",
@@ -36,7 +36,7 @@ describe("opencode login command", () => {
         INTERVIEW_SENSEI_DATA_DIR: dataDirectory,
       },
     });
-    expect(login).toMatchObject({ env: { PATH: "/usr/bin", XDG_DATA_HOME: `${own}/data` } });
+    expect(login).toMatchObject({ env: { PATH: "/usr/bin", XDG_DATA_HOME: `${own}/data-2` } });
     expect(login).not.toHaveProperty("env.OPENCODE_DB");
     expect(login).not.toHaveProperty("env.OPENCODE_CONFIG");
     expect(login).not.toHaveProperty("env.INTERVIEW_SENSEI_DATA_DIR");

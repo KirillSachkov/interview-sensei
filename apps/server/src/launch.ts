@@ -5,14 +5,13 @@ import { access } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
 
-import { dataDirectoryVariable, resolveDataDirectory } from "@interview-sensei/core/storage";
 import { systemTimer } from "@interview-sensei/core/time";
 
 import { openBrowser } from "./browser.ts";
-import { loginToOpencode } from "./composition.ts";
+import { opencodeLoginModule } from "./composition.ts";
 import { launchOptions, usage } from "./launch-options.ts";
 import type { LaunchOptions } from "./launch-options.ts";
-import { runServer } from "./run-server.ts";
+import { chosenDataDirectory, runServer } from "./run-server.ts";
 import { StartError } from "./start-error.ts";
 
 // The built app, the output of `pnpm build` in apps/web: the web build and the application's
@@ -62,18 +61,12 @@ function readOptions(): LaunchOptions | null {
  * server: OpenCode writes the login into its database in the data directory.
  */
 async function loginOpencode(options: LaunchOptions): Promise<void> {
-  const result = await loginToOpencode({
-    dataDirectory: resolveDataDirectory({
-      env:
-        options.dataDirectory === undefined
-          ? process.env
-          : { [dataDirectoryVariable]: options.dataDirectory },
-      home: homedir(),
-      workingDirectory: process.cwd(),
-    }),
+  const login = opencodeLoginModule({
+    dataDirectory: chosenDataDirectory(options.dataDirectory),
     userEnvironment: { home: homedir(), env: process.env },
     timer: systemTimer,
   });
+  const result = await login();
   if (result.type === "refused") {
     process.stderr.write(`${result.reason}\n`);
     process.exitCode = 1;

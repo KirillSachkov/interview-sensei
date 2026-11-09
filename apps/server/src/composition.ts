@@ -32,7 +32,7 @@ import type { Progress } from "@interview-sensei/core/progress";
 import type { QuestionBank } from "@interview-sensei/core/question-bank";
 
 export type { AgentRuntime, UserEnvironment } from "@interview-sensei/core/agent-runtime";
-export { loginToOpencode } from "@interview-sensei/core/agent-runtime";
+export { opencodeLoginModule } from "@interview-sensei/core/agent-runtime";
 export { SessionsClosedError } from "@interview-sensei/core/agent-sessions";
 export { UnknownAgentError } from "@interview-sensei/core/targets";
 export type { AgentSessions, SessionView } from "@interview-sensei/core/agent-sessions";

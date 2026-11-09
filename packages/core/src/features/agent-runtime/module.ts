@@ -6,6 +6,8 @@ import type { AgentKind } from "./domain/agent.ts";
 import { acpLauncher } from "./infrastructure/acp-process-launcher.ts";
 import { inspectAgentHost } from "./infrastructure/installation.ts";
 import { readOpencodeCredentials } from "./infrastructure/opencode-credentials.ts";
+import { loginToOpencode } from "./infrastructure/opencode-login.ts";
+import type { OpencodeLoginResult } from "./infrastructure/opencode-login.ts";
 import type { UserEnvironment } from "./infrastructure/installation.ts";
 import { skillDirectory } from "./infrastructure/skill-directory.ts";
 
@@ -58,4 +60,21 @@ export function agentRuntimeModule({
     // The fake agent needs none of the Candidate's variables.
     launch: acpLauncher({ timer, env: environment?.env ?? {} }),
   });
+}
+
+/**
+ * The application's own OpenCode 2.x login (#69) for `interview-sensei login opencode`. The
+ * command runs without the server, so it gets no `agentRuntimeModule`; the login writes only into
+ * the data directory.
+ */
+export function opencodeLoginModule({
+  timer,
+  dataDirectory,
+  userEnvironment,
+}: {
+  timer: Timer;
+  dataDirectory: string;
+  userEnvironment: UserEnvironment;
+}): () => Promise<OpencodeLoginResult> {
+  return async () => loginToOpencode({ dataDirectory, userEnvironment, timer });
 }
