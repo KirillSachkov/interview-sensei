@@ -9,6 +9,7 @@ import type { InterviewView } from "../domain/interview-view.ts";
 import type { PlanSection, TargetPlan } from "../domain/ports.ts";
 import { tellInterviewer, viewOf } from "./context.ts";
 import type { Context, InterviewsDependencies } from "./context.ts";
+import { watchTimeLimit } from "./time-limit.ts";
 
 export interface StartRequest {
   readonly targetId: string;
@@ -65,6 +66,20 @@ interface StartPlan {
   readonly plan: TargetPlan;
   readonly sections: readonly PlanSection[];
   readonly agent: string;
+  /** The requested difficulty, or the one of the Target's last Mock interview. */
+  readonly difficulty: Difficulty;
+}
+
+/** The Target keeps the difficulty the Candidate chose last, «как есть» at first. */
+async function difficultyOf(
+  { repository }: InterviewsDependencies,
+  { targetId, difficulty }: StartRequest,
+): Promise<Difficulty> {
+  if (difficulty !== undefined) {
+    return difficulty;
+  }
+  const [last] = await repository.latest(targetId, 1);
+  return last?.difficulty ?? "as_is";
 }
 
 /** Checks the start request in the order the Candidate can fix it. */
@@ -84,11 +99,13 @@ async function checkStart(
     return { type: "interview_running" };
   }
   const agent = await interviewerAgent(dependencies, plan.id);
-  return typeof agent === "string" ? { plan, sections, agent } : agent;
+  return typeof agent === "string"
+    ? { plan, sections, agent, difficulty: await difficultyOf(dependencies, request) }
+    : agent;
 }
 
 function newInterview(
-  { plan, sections, agent }: StartPlan,
+  { plan, sections, agent, difficulty }: StartPlan,
   {
     request,
     sessionId,
@@ -104,7 +121,7 @@ function newInterview(
     sectionIds: sections.map((section) => section.id),
     currentSectionId: sections[0]?.id ?? null,
     limitMinutes: request.limitMinutes ?? null,
-    difficulty: request.difficulty ?? "as_is",
+    difficulty,
     startedAt,
     finishRequestedAt: null,
     finishedAt: null,
@@ -138,6 +155,12 @@ async function stored(
   return false;
 }
 
+/** The agent gets the first template message; the server keeps the time of a limit. */
+function begin(context: Context, interview: MockInterview): void {
+  tellInterviewer(context, interview.sessionId, interviewStarted);
+  watchTimeLimit(context, interview);
+}
+
 export async function start(context: Context, request: StartRequest): Promise<StartOutcome> {
   const { dependencies } = context;
   const checked = await checkStart(dependencies, request);
@@ -153,6 +176,6 @@ export async function start(context: Context, request: StartRequest): Promise<St
   if (!(await stored(dependencies, interview))) {
     return { type: "interview_running" };
   }
-  tellInterviewer(context, session.id, interviewStarted);
+  begin(context, interview);
   return { type: "started", interview: await viewOf(dependencies, interview) };
 }

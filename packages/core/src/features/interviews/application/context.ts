@@ -1,4 +1,4 @@
-import type { Clock } from "../../../shared/time/index.ts";
+import type { Clock, Timer } from "../../../shared/time/index.ts";
 import type { MockInterview } from "../domain/interview.ts";
 import { interviewView } from "../domain/interview-view.ts";
 import type { InterviewView } from "../domain/interview-view.ts";
@@ -17,6 +17,8 @@ export interface InterviewsDependencies {
   readonly questions: InterviewQuestions;
   readonly sessions: InterviewSessions;
   readonly clock: Clock;
+  /** Runs the reminder before the time limit and the end of the limit. */
+  readonly timer: Timer;
   /** Receives errors of background work, such as a template message that failed to send. */
   readonly onError: (error: unknown) => void;
 }
@@ -37,14 +39,14 @@ export function createContext(dependencies: InterviewsDependencies): Context {
 }
 
 export async function viewOf(
-  { repository }: InterviewsDependencies,
+  { repository, clock }: InterviewsDependencies,
   interview: MockInterview,
 ): Promise<InterviewView> {
   const [asked, attempts] = await Promise.all([
     repository.asked(interview.id),
     repository.attempts(interview.id),
   ]);
-  return interviewView(interview, asked, attempts);
+  return interviewView(interview, { asked, attempts, now: clock.now().toISOString() });
 }
 
 /** Tells the listeners of the Mock interview its new view. */

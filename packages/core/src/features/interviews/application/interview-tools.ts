@@ -5,6 +5,7 @@ import { z } from "zod";
 import { sessionTool } from "../../../shared/mcp/index.ts";
 import type { SessionTool } from "../../../shared/mcp/index.ts";
 import type { Interviews } from "./interviews.ts";
+import { questionTools } from "./question-tools.ts";
 
 const judgment = z.strictObject({
   grade: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]),
@@ -25,20 +26,7 @@ export function interviewTools({ interviewer }: Interviews): readonly SessionToo
       input: z.strictObject({}),
       run: async (_input, session) => interviewer.brief(session.sessionId),
     }),
-    sessionTool({
-      name: "next_question_candidates",
-      description:
-        "Returns Questions you may show next, from the current Section, as JSON. Questions already asked in this mock interview are left out. Pick one and show it with present_question.",
-      input: z.strictObject({ limit: z.number().int().min(1).max(20).default(10) }),
-      run: async ({ limit }, session) => interviewer.candidates(session.sessionId, limit),
-    }),
-    sessionTool({
-      name: "present_question",
-      description:
-        "Shows the Question to the Candidate as a card. Only one question is shown at a time: the next one needs the Attempt of the current one. After this call, end your turn and wait for the Candidate's answer.",
-      input: z.strictObject({ questionId: z.uuid() }),
-      run: async (input, session) => interviewer.present(session.sessionId, input),
-    }),
+    ...questionTools(interviewer),
     sessionTool({
       name: "ask_follow_up",
       description:

@@ -9,6 +9,7 @@ import type {
   FollowUp,
   Grade,
   MockInterview,
+  PastQuestion,
 } from "../domain/interview.ts";
 import type { InterviewRepository } from "../domain/ports.ts";
 import { askedQuestions, attempts, interviews } from "./schema.ts";
@@ -113,6 +114,34 @@ function askedQueries(database: Database) {
   } satisfies Partial<InterviewRepository>;
 }
 
+/** Every Question asked in a Target's Mock interviews, with the Grade of its Attempt. */
+async function history(database: Database, targetId: string): Promise<readonly PastQuestion[]> {
+  const rows = await database
+    .select({
+      interviewId: askedQuestions.interviewId,
+      questionId: askedQuestions.questionId,
+      topicId: askedQuestions.topicId,
+      presentedAt: askedQuestions.presentedAt,
+      grade: attempts.grade,
+    })
+    .from(askedQuestions)
+    .innerJoin(interviews, eq(askedQuestions.interviewId, interviews.id))
+    .leftJoin(attempts, eq(attempts.askedQuestionId, askedQuestions.id))
+    .where(eq(interviews.targetId, targetId))
+    .orderBy(
+      asc(askedQuestions.presentedAt),
+      asc(interviews.startedAt),
+      asc(askedQuestions.position),
+    );
+  return rows.map(({ interviewId, questionId, topicId, presentedAt, grade }) => ({
+    interviewId,
+    questionId,
+    topicId,
+    presentedAt: presentedAt.toISOString(),
+    grade: grade === null ? null : toGrade(grade),
+  }));
+}
+
 /** The Attempts; one per asked question. */
 function attemptQueries(database: Database) {
   return {
@@ -152,5 +181,6 @@ export function drizzleInterviewRepository(database: Database): InterviewReposit
     },
     ...askedQueries(database),
     ...attemptQueries(database),
+    history: async (targetId) => history(database, targetId),
   };
 }

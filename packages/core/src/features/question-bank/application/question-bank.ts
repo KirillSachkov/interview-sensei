@@ -17,6 +17,15 @@ export function createQuestionBank(repository: QuestionRepository) {
       }
       await repository.seed(topics, questions);
     },
+    /** Adds one Question, such as one the interviewer made up, to a Topic of its Target. */
+    add: async (question: Question) => {
+      validateQuestion(question);
+      const topics = await repository.topics(question.targetId);
+      if (!topics.some((topic) => topic.id === question.topicId)) {
+        throw new Error("A Question must reference a Topic of its own Target");
+      }
+      await repository.seed([], [question]);
+    },
     topics: repository.topics,
     search: async (targetId: string, filter: QuestionFilter = {}) =>
       repository.search(targetId, filter),

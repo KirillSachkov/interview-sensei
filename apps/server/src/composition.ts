@@ -140,7 +140,7 @@ export async function composeFeatures({
     tools.sets,
   );
   const { questionBank, targets } = composeTargets(storage, clock, runtime);
-  const services = { clock, targets, sessions, agents: runtime, questions: questionBank };
+  const services = { clock, timer, targets, sessions, agents: runtime, questions: questionBank };
   const interviews = composeInterviews(storage, log, services);
   tools.bind({ interviews, targets, questionBank });
   const modelTools = {

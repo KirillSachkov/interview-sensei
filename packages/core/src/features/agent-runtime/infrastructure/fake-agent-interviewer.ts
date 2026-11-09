@@ -15,63 +15,13 @@ import { setTimeout as delay } from "node:timers/promises";
 
 import type { AgentContext } from "@agentclientprotocol/sdk/unstable";
 
+import { moveToNextSection, presentNext } from "./fake-agent-interviewer-questions.ts";
+import type { InterviewerActions } from "./fake-agent-interviewer-questions.ts";
 import { callMcpTool } from "./fake-agent-mcp.ts";
 import { askPermission } from "./fake-agent-permission.ts";
 
 // The pause between chunks, as in the fake agent's other replies.
 const chunkPauseMs = 40;
-
-/** What one interviewer turn can do: call a tool of the session's MCP server and send text. */
-interface InterviewerActions {
-  /** Calls the tool with the arguments; resolves with its text, an error text included. */
-  readonly call: (name: string, input: object) => Promise<string>;
-  /** Sends text in chunks without ending the turn. */
-  readonly say: (text: string) => Promise<void>;
-}
-
-/** The hint the fake interviewer sends right after it shows a question. */
-const hintAfterQuestion = "Подсказка до ответа: вспомните про пример из практики.";
-
-interface Candidate {
-  readonly id: string;
-  readonly format: string;
-}
-
-function candidatesOf(text: string): readonly Candidate[] {
-  const parsed: unknown = JSON.parse(text);
-  if (
-    typeof parsed !== "object" ||
-    parsed === null ||
-    !("candidates" in parsed) ||
-    !Array.isArray(parsed.candidates)
-  ) {
-    throw new Error(`Unexpected candidates: ${text}`);
-  }
-  return parsed.candidates.filter(
-    (candidate: unknown): candidate is Candidate =>
-      typeof candidate === "object" &&
-      candidate !== null &&
-      "id" in candidate &&
-      typeof candidate.id === "string" &&
-      "format" in candidate &&
-      typeof candidate.format === "string",
-  );
-}
-
-/** Picks the candidate to show: the first one of the format, or the first one. */
-const firstOf = (format: string) => (candidates: readonly Candidate[]) =>
-  candidates.find((candidate) => candidate.format === format) ?? candidates[0];
-
-async function presentNext(actions: InterviewerActions, pick = firstOf("open")): Promise<void> {
-  const candidates = candidatesOf(await actions.call("next_question_candidates", {}));
-  const next = pick(candidates);
-  if (next === undefined) {
-    await actions.say("Вопросов больше нет.");
-    return;
-  }
-  await actions.call("present_question", { questionId: next.id });
-  await actions.say(hintAfterQuestion);
-}
 
 async function start(actions: InterviewerActions): Promise<void> {
   await actions.say("Начинаем мок-собеседование.");
@@ -105,12 +55,23 @@ async function judge(actions: InterviewerActions, text: string, note: string): P
   if (text.includes("[followup]") && (await followUp(actions))) {
     return;
   }
-  await actions.call("record_attempt", judgment(grade));
+  const recorded = await actions.call("record_attempt", judgment(grade));
   if (text.includes("[twice]")) {
     await actions.say(`Повторная запись: ${await actions.call("record_attempt", judgment(grade))}`);
   }
-  await presentNext(actions, firstOf(text.includes("[quiz]") ? "quiz" : "open"));
+  if (text.includes("[section]")) {
+    await moveToNextSection(actions);
+  }
+  await presentNext(actions, {
+    format: text.includes("[quiz]") ? "quiz" : "open",
+    parentAttemptId: text.includes("[deeper]") ? attemptIn(recorded) : undefined,
+    madeUp: text.includes("[new]"),
+  });
 }
+
+/** The Attempt id in the result of record_attempt. */
+const attemptIn = (result: string) =>
+  /The Attempt (?<id>[0-9a-f-]{36}) is recorded/u.exec(result)?.groups?.id;
 
 /** The app recorded the Attempt of a quiz or «Не знаю»: a short note, then the next question. */
 async function noteAndGoOn(actions: InterviewerActions, note: string): Promise<void> {
@@ -173,6 +134,7 @@ function turnOf(steps: Steps) {
   return async (session: InterviewerSession) => {
     try {
       await steps({
+        sessionId: session.sessionId,
         call: async (name, input) => callTool(session, name, input),
         say: async (text) => say(session, text),
       });
@@ -204,6 +166,10 @@ const turns: readonly (readonly [string, (text: string) => Steps])[] = [
   [
     "The Candidate skipped the presented question",
     () => async (actions) => noteAndGoOn(actions, "Вопрос пропущен."),
+  ],
+  [
+    "Five minutes of the time limit are left.",
+    () => async (actions) => actions.say("Осталось 5 минут: веду интервью к концу."),
   ],
   ["The Candidate finished the mock interview.", () => finish],
 ];

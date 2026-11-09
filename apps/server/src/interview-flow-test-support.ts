@@ -4,8 +4,8 @@ import type { Clock, Timer } from "@interview-sensei/core/time";
 import type { FastifyInstance } from "fastify";
 
 import { browserHeaders, fixedTime } from "./chat-test-support.ts";
-import { cardAt } from "./interview-test-support.ts";
-import type { Card, Interview, interviewApi } from "./interview-test-support.ts";
+import { cardAt, hasQuestions, interviewApi } from "./interview-test-support.ts";
+import type { Card, Interview } from "./interview-test-support.ts";
 
 /**
  * A clock that stands until the test moves it, and a timer whose delayed tasks run only when the
@@ -119,4 +119,13 @@ export async function answerFollowUpNumber(
 ) {
   await run.events.waitFor(followUpsOf(number));
   return answerFollowUp(api, run.interview.id, text);
+}
+
+/** A Mock interview with a 30-minute limit on a clock and timer the test moves, at its question. */
+export async function limitedInterview() {
+  const time = manualTime();
+  const api = await interviewApi({ clock: time.clock, timer: time.timer });
+  const run = await api.started(["Опыт и резюме"], { limitMinutes: 30 });
+  await run.events.waitFor(hasQuestions(1));
+  return { ...run, api, time };
 }

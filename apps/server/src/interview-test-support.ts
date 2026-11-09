@@ -36,6 +36,8 @@ export interface Interview {
   readonly currentSectionId: string | null;
   readonly limitMinutes: number | null;
   readonly difficulty: string;
+  readonly endsAt: string | null;
+  readonly overtime: boolean;
   readonly finishRequestedAt: string | null;
   readonly summary: string | null;
   readonly nextStep: string | null;
@@ -141,7 +143,7 @@ export function sectionNamed(target: TargetView, name: string): TargetView["sect
 
 /** The limit and the difficulty of a start; the server's defaults without them. */
 interface StartSettings {
-  readonly limitMinutes?: number | null;
+  readonly limitMinutes?: unknown;
   readonly difficulty?: string;
 }
 

@@ -104,6 +104,17 @@ export interface Attempt extends Judgment {
   readonly recordedAt: string;
 }
 
+/** A Question asked in one of the Target's Mock interviews, for the selection rules. */
+export interface PastQuestion {
+  readonly interviewId: string;
+  readonly questionId: string;
+  readonly topicId: string;
+  /** ISO 8601. */
+  readonly presentedAt: string;
+  /** The Grade of its Attempt; null without an Attempt. */
+  readonly grade: Grade | null;
+}
+
 /** The asked question that waits for its Attempt: the last one, while it has none. */
 export function presentedQuestion(
   asked: readonly AskedQuestion[],

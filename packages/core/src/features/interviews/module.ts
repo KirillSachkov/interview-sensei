@@ -1,5 +1,5 @@
 import type { Database } from "../../shared/storage/index.ts";
-import type { Clock } from "../../shared/time/index.ts";
+import type { Clock, Timer } from "../../shared/time/index.ts";
 import { createInterviews } from "./application/interviews.ts";
 import type { Interviews } from "./application/interviews.ts";
 import type {
@@ -14,6 +14,8 @@ export interface InterviewsModuleDependencies {
   /** The server's database, migrated with interviewsMigrations. */
   readonly database: Database;
   readonly clock: Clock;
+  /** Runs the reminder before a Mock interview's time limit and the end of the limit. */
+  readonly timer: Timer;
   /** The Target's plan and agent: the targets module. */
   readonly targets: InterviewTargets;
   /** Whether the Target's agent can run now: the agent-runtime module. */

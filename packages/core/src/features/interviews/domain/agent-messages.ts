@@ -60,3 +60,11 @@ export function followUpAnswered(answer: string): string {
     answer,
   ].join("\n");
 }
+
+/** Sent 5 minutes before the time limit; the agent leads the interview to its end. */
+export const fiveMinutesLeft = [
+  "Five minutes of the time limit are left.",
+  "Lead the interview to its end: finish the current question and ask at most one more short one.",
+  "Do not finish the interview yourself: the Candidate ends it with «Завершить».",
+  "If a question waits for the Candidate's answer, end your turn without a chat message.",
+].join(" ");

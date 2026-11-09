@@ -5,6 +5,7 @@ import type {
   FollowUp,
   InterviewStatus,
   MockInterview,
+  PastQuestion,
 } from "./interview.ts";
 
 /** One Section of the Target's Interview plan, with its Topics. */
@@ -62,12 +63,32 @@ export interface BankQuestion {
   readonly rating: "useful" | "irrelevant" | "wrong" | null;
 }
 
+/** A Question the agent made up when no candidate fitted: open, with no Source, unconfirmed. */
+export interface NewBankQuestion {
+  readonly id: string;
+  readonly targetId: string;
+  readonly topicId: string;
+  readonly text: string;
+  readonly format: "open";
+  readonly options: readonly [];
+  readonly correctOptionIds: readonly [];
+  readonly level: BankQuestion["level"];
+  readonly sourceIds: readonly [];
+  readonly unconfirmed: true;
+  readonly hidden: false;
+  readonly rating: null;
+  /** ISO 8601. */
+  readonly createdAt: string;
+}
+
 /** The question-bank slice supplies the Target's Questions that are not hidden. */
 export interface InterviewQuestions {
   readonly search: (
     targetId: string,
     filter: { readonly topicIds: readonly string[] },
   ) => Promise<readonly BankQuestion[]>;
+  /** Adds the Question to the Target's bank. */
+  readonly add: (question: NewBankQuestion) => Promise<void>;
 }
 
 /** The agent-sessions slice runs the interviewer's AgentSession. */
@@ -93,12 +114,15 @@ export interface InterviewRepository {
   readonly get: (id: string) => Promise<MockInterview | undefined>;
   readonly bySession: (sessionId: string) => Promise<MockInterview | undefined>;
   readonly running: (targetId: string) => Promise<MockInterview | undefined>;
+  /** Every Question asked in the Target's Mock interviews, in the order of showing. */
+  readonly history: (targetId: string) => Promise<readonly PastQuestion[]>;
   /** The Target's newest Mock interviews first. */
   readonly latest: (targetId: string, limit: number) => Promise<readonly MockInterview[]>;
   readonly update: (
     id: string,
     changes: {
       readonly status?: InterviewStatus;
+      readonly currentSectionId?: string;
       readonly finishRequestedAt?: string;
       readonly finishedAt?: string;
       readonly summary?: string;

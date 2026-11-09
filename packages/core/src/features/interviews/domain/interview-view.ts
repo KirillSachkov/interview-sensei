@@ -5,6 +5,7 @@ import type {
   FollowUp,
   MockInterview,
 } from "./interview.ts";
+import { inOvertime, limitEndsAt } from "./time-limit.ts";
 
 /** An asked question as the browser shows it: no correct options and no Grade. */
 interface QuestionCard {
@@ -26,6 +27,10 @@ interface QuestionCard {
 /** A Mock interview as the browser shows it; Grades come only with the Debrief of an Attempt. */
 export interface InterviewView extends MockInterview {
   readonly questions: readonly QuestionCard[];
+  /** When the time limit ends; null without a limit. */
+  readonly endsAt: string | null;
+  /** The running Mock interview has passed its limit and goes on until the Candidate ends it. */
+  readonly overtime: boolean;
 }
 
 function card(question: AskedQuestion, attempts: readonly Attempt[]): QuestionCard {
@@ -48,8 +53,16 @@ function card(question: AskedQuestion, attempts: readonly Attempt[]): QuestionCa
 
 export function interviewView(
   interview: MockInterview,
-  asked: readonly AskedQuestion[],
-  attempts: readonly Attempt[],
+  {
+    asked,
+    attempts,
+    now,
+  }: { asked: readonly AskedQuestion[]; attempts: readonly Attempt[]; now: string },
 ): InterviewView {
-  return { ...interview, questions: asked.map((question) => card(question, attempts)) };
+  return {
+    ...interview,
+    questions: asked.map((question) => card(question, attempts)),
+    endsAt: limitEndsAt(interview),
+    overtime: inOvertime(interview, now),
+  };
 }
