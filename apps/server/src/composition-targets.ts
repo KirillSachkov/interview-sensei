@@ -21,6 +21,7 @@ import {
   getSource,
   inboxTools,
   proposeInboxProcessing,
+  proposeRecheck,
   sourceTools,
   sourcesMigrations,
   sourcesModule,
@@ -127,6 +128,7 @@ export function targetTools({ targets, questionBank, targetSetup, sources }: Tar
       ...draftTools(targetSetup),
       ...sourceTools(sources),
       proposeInboxProcessing(sources.inbox),
+      proposeRecheck(sources.inbox),
     ],
     inbox: [
       ...inboxTools(sources.inbox),

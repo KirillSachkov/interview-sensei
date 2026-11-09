@@ -2,8 +2,11 @@
 // agent of its own reads the Sources part by part, adds Questions to the bank and writes an Inbox
 // report. The server keeps the statuses and counts what the agent added.
 
-/** What an Inbox processing does: reads materials. Spec #47 adds the recheck of the bank later. */
-export type InboxMode = "processing";
+/**
+ * What an Inbox processing does: `processing` reads materials into Questions; `recheck` reads the
+ * bank against the active Preferences and only proposes Questions to hide.
+ */
+export type InboxMode = "processing" | "recheck";
 
 /** One material of the proposal: the setup agent's short assessment of what it will give. */
 export interface ProposalItem {
@@ -12,13 +15,18 @@ export interface ProposalItem {
 }
 
 /**
- * The card «Разбор материалов» in the setup chat: `open` until the Candidate starts the processing
- * or answers «Не сейчас». A Target has at most one open proposal: a new one replaces it.
+ * A card in the setup chat: «Разбор материалов» for `processing`, «Перепроверка базы» for
+ * `recheck`. It stays `open` until the Candidate starts it or answers «Не сейчас». A Target has at
+ * most one open proposal of each mode: a new one replaces it.
  */
 export interface InboxProposal {
   readonly id: string;
   readonly targetId: string;
+  readonly mode: InboxMode;
+  /** The materials of a processing; none for a recheck. */
   readonly items: readonly ProposalItem[];
+  /** Why the setup agent proposes a recheck, such as the new Preference; null for a processing. */
+  readonly reason: string | null;
   readonly status: "open" | "started" | "dismissed";
   readonly createdAt: string;
 }
@@ -48,7 +56,10 @@ export interface DoubtfulQuestion {
   readonly reason: string;
 }
 
-/** What the agent proposes but never applies itself: new Sections and Preferences. */
+/**
+ * What the agent proposes but never applies itself: new Sections and Preferences, and the list
+ * «скрыть?» of a recheck, which the Candidate accepts with a bulk action.
+ */
 export interface ReportProposals {
   readonly sections: readonly {
     readonly name: string;
@@ -56,6 +67,7 @@ export interface ReportProposals {
     readonly reason: string;
   }[];
   readonly preferences: readonly { readonly text: string; readonly reason: string }[];
+  readonly hide: readonly { readonly questionId: string; readonly reason: string }[];
 }
 
 /**
@@ -90,6 +102,13 @@ export const inboxOpening = [
   "Add Questions with add_bank_questions as you go and finish with write_inbox_report.",
 ].join(" ");
 
+/** The first message of a recheck session; the agent knows it by its first sentence. */
+export const recheckOpening = [
+  "Recheck of the question bank has started.",
+  "Call get_brief: it lists the Target's visible Questions and its active Preferences.",
+  "Change nothing; finish with write_inbox_report and list the Questions to hide in proposals.hide.",
+].join(" ");
+
 /** What the brief of an Inbox processing reads of its Target. */
 export interface BriefTarget {
   readonly name: string;
@@ -114,11 +133,61 @@ export interface BriefSource {
   readonly failure: string | null;
 }
 
-/** The brief of an Inbox processing session: its mode, the rules, the Target and the materials. */
+/** A visible Question of the bank as the brief of a recheck lists it. */
+export interface BriefQuestion {
+  readonly id: string;
+  readonly topicId: string;
+  readonly text: string;
+  readonly level: string;
+}
+
+/** The Target as the brief prints it. */
+function targetLines(target: BriefTarget): string[] {
+  return [
+    "Target:",
+    JSON.stringify({
+      name: target.name,
+      level: target.level,
+      sections: target.sections,
+      preferences: target.preferences.map((preference) => preference.text),
+    }),
+  ];
+}
+
+/** The brief of a recheck: the rules, the Target with its Preferences and the visible Questions. */
+function recheckBrief(target: BriefTarget, questions: readonly BriefQuestion[]): string {
+  return [
+    "Mode: recheck. You recheck the Target's question bank in the background against its active Preferences; the Candidate does not read your messages.",
+    "Change nothing: add_bank_questions and create_topic are refused in a recheck, and you hide nothing yourself.",
+    "Finish with write_inbox_report: a short summary in Russian and, in proposals.hide, each Question that an active Preference rejects, by its id, with the reason in Russian naming the Preference.",
+    "The Candidate reads the list «скрыть?» and hides the Questions they agree with.",
+    "",
+    ...targetLines(target),
+    "",
+    "Visible Questions of the bank:",
+    JSON.stringify(questions),
+  ].join("\n");
+}
+
+/**
+ * The brief of an Inbox processing session: its mode, the rules, the Target and the materials; for
+ * a recheck, the Target's visible Questions instead of the materials.
+ */
 export function inboxBrief(
   target: BriefTarget,
-  { mode, sources }: { mode: InboxMode; sources: readonly BriefSource[] },
+  {
+    mode,
+    sources,
+    questions,
+  }: {
+    mode: InboxMode;
+    sources: readonly BriefSource[];
+    questions: readonly BriefQuestion[];
+  },
 ): string {
+  if (mode === "recheck") {
+    return recheckBrief(target, questions);
+  }
   return [
     `Mode: ${mode}. You process the Target's materials in the background; the Candidate does not read your messages.`,
     "Read each material with read_source, part by part, from part 1 to its last part: never skip a part.",
@@ -127,13 +196,7 @@ export function inboxBrief(
     "Create a missing Topic with create_topic inside an existing Section. Never change Sections or the plan: propose new Sections and Preferences in the report.",
     "Follow the active Preferences. Finish with write_inbox_report: a short summary in Russian, the Questions you doubt and your proposals.",
     "",
-    "Target:",
-    JSON.stringify({
-      name: target.name,
-      level: target.level,
-      sections: target.sections,
-      preferences: target.preferences.map((preference) => preference.text),
-    }),
+    ...targetLines(target),
     "",
     "Materials of this processing:",
     JSON.stringify(sources),

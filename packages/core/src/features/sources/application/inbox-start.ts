@@ -2,8 +2,8 @@
 // chosen Sources to «разбирается», reads their texts into numbered parts, then starts the agent.
 import { randomUUID } from "node:crypto";
 
-import { inboxOpening, UnreadableSourceError } from "../domain/inbox.ts";
-import type { InboxRun } from "../domain/inbox.ts";
+import { inboxOpening, recheckOpening, UnreadableSourceError } from "../domain/inbox.ts";
+import type { InboxMode, InboxRun } from "../domain/inbox.ts";
 import type { Source } from "../domain/source.ts";
 import { textFormat, textParts } from "../domain/source-text.ts";
 import { inBackground } from "./inbox-context.ts";
@@ -14,13 +14,19 @@ import type { InboxContext, InboxDependencies } from "./inbox-context.ts";
  *   background.
  * - `no_sources`: the Target has no Source in the Inbox, or none was chosen.
  * - `invalid_sources`: a chosen Source is not the Target's or not in the Inbox.
+ * - `no_questions`: a recheck of a Target without visible Questions.
  * - `processing_running`: the Target already has a running Inbox processing.
  * - `agent_unavailable`: the Target's agent cannot run now; `reason` says why, when known.
  */
 export type StartOutcome =
   | { readonly type: "started"; readonly run: InboxRun }
   | {
-      readonly type: "target_not_found" | "no_sources" | "invalid_sources" | "processing_running";
+      readonly type:
+        | "target_not_found"
+        | "no_sources"
+        | "invalid_sources"
+        | "no_questions"
+        | "processing_running";
     }
   | { readonly type: "agent_unavailable"; readonly reason: string | null };
 
@@ -153,7 +159,7 @@ async function startAgent(context: InboxContext, run: InboxRun, agent: string): 
       kind: "inbox-processing",
       agent,
       targetId: run.targetId,
-      opening: inboxOpening,
+      opening: run.mode === "recheck" ? recheckOpening : inboxOpening,
     });
     await inbox.setRunSession(run.id, session.id);
   } catch (error) {
@@ -171,16 +177,16 @@ async function begin(
   await (readable === 0 ? finish(context, run) : startAgent(context, run, agent));
 }
 
-/** A new running Inbox processing of the Sources. */
+/** A new running Inbox processing of the Sources; a recheck has none. */
 function newRun(
   { clock }: InboxDependencies,
-  { targetId, sources }: { targetId: string; sources: readonly Source[] },
+  { targetId, sources, mode }: { targetId: string; sources: readonly Source[]; mode: InboxMode },
 ): InboxRun {
   return {
     id: randomUUID(),
     targetId,
     sessionId: null,
-    mode: "processing",
+    mode,
     status: "running",
     sourceIds: sources.map((source) => source.id),
     questionIds: [],
@@ -201,7 +207,7 @@ async function stored({ repository, inbox, transaction }: InboxDependencies, run
     }
     const change = { ids: run.sourceIds, status: "processing" } as const;
     await repository.setStatus(run.targetId, change, opened);
-    await inbox.closeProposal(run.targetId, "started", opened);
+    await inbox.closeProposal(run.targetId, { status: "started", mode: run.mode }, opened);
     return true;
   });
 }
@@ -220,12 +226,49 @@ export async function start(
   if (!("agent" in checked)) {
     return checked;
   }
-  const run = newRun(dependencies, { targetId, sources: checked.sources });
+  const run = newRun(dependencies, { targetId, sources: checked.sources, mode: "processing" });
   if (!(await stored(dependencies, run))) {
     return { type: "processing_running" };
   }
   inBackground(context, async () =>
     begin(context, { run, sources: checked.sources, agent: checked.agent }),
   );
+  return { type: "started", run };
+}
+
+/** Checks a recheck in the order the Candidate can fix it. */
+async function checkRecheck(
+  dependencies: InboxDependencies,
+  targetId: string,
+): Promise<{ agent: string } | Refusal> {
+  if ((await dependencies.targets.get(targetId)) === undefined) {
+    return { type: "target_not_found" };
+  }
+  if ((await dependencies.inbox.runningRun(targetId)) !== undefined) {
+    return { type: "processing_running" };
+  }
+  const questions = await dependencies.questions.questions(targetId);
+  if (!questions.some((question) => !question.hidden)) {
+    return { type: "no_questions" };
+  }
+  const agent = await processingAgent(dependencies, targetId);
+  return typeof agent === "string" ? { agent } : agent;
+}
+
+/**
+ * Starts the recheck of the Target's bank by the Candidate's button: an Inbox processing in the
+ * mode `recheck`, without materials. Closes the open recheck proposal.
+ */
+export async function startRecheck(context: InboxContext, targetId: string): Promise<StartOutcome> {
+  const { dependencies } = context;
+  const checked = await checkRecheck(dependencies, targetId);
+  if (!("agent" in checked)) {
+    return checked;
+  }
+  const run = newRun(dependencies, { targetId, sources: [], mode: "recheck" });
+  if (!(await stored(dependencies, run))) {
+    return { type: "processing_running" };
+  }
+  inBackground(context, async () => startAgent(context, run, checked.agent));
   return { type: "started", run };
 }

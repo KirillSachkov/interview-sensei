@@ -25,17 +25,18 @@ async function proposalItems({ dependencies }: InboxContext, proposal: InboxProp
 
 /**
  * The Target's Inbox processing as the card «Материалы» and the setup chat show it: the open
- * proposal with the materials still in the Inbox, the running processing, the latest report and
- * how many materials wait. Null for an unknown Target.
+ * proposal with the materials still in the Inbox, the open proposal of a recheck, the running
+ * processing, the latest report and how many materials wait. Null for an unknown Target.
  */
 export async function inboxState(context: InboxContext, targetId: string) {
   const { targets, repository, inbox } = context.dependencies;
   if ((await targets.get(targetId)) === undefined) {
     return null;
   }
-  const [sources, proposal, run, report] = await Promise.all([
+  const [sources, proposal, recheck, run, report] = await Promise.all([
     repository.list(targetId),
-    inbox.openProposal(targetId),
+    inbox.openProposal(targetId, "processing"),
+    inbox.openProposal(targetId, "recheck"),
     inbox.runningRun(targetId),
     inbox.latestReport(targetId),
   ]);
@@ -45,14 +46,29 @@ export async function inboxState(context: InboxContext, targetId: string) {
       proposal === undefined || items.length === 0
         ? null
         : { id: proposal.id, createdAt: proposal.createdAt, items },
+    recheckProposal:
+      recheck === undefined
+        ? null
+        : { id: recheck.id, createdAt: recheck.createdAt, reason: recheck.reason ?? "" },
     run:
       run === undefined
         ? null
-        : { id: run.id, status: run.status, sourceIds: run.sourceIds, startedAt: run.startedAt },
+        : {
+            id: run.id,
+            mode: run.mode,
+            status: run.status,
+            sourceIds: run.sourceIds,
+            startedAt: run.startedAt,
+          },
     latestReport:
       report === undefined
         ? null
-        : { id: report.id, createdAt: report.createdAt, partial: report.partial },
+        : {
+            id: report.id,
+            mode: report.mode,
+            createdAt: report.createdAt,
+            partial: report.partial,
+          },
     unprocessed: sources.filter((source) => source.status === "inbox").length,
   };
 }
@@ -150,9 +166,17 @@ export async function reportView(
     questions.topics(targetId),
     repository.list(targetId),
   ]);
-  const added = reportQuestions(report.questionIds, bank, { onlyNew: false });
-  const shown = onlyNew ? reportQuestions(report.questionIds, bank, { onlyNew }) : added;
   const { id, mode, partial, createdAt, summary, duplicates, doubtful, proposals } = report;
+  const added = reportQuestions(report.questionIds, bank, { onlyNew: false });
+  const toHide = proposals.hide.flatMap(({ questionId, reason }) => {
+    const question = bank.find((candidate) => candidate.id === questionId);
+    if (question === undefined) {
+      return [];
+    }
+    const topic = topics.find((candidate) => candidate.id === question.topicId)?.name ?? "";
+    return [{ questionId, text: question.text, topic, reason, hidden: question.hidden }];
+  });
+  const shown = onlyNew ? reportQuestions(report.questionIds, bank, { onlyNew }) : added;
   return {
     id,
     mode,
@@ -161,7 +185,8 @@ export async function reportView(
     summary,
     duplicates,
     doubtful,
-    proposals,
+    proposals: { sections: proposals.sections, preferences: proposals.preferences },
+    toHide,
     added: added.length,
     newQuestions: added.filter((question) => question.unseen).length,
     sources: sources
@@ -182,4 +207,20 @@ export async function markReportSeen(
   }
   await dependencies.questions.markSeen(targetId, report.questionIds);
   return true;
+}
+
+/** The history of the Target's Inbox reports, the newest first; null for an unknown Target. */
+export async function reportList({ dependencies }: InboxContext, targetId: string) {
+  if ((await dependencies.targets.get(targetId)) === undefined) {
+    return null;
+  }
+  const reports = await dependencies.inbox.reports(targetId);
+  return reports.map(({ id, mode, partial, createdAt, questionIds, proposals }) => ({
+    id,
+    mode,
+    partial,
+    createdAt,
+    added: questionIds.length,
+    toHide: proposals.hide.length,
+  }));
 }

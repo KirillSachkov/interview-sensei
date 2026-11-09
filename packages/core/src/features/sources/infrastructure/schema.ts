@@ -47,7 +47,9 @@ export const inboxProposals = sourcesSchema.table(
   {
     id: uuid("id").primaryKey(),
     targetId: uuid("target_id").notNull(),
+    mode: text("mode").$type<InboxMode>().notNull().default("processing"),
     items: jsonb("items").$type<readonly ProposalItem[]>().notNull(),
+    reason: text("reason"),
     status: text("status").$type<InboxProposal["status"]>().notNull(),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull(),
   },
@@ -93,7 +95,10 @@ export const inboxReports = sourcesSchema.table(
     duplicates: integer("duplicates").notNull(),
     summary: text("summary").notNull(),
     doubtful: jsonb("doubtful").$type<readonly DoubtfulQuestion[]>().notNull(),
-    proposals: jsonb("proposals").$type<ReportProposals>().notNull(),
+    // A report written before the recheck existed has no list «скрыть?».
+    proposals: jsonb("proposals")
+      .$type<Omit<ReportProposals, "hide"> & Partial<Pick<ReportProposals, "hide">>>()
+      .notNull(),
     partial: boolean("partial").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull(),
   },

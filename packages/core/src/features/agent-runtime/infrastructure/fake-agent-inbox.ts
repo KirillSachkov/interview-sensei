@@ -20,7 +20,7 @@ import { sendText } from "./fake-agent-text.ts";
 
 const opening = "Inbox processing has started.";
 
-interface Session {
+export interface Session {
   readonly client: AgentContext;
   readonly sessionId: string;
   readonly server: { readonly name: string; readonly url: string };
@@ -40,7 +40,7 @@ interface Material {
 }
 
 /** Calls our MCP tool after the permission request that the server allows by itself. */
-async function call(
+export async function call(
   { client, sessionId, server }: Session,
   name: string,
   input: object,

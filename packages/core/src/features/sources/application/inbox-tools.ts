@@ -29,11 +29,25 @@ export function proposeInboxProcessing(inbox: Inbox) {
   });
 }
 
+/** `propose_recheck` of the Target setup: the card «Перепроверка базы» in the chat. */
+export function proposeRecheck(inbox: Inbox) {
+  return sessionTool({
+    name: "propose_recheck",
+    description:
+      "Shows the Candidate a card that proposes to recheck the Target's question bank against its active Preferences, such as right after the Candidate applied a draft with a new Preference. Give the reason in Russian, such as «Новое пожелание: меньше определений». The recheck runs in the background, changes nothing itself and gives the Candidate a list «скрыть?» to accept. Only the Candidate's button «Запустить перепроверку» starts it, never you; a new proposal replaces the open one.",
+    input: z.strictObject({ reason: z.string().trim().min(1).max(300) }),
+    run: async ({ reason }, session) => {
+      const proposal = await inbox.proposeRecheck(session, reason);
+      return JSON.stringify({ proposalId: proposal.id });
+    },
+  });
+}
+
 function inboxBrief(inbox: Inbox) {
   return sessionTool({
     name: "get_brief",
     description:
-      "Returns the brief of this Inbox processing: its rules, the Target's Sections with their kinds and Topics by id, the active Preferences, and the materials to process with their number of parts. Call it first.",
+      "Returns the brief of this Inbox processing: its mode and rules, the Target's Sections with their kinds and Topics by id, the active Preferences, and the materials to process with their number of parts; in a recheck, the Target's visible Questions instead. Call it first.",
     input: z.strictObject({}),
     run: async (_input, session) => inbox.brief(session),
   });
@@ -104,7 +118,7 @@ function writeInboxReport(inbox: Inbox) {
   return sessionTool({
     name: "write_inbox_report",
     description:
-      "Writes the Inbox report and finishes the processing; call it once, at the end. Give a short summary in Russian, the Questions you doubt with the reason, and your proposals of new Sections and Preferences, which you never apply yourself. The server adds what was processed, the added Questions and the number of duplicates.",
+      "Writes the Inbox report and finishes the processing; call it once, at the end. Give a short summary in Russian, the Questions you doubt with the reason, and your proposals of new Sections and Preferences, which you never apply yourself. In a recheck, list in `proposals.hide` the Questions of the Target that an active Preference rejects, by id, with the reason in Russian; the Candidate decides. The server adds what was processed, the added Questions and the number of duplicates.",
     input: z.strictObject({
       summary: z.string().trim().min(1),
       doubtful: z
@@ -132,8 +146,11 @@ function writeInboxReport(inbox: Inbox) {
               z.strictObject({ text: z.string().trim().min(1), reason: z.string().trim().min(1) }),
             )
             .default([]),
+          hide: z
+            .array(z.strictObject({ questionId: z.uuid(), reason: z.string().trim().min(1) }))
+            .default([]),
         })
-        .default({ sections: [], preferences: [] }),
+        .default({ sections: [], preferences: [], hide: [] }),
     }),
     run: async (input, session) => {
       const report = await inbox.writeReport(session, input);

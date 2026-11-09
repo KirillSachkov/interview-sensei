@@ -1,4 +1,4 @@
-import type { InboxProposal, InboxReport, InboxRun } from "./inbox.ts";
+import type { InboxMode, InboxProposal, InboxReport, InboxRun } from "./inbox.ts";
 import type { Source, SourceStatus } from "./source.ts";
 import type { TextFormat } from "./source-text.ts";
 
@@ -81,13 +81,13 @@ export interface TextExtractor {
  * run: `createRun` refuses a second one.
  */
 export interface InboxRepository<Transaction> {
-  /** Closes the Target's open proposal as `dismissed`, then stores the new one. */
+  /** Closes the Target's open proposal of the same mode as `dismissed`, then stores the new one. */
   readonly saveProposal: (proposal: InboxProposal) => Promise<void>;
-  readonly openProposal: (targetId: string) => Promise<InboxProposal | undefined>;
-  /** Closes the Target's open proposal with the status; false when it has none. */
+  readonly openProposal: (targetId: string, mode: InboxMode) => Promise<InboxProposal | undefined>;
+  /** Closes the Target's open proposal of the mode with the status; false when it has none. */
   readonly closeProposal: (
     targetId: string,
-    status: "started" | "dismissed",
+    close: { readonly status: "started" | "dismissed"; readonly mode: InboxMode },
     transaction?: Transaction,
   ) => Promise<boolean>;
   /** Stores the run; `running` when the Target already has a running one, and nothing is stored. */
@@ -112,6 +112,8 @@ export interface InboxRepository<Transaction> {
   /** The Target's report; undefined for another Target's report and an unknown one. */
   readonly report: (targetId: string, id: string) => Promise<InboxReport | undefined>;
   readonly latestReport: (targetId: string) => Promise<InboxReport | undefined>;
+  /** The Target's reports, the newest first. */
+  readonly reports: (targetId: string) => Promise<readonly InboxReport[]>;
   /** Erases the Target's proposals, runs and reports in the open transaction. */
   readonly erase: (targetId: string, transaction: Transaction) => Promise<void>;
 }

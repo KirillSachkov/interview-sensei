@@ -22,6 +22,7 @@ import { randomUUID } from "node:crypto";
 import type { AgentContext } from "@agentclientprotocol/sdk/unstable";
 
 import { inboxTurn } from "./fake-agent-inbox.ts";
+import { recheckTurn } from "./fake-agent-recheck.ts";
 import { moveToNextSection, presentNext } from "./fake-agent-interviewer-questions.ts";
 import type { InterviewerActions } from "./fake-agent-interviewer-questions.ts";
 import { callMcpTool } from "./fake-agent-mcp.ts";
@@ -186,5 +187,5 @@ function interviewerTurn(text: string) {
  * the opening of an Inbox processing; null for another prompt.
  */
 export function templateTurn(text: string) {
-  return interviewerTurn(text) ?? inboxTurn(text);
+  return interviewerTurn(text) ?? inboxTurn(text) ?? recheckTurn(text);
 }

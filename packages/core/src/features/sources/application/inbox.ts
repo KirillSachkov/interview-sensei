@@ -3,10 +3,10 @@
 import { randomUUID } from "node:crypto";
 
 import type { ToolSession } from "../../../shared/mcp/index.ts";
-import type { InboxProposal, ProposalItem } from "../domain/inbox.ts";
+import type { InboxMode, InboxProposal, ProposalItem } from "../domain/inbox.ts";
 import { sessionTarget } from "./inbox-context.ts";
 import type { InboxContext, InboxDependencies } from "./inbox-context.ts";
-import { start } from "./inbox-start.ts";
+import { start, startRecheck } from "./inbox-start.ts";
 import {
   addBankQuestions,
   brief,
@@ -16,7 +16,7 @@ import {
   writeReport,
 } from "./inbox-work.ts";
 import type { MaterialQuestion, ReportInput } from "./inbox-work.ts";
-import { inboxState, markReportSeen, reportView } from "./inbox-views.ts";
+import { inboxState, markReportSeen, reportList, reportView } from "./inbox-views.ts";
 
 /**
  * The setup agent's proposal: the card shows it in the chat. Only Sources of the Target that wait
@@ -38,7 +38,36 @@ async function propose(
   const proposal: InboxProposal = {
     id: randomUUID(),
     targetId,
+    mode: "processing",
     items,
+    reason: null,
+    status: "open",
+    createdAt: dependencies.clock.now().toISOString(),
+  };
+  await dependencies.inbox.saveProposal(proposal);
+  return proposal;
+}
+
+/**
+ * The setup agent's proposal to recheck the bank, such as after a new Preference: the card
+ * «Перепроверка базы» shows it in the chat; only the Candidate's button starts the recheck.
+ */
+async function proposeRecheck(
+  { dependencies }: InboxContext,
+  session: ToolSession,
+  reason: string,
+): Promise<InboxProposal> {
+  const targetId = sessionTarget(session);
+  const bank = await dependencies.questions.questions(targetId);
+  if (!bank.some((question) => !question.hidden)) {
+    throw new Error("The Target has no visible Questions to recheck");
+  }
+  const proposal: InboxProposal = {
+    id: randomUUID(),
+    targetId,
+    mode: "recheck",
+    items: [],
+    reason,
     status: "open",
     createdAt: dependencies.clock.now().toISOString(),
   };
@@ -51,10 +80,20 @@ export function createInbox(dependencies: InboxDependencies) {
   return {
     propose: async (session: ToolSession, items: readonly ProposalItem[]) =>
       propose(context, session, items),
-    /** «Не сейчас»: the materials stay in the Inbox; false when the Target has no open proposal. */
-    dismiss: async (targetId: string) => dependencies.inbox.closeProposal(targetId, "dismissed"),
+    proposeRecheck: async (session: ToolSession, reason: string) =>
+      proposeRecheck(context, session, reason),
+    /**
+     * «Не сейчас» on the card of the mode: the materials stay in the Inbox, the bank stays
+     * unchecked; false when the Target has no open proposal of the mode.
+     */
+    dismiss: async (targetId: string, mode: InboxMode = "processing") =>
+      dependencies.inbox.closeProposal(targetId, { status: "dismissed", mode }),
     start: async (request: { targetId: string; sourceIds?: readonly string[] | undefined }) =>
       start(context, request),
+    /** «Запустить перепроверку»: a recheck of the Target's bank. */
+    startRecheck: async (targetId: string) => startRecheck(context, targetId),
+    /** The history of the Target's reports, the newest first; null for an unknown Target. */
+    reports: async (targetId: string) => reportList(context, targetId),
     state: async (targetId: string) => inboxState(context, targetId),
     /** The report for its panel; `onlyNew` keeps the added Questions the Candidate has not seen. */
     report: async (targetId: string, reportId: string, { onlyNew = false } = {}) =>

@@ -41,7 +41,12 @@ export interface InboxState {
       readonly assessment: string;
     }[];
   } | null;
-  readonly run: { readonly id: string; readonly sourceIds: readonly string[] } | null;
+  readonly recheckProposal: { readonly id: string; readonly reason: string } | null;
+  readonly run: {
+    readonly id: string;
+    readonly mode: string;
+    readonly sourceIds: readonly string[];
+  } | null;
   readonly latestReport: { readonly id: string; readonly partial: boolean } | null;
   readonly unprocessed: number;
 }

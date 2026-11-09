@@ -23,7 +23,18 @@ async function runSources({ dependencies }: InboxContext, run: InboxRun) {
   return all.filter((source) => run.sourceIds.includes(source.id));
 }
 
-/** The brief of the Inbox processing: the rules, the Target's plan and the materials. */
+/** The Target's visible Questions as the brief of a recheck lists them. */
+async function visibleQuestions({ dependencies }: InboxContext, targetId: string) {
+  const bank = await dependencies.questions.questions(targetId);
+  return bank
+    .filter((question) => !question.hidden)
+    .map(({ id, topicId, text, level }) => ({ id, topicId, text, level }));
+}
+
+/**
+ * The brief of the Inbox processing: the rules, the Target's plan and the materials; for a
+ * recheck, the visible Questions instead.
+ */
 export async function brief(context: InboxContext, session: ToolSession): Promise<string> {
   const { targetId, run } = await runOf(context, session);
   const target = await context.dependencies.targets.get(targetId);
@@ -31,7 +42,19 @@ export async function brief(context: InboxContext, session: ToolSession): Promis
     throw new Error("Target not found");
   }
   const sources = await runSources(context, run);
-  return inboxBrief(target, { mode: run.mode, sources: sources.map((source) => listed(source)) });
+  const questions = run.mode === "recheck" ? await visibleQuestions(context, targetId) : [];
+  return inboxBrief(target, {
+    mode: run.mode,
+    sources: sources.map((source) => listed(source)),
+    questions,
+  });
+}
+
+/** A recheck changes nothing: it only proposes Questions to hide. */
+function refuseInRecheck(run: InboxRun): void {
+  if (run.mode === "recheck") {
+    throw new Error("A recheck changes nothing: list the Questions to hide in write_inbox_report");
+  }
 }
 
 /** The materials of the running processing, with the number of parts of each. */
@@ -156,6 +179,7 @@ async function addIn(
 ) {
   const { questions: bank, inbox, repository } = context.dependencies;
   const { targetId, run } = await runOf(context, session, transaction);
+  refuseInRecheck(run);
   checkSources(questions, await repository.list(targetId, transaction), run);
   const { rows, duplicates } = await filtered(context, { targetId, questions }, transaction);
   if (rows.length > 0) {
@@ -223,7 +247,8 @@ async function createTopicIn(
   transaction: Transaction,
 ) {
   const { targets, questions } = context.dependencies;
-  const { targetId } = await runOf(context, session, transaction);
+  const { targetId, run } = await runOf(context, session, transaction);
+  refuseInRecheck(run);
   const { target, section } = await planSection(context, { targetId, sectionId }, transaction);
   const [topic] = await questions.ensureTopics(targetId, [name], transaction);
   if (topic === undefined) {
@@ -268,6 +293,20 @@ export interface ReportInput {
   readonly proposals: ReportProposals;
 }
 
+/** Refuses a Question of the list «скрыть?» that is not the Target's. */
+async function checkHide(
+  { dependencies }: InboxContext,
+  { targetId, input }: { targetId: string; input: ReportInput },
+  transaction: Transaction,
+): Promise<void> {
+  const bank = await dependencies.questions.questions(targetId, transaction);
+  const own = new Set(bank.map((question) => question.id));
+  const foreign = input.proposals.hide.find(({ questionId }) => !own.has(questionId));
+  if (foreign !== undefined) {
+    throw new Error(`The Question ${foreign.questionId} is not a Question of this Target`);
+  }
+}
+
 /**
  * Stores the Inbox report with what the server counted, marks the processed Sources «готов» and
  * finishes the run. The agent stops after its current turn.
@@ -281,6 +320,7 @@ export async function writeReport(
   const { repository, inbox, clock, sessions, onError } = dependencies;
   const { report, run } = await dependencies.transaction(async (opened) => {
     const found = await runOf(context, session, opened);
+    await checkHide(context, { targetId: found.targetId, input }, opened);
     const now = clock.now().toISOString();
     const written: InboxReport = {
       id: randomUUID(),

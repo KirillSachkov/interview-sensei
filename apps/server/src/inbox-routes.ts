@@ -28,6 +28,14 @@ function refuseStart(
         .code(400)
         .send({ error: outcome.type, message: "Нет материалов, которые ждут разбора." });
     }
+    case "no_questions": {
+      return reply
+        .code(400)
+        .send({
+          error: outcome.type,
+          message: "В базе нет вопросов, которые можно перепроверить.",
+        });
+    }
     case "invalid_sources": {
       return reply.code(400).send({
         error: outcome.type,
@@ -37,7 +45,8 @@ function refuseStart(
     case "processing_running": {
       return reply.code(409).send({
         error: outcome.type,
-        message: "По этой цели уже идёт разбор. Новые материалы подождут следующего запуска.",
+        message:
+          "По этой цели уже идёт разбор или перепроверка. Новый запуск подождёт, пока он закончится.",
       });
     }
     case "agent_unavailable": {
@@ -85,6 +94,26 @@ function registerStart(server: FastifyInstance, { sources, archiveGuard }: Depen
   );
 }
 
+/** «Запустить перепроверку»: the recheck of the Target's bank; refusals as for a processing. */
+function registerRecheck(server: FastifyInstance, { sources, archiveGuard }: Dependencies) {
+  server.post<{ Params: { id: string } }>(
+    "/api/targets/:id/inbox/recheck",
+    { schema: { params } },
+    async (request, reply) => {
+      const targetId = request.params.id;
+      const outcome = await archiveGuard.startSession(targetId, async () =>
+        sources.inbox.startRecheck(targetId),
+      );
+      if (outcome === "target_archived") {
+        return refuseStart(reply, { type: outcome });
+      }
+      return outcome.type === "started"
+        ? reply.code(202).send(outcome.run)
+        : refuseStart(reply, outcome);
+    },
+  );
+}
+
 const reportParams = {
   type: "object",
   properties: { id: uuid, reportId: uuid },
@@ -92,6 +121,14 @@ const reportParams = {
 } as const;
 
 function registerReads(server: FastifyInstance, { sources }: Dependencies) {
+  server.get<{ Params: { id: string } }>(
+    "/api/targets/:id/inbox-reports",
+    { schema: { params } },
+    async (request, reply) => {
+      const reports = await sources.inbox.reports(request.params.id);
+      return reports === null ? reply.code(404).send({ error: "target_not_found" }) : reports;
+    },
+  );
   server.get<{ Params: { id: string } }>(
     "/api/targets/:id/inbox",
     { schema: { params } },
@@ -141,22 +178,33 @@ function registerReads(server: FastifyInstance, { sources }: Dependencies) {
  *   `processing_running` while a processing runs, 400 `no_sources`, `invalid_sources` or
  *   `agent_unavailable` with a Russian `message`.
  * - `POST /api/targets/:id/inbox/proposal/dismiss`: «Не сейчас»; the materials stay in the Inbox.
+ * - `POST /api/targets/:id/inbox/recheck`: «Запустить перепроверку» of the Target's bank; 202 with
+ *   the run, refusals as above, 400 `no_questions` without visible Questions.
+ * - `POST /api/targets/:id/inbox/recheck-proposal/dismiss`: «Не сейчас» on the recheck's card.
+ * - `GET /api/targets/:id/inbox-reports`: the history of the Target's reports, the newest first.
  * - `GET /api/targets/:id/inbox-reports/:reportId`: the Inbox report with the added Questions by
- *   Section and Topic; `new=true` keeps the Questions the Candidate has not seen.
+ *   Section and Topic, and the list «скрыть?» of a recheck; `new=true` keeps the Questions the
+ *   Candidate has not seen.
  * - `POST /api/targets/:id/inbox-reports/:reportId/seen`: «просмотрено» of the report's Questions.
  */
 export function registerInboxRoutes(server: FastifyInstance, dependencies: Dependencies) {
   registerStart(server, dependencies);
+  registerRecheck(server, dependencies);
   registerReads(server, dependencies);
-  server.post<{ Params: { id: string } }>(
-    "/api/targets/:id/inbox/proposal/dismiss",
-    { schema: { params } },
-    async (request, reply) => {
-      if ((await dependencies.sources.list(request.params.id)) === undefined) {
-        return reply.code(404).send({ error: "target_not_found" });
-      }
-      await dependencies.sources.inbox.dismiss(request.params.id);
-      return reply.code(204).send();
-    },
-  );
+  for (const [path, mode] of [
+    ["proposal", "processing"],
+    ["recheck-proposal", "recheck"],
+  ] as const) {
+    server.post<{ Params: { id: string } }>(
+      `/api/targets/:id/inbox/${path}/dismiss`,
+      { schema: { params } },
+      async (request, reply) => {
+        if ((await dependencies.sources.list(request.params.id)) === undefined) {
+          return reply.code(404).send({ error: "target_not_found" });
+        }
+        await dependencies.sources.inbox.dismiss(request.params.id, mode);
+        return reply.code(204).send();
+      },
+    );
+  }
 }
