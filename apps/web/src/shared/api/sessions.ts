@@ -22,7 +22,7 @@ export interface PermissionEntry {
   readonly type: "permission_request";
   readonly requestId: string;
   readonly title: string | null;
-  /** The agent's command or arguments, shortened; null when it sent none. */
+  /** The agent's whole command or arguments; null when it sent none. */
   readonly input: string | null;
   readonly options: readonly PermissionOption[];
   readonly answer:

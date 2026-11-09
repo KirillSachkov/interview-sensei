@@ -34,10 +34,14 @@ export function PermissionRequest({
         <strong>Агент просит разрешение:</strong> {entry.title ?? "действие без описания"}
       </p>
       {entry.input === null ? null : (
-        // The title is the agent's display text and may mislead; the command shows what it runs.
-        <p>
-          Команда или аргументы агента: <code>{entry.input}</code>
-        </p>
+        // The title is the agent's display text and may mislead; the command shows what it runs,
+        // whole: a long one wraps and scrolls.
+        <div>
+          Команда или аргументы агента:{" "}
+          <pre className="permission-input nowheel">
+            <code>{entry.input}</code>
+          </pre>
+        </div>
       )}
       {waiting ? (
         <p>
