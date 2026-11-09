@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import { executorOf } from "../../../shared/storage/index.ts";
 import type { Database, Transaction } from "../../../shared/storage/index.ts";
@@ -29,8 +29,19 @@ export function drizzleDraftRepository(database: Database): DraftRepository<Tran
         .orderBy(asc(changes.number));
       return rows.map((row) => toChange(row));
     },
+    remove: async (targetId, changeId) => {
+      const removed = await database
+        .delete(changes)
+        .where(and(eq(changes.targetId, targetId), eq(changes.id, changeId)))
+        .returning({ id: changes.id });
+      return removed.length > 0;
+    },
     clear: async (targetId, transaction) => {
-      await transaction.delete(changes).where(eq(changes.targetId, targetId));
+      const removed = await executorOf(database, transaction)
+        .delete(changes)
+        .where(eq(changes.targetId, targetId))
+        .returning({ id: changes.id });
+      return removed.length;
     },
   };
 }

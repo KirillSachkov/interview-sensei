@@ -12,6 +12,16 @@ interface ProposedSection {
   readonly topics: readonly string[];
 }
 
+type Rating = "useful" | "irrelevant" | "wrong";
+
+/** A new Question in the draft; its Topic by name. */
+interface ProposedQuestion {
+  readonly id: string;
+  readonly topic: string;
+  readonly text: string;
+  readonly format: "open" | "quiz";
+}
+
 /** A change of the Target that the agent recorded in the draft. */
 export type DraftOperation =
   | {
@@ -21,7 +31,28 @@ export type DraftOperation =
       readonly tone?: "friendly" | "neutral" | "strict";
       readonly language?: string;
     }
-  | { readonly type: "set_interview_plan"; readonly sections: readonly ProposedSection[] };
+  | {
+      readonly type: "set_interview_plan";
+      readonly sections: readonly ProposedSection[];
+      readonly renameTopics?: readonly { readonly from: string; readonly to: string }[];
+    }
+  | {
+      readonly type: "save_preference";
+      readonly id: string;
+      readonly text?: string;
+      readonly active?: boolean;
+    }
+  | { readonly type: "add_questions"; readonly questions: readonly ProposedQuestion[] }
+  | {
+      readonly type: "edit_questions";
+      readonly edits: readonly {
+        readonly id: string;
+        readonly text?: string;
+        readonly topic?: string;
+        readonly hidden?: boolean;
+        readonly rating?: Rating | null;
+      }[];
+    };
 
 /** One change of the draft of changes. */
 export interface DraftChange {
@@ -96,4 +127,22 @@ export async function applyDraft(targetId: string): Promise<TargetView> {
     throw new Error("неожиданный ответ");
   }
   return body;
+}
+
+/** ✕: removes one change from the Target's draft; the others stay. A change already gone is fine. */
+export async function removeDraftChange(targetId: string, changeId: string): Promise<void> {
+  const response = await fetch(`${draftUrl(targetId)}/changes/${encodeURIComponent(changeId)}`, {
+    method: "DELETE",
+  });
+  if (!response.ok && response.status !== 404) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+}
+
+/** «Отменить изменения»: empties the Target's draft; the Target stays as it is. */
+export async function discardDraft(targetId: string): Promise<void> {
+  const response = await fetch(draftUrl(targetId), { method: "DELETE" });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
 }

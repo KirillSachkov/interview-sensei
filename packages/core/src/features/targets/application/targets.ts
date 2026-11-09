@@ -11,6 +11,7 @@ import type {
 import { archive, deletion, restore } from "./target-archive.ts";
 import type {
   NewTarget,
+  Preference,
   Section,
   Target,
   TargetAgent,
@@ -175,14 +176,10 @@ async function create(dependencies: Dependencies, input: NewTarget): Promise<Tar
   };
 }
 
-export function createTargets(dependencies: Dependencies) {
+/** The archive and the deletion of Targets. */
+function archiveOf(dependencies: Dependencies) {
   const { repository } = dependencies;
   return {
-    create: async (input: NewTarget = {}) => create(dependencies, input),
-    get: async (id: string, transaction?: Transaction) => get(dependencies, id, transaction),
-    update: async (id: string, change: TargetUpdate, transaction?: Transaction) =>
-      update(dependencies, { id, change, transaction }),
-    list: repository.list,
     archived: repository.archived,
     /** The archived Target; a string names why it cannot go to the archive. */
     archive: async (id: string) => {
@@ -198,6 +195,18 @@ export function createTargets(dependencies: Dependencies) {
       deletion(repository, { id, typedName, transaction }),
     /** Erases the Target in the transaction that erases its data in the other slices. */
     eraseTarget: async (id: string, transaction: Transaction) => repository.erase(id, transaction),
+  };
+}
+
+export function createTargets(dependencies: Dependencies) {
+  const { repository } = dependencies;
+  return {
+    create: async (input: NewTarget = {}) => create(dependencies, input),
+    get: async (id: string, transaction?: Transaction) => get(dependencies, id, transaction),
+    update: async (id: string, change: TargetUpdate, transaction?: Transaction) =>
+      update(dependencies, { id, change, transaction }),
+    list: repository.list,
+    ...archiveOf(dependencies),
     activeDemo: repository.activeDemo,
     /** The Target's agent; undefined for an unknown Target. */
     agent: async (id: string) => {
@@ -212,6 +221,21 @@ export function createTargets(dependencies: Dependencies) {
       }
       const found = await repository.setSectionEnabled(targetId, sectionId, enabled);
       return found ? get(dependencies, targetId) : ("section_not_found" as const);
+    },
+    /**
+     * Adds the Preferences with new ids and stores the text, examples and activity of the
+     * Target's existing ones.
+     */
+    savePreferences: async (
+      targetId: string,
+      rules: readonly Omit<Preference, "targetId" | "createdAt">[],
+      transaction?: Transaction,
+    ) => {
+      const createdAt = dependencies.clock.now().toISOString();
+      await repository.savePreferences(
+        rules.map((rule) => ({ ...rule, targetId, createdAt })),
+        transaction,
+      );
     },
     topicIds: async (targetId: string, sectionId: string) => {
       const plan = await repository.sections(targetId);

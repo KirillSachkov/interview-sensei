@@ -86,3 +86,42 @@ export async function attachFiles({ panel }: ReturnType<typeof setupChat>, page:
     text: "Пять лет Go",
   });
 }
+
+/** «Go-разработчик» on the canvas with its setup chat open. */
+export async function openGoChat(page: Page) {
+  await page.goto("/");
+  await page.getByRole("button", { name: demoName }).click();
+  await page.getByRole("menuitemradio", { name: "Go-разработчик" }).click();
+  await zones(page).goal.getByRole("button", { name: "Настроить цель" }).click();
+  const chat = setupChat(page);
+  // The message box appears with the chat's history, which callTool counts.
+  await expect(chat.panel.getByRole("textbox", { name: "Сообщение" })).toBeVisible();
+  return chat;
+}
+
+export function unapplied(chat: ReturnType<typeof setupChat>, count: number) {
+  return chat.panel.getByRole("heading", { name: `Есть неприменённые изменения (${count})` });
+}
+
+/** Starts a chat with the fake agent on «Проверка агента», sends «Привет» and gets the reply. */
+export async function greetFakeAgent(page: Page) {
+  await page
+    .getByRole("combobox", { name: "Агент", exact: true })
+    .selectOption({ label: "Фейковый агент" });
+  await page.getByRole("button", { name: "Новый чат" }).click();
+  const messages = page.getByRole("list", { name: "Сообщения" }).getByRole("listitem");
+  await expect(messages).toHaveCount(0);
+  await page.getByLabel("Сообщение").fill("Привет");
+  await page.getByRole("button", { name: "Отправить" }).click();
+  await expect(messages.last()).toHaveText("Агент: Фейковый агент получил: «Привет»");
+}
+
+/** The applied plan in the «Цель» zone, and the Target active under its new name. */
+export async function expectAppliedPlan(page: Page) {
+  const plan = zones(page).goal.getByRole("list", { name: "План собеседования" });
+  await expect(plan).toContainText("1Опыт и резюме");
+  await expect(plan).toContainText("2Go и конкурентность");
+  await expect(plan.getByRole("list", { name: "Темы" })).toHaveText("ГорутиныКаналы");
+  await expect(zones(page).goal).toContainText("Уровень: Senior");
+  await expect(page.getByRole("button", { name: "Go-разработчик" })).not.toContainText("черновик");
+}

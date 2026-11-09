@@ -77,13 +77,12 @@ export async function archiveCurrent(page: Page) {
   await item.click();
 }
 
-/** Stops the agent of the Target's setup session: the fake agent's `/crash` ends its process. */
-export async function stopSetupAgent(page: Page) {
+/** Ends the Target's setup session with «Завершить»; its draft of changes is empty. */
+export async function finishSetup(page: Page) {
   await zones(page).goal.getByRole("button", { name: "Настроить цель" }).click();
   const chat = setupChat(page);
-  await chat.panel.getByLabel("Сообщение").fill("/crash");
-  await chat.panel.getByRole("button", { name: "Отправить" }).click();
-  await expect(chat.panel).toContainText("Процесс агента завершился с ошибкой");
+  await chat.panel.getByRole("button", { name: "Завершить" }).click();
+  await expect(chat.panel).toBeHidden();
 }
 
 /** The list «Архивные цели» on the page «Архив». */

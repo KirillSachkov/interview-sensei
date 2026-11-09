@@ -4,19 +4,23 @@ import type { RunInTransaction, Transaction } from "../../../shared/storage/inde
 import type { Clock } from "../../../shared/time/index.ts";
 import { onboardingPrompt, setupBrief } from "../domain/brief.ts";
 import { draftProblems, stateAfter } from "../domain/draft.ts";
-import type { DraftChange, DraftOperation, SetupState } from "../domain/draft.ts";
+import type { DraftChange, DraftOperation } from "../domain/draft.ts";
+import { withoutDuplicates } from "../domain/draft-questions.ts";
+import type { NewQuestion } from "../domain/draft-questions.ts";
 import type {
   DraftRepository,
+  SetupQuestions,
   SetupTarget,
   SetupTargets,
   SetupTopics,
-  TargetUpdate,
 } from "../domain/ports.ts";
+import { currentState } from "./setup-state.ts";
+import { writeDraft } from "./write-draft.ts";
 
 export interface TargetSetupDependencies {
   readonly drafts: DraftRepository<Transaction>;
   readonly targets: SetupTargets<Transaction>;
-  readonly topics: SetupTopics<Transaction>;
+  readonly topics: SetupTopics<Transaction> & SetupQuestions<Transaction>;
   /** Applying the draft writes targets, question-bank and the draft in this one transaction. */
   readonly transaction: RunInTransaction;
   readonly clock: Clock;
@@ -34,72 +38,43 @@ export type ApplyOutcome =
   | { readonly outcome: "empty" }
   | { readonly outcome: "invalid"; readonly problems: readonly string[] };
 
-function stateOf(target: SetupTarget): SetupState {
-  return {
-    name: target.name,
-    level: target.level,
-    tone: target.tone,
-    language: target.language,
-    status: target.status,
-    sections: target.sections.map(({ topics, ...section }) => ({
-      ...section,
-      topics: topics.map((topic) => topic.name),
-    })),
-  };
-}
+/**
+ * - `recorded`: the draft has the change and `size` changes in all.
+ * - `not_found`: no Target has this id.
+ * - `refused`: the change names things the Target and its draft do not have; nothing recorded.
+ */
+export type RecordOutcome =
+  | { readonly outcome: "recorded"; readonly change: DraftChange; readonly size: number }
+  | { readonly outcome: "not_found" }
+  | { readonly outcome: "refused"; readonly problems: readonly string[] };
 
-/** The Target's new state with the Topic ids of the names, which come in the order of the plan. */
-function updateOf(state: SetupState, topicIds: readonly string[]): TargetUpdate {
-  let next = 0;
-  return {
-    ...state,
-    sections: state.sections.map(({ id, topics, ...section }, position) => ({
-      ...section,
-      id: id ?? randomUUID(),
-      position,
-      // A Section lists a Topic once, even when the draft named it twice.
-      topicIds: [...new Set(topics.map(() => topicIds[next++] ?? ""))],
-    })),
-  };
-}
-
-/** The Target's state after its draft, or why nothing can be applied. */
-async function pending(
-  { drafts, targets }: TargetSetupDependencies,
+/** The Target's state before and after its draft; null for an unknown Target. */
+async function withDraft(
+  dependencies: TargetSetupDependencies,
   targetId: string,
-  transaction: Transaction,
+  transaction?: Transaction,
 ) {
-  const target = await targets.get(targetId, transaction);
-  if (target === undefined) {
-    return { outcome: "not_found" } as const;
+  const current = await currentState(dependencies, targetId, transaction);
+  if (current === null) {
+    return null;
   }
-  const changes = await drafts.changes(targetId, transaction);
-  if (changes.length === 0) {
-    return { outcome: "empty" } as const;
-  }
-  const state = stateAfter(
-    stateOf(target),
-    changes.map((change) => change.operation),
-  );
-  const problems = draftProblems(state);
-  return problems.length > 0
-    ? ({ outcome: "invalid", problems } as const)
-    : ({ outcome: "ready", state, changes: changes.length } as const);
+  const changes = await dependencies.drafts.changes(targetId, transaction);
+  const operations = changes.map((change) => change.operation);
+  return { ...current, changes, operations, after: stateAfter(current.state, operations) };
 }
 
-/** Creates the missing Topics, then writes the Target's new state. */
-async function write(
-  { topics, targets }: TargetSetupDependencies,
-  {
-    targetId,
-    state,
-    transaction,
-  }: { targetId: string; state: SetupState; transaction: Transaction },
-) {
-  const names = state.sections.flatMap((section) => section.topics);
-  const named = await topics.ensureTopics(targetId, names, transaction);
-  const ids = named.map((topic) => topic.id);
-  return targets.update(targetId, updateOf(state, ids), transaction);
+type Draft = NonNullable<Awaited<ReturnType<typeof withDraft>>>;
+
+/** Why the draft cannot be applied; null when it can. */
+function refusal(draft: Draft | null): ApplyOutcome | null {
+  if (draft === null) {
+    return { outcome: "not_found" };
+  }
+  if (draft.changes.length === 0) {
+    return { outcome: "empty" };
+  }
+  const problems = draftProblems(draft.after);
+  return problems.length > 0 ? { outcome: "invalid", problems } : null;
 }
 
 async function applyIn(
@@ -107,37 +82,78 @@ async function applyIn(
   targetId: string,
   transaction: Transaction,
 ): Promise<ApplyOutcome> {
-  const draft = await pending(dependencies, targetId, transaction);
-  if (draft.outcome !== "ready") {
-    return draft;
+  const draft = await withDraft(dependencies, targetId, transaction);
+  const refused = refusal(draft);
+  if (refused !== null || draft === null) {
+    return refused ?? { outcome: "not_found" };
   }
-  const target = await write(dependencies, { targetId, state: draft.state, transaction });
+  const target = await writeDraft(dependencies, {
+    targetId,
+    before: draft.questions,
+    state: draft.after,
+    transaction,
+  });
   if (target === undefined) {
     throw new Error("The Target disappeared while its draft was applied");
   }
   await dependencies.drafts.clear(targetId, transaction);
-  return { outcome: "applied", target, changes: draft.changes };
+  return { outcome: "applied", target, changes: draft.changes.length };
 }
 
-/** Records the change in the Target's draft; null for an unknown Target. */
+/**
+ * Records the change in the Target's draft, unless it changes something that neither the Target
+ * nor its draft has.
+ */
 async function record(
-  { drafts, targets, clock }: TargetSetupDependencies,
+  dependencies: TargetSetupDependencies,
   targetId: string,
   operation: DraftOperation,
-) {
-  const target = await targets.get(targetId);
-  if (target === undefined) {
-    return null;
+): Promise<RecordOutcome> {
+  const draft = await withDraft(dependencies, targetId);
+  if (draft === null) {
+    return { outcome: "not_found" };
+  }
+  const next = stateAfter(draft.state, [...draft.operations, operation]);
+  const problems = next.missing.slice(draft.after.missing.length);
+  if (problems.length > 0) {
+    return { outcome: "refused", problems };
   }
   const change: DraftChange = {
     id: randomUUID(),
     targetId,
     operation,
-    createdAt: clock.now().toISOString(),
+    createdAt: dependencies.clock.now().toISOString(),
   };
-  await drafts.add(change);
-  const draft = await drafts.changes(targetId);
-  return { change, size: draft.length };
+  await dependencies.drafts.add(change);
+  return { outcome: "recorded", change, size: draft.changes.length + 1 };
+}
+
+/** The new Question with its id, by which the agent can edit it before the draft is applied. */
+function withId(question: Omit<NewQuestion, "id">): NewQuestion {
+  return { ...question, id: randomUUID() };
+}
+
+/**
+ * Records the Questions that neither the Target nor its draft has yet, by questionKey, and
+ * returns the duplicates it left out; null for an unknown Target.
+ */
+async function addQuestions(
+  dependencies: TargetSetupDependencies,
+  targetId: string,
+  questions: readonly Omit<NewQuestion, "id">[],
+) {
+  const draft = await withDraft(dependencies, targetId);
+  if (draft === null) {
+    return null;
+  }
+  const texts = draft.after.questions.map((question) => question.text);
+  const { kept, duplicates } = withoutDuplicates(questions, texts);
+  const added = kept.map((question) => withId(question));
+  const recorded =
+    added.length === 0
+      ? null
+      : await record(dependencies, targetId, { type: "add_questions", questions: added });
+  return { recorded, added, duplicates };
 }
 
 /** The draft of changes of each Target and its application to the Target. */
@@ -149,6 +165,12 @@ export function createTargetSetup(dependencies: TargetSetupDependencies) {
       (await targets.get(targetId)) === undefined ? undefined : drafts.changes(targetId),
     record: async (targetId: string, operation: DraftOperation) =>
       record(dependencies, targetId, operation),
+    addQuestions: async (targetId: string, questions: readonly Omit<NewQuestion, "id">[]) =>
+      addQuestions(dependencies, targetId, questions),
+    /** Removes one change; false when the Target's draft has no such change. */
+    removeChange: async (targetId: string, changeId: string) => drafts.remove(targetId, changeId),
+    /** Empties the Target's draft; resolves with the number of removed changes. */
+    discard: async (targetId: string) => drafts.clear(targetId),
     /** Writes the whole draft to the Target in one transaction, or nothing. */
     apply: async (targetId: string): Promise<ApplyOutcome> =>
       transaction(async (opened) => applyIn(dependencies, targetId, opened)),
@@ -157,7 +179,7 @@ export function createTargetSetup(dependencies: TargetSetupDependencies) {
     /** The brief of the Target's setup session; undefined for an unknown Target. */
     brief: async (targetId: string) => {
       const target = await targets.get(targetId);
-      return target === undefined ? undefined : setupBrief(target);
+      return target === undefined ? undefined : setupBrief(target, await drafts.changes(targetId));
     },
     /**
      * The application's first prompt of a new setup session: the onboarding prompt for a draft

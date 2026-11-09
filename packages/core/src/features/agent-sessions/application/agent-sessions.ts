@@ -47,8 +47,6 @@ export interface AgentSessions {
   readonly list: () => Promise<readonly AgentSession[]>;
   /** Whether a live session of the Target runs on this server now. */
   readonly running: (targetId: string) => boolean;
-  /** Stops the agents of the Target's live sessions and marks the sessions as ended. */
-  readonly endTarget: (targetId: string) => Promise<void>;
   readonly view: (sessionId: string) => Promise<SessionView | undefined>;
   readonly prompt: (sessionId: string, text: string) => Promise<PromptOutcome>;
   /**
@@ -63,6 +61,11 @@ export interface AgentSessions {
   readonly cancel: (sessionId: string) => Promise<void>;
   /** Calls the listener after each change of a live session; returns the unsubscribe function. */
   readonly subscribe: (sessionId: string, listener: SessionListener) => () => void;
+  /**
+   * Stops the live session's agent and marks the session as ended, as «Завершить» asks; false
+   * when the session is not live.
+   */
+  readonly end: (sessionId: string) => Promise<boolean>;
   /** Marks sessions that were live when the server last stopped as ended. Call it at start. */
   readonly endInterrupted: () => Promise<void>;
   /**
@@ -245,14 +248,6 @@ function liveOf({ live }: Context, targetId: string): LiveSession[] {
   );
 }
 
-async function endTarget(context: Context, targetId: string): Promise<void> {
-  const sessions = liveOf(context, targetId);
-  for (const session of sessions) {
-    context.live.delete(session.view.id);
-  }
-  await Promise.all(sessions.map(async (session) => end(session)));
-}
-
 async function close(context: Context): Promise<void> {
   context.closing = true;
   // A session being created ends in its start, before the storage closes.
@@ -279,7 +274,6 @@ export function createAgentSessions(dependencies: AgentSessionsDependencies): Ag
     }),
     list: async () => dependencies.repository.list(),
     running: (targetId) => liveOf(context, targetId).length > 0,
-    endTarget: async (targetId) => endTarget(context, targetId),
     view: async (sessionId) => view(context, sessionId),
     prompt: async (sessionId, text) => prompt(context, sessionId, text),
     answerPermission: async (sessionId, request) => answer(context, sessionId, request),
@@ -290,6 +284,13 @@ export function createAgentSessions(dependencies: AgentSessionsDependencies): Ag
       return () => {
         listeners?.delete(listener);
       };
+    },
+    end: async (sessionId) => {
+      const session = context.live.get(sessionId);
+      if (session !== undefined) {
+        await end(session);
+      }
+      return session !== undefined;
     },
     endInterrupted: async () => endInterrupted(context),
     close: async () => close(context),

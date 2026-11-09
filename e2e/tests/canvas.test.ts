@@ -9,10 +9,14 @@ import type { Page } from "@playwright/test";
 import {
   attachFiles,
   demoName,
+  expectAppliedPlan,
+  greetFakeAgent,
   onboarding,
+  openGoChat,
   openGoSetup,
   setupChat,
   setupPlan,
+  unapplied,
   zones,
 } from "./canvas-support.ts";
 import {
@@ -26,7 +30,7 @@ import {
   openSwitcher,
   openTarget,
   sectionBlock,
-  stopSetupAgent,
+  finishSetup,
   switcherItem,
 } from "./target-actions.ts";
 
@@ -93,19 +97,6 @@ test("the chosen agent of the Target stays after a reload", async ({ page }) => 
   await expect(agentButton(page)).toContainText("по умолчанию");
 });
 
-/** Starts a chat with the fake agent on «Проверка агента», sends «Привет» and gets the reply. */
-async function greetFakeAgent(page: Page) {
-  await page
-    .getByRole("combobox", { name: "Агент", exact: true })
-    .selectOption({ label: "Фейковый агент" });
-  await page.getByRole("button", { name: "Новый чат" }).click();
-  const messages = page.getByRole("list", { name: "Сообщения" }).getByRole("listitem");
-  await expect(messages).toHaveCount(0);
-  await page.getByLabel("Сообщение").fill("Привет");
-  await page.getByRole("button", { name: "Отправить" }).click();
-  await expect(messages.last()).toHaveText("Агент: Фейковый агент получил: «Привет»");
-}
-
 test("the top bar leads to «Проверка агента», where the fake agent answers", async ({ page }) => {
   await page.goto("/");
 
@@ -130,16 +121,6 @@ function unknownTargetTest(address: string) {
 unknownTargetTest("/targets/00000000-0000-4000-8000-000000000099");
 // The server answers 400 to an id that is not a UUID; the page shows the same message.
 unknownTargetTest("/targets/unknown");
-
-/** The applied plan in the «Цель» zone, and the Target active under its new name. */
-async function expectAppliedPlan(page: Page) {
-  const plan = zones(page).goal.getByRole("list", { name: "План собеседования" });
-  await expect(plan).toContainText("1Опыт и резюме");
-  await expect(plan).toContainText("2Go и конкурентность");
-  await expect(plan.getByRole("list", { name: "Темы" })).toHaveText("ГорутиныКаналы");
-  await expect(zones(page).goal).toContainText("Уровень: Senior");
-  await expect(page.getByRole("button", { name: "Go-разработчик" })).not.toContainText("черновик");
-}
 
 test("«Новая цель» starts the onboarding, and «Применить» puts the agent's plan on the canvas", async ({
   page,
@@ -188,6 +169,40 @@ test("files attached in the setup chat go with the message and appear in «Ма�
   await expect(materials.getByRole("listitem")).toHaveText([/vacancy\.txt/u, /resume\.txt/u]);
 });
 
+test("after a reload the setup chat shows «Есть неприменённые изменения», and ✕ removes one", async ({
+  page,
+}) => {
+  const chat = await openGoChat(page);
+  await chat.callTool("update_target", { tone: "strict" });
+  await chat.callTool("update_target", { language: "en" });
+
+  await page.reload();
+
+  await zones(page).goal.getByRole("button", { name: "Настроить цель" }).click();
+  await expect(unapplied(chat, 2)).toBeVisible();
+  await chat.panel.getByRole("button", { name: "Убрать изменение: Цель: язык en" }).click();
+  await expect(unapplied(chat, 1)).toBeVisible();
+  await expect(chat.changes).toHaveText([/^Цель: тон строгий/u]);
+});
+
+test("«Завершить» with a non-empty draft asks what to do with it", async ({ page }) => {
+  const chat = await openGoChat(page);
+  const finish = async (choice: string) => {
+    await chat.panel.getByRole("button", { name: "Завершить" }).click();
+    await chat.panel.getByRole("dialog").getByRole("button", { name: choice }).click();
+    await expect(chat.panel).toBeHidden();
+    await zones(page).goal.getByRole("button", { name: "Настроить цель" }).click();
+  };
+
+  await finish("Оставить черновик");
+
+  await expect(unapplied(chat, 1)).toBeVisible();
+  await finish("Отменить изменения");
+  await expect(chat.panel.getByRole("list", { name: "Сообщения" })).toBeVisible();
+  await expect(chat.changes).toHaveCount(0);
+  await expect(zones(page).goal).toContainText("Go-разработчик");
+});
+
 // Ticket #51: the manual actions on the plan, the archive and the deletion. They work on
 // «Kotlin-разработчик», which the first of them creates; the demo Target lends its Questions.
 
@@ -232,7 +247,7 @@ test("«В архив» waits for the agent session to stop, then moves the Targ
 }) => {
   await openTarget(page, kotlinName);
   await expectArchiveUnavailable(page);
-  await stopSetupAgent(page);
+  await finishSetup(page);
 
   await archiveCurrent(page);
 

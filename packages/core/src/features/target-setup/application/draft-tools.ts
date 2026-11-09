@@ -6,30 +6,47 @@ import { sessionTool } from "../../../shared/mcp/index.ts";
 import type { ToolSession } from "../../../shared/mcp/index.ts";
 import { planProblems } from "../domain/draft.ts";
 import type { DraftOperation } from "../domain/draft.ts";
-import type { TargetSetup } from "./target-setup.ts";
+import type { RecordOutcome, TargetSetup } from "./target-setup.ts";
 
 const levels = ["junior", "middle", "senior"] as const;
 const tones = ["friendly", "neutral", "strict"] as const;
 const sectionKinds = ["conversation", "topics", "design"] as const;
 
-function sessionTarget(session: ToolSession): string {
+export function sessionTarget(session: ToolSession): string {
   if (session.targetId === undefined || session.targetId === null) {
     throw new Error("This session has no Target");
   }
   return session.targetId;
 }
 
-/** Records the operation and tells the agent the size of the draft. */
-async function recordIn(setup: TargetSetup, session: ToolSession, operation: DraftOperation) {
-  const recorded = await setup.record(sessionTarget(session), operation);
-  if (recorded === null) {
-    throw new Error("Target not found");
+const unappliedNote =
+  "The Target is unchanged until the draft is applied. Apply only after the Candidate agrees.";
+
+/** The recorded change for the agent; throws when nothing was recorded. */
+export function recordedChange(recorded: RecordOutcome) {
+  switch (recorded.outcome) {
+    case "recorded": {
+      return { recorded: recorded.change.id, draftChanges: recorded.size, note: unappliedNote };
+    }
+    case "not_found": {
+      throw new Error("Target not found");
+    }
+    case "refused": {
+      throw new Error(recorded.problems.join(" "));
+    }
+    default: {
+      return recorded satisfies never;
+    }
   }
-  return JSON.stringify({
-    recorded: recorded.change.id,
-    draftChanges: recorded.size,
-    note: "The Target is unchanged until the draft is applied. Apply only after the Candidate agrees.",
-  });
+}
+
+/** Records the operation and tells the agent the size of the draft. */
+export async function recordIn(
+  setup: TargetSetup,
+  session: ToolSession,
+  operation: DraftOperation,
+) {
+  return JSON.stringify(recordedChange(await setup.record(sessionTarget(session), operation)));
 }
 
 export function updateTarget(setup: TargetSetup) {
@@ -59,7 +76,7 @@ export function setInterviewPlan(setup: TargetSetup) {
   return sessionTool({
     name: "set_interview_plan",
     description:
-      "Records the whole Interview plan in the draft of changes: every Section in order, with its kind, short grading criteria and Topics by name. It replaces the previous plan; a Section with the name of an existing one keeps it. Applying creates new Topics and reuses a Topic of the same name. The Target stays unchanged until the draft is applied.",
+      "Records the whole Interview plan in the draft of changes: every Section in order, with its kind, short grading criteria and Topics by name. It replaces the previous plan, so it also deletes, reorders and switches Sections; a Section with the name of an existing one keeps it. Applying creates new Topics and reuses a Topic of the same name; a Topic left out of the plan keeps its Questions. `renameTopics` renames a Topic, keeping its Questions, or merges it into the existing Topic named `to`; name the Topic by its new name in the plan. The Target stays unchanged until the draft is applied.",
     input: z.strictObject({
       sections: z
         .array(
@@ -72,13 +89,20 @@ export function setInterviewPlan(setup: TargetSetup) {
           }),
         )
         .min(1),
+      renameTopics: z
+        .array(z.strictObject({ from: z.string().trim().min(1), to: z.string().trim().min(1) }))
+        .default([]),
     }),
-    run: async ({ sections }, session) => {
+    run: async ({ sections, renameTopics }, session) => {
       const problems = planProblems(sections);
       if (problems.length > 0) {
         throw new Error(problems.join(" "));
       }
-      return recordIn(setup, session, { type: "set_interview_plan", sections });
+      return recordIn(setup, session, {
+        type: "set_interview_plan",
+        sections,
+        ...(renameTopics.length === 0 ? {} : { renameTopics }),
+      });
     },
   });
 }

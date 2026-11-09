@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 
 import type { Transaction } from "../../../shared/storage/index.ts";
-import type { QuestionFilter, QuestionRepository } from "../domain/ports.ts";
+import type { QuestionEdit, QuestionFilter, QuestionRepository } from "../domain/ports.ts";
+import { addQuestions, editQuestions, renameTopic } from "./bank-edits.ts";
+import type { NewQuestion } from "./bank-edits.ts";
 import type { Question, Topic } from "../domain/question.ts";
 import { topicKey, validateQuestion } from "../domain/question.ts";
 
@@ -76,6 +78,24 @@ export function createQuestionBank(repository: QuestionRepository<Transaction>) 
     /** Erases the Target's Topics and Questions when the Target is deleted for good. */
     eraseTarget: async (targetId: string, transaction: Transaction) =>
       repository.erase(targetId, transaction),
+    /** Every Question of the Target, hidden ones too. */
+    questions: async (targetId: string, transaction?: Transaction) =>
+      repository.questions(targetId, transaction),
+    addQuestions: async (
+      targetId: string,
+      questions: readonly NewQuestion[],
+      transaction?: Transaction,
+    ) => addQuestions(repository, targetId, { questions, transaction }),
+    editQuestions: async (
+      targetId: string,
+      edits: readonly QuestionEdit[],
+      transaction?: Transaction,
+    ) => editQuestions(repository, targetId, { edits, transaction }),
+    renameTopic: async (
+      targetId: string,
+      rename: { readonly from: string; readonly to: string },
+      transaction?: Transaction,
+    ) => renameTopic(repository, targetId, { ...rename, transaction }),
   };
 }
 export type QuestionBank = ReturnType<typeof createQuestionBank>;

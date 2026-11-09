@@ -1,10 +1,10 @@
-import { and, asc, eq, ne } from "drizzle-orm";
+import { and, asc, eq, ne, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 
 import { executorOf } from "../../../shared/storage/index.ts";
 import type { Database, Executor, Transaction } from "../../../shared/storage/index.ts";
 import type { TargetRepository } from "../domain/ports.ts";
-import type { Section, Target, TargetUpdate } from "../domain/target.ts";
+import type { Preference, Section, Target, TargetUpdate } from "../domain/target.ts";
 import { preferences, sections, targets } from "./schema.ts";
 
 function toTarget(row: typeof targets.$inferSelect): Target {
@@ -38,13 +38,7 @@ export function drizzleTargetRepository(database: Database): TargetRepository<Tr
     archived: async () => list(database, eq(targets.status, "archived")),
     setStatus: async (id, status) => setFields(database, id, { status }),
     erase: async (id, transaction) => erase(transaction, id),
-    activeDemo: async () => {
-      const [row] = await database
-        .select()
-        .from(targets)
-        .where(and(eq(targets.demo, true), eq(targets.status, "active")));
-      return row === undefined ? undefined : toTarget(row);
-    },
+    activeDemo: async () => activeDemo(database),
     setAgent: async (id, agent) => setFields(database, id, { agent }),
     setSectionEnabled: async (targetId, sectionId, enabled) =>
       setSectionEnabled(database, { targetId, sectionId, enabled }),
@@ -58,6 +52,8 @@ export function drizzleTargetRepository(database: Database): TargetRepository<Tr
         .orderBy(asc(sections.position)),
     preferences: async (id, transaction) =>
       activePreferences(executorOf(database, transaction), id),
+    savePreferences: async (rules, transaction) =>
+      savePreferences(executorOf(database, transaction), rules),
   };
 }
 
@@ -82,6 +78,25 @@ async function update(
   return true;
 }
 
+/** Inserts new Preferences and updates the existing ones of the same Target. */
+async function savePreferences(executor: Executor, rules: readonly Preference[]) {
+  if (rules.length === 0) {
+    return;
+  }
+  await executor
+    .insert(preferences)
+    .values(rules.map((rule) => ({ ...rule, createdAt: new Date(rule.createdAt) })))
+    .onConflictDoUpdate({
+      target: preferences.id,
+      set: {
+        text: sql`excluded.text`,
+        rejectedQuestionIds: sql`excluded.rejected_question_ids`,
+        active: sql`excluded.active`,
+      },
+      setWhere: eq(preferences.targetId, sql`excluded.target_id`),
+    });
+}
+
 async function list(database: Database, condition: SQL) {
   return database
     .select({ id: targets.id, name: targets.name, status: targets.status, level: targets.level })
@@ -95,6 +110,14 @@ async function erase(executor: Executor, id: string) {
   await executor.delete(sections).where(eq(sections.targetId, id));
   await executor.delete(preferences).where(eq(preferences.targetId, id));
   await executor.delete(targets).where(eq(targets.id, id));
+}
+
+async function activeDemo(database: Database) {
+  const [row] = await database
+    .select()
+    .from(targets)
+    .where(and(eq(targets.demo, true), eq(targets.status, "active")));
+  return row === undefined ? undefined : toTarget(row);
 }
 
 async function setFields(

@@ -10,12 +10,10 @@ import {
 } from "@interview-sensei/core/question-bank";
 import { targetsModule, targetsMigrations, getTarget } from "@interview-sensei/core/targets";
 import {
-  applyChanges,
-  setInterviewPlan,
+  draftTools,
   setupBrief,
   targetSetupMigrations,
   targetSetupModule,
-  updateTarget,
 } from "@interview-sensei/core/target-setup";
 import { appSettingsMigrations, appSettingsModule } from "@interview-sensei/core/app-settings";
 import { sourceTools, sourcesMigrations, sourcesModule } from "@interview-sensei/core/sources";
@@ -68,9 +66,7 @@ function sessionTools({ targets, questionBank, targetSetup, sources }: Slices) {
       setupBrief(targetSetup),
       getTarget(targets),
       searchQuestions(questionBank, targets),
-      updateTarget(targetSetup),
-      setInterviewPlan(targetSetup),
-      applyChanges(targetSetup),
+      ...draftTools(targetSetup),
       ...sourceTools(sources),
     ],
   };

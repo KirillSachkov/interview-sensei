@@ -1,4 +1,7 @@
 import type { DraftChange, Level, SectionKind, Tone } from "./draft.ts";
+import type { DraftPreference } from "./draft-preferences.ts";
+import type { QuestionRating } from "./draft-questions.ts";
+import type { TopicRename } from "./draft-topics.ts";
 
 /**
  * Stores the draft of changes of each Target, in the order of recording. `Transaction` is the
@@ -11,7 +14,10 @@ export interface DraftRepository<Transaction> {
     targetId: string,
     transaction?: Transaction,
   ) => Promise<readonly DraftChange[]>;
-  readonly clear: (targetId: string, transaction: Transaction) => Promise<void>;
+  /** Removes the change from the Target's draft; resolves false when the draft has no such change. */
+  readonly remove: (targetId: string, changeId: string) => Promise<boolean>;
+  /** Empties the Target's draft and resolves with the number of removed changes. */
+  readonly clear: (targetId: string, transaction?: Transaction) => Promise<number>;
 }
 
 /** A Target as target-setup reads it: its fields and its Interview plan with Topic names. */
@@ -30,6 +36,8 @@ export interface SetupTarget {
     readonly enabled: boolean;
     readonly topics: readonly { readonly id: string; readonly name: string }[];
   }[];
+  /** The active Preferences. */
+  readonly preferences: readonly DraftPreference[];
 }
 
 /** The Target's state after the draft: Sections in order, with their Topics by id. */
@@ -59,6 +67,12 @@ export interface SetupTargets<Transaction> {
     change: TargetUpdate,
     transaction?: Transaction,
   ) => Promise<SetupTarget | undefined>;
+  /** Adds the Preferences with new ids and stores the others' text, examples and activity. */
+  readonly savePreferences: (
+    targetId: string,
+    preferences: readonly DraftPreference[],
+    transaction?: Transaction,
+  ) => Promise<void>;
 }
 
 /** The question-bank slice gives the Target's Topic of each name and creates the missing ones. */
@@ -69,4 +83,57 @@ export interface SetupTopics<Transaction> {
     names: readonly string[],
     transaction?: Transaction,
   ) => Promise<readonly { readonly id: string; readonly name: string }[]>;
+}
+
+/** A Question as target-setup reads and writes it: its Topic by id. */
+export interface SetupQuestion {
+  readonly id: string;
+  readonly topicId: string;
+  readonly text: string;
+  readonly format: "open" | "quiz";
+  readonly options: readonly { readonly id: string; readonly text: string }[];
+  readonly correctOptionIds: readonly string[];
+  readonly level: Level;
+  readonly hidden: boolean;
+  readonly rating: QuestionRating | null;
+}
+
+/** The new text, Topic, visibility or rating of one Question. */
+export interface SetupQuestionEdit {
+  readonly id: string;
+  readonly text?: string;
+  readonly topicId?: string;
+  readonly hidden?: boolean;
+  readonly rating?: QuestionRating | null;
+}
+
+/** The question-bank slice reads and writes the Target's Questions and renames its Topics. */
+export interface SetupQuestions<Transaction> {
+  /** Every Topic of the Target, in the plan or not. */
+  readonly topics: (
+    targetId: string,
+    transaction?: Transaction,
+  ) => Promise<readonly { readonly id: string; readonly name: string }[]>;
+  /** Every Question of the Target, hidden ones too. */
+  readonly questions: (
+    targetId: string,
+    transaction?: Transaction,
+  ) => Promise<readonly SetupQuestion[]>;
+  /** Renames the Topic, or merges it into the Topic named `to`; nothing for an unknown Topic. */
+  readonly renameTopic: (
+    targetId: string,
+    rename: TopicRename,
+    transaction?: Transaction,
+  ) => Promise<void>;
+  readonly addQuestions: (
+    targetId: string,
+    questions: readonly (SetupQuestion & { readonly createdAt: string })[],
+    transaction?: Transaction,
+  ) => Promise<void>;
+  /** Stores the given fields of each Question. */
+  readonly editQuestions: (
+    targetId: string,
+    edits: readonly SetupQuestionEdit[],
+    transaction?: Transaction,
+  ) => Promise<void>;
 }

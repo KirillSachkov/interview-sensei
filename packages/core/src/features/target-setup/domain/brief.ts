@@ -1,4 +1,5 @@
 // What the agent of a Target setup session learns from get_brief and its first prompt.
+import type { DraftChange } from "./draft.ts";
 import type { SetupTarget } from "./ports.ts";
 
 /**
@@ -26,8 +27,22 @@ function targetText(target: SetupTarget): string {
   });
 }
 
-/** The brief of the Target setup session: its mode, how to change the Target, and the Target. */
-export function setupBrief(target: SetupTarget): string {
+/** The Candidate's active Preferences and the draft's changes with their ids, for the agent. */
+function draftText(target: SetupTarget, changes: readonly DraftChange[]): string[] {
+  const preferences = target.preferences.map(({ id, text }) => ({ id, text }));
+  return [
+    `Active Preferences: ${JSON.stringify(preferences)}`,
+    `The draft of changes, ${changes.length} not applied: ${JSON.stringify(
+      changes.map(({ id, operation }) => ({ id, operation })),
+    )}`,
+  ];
+}
+
+/**
+ * The brief of the Target setup session: its mode, how to change the Target, the Target, its
+ * active Preferences and its draft of changes.
+ */
+export function setupBrief(target: SetupTarget, changes: readonly DraftChange[]): string {
   const mode =
     target.status === "draft"
       ? [
@@ -39,8 +54,10 @@ export function setupBrief(target: SetupTarget): string {
   return [
     "This is the Target setup session of Interview Sensei.",
     ...mode,
-    "Record every change in the draft of changes with update_target and set_interview_plan; the Candidate sees the draft above the chat input.",
+    "Record every change in the draft of changes with update_target, set_interview_plan, save_preference, add_questions and edit_questions; the Candidate sees the draft above the chat input.",
+    "get_draft lists the draft; remove_draft_change and discard_draft take changes back.",
     "Call apply_changes only after the Candidate explicitly agrees.",
     `The Target now: ${targetText(target)}`,
+    ...draftText(target, changes),
   ].join("\n");
 }

@@ -1,6 +1,12 @@
 // The draft of changes: the agent of a Target setup session records its changes of the Target here
 // instead of changing the Target. Applying the draft turns its operations into the Target's new
 // state and writes that state at once.
+import { editedQuestions, questionProblems } from "./draft-questions.ts";
+import type { DraftQuestion, NewQuestion, QuestionEdit } from "./draft-questions.ts";
+import { savedPreference } from "./draft-preferences.ts";
+import type { DraftPreference, PreferenceChange } from "./draft-preferences.ts";
+import { namesTopic, renamedTopics, topicKey } from "./draft-topics.ts";
+import type { TopicRename } from "./draft-topics.ts";
 
 export type Level = "junior" | "middle" | "senior";
 export type Tone = "friendly" | "neutral" | "strict";
@@ -26,6 +32,15 @@ export interface SetupState {
   readonly status: TargetStatus;
   /** The Interview plan in order; `id` is null for a Section that applying creates. */
   readonly sections: readonly (PlanSection & { readonly id: string | null })[];
+  /** The names of all the Target's Topics, in the plan or not. */
+  readonly topics: readonly string[];
+  /** The Topic renames and merges that applying makes, in order. */
+  readonly topicRenames: readonly TopicRename[];
+  readonly preferences: readonly DraftPreference[];
+  /** Every Question of the Target, hidden ones too, with the new ones of the draft. */
+  readonly questions: readonly DraftQuestion[];
+  /** The changes of things the Target does not have, for the Candidate and the agent. */
+  readonly missing: readonly string[];
 }
 
 /**
@@ -40,7 +55,15 @@ export type DraftOperation =
       readonly tone?: Tone;
       readonly language?: string;
     }
-  | { readonly type: "set_interview_plan"; readonly sections: readonly PlanSection[] };
+  | {
+      readonly type: "set_interview_plan";
+      readonly sections: readonly PlanSection[];
+      /** Topic renames and merges, made before the plan's Topics are created. */
+      readonly renameTopics?: readonly TopicRename[];
+    }
+  | ({ readonly type: "save_preference" } & PreferenceChange)
+  | { readonly type: "add_questions"; readonly questions: readonly NewQuestion[] }
+  | { readonly type: "edit_questions"; readonly edits: readonly QuestionEdit[] };
 
 /** A recorded change of the draft of one Target. */
 export interface DraftChange {
@@ -68,6 +91,46 @@ function withPlan(state: SetupState, sections: readonly PlanSection[]): SetupSta
   };
 }
 
+/** Every name of the Topic `from` becomes `to`; a missing Topic is a problem. */
+function withRename(state: SetupState, rename: TopicRename): SetupState {
+  const named = [
+    ...state.topics,
+    ...state.sections.flatMap((section) => section.topics),
+    ...state.questions.map((question) => question.topic),
+  ];
+  if (!namesTopic(named, rename.from)) {
+    return { ...state, missing: [...state.missing, `Темы «${rename.from.trim()}» нет в цели.`] };
+  }
+  const renamed = (name: string) => (topicKey(name) === topicKey(rename.from) ? rename.to : name);
+  return {
+    ...state,
+    sections: state.sections.map((section) => ({
+      ...section,
+      topics: renamedTopics(section.topics, rename),
+    })),
+    topics: renamedTopics(state.topics, rename),
+    topicRenames: [...state.topicRenames, rename],
+    questions: state.questions.map((question) => ({ ...question, topic: renamed(question.topic) })),
+  };
+}
+
+function withPreference(state: SetupState, change: PreferenceChange): SetupState {
+  const saved = savedPreference(state.preferences, change);
+  const unknown = (change.rejectedQuestionIds ?? [])
+    .filter((id) => !state.questions.some((question) => question.id === id))
+    .map((id) => `Вопроса ${id} нет в цели.`);
+  return {
+    ...state,
+    preferences: saved.preferences,
+    missing: [...state.missing, ...saved.missing, ...unknown],
+  };
+}
+
+function withEdits(state: SetupState, edits: readonly QuestionEdit[]): SetupState {
+  const edited = editedQuestions(state.questions, edits);
+  return { ...state, questions: edited.questions, missing: [...state.missing, ...edited.missing] };
+}
+
 function applyOperation(state: SetupState, operation: DraftOperation): SetupState {
   switch (operation.type) {
     case "update_target": {
@@ -75,7 +138,25 @@ function applyOperation(state: SetupState, operation: DraftOperation): SetupStat
       return { ...state, ...fields };
     }
     case "set_interview_plan": {
-      return withPlan(state, operation.sections);
+      return (operation.renameTopics ?? []).reduce(
+        (current, rename) => withRename(current, rename),
+        withPlan(state, operation.sections),
+      );
+    }
+    case "save_preference": {
+      const { type: _type, ...change } = operation;
+      return withPreference(state, change);
+    }
+    case "add_questions": {
+      const added = operation.questions.map((question) => ({
+        ...question,
+        hidden: false,
+        rating: null,
+      }));
+      return { ...state, questions: [...state.questions, ...added] };
+    }
+    case "edit_questions": {
+      return withEdits(state, operation.edits);
     }
     default: {
       return operation satisfies never;
@@ -123,9 +204,9 @@ export function planProblems(sections: readonly Pick<PlanSection, "name">[]): st
 
 /** Why the state cannot be applied, for the Candidate and the agent; empty when it can. */
 export function draftProblems(state: SetupState): readonly string[] {
-  const problems = planProblems(state.sections);
+  const problems = [...planProblems(state.sections), ...state.missing];
   if (state.status !== "draft" && state.name.trim() === "") {
     problems.push("У активной цели должно быть название.");
   }
-  return problems;
+  return [...problems, ...questionProblems(state.questions, state.level)];
 }

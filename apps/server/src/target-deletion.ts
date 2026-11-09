@@ -7,14 +7,25 @@ import type { Features } from "./composition.ts";
  * slice with Target data joins that list.
  */
 interface TargetData {
-  readonly eraseTarget: (targetId: string, transaction: Transaction) => Promise<void>;
+  readonly eraseTarget: (targetId: string, transaction: Transaction) => Promise<unknown>;
   /** Removes the Target's files once the transaction has committed: files are not in it. */
-  readonly eraseTargetFiles?: (targetId: string) => Promise<void>;
+  readonly eraseTargetFiles?: (targetId: string) => Promise<unknown>;
 }
 
 type Dependencies = Pick<Features, "targets" | "sessions" | "storage"> & {
   readonly targetData: readonly TargetData[];
 };
+
+const liveStatuses = new Set(["starting", "idle", "working"]);
+
+/** Stops the agents of the Target's live sessions and marks the sessions as ended. */
+async function endSessions(sessions: Features["sessions"], targetId: string) {
+  const all = await sessions.list();
+  const live = all.filter(
+    (session) => session.targetId === targetId && liveStatuses.has(session.status),
+  );
+  await Promise.all(live.map(async (session) => sessions.end(session.id)));
+}
 
 /**
  * Erases the Target's data in every slice of `targetData` in one transaction, once the Target may
@@ -30,7 +41,7 @@ export async function deleteTarget(
   if (allowed !== "deletable") {
     return allowed;
   }
-  await sessions.endTarget(id);
+  await endSessions(sessions, id);
   const erased = await storage.transaction(async (transaction) => {
     const checked = await targets.deletion(id, name, transaction);
     if (checked !== "deletable") {
