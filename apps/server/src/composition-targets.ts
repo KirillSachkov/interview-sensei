@@ -20,6 +20,7 @@ import { appSettingsMigrations, appSettingsModule } from "@interview-sensei/core
 import {
   getSource,
   inboxTools,
+  listSources,
   proposeInboxProcessing,
   proposeRecheck,
   sourceTools,
@@ -121,6 +122,8 @@ export function targetTools({ targets, questionBank, targetSetup, sources }: Tar
   };
   return {
     ...reading,
+    listSources: listSources(sources),
+    getSource: getSource(sources),
     setup: [
       setupBrief(targetSetup),
       reading.getTarget,

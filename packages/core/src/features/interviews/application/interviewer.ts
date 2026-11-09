@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 
 import { interviewBrief } from "../domain/brief.ts";
 import type { Judgment } from "../domain/interview.ts";
-import { change, inBackground } from "./context.ts";
+import { change } from "./context.ts";
 import type { Context } from "./context.ts";
 import { setSection } from "./current-section.ts";
 import { askFollowUp } from "./follow-ups.ts";
@@ -60,7 +60,7 @@ async function record(context: Context, sessionId: string, judgment: Judgment) {
       askedQuestionId: presented.id,
       ...judgment,
       gradedBy: "agent",
-      hinted: false,
+      hinted: presented.hinted,
       recordedAt: clock.now().toISOString(),
     });
     if (outcome === "exists") {
@@ -70,34 +70,8 @@ async function record(context: Context, sessionId: string, judgment: Judgment) {
   });
 }
 
-async function finish(
-  context: Context,
-  sessionId: string,
-  { summary, nextStep }: { summary: string; nextStep: string },
-) {
-  const found = await interviewOf(context, sessionId);
-  const { repository, sessions, clock } = context.dependencies;
-  return change(context, found.id, async () => {
-    const interview = await interviewOf(context, sessionId);
-    assertRunning(interview);
-    if (interview.finishRequestedAt === null) {
-      throw new InterviewToolError(
-        "Only the Candidate ends the mock interview: keep asking questions until the message that the Candidate finished.",
-      );
-    }
-    await repository.update(interview.id, {
-      status: "finished",
-      finishedAt: clock.now().toISOString(),
-      summary,
-      nextStep,
-    });
-    // The agent's work is done once this turn ends.
-    inBackground(context, async () => sessions.end(sessionId));
-    return "The mock interview is finished. End your turn.";
-  });
-}
-
-export function createInterviewer(context: Context): Interviewer {
+/** The interviewer's tools but `finish_interview`, which endings.ts owns. */
+export function createInterviewer(context: Context): Omit<Interviewer, "finish"> {
   return {
     brief: async (sessionId) => brief(context, sessionId),
     candidates: async (sessionId, request) => candidates(context, sessionId, request),
@@ -105,6 +79,5 @@ export function createInterviewer(context: Context): Interviewer {
     setSection: async (sessionId, request) => setSection(context, sessionId, request),
     askFollowUp: async (sessionId, request) => askFollowUp(context, sessionId, request),
     record: async (sessionId, judgment) => record(context, sessionId, judgment),
-    finish: async (sessionId, result) => finish(context, sessionId, result),
   };
 }

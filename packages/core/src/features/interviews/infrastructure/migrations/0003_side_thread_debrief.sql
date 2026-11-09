@@ -1,0 +1,1 @@
+ALTER TABLE "interviews"."asked_questions" ADD COLUMN "debrief_opened" boolean DEFAULT false NOT NULL;

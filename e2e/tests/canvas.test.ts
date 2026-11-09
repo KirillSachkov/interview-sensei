@@ -1,9 +1,9 @@
 // Spec #42, seam 3: the canvas frame; spec #45, seam 3: a new Target, its setup and the manual
-// actions; spec #47: Inbox processing; spec #41: the mock interview, last. The tests share the server's data directory and run
-// in order: the first one sees no Targets and opens the demo Target, the rest work on it. Later
-// Targets sort after the demo, so `/` still opens it. No other test file creates Targets. Only
-// Targets that a test created go to the archive or away; changes of the demo Target are undone in
-// the same test.
+// actions; spec #47: Inbox processing; spec #41: the mock interview; spec #80: its Side threads,
+// last. The tests share the server's data directory and run in order: the first one sees no Targets
+// and opens the demo Target, the rest work on it. Later Targets sort after the demo, so `/` still
+// opens it. No other test file creates Targets. Only Targets that a test created go to the archive
+// or away; changes of the demo Target are undone in the same test.
 import { expect, test } from "@playwright/test";
 
 import {
@@ -38,6 +38,7 @@ import {
 import { inboxTests } from "./inbox-tests.ts";
 import { mockInterviewTests } from "./mock-interview-tests.ts";
 import { setupChatTests } from "./setup-chat-tests.ts";
+import { sideThreadTests } from "./side-thread-tests.ts";
 
 test.describe.configure({ mode: "serial" });
 
@@ -294,3 +295,4 @@ test("a draft Target is deleted at once after the confirmation", async ({ page }
 setupChatTests();
 inboxTests();
 mockInterviewTests();
+sideThreadTests();

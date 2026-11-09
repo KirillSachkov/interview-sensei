@@ -1,6 +1,6 @@
 // The bodies of the Mock interview requests. The checks keep JSON types strict, without Fastify's
 // coercion, and give the services typed requests.
-import type { CandidateReply, StartRequest } from "./composition.ts";
+import type { CandidateReply, SideThreadRequest, StartRequest } from "./composition.ts";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 
@@ -75,4 +75,56 @@ export function replyOf(
       : "invalid_options";
   }
   return onlyField(body, "skipped") === true ? { skipped: true } : undefined;
+}
+
+/** An interviewer message of the chat: the entry id that the session view gives it. */
+const messagePattern = /^agent-\d+$/u;
+const originKeys = new Set(["kind", "id"]);
+const requestKeys = new Set(["origin", "fragment", "question"]);
+
+function isPlainObject(value: unknown): value is object {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** The origin: a card's asked question, an interviewer message or an Attempt's Debrief. */
+function originOf(origin: unknown): SideThreadRequest["origin"] | undefined {
+  if (!isPlainObject(origin) || Object.keys(origin).some((key) => !originKeys.has(key))) {
+    return undefined;
+  }
+  const kind: unknown = Reflect.get(origin, "kind");
+  const id: unknown = Reflect.get(origin, "id");
+  if (typeof id !== "string") {
+    return undefined;
+  }
+  if (kind === "message") {
+    return messagePattern.test(id) ? { kind, id } : undefined;
+  }
+  return (kind === "question" || kind === "debrief") && uuidPattern.test(id)
+    ? { kind, id }
+    : undefined;
+}
+
+/** The trimmed text of an optional field; null when absent or empty, undefined when not a text. */
+function optionalText(value: unknown): string | null | undefined {
+  if (value === undefined) {
+    return null;
+  }
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const text = value.trim();
+  return text === "" ? null : text;
+}
+
+/** The opening of the body `{ origin, fragment?, question? }`; undefined when invalid. */
+export function sideThreadRequestOf(body: unknown): SideThreadRequest | undefined {
+  if (!isPlainObject(body) || Object.keys(body).some((key) => !requestKeys.has(key))) {
+    return undefined;
+  }
+  const origin = originOf(Reflect.get(body, "origin"));
+  const fragment = optionalText(Reflect.get(body, "fragment"));
+  const question = optionalText(Reflect.get(body, "question"));
+  return origin === undefined || fragment === undefined || question === undefined
+    ? undefined
+    : { origin, fragment, question };
 }

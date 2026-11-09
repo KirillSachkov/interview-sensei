@@ -1,13 +1,15 @@
 /**
  * The kinds of AgentSession: the service chat, «Проверка агента» in the UI; the Target setup,
- * «Настройка цели»; the mock interview, where the agent is the interviewer; and the Inbox
- * processing, «Разбор материалов», which runs in the background without a chat.
+ * «Настройка цели»; the mock interview, where the agent is the interviewer; the Inbox processing,
+ * «Разбор материалов», which runs in the background without a chat; and the Side thread, where the
+ * same agent explains.
  */
 export const sessionKinds = [
   "service-chat",
   "target-setup",
   "mock-interview",
   "inbox-processing",
+  "side-thread",
 ] as const;
 export type SessionKind = (typeof sessionKinds)[number];
 

@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { fetchDebrief } from "@/shared/api";
+import { fetchDebrief, recordDebriefOpened } from "@/shared/api";
 import type { AttemptDebrief } from "@/shared/api";
 
+import { DiscussSeparately } from "./discuss-separately";
 import { DisputeForm } from "./dispute-form";
 
 /** The Grade, «~~1~~ → 3» after a Dispute, with the reason of the correction. */
@@ -22,6 +23,7 @@ function GradeLine({ debrief }: { debrief: AttemptDebrief }) {
         )}
         {gradedBy === "quiz" ? <span className="tag">квиз</span> : null}
         {gradedBy === "skip" ? <span className="tag">пропущено</span> : null}
+        {debrief.hinted ? <span className="tag">с подсказкой</span> : null}
       </p>
       {dispute === null ? null : (
         <p>
@@ -60,7 +62,11 @@ function Dispute({ interviewId, attemptId }: { interviewId: string; attemptId: s
 function DebriefBody({ interviewId, attemptId }: { interviewId: string; attemptId: string }) {
   const debrief = useQuery({
     queryKey: ["interviews", interviewId, "attempts", attemptId],
-    queryFn: async () => fetchDebrief(interviewId, attemptId),
+    // The Candidate opens the Debrief here: its Grade may go to Side threads from now on.
+    queryFn: async () => {
+      await recordDebriefOpened(interviewId, attemptId);
+      return fetchDebrief(interviewId, attemptId);
+    },
   });
   if (debrief.isError) {
     return <p role="alert">Разбор не загрузился: {debrief.error.message}</p>;
@@ -70,7 +76,7 @@ function DebriefBody({ interviewId, attemptId }: { interviewId: string; attemptI
   }
   const { gaps, justification, strongAnswer } = debrief.data;
   return (
-    <section className="debrief" aria-label="Разбор">
+    <section className="debrief" aria-label="Разбор" data-discuss-scope="">
       <GradeLine debrief={debrief.data} />
       <h4>Пробелы</h4>
       <p>{gaps.trim() === "" ? "Нет" : gaps}</p>
@@ -83,6 +89,7 @@ function DebriefBody({ interviewId, attemptId }: { interviewId: string; attemptI
         </>
       )}
       <Dispute interviewId={interviewId} attemptId={attemptId} />
+      <DiscussSeparately interviewId={interviewId} origin={{ kind: "debrief", id: attemptId }} />
     </section>
   );
 }

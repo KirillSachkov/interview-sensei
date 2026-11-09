@@ -40,8 +40,15 @@ export type SessionEvent =
    * A prompt to the agent. A prompt of the server, such as the one that starts the onboarding or a
    * template message of a mock interview, has the origin `server` and stays out of the chat; the
    * Candidate's prompts have no origin.
+   * `notes` are the server's notes that the agent got before the text, such as that the Candidate
+   * discussed a question in a Side thread; the chat leaves them out.
    */
-  | { readonly type: "prompt_sent"; readonly text: string; readonly origin?: "server" }
+  | {
+      readonly type: "prompt_sent";
+      readonly text: string;
+      readonly origin?: "server";
+      readonly notes?: readonly string[];
+    }
   | { readonly type: "agent_update"; readonly update: AgentUpdate }
   | { readonly type: "turn_ended"; readonly stopReason: string }
   /** The agent answered the prompt with an error and still runs; the session takes prompts. */

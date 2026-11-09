@@ -1,10 +1,10 @@
 // The fake agent's `/tool <name> <json>`: API tests drive the agent's work with our MCP tools by it.
-// `/brief` calls `get_brief` the same way.
+// `/brief` calls `get_brief` the same way; `/tool-list` lists the tools.
 import { randomUUID } from "node:crypto";
 
 import type { AgentContext } from "@agentclientprotocol/sdk/unstable";
 
-import { callMcpTool } from "./fake-agent-mcp.ts";
+import { callMcpTool, listMcpTools } from "./fake-agent-mcp.ts";
 import { askPermission } from "./fake-agent-permission.ts";
 
 /** The tool name and the arguments text of `/tool <name> <json>`, or null for other text. */
@@ -136,4 +136,9 @@ export async function call(session: FakeSession, name: string, input: object): P
 export function briefLine(brief: string, heading: string): unknown {
   const lines = brief.split("\n");
   return JSON.parse(lines[lines.indexOf(heading) + 1] ?? "null");
+}
+
+/** `/tool-list`: the reply «MCP tools: <json>» with the sorted names of the server's tools. */
+export async function toolList(server: { readonly url: string }): Promise<string> {
+  return `MCP tools: ${JSON.stringify(await listMcpTools(server.url))}`;
 }

@@ -27,13 +27,18 @@ const brokenSessions: AgentSessions = {
   open: () => Promise.reject(new Error("not used")),
   list: () => Promise.resolve([]),
   running: () => false,
+  stopAll: () => Promise.reject(new Error("not used")),
   view: () => Promise.resolve(view),
   prompt: () => Promise.reject(new Error("prompt broke")),
   cancel: () => Promise.reject(new Error("cancel broke")),
   answerPermission: () => Promise.reject(new Error("not used")),
   queuePrompt: () => Promise.reject(new Error("not used")),
   hideAgentText: () => Promise.reject(new Error("not used")),
+  addNote: () => {
+    throw new Error("not used");
+  },
   end: () => Promise.reject(new Error("not used")),
+  remove: () => Promise.reject(new Error("not used")),
   stop: () => Promise.reject(new Error("not used")),
   subscribe: () => () => {},
   endInterrupted: async () => {},

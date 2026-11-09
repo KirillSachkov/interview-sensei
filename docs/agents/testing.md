@@ -47,6 +47,7 @@ Without it the server offers Claude Code, Codex and OpenCode from `userEnvironme
 The fake agent gets an empty environment plus its recipe's variables.
 Tests that check the real agents' availability pass a temporary directory as `userEnvironment.home` and PATH, and start no real agent.
 For the OpenCode version they put a stub `opencode` script into that PATH; it answers only `--version`.
+`login.int.test.ts` runs `interview-sensei login opencode` with a stub that also records the login it was asked to run.
 For the OpenCode 2.x keys they create a made-up `opencode.db` with `node:sqlite` in that home.
 A stub that hangs stands for a stuck OpenCode: the test runs the timeout task of the injected `Timer` by hand.
 Launch recipes are pure: unit tests give them made-up paths, profiles and skills, and nothing touches the disk.
@@ -105,6 +106,15 @@ The server reads the texts and starts the agent in the background, so the tests 
 After a turn without the Inbox report the server waits 2 minutes on its `Timer`, then closes the processing: the default timer of `startServer` never runs it, so `/tool` keeps driving a `[manual]` agent, and a test of that close passes `manualTime()` and fires the wait.
 A test of a restart stops the server and starts another one on the same data directory, as the Mock interview tests do.
 The fake agent streams a reply word by word, so a test of a long text uses words without spaces.
+The fake agent has a side thread mode for Side threads (`fake-agent-side-thread.ts`).
+On «The Candidate opened a side thread from a mock interview.» it calls `get_brief` and replies «Разбираю вопрос кандидата: «<candidateQuestion>»».
+A failed step there ends the turn with «Фейковый агент ветки сломался: <error>».
+`/brief` in the Side thread's chat replies with the whole Handoff brief as JSON.
+`/tool-list` replies with the sorted names of the session's MCP tools: «MCP tools: <json>».
+A prompt that starts with the server's note «The Candidate discussed question N in a side thread.» first gets «Отметка: <note>», then the reply to the rest.
+`side-thread-test-support.ts` in the server opens a Side thread at a question card, an interviewer message or a Debrief and follows its chat.
+An interviewer message has the id of its chat entry, such as `agent-12`; `[last]` in the answer keeps «Ответ получен.» in the chat for it.
+`api.debrief` in the tests only reads the Debrief; `POST /api/interviews/:id/attempts/:attemptId/debrief-opened` records that the Candidate opened it.
 
 ## Ports
 
@@ -124,10 +134,11 @@ The server keeps all data in `~/.interview-sensei`; the `INTERVIEW_SENSEI_DATA_D
 `pnpm test:e2e` uses `e2e/.data`, which Git ignores; its webServer command empties it before each run.
 All e2e test files share that data directory, so only `e2e/tests/canvas.test.ts` creates Targets.
 Its tests run in order: the first sees no Targets and opens the demo Target, the rest use it.
-Tests that need this order and live in another module, such as the mock interview tests of `e2e/tests/mock-interview-tests.ts`, are declared by a function that `canvas.test.ts` calls.
+Tests that need this order and live in another module, such as the mock interview tests of `e2e/tests/mock-interview-tests.ts` and the Side thread tests of `e2e/tests/side-thread-tests.ts`, are declared by a function that `canvas.test.ts` calls.
 Each agent session works in its own directory under `sessions/` in the data directory.
 A Target keeps the files of its materials under `targets/<Target id>/sources/`, one directory per Source.
-The agents' own homes and configs live under `agents/` in the data directory, with symlinks to the Candidate's `auth.json`.
+The agents' own homes and configs live under `agents/` in the data directory, with symlinks to the Candidate's `auth.json` for Codex and OpenCode 1.x.
+OpenCode 2.x keeps its data, the application's own login among it, in `agents/opencode/data-2` (#69).
 Claude Code is the exception (#24): it keeps the Candidate's config directory and writes its own state there.
 One running server owns a data directory: a second server on it exits with code 1 and an error message.
 Give each worktree its own data directory when several servers run at once.
@@ -147,6 +158,7 @@ Without the built web app or skills, it exits with code 1 and asks for `pnpm bui
 It opens the URL with `open` on macOS, `rundll32 url.dll,FileProtocolHandler` on Windows and `xdg-open` elsewhere.
 Tests and CI turn the browser off with `--no-browser` or `INTERVIEW_SENSEI_NO_BROWSER=1`.
 Its flags are `--port`, `--data-dir`, `--no-browser` and `--help`; `launch-options.ts` reads them, and a flag goes over its variable.
+`interview-sensei login opencode` runs the application's own OpenCode 2.x login instead of the server; it needs no built app.
 An unknown flag or a wrong port stops it with code 1 and the help text.
 
 ## npm package

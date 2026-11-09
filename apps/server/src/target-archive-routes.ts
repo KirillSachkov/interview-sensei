@@ -27,9 +27,17 @@ function typedName(body: unknown): string | undefined | null {
   return typeof name === "string" ? name : null;
 }
 
-/** The archived Target; a string names why it cannot go to the archive. */
+/**
+ * The archived Target; a string names why it cannot go to the archive. Another live session of the
+ * Target refuses the archive; its Side threads only read, so the archive stops them itself and
+ * their chats stay readable.
+ */
 async function archiveUnlessRunning({ targets, sessions }: Dependencies, id: string) {
-  return sessions.running(id) ? ("session_running" as const) : targets.archive(id);
+  if (sessions.running(id, "side-thread")) {
+    return "session_running" as const;
+  }
+  await sessions.stopAll(id, "side-thread");
+  return targets.archive(id);
 }
 
 function registerArchive(server: FastifyInstance, dependencies: Dependencies) {
@@ -68,7 +76,8 @@ function registerArchive(server: FastifyInstance, dependencies: Dependencies) {
  * The archive and the deletion of Targets:
  * - `GET /api/targets/archived`: the archived Targets, the oldest first.
  * - `POST /api/targets/:id/archive`: moves an active Target to the archive and answers it; 409
- *   `session_running` while an agent session of the Target runs, 409 `target_draft` for a draft.
+ *   `session_running` while an agent session of the Target other than a Side thread runs, 409
+ *   `target_draft` for a draft. The live Side threads of the Target stop.
  * - `POST /api/targets/:id/restore`: returns an archived Target; 409 `target_not_archived`.
  * - `DELETE /api/targets/:id`: deletes a draft Target at once, or an archived one with `{ name }`,
  *   its exact name; 204. 400 `name_mismatch`, 409 `target_active` for an active Target.

@@ -15,6 +15,34 @@
       "when": 1794226133893,
       "tag": "0001_disputes",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794244225553,
+      "tag": "0002_side_threads",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794245719679,
+      "tag": "0003_side_thread_debrief",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794247686052,
+      "tag": "0004_side_thread_order",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794248963802,
+      "tag": "0005_side_thread_chat_position",
+      "breakpoints": true
     }
   ]
 }

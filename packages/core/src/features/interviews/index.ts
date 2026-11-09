@@ -4,9 +4,12 @@ import type { SliceMigrations } from "../../shared/storage/index.ts";
 
 export { interviewsModule } from "./module.ts";
 export { interviewTools } from "./application/interview-tools.ts";
+export { sideThreadTools } from "./application/side-thread-tools.ts";
 export type { AnswerOutcome, CandidateReply } from "./application/candidate-answer.ts";
 export type { Interviews } from "./application/interviews.ts";
 export type { StartOutcome, StartRequest } from "./application/start-interview.ts";
+export type { SideThreadOutcome, SideThreadRequest } from "./application/side-threads.ts";
+export type { SideThread } from "./domain/side-thread.ts";
 export { grades } from "./domain/interview.ts";
 export type { Difficulty, Grade } from "./domain/interview.ts";
 export type { InterviewView } from "./domain/interview-view.ts";

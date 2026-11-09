@@ -9,7 +9,7 @@ import { zones } from "./canvas-support.ts";
 // sends a hint right after it shows a question, which the chat must leave out.
 
 /** Starts a mock on «Опыт и резюме» only, from the dialog «Начать мок». */
-async function startMock(sessions: Locator) {
+export async function startMock(sessions: Locator) {
   await sessions.getByRole("button", { name: "Начать мок" }).click();
   const dialog = sessions.getByRole("dialog", { name: "Начать мок" });
   await dialog.getByRole("checkbox", { name: "TypeScript и Node.js" }).uncheck();
@@ -18,7 +18,7 @@ async function startMock(sessions: Locator) {
 }
 
 /** Answers the card's question; Enter sends the answer. */
-async function answer(card: Locator, text: string) {
+export async function answer(card: Locator, text: string) {
   const field = card.getByRole("textbox", { name: "Ваш ответ" });
   await field.fill(text);
   await field.press("Enter");
@@ -26,13 +26,13 @@ async function answer(card: Locator, text: string) {
 }
 
 /** Opens the card's Debrief and checks its Grade. */
-async function openDebrief(card: Locator, grade: string) {
+export async function openDebrief(card: Locator, grade: string) {
   await card.getByRole("button", { name: "Посмотреть разбор" }).click();
   await expect(card.getByRole("region", { name: "Разбор" })).toContainText(`Оценка: ${grade}`);
 }
 
 /** Presses «Завершить» and waits for the interviewer's summary. */
-async function finishMock(sessions: Locator) {
+export async function finishMock(sessions: Locator) {
   await sessions.getByRole("button", { name: "Завершить" }).click();
   const result = sessions.getByRole("region", { name: "Итог мока" });
   await expect(result.getByRole("heading", { name: "Мок завершён" })).toBeVisible();

@@ -45,11 +45,17 @@ export async function viewOf(
   { repository, clock }: InterviewsDependencies,
   interview: MockInterview,
 ): Promise<InterviewView> {
-  const [asked, attempts] = await Promise.all([
+  const [asked, attempts, sideThreads] = await Promise.all([
     repository.asked(interview.id),
     repository.attempts(interview.id),
+    repository.sideThreads(interview.id),
   ]);
-  return interviewView(interview, { asked, attempts, now: clock.now().toISOString() });
+  return interviewView(interview, {
+    asked,
+    attempts,
+    sideThreads,
+    now: clock.now().toISOString(),
+  });
 }
 
 /** Tells the listeners of the Mock interview its new view. */

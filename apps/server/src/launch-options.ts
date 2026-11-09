@@ -6,16 +6,22 @@ import { StartError } from "./start-error.ts";
 
 /** The help text of the `interview-sensei` command. */
 export const usage = `Использование: interview-sensei [--port <порт>] [--data-dir <каталог>] [--no-browser]
+       interview-sensei login opencode [--data-dir <каталог>]
 
   --port <порт>         Порт сервера. Если он занят, приложение завершается.
                         Без флага приложение берёт 4310 или следующий свободный порт.
   --data-dir <каталог>  Каталог данных вместо ~/.interview-sensei.
   --no-browser          Не открывать браузер.
   --help                Показать эту справку.
+
+  login opencode        Войти в OpenCode 2.x для приложения, например по подписке.
+                        Вход хранится в каталоге данных; ваш OpenCode не меняется.
 `;
 
 /** What the command line and the environment ask the `interview-sensei` command to do. */
 export interface LaunchOptions {
+  /** Serve the app, or run the application's own OpenCode 2.x login (#69). */
+  readonly command: "serve" | "login-opencode";
   /** Print the help text and exit instead of starting the server. */
   readonly help: boolean;
   readonly port: PortChoice;
@@ -70,7 +76,10 @@ function checkFlag({ name, rawName, value, inlineValue }: FlagToken): void {
  * argument itself, so its errors are in Russian and name the argument. A repeated flag keeps its
  * last value.
  */
-function readFlags(args: readonly string[]): ReadonlyMap<string, string | true> {
+function readArguments(args: readonly string[]): {
+  values: ReadonlyMap<string, string | true>;
+  positionals: readonly string[];
+} {
   const { tokens } = parseArgs({
     args: [...args],
     options: flags,
@@ -79,16 +88,40 @@ function readFlags(args: readonly string[]): ReadonlyMap<string, string | true> 
     tokens: true,
   });
   const values = new Map<string, string | true>();
+  const positionals: string[] = [];
   for (const token of tokens) {
     if (token.kind === "positional") {
-      throw new StartError(`Лишний аргумент «${token.value}».`);
+      positionals.push(token.value);
     }
     if (token.kind === "option") {
       checkFlag(token);
       values.set(token.name, token.value ?? true);
     }
   }
-  return values;
+  return { values, positionals };
+}
+
+/** The command after `login`: only `opencode`. */
+function loginCommand([agent, extra]: readonly string[]): LaunchOptions["command"] {
+  if (agent === undefined) {
+    throw new StartError("Команде login нужен агент: interview-sensei login opencode.");
+  }
+  const unexpected = agent === "opencode" ? extra : agent;
+  if (unexpected !== undefined) {
+    throw new StartError(`Лишний аргумент «${unexpected}».`);
+  }
+  return "login-opencode";
+}
+
+/** The command of the arguments that are not flags: none, or `login opencode`. */
+function command([first, ...rest]: readonly string[]): LaunchOptions["command"] {
+  if (first === undefined) {
+    return "serve";
+  }
+  if (first !== "login") {
+    throw new StartError(`Лишний аргумент «${first}».`);
+  }
+  return loginCommand(rest);
 }
 
 /** The value of a flag that takes one; undefined when the flag is absent. */
@@ -98,7 +131,8 @@ function flagValue(values: ReadonlyMap<string, string | true>, name: string): st
 }
 
 /**
- * Reads the flags `--port`, `--data-dir`, `--no-browser` and `--help`. The variables SERVER_PORT
+ * Reads the command `login opencode` and the flags `--port`, `--data-dir`, `--no-browser` and
+ * `--help`. The variables SERVER_PORT
  * and INTERVIEW_SENSEI_NO_BROWSER=1 work as before; a flag goes over its variable. Throws
  * StartError for an unknown flag, a missing or extra value or a wrong port.
  */
@@ -109,12 +143,13 @@ export function launchOptions({
   args: readonly string[];
   env: NodeJS.ProcessEnv;
 }): LaunchOptions {
-  const values = readFlags(args);
+  const { values, positionals } = readArguments(args);
   const dataDirectory = flagValue(values, "data-dir");
   if (dataDirectory === "") {
     throw new StartError("Флагу --data-dir нужен непустой путь.");
   }
   return {
+    command: command(positionals),
     help: values.has("help"),
     port: launchPorts(flagValue(values, "port"), env),
     dataDirectory,

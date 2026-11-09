@@ -81,6 +81,7 @@
 }
 
 .mock-row {
+  position: relative;
   display: grid;
   grid-template-columns: 340px 1fr;
   align-items: start;
@@ -402,4 +403,133 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-4);
+}
+
+/* Side threads (#80): to the right of their question, past the edge of the «Сессии» zone, on the
+   free canvas. */
+
+.side-threads {
+  --side-thread-gutter: 72px;
+
+  position: absolute;
+  top: 0;
+  left: calc(100% + var(--side-thread-gutter));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  width: 400px;
+  /* The first thread sits below the arrows' start, so every arrow bends. */
+  padding-top: var(--space-6);
+}
+
+.side-thread-arrows {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(-1 * var(--side-thread-gutter));
+  width: var(--side-thread-gutter);
+  pointer-events: none;
+}
+
+.side-thread-arrows svg {
+  display: block;
+  overflow: visible;
+}
+
+.side-thread-arrow {
+  fill: none;
+  stroke: var(--color-muted);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.side-thread-arrowhead {
+  fill: var(--color-muted);
+}
+
+.side-thread {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  padding: var(--space-3);
+}
+
+.side-thread-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.side-thread-close {
+  padding: 0 var(--space-2);
+  line-height: 1.6;
+}
+
+/* The confirmation takes the whole width under the title. */
+.side-thread-confirm {
+  display: flex;
+  flex-basis: 100%;
+  flex-direction: column;
+  gap: var(--space-2);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-muted);
+  padding: var(--space-3);
+}
+
+.side-thread-confirm p {
+  margin: 0;
+}
+
+/* React Flow turns text selection off in its nodes; the Candidate selects a fragment for a Side
+   thread in a question card, an interviewer message or a Debrief. */
+[data-discuss-scope],
+.side-thread {
+  user-select: text;
+}
+
+.discuss-fragment {
+  margin: 0;
+  border-left: 3px solid var(--color-accent-soft);
+  padding: 0 0 0 var(--space-3);
+}
+
+/* The questions of an ended Mock interview: their Side threads stand to the right, as in a
+   running one. */
+.result-row {
+  position: relative;
+}
+
+/* «Обсудить отдельно» under an interviewer message stays small. */
+.chat-message {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.chat-message .discuss-button {
+  padding: 0;
+  font-size: var(--font-size-small);
+  color: var(--color-muted);
+}
+
+.side-thread h4 {
+  margin: 0;
+  font-size: var(--font-size-small);
+  color: var(--color-muted);
+}
+
+.discuss-form {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--space-3);
+}
+
+.discuss-form textarea {
+  width: 100%;
+  resize: none;
 }

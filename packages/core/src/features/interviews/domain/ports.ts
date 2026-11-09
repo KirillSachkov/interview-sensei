@@ -1,4 +1,5 @@
 import type { Dispute } from "./dispute.ts";
+import type { SideThread } from "./side-thread.ts";
 import type { AttemptRecord, HistoryFilter } from "./history.ts";
 import type {
   AskedQuestion,
@@ -94,10 +95,11 @@ export interface InterviewQuestions {
   readonly add: (question: NewBankQuestion) => Promise<void>;
 }
 
-/** The agent-sessions slice runs the interviewer's AgentSession. */
+/** The agent-sessions slice runs the interviewer's AgentSession and those of its Side threads. */
 export interface InterviewSessions {
+  /** Starts the interviewer's AgentSession, or the explaining one of a Side thread. */
   readonly start: (request: {
-    kind: "mock-interview";
+    kind: "mock-interview" | "side-thread";
     agent: string;
     targetId: string;
     roleAddition: string;
@@ -113,14 +115,29 @@ export interface InterviewSessions {
   ) => Promise<unknown>;
   /** Keeps the agent's text out of the chat until a template message shows it again. */
   readonly hideAgentText: (sessionId: string) => Promise<void>;
+  /** Puts the note before the agent's next prompt; the current turn goes on. */
+  readonly addNote: (sessionId: string, text: string) => void;
   /** Stops the agent after its current turn. */
   readonly end: (sessionId: string) => Promise<void>;
+  /** Stops the agent at once and deletes the session with its journal for good. */
+  readonly remove: (sessionId: string) => Promise<void>;
   /** Calls the listener after each change of a live session; returns the unsubscribe. */
   readonly subscribe: (
     sessionId: string,
     listener: (view: { readonly status: string }) => void,
   ) => () => void;
-  readonly view: (sessionId: string) => Promise<{ readonly status: string } | undefined>;
+  /** The session's status and chat; an agent message of the chat has its `text`. */
+  readonly view: (sessionId: string) => Promise<
+    | {
+        readonly status: string;
+        readonly entries: readonly {
+          readonly id: string;
+          readonly type: string;
+          readonly text?: string;
+        }[];
+      }
+    | undefined
+  >;
 }
 
 /** The progress slice supplies the Topics «подтянуть в первую очередь» for the brief. */
@@ -181,8 +198,25 @@ export interface InterviewQuestionAttempts {
   ) => Promise<readonly string[]>;
 }
 
-/** Stores Mock interviews, their asked questions and Attempts in the `interviews` schema. */
-export interface InterviewRepository extends HistoryRepository {
+/** Stores the Side threads of Mock interviews. */
+export interface SideThreadRepository {
+  readonly createSideThread: (thread: SideThread) => Promise<void>;
+  /** The Mock interview's Side threads in the order they were opened. */
+  readonly sideThreads: (interviewId: string) => Promise<readonly SideThread[]>;
+  readonly sideThreadBySession: (sessionId: string) => Promise<SideThread | undefined>;
+  /** Marks the asked question: its Attempt is recorded as received with a hint. */
+  readonly markHinted: (askedQuestionId: string) => Promise<void>;
+  /** Marks the asked question: the Candidate opened the Debrief of its Attempt. */
+  readonly markDebriefOpened: (askedQuestionId: string) => Promise<void>;
+  /** Deletes the Side thread's row; the hint mark of its asked question stays. */
+  readonly deleteSideThread: (id: string) => Promise<void>;
+}
+
+/**
+ * Stores Mock interviews, their asked questions, Attempts and Side threads in the `interviews`
+ * schema.
+ */
+export interface InterviewRepository extends HistoryRepository, SideThreadRepository {
   /** `running` when the Target already has a running Mock interview; nothing is stored then. */
   readonly create: (interview: MockInterview) => Promise<"created" | "running">;
   readonly get: (id: string) => Promise<MockInterview | undefined>;

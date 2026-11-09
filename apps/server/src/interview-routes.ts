@@ -12,6 +12,7 @@ import type {
 } from "./composition.ts";
 import { onlyField, replyOf, startRequestOf } from "./interview-requests.ts";
 import { attemptParams, params } from "./route-params.ts";
+import { registerSideThreadRoutes } from "./side-thread-routes.ts";
 
 type Dependencies = Pick<Features, "interviews" | "targets"> & {
   readonly archiveGuard: ArchiveGuard;
@@ -227,6 +228,14 @@ function registerReads(server: FastifyInstance, dependencies: Dependencies) {
       (await interviews.attempt(request.params.id, request.params.attemptId)) ??
       reply.code(404).send({ error: "attempt_not_found" }),
   );
+  server.post<{ Params: { id: string; attemptId: string } }>(
+    "/api/interviews/:id/attempts/:attemptId/debrief-opened",
+    { schema: { params: attemptParams } },
+    async (request, reply) =>
+      (await interviews.openDebrief(request.params.id, request.params.attemptId)) === "recorded"
+        ? reply.code(204).send()
+        : reply.code(404).send({ error: "attempt_not_found" }),
+  );
   server.get<{ Params: { id: string } }>(
     "/api/interviews/:id/events",
     { websocket: true, schema: { params } },
@@ -249,6 +258,8 @@ function registerReads(server: FastifyInstance, dependencies: Dependencies) {
  * - `POST /api/interviews/:id/follow-up` `{ text }`: the answer to the agent's last Follow-up.
  * - `POST /api/interviews/:id/finish`: «Завершить»; 202, then the agent writes its summary.
  * - `GET /api/interviews/:id/attempts/:attemptId`: the Debrief of an Attempt with its Grade.
+ * - `POST /api/interviews/:id/attempts/:attemptId/debrief-opened`: the Candidate opened the
+ *   Debrief, so Side threads on its question learn the Grade; 204, or 404 `attempt_not_found`.
  * - WebSocket `/api/interviews/:id/events`: `{ type: "interview", interview }` at once and after
  *   each change: a question shown, an answer or Attempt recorded, the Mock interview finished.
  */
@@ -256,4 +267,6 @@ export function registerInterviewRoutes(server: FastifyInstance, dependencies: D
   registerStart(server, dependencies);
   registerCandidateActions(server, dependencies);
   registerReads(server, dependencies);
+  // Side threads of the Mock interview: side-thread-routes.ts.
+  registerSideThreadRoutes(server, dependencies);
 }

@@ -6,6 +6,7 @@ import {
   interviewsMigrations,
   interviewsModule,
   interviewTools,
+  sideThreadTools,
 } from "@interview-sensei/core/interviews";
 import { getProgress, progressModule } from "@interview-sensei/core/progress";
 import { healthModule } from "@interview-sensei/core/health";
@@ -29,6 +30,7 @@ import {
 } from "./composition-targets.ts";
 
 export type { AgentRuntime, UserEnvironment } from "./composition-agents.ts";
+export { opencodeLoginModule } from "./composition-agents.ts";
 export { SessionsClosedError } from "./composition-agents.ts";
 export type { AgentSessions, SessionView } from "./composition-agents.ts";
 export { mcpGatewayModule, mcpRoute } from "./composition-agents.ts";
@@ -48,7 +50,10 @@ const sliceMigrations: readonly SliceMigrations[] = [
   interviewsMigrations,
 ];
 
-/** The services of the mock interview's tools; composeFeatures builds them after the gateway. */
+/**
+ * The services of the tools of the mock interview and the Side thread; composeFeatures builds
+ * them after the gateway.
+ */
 interface InterviewServices {
   interviews: Interviews;
   progress: Progress;
@@ -57,11 +62,11 @@ interface InterviewServices {
 /**
  * The MCP tool set of each session kind. A slice exports its tools from its index.ts; add them to
  * the kinds that need them. It compiles only while every session kind has an entry. The gateway
- * reads a set when a session starts; `bind` gives the mock interview's set its services once
- * composeFeatures has built them, after the gateway.
+ * reads a set when a session starts; `bind` gives the sets of the mock interview and the Side
+ * thread their services once composeFeatures has built them, after the gateway.
  */
 function sessionTools(slices: ReturnType<typeof composeTargets>) {
-  const { getTarget, searchQuestions, setup, inbox } = targetTools(slices);
+  const { getTarget, searchQuestions, listSources, getSource, setup, inbox } = targetTools(slices);
   let services: InterviewServices | null = null;
   const built = () => {
     if (services === null) {
@@ -76,6 +81,17 @@ function sessionTools(slices: ReturnType<typeof composeTargets>) {
     get "mock-interview"() {
       const { interviews, progress } = built();
       return [...interviewTools(interviews), getTarget, searchQuestions, getProgress(progress)];
+    },
+    get "side-thread"() {
+      const { interviews, progress } = built();
+      return [
+        ...sideThreadTools(interviews),
+        getTarget,
+        searchQuestions,
+        listSources,
+        getSource,
+        getProgress(progress),
+      ];
     },
   };
   return {

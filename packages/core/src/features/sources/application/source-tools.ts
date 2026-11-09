@@ -56,7 +56,8 @@ function addSources(sources: Sources) {
   });
 }
 
-function listSources(sources: Sources) {
+/** `list_sources`: the materials of the session's Target; it only reads, as a Side thread needs. */
+export function listSources(sources: Sources) {
   return sessionTool({
     name: "list_sources",
     description:
@@ -72,6 +73,7 @@ function listSources(sources: Sources) {
   });
 }
 
+/** `get_source`: one material of the session's Target; it only reads, as a Side thread needs. */
 export function getSource(sources: Sources) {
   return sessionTool({
     name: "get_source",

@@ -103,8 +103,11 @@ async function toolText(session: FakeSession, name: string, input: object) {
   return result === null ? `Фейковый агент не получил разрешения на ${name}` : result.text;
 }
 
-/** Runs the turn's steps; a failure becomes the turn's last text. */
-function turnOf(steps: Steps) {
+/**
+ * Runs the turn's steps; a failure becomes the turn's last text «<failure>: <error>», by default
+ * the interviewer's.
+ */
+export function turnOf(steps: Steps, failure = "Фейковый интервьюер сломался") {
   return async (session: FakeSession) => {
     try {
       await steps({
@@ -114,13 +117,13 @@ function turnOf(steps: Steps) {
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      await sendText(session.client, session.sessionId, `Фейковый интервьюер сломался: ${message}`);
+      await sendText(session.client, session.sessionId, `${failure}: ${message}`);
     }
     return { stopReason: "end_turn" as const };
   };
 }
 
-type Steps = (actions: InterviewerActions) => Promise<void>;
+export type Steps = (actions: InterviewerActions) => Promise<void>;
 
 /** The steps for each template message, by its first sentence; each gets the whole message. */
 const turns: readonly (readonly [string, (text: string) => Steps])[] = [

@@ -51,6 +51,7 @@ export {
   finishInterview,
   interviewEventsUrl,
   interviewMessage,
+  recordDebriefOpened,
   startInterview,
 } from "./interviews";
 export type { AttemptDebrief, Difficulty, InterviewView, QuestionCard } from "./interviews";
@@ -65,6 +66,8 @@ export type {
   TopicStatus,
 } from "./progress";
 export { fetchQuestionMarks } from "./questions";
+export { deleteSideThread, openSideThread } from "./side-threads";
+export type { SideThread, SideThreadOpening, SideThreadOrigin } from "./side-threads";
 export type { ChatEntry, PermissionEntry, SessionView } from "./sessions";
 export {
   chooseTargetAgent,

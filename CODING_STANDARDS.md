@@ -47,6 +47,7 @@ It creates the slice's infrastructure itself and returns the slice's service.
 The slice's `index.ts` exports the factory, its migrations, its MCP tools and the types of its service.
 It also exports the constants, errors and dependency types that the server needs, such as `SessionsClosedError`.
 It does not export application or infrastructure parts.
+`agent-runtime` also exports `opencodeLoginModule` for `interview-sensei login opencode` (#69): that command runs without a server, storage or lock.
 
 `apps/server/src/composition.ts` and its parts `composition-<part>.ts` are the only server files that import core features; `server-composes-features-in-one-module` checks it.
 A part keeps `composition.ts` within the lint limits on lines and imports; only `composition.ts` imports a part.
@@ -87,6 +88,28 @@ The mock interview adds the Target's tone and language this way (`interviewerRol
 One text for the agent is in Russian: `onboardingPrompt` in `target-setup/domain/brief.ts`, the first prompt of a draft Target's setup session.
 It stands for the Candidate's first message, because an agent writes its first line in the prompt's language, even before it loads the skill.
 The language rule itself stays in the profile's role.
+The `side-thread` kind (#80) explains: skill `sensei-explain`, web on, shell off, and `askCandidate: true`, because the Side thread has a chat.
+`interviews` starts it with the agent of its Mock interview and adds the Target's language (`sideThreadRole`).
+Its first server prompt, `sideThreadOpened` in `handoff-brief.ts`, repeats the ban on describing plans and tools: in the live check OpenCode began that turn with an English line about loading the skill, though the role and the skill forbid it.
+Its tools only read: `get_brief` of `interviews` with the Handoff brief, `get_target`, `search_questions`, `list_sources` and `get_source` of `sources` and `get_progress`.
+The server builds the Handoff brief from stored data (`handoffBrief`): its `debrief`, the Grade after the latest Dispute with gaps, justification and strong answer, comes only once `asked_questions.debrief_opened` is set.
+`POST /api/interviews/:id/attempts/:attemptId/debrief-opened` sets it: the browser sends it when the Candidate opens the Debrief, before it reads the Debrief; a Side thread from a Debrief sets it too.
+`GET /api/interviews/:id/attempts/:attemptId` only reads the Debrief and records nothing.
+A Side thread from an interviewer message (`agent-N`, the chat entry id) goes to the question that was shown when the message came.
+`present_question` hides the agent's text first, then stores the number of chat entries in `asked_questions.chat_position`; the message belongs to the last question whose position is not after its index in the chat.
+Questions from before this column have none and count as shown at the chat's start.
+Deleting a Side thread stops its agent at once and deletes its AgentSession, journal and session directory with `AgentSessions.remove`; `asked_questions.hinted` stays.
+A finished Mock interview ends its Side threads whose session is `idle` (`closeIdleSideThreads`); a working one goes on.
+`POST /api/targets/:id/archive` refuses with `session_running` only for live sessions of other kinds; it stops the Target's live Side threads with `AgentSessions.stopAll` and then archives.
+
+### Server messages
+
+The server talks to the interviewer with template messages in `interviews/domain/agent-messages.ts` (#10): the start, an answer, a quiz result, «Не знаю», a Follow-up answer, five minutes left and the finish.
+They go through `AgentSessions.queuePrompt`, after the agent's current turn, and stay out of the chat.
+The sixth message of #10, `discussedInSideThread`, tells the interviewer only that the Candidate discussed question N in a Side thread, never its content.
+It is a note, not a prompt: `AgentSessions.addNote` puts it before the next prompt the agent gets, the Candidate's or the server's, so the current turn goes on.
+Several Side threads on one question before that prompt give one note: `addNote` skips a note that already waits.
+The journal keeps notes in `notes` of that `prompt_sent`; the chat leaves them out.
 
 `inbox-processing` (#47) has the skill `sensei-inbox`, no shell, the web, and `askCandidate: false`: it has no chat, so the server refuses other requests itself, and the recipe allows the web without requests.
 The server extracts the text of the Sources before the agent starts, so the agent needs no shell for a PDF or a page.
@@ -225,6 +248,19 @@ It opens the database `immutable` and read-only, so it creates no `-shm` or `-wa
 Without either, every provider gets its key, because OpenCode may then pick any of them.
 An OAuth credential gives no key, because a copied refresh token could rotate.
 An unreadable database gives no keys and a warning in the server log with its path and SQLite's reason, never its content.
+OpenCode 2.2.6 does rotate an OAuth refresh token: each refresh stores the provider's new refresh token (#69).
+So a subscription login needs the application's own login, which the owner chose in #69: `interview-sensei login opencode`.
+It runs `opencode auth login --standalone` in the recipe's OpenCode homes in the data directory; `opencodeLoginCommand` builds it.
+`--standalone` keeps the login off the Candidate's background OpenCode service, which would write the Candidate's database.
+OpenCode keeps the login in its database there, and every session shares that database and refreshes the login itself.
+Sessions refresh it one at a time: OpenCode locks the refresh in `$XDG_STATE_HOME/opencode/locks`, which they share too.
+2.x gets its own data home, `agents/opencode/data-2`, without the link to `auth.json`; 1.x keeps `data` and the link.
+Otherwise 2.x, migrating a database that 1.x left in `data`, would import the Candidate's `auth.json`, refresh token and all.
+A 2.x database that earlier sessions left in `data` stays as it is, which the owner chose in #69: no session refreshes a token in it any more.
+The command refuses OpenCode 1.x: 1.x would write the login through the link to the Candidate's `auth.json`.
+At the start of a 2.x session the server also reads the credentials of that database, in the same way.
+`opencodeLoginsToRepeat` names the session's providers with a subscription login of the Candidate and no login of the application; the runtime warns of each in the server log.
+The README and the OpenCode note of «Проверка агента» give the command.
 The 2.x recipe passes each key in its own variable `INTERVIEW_SENSEI_OPENCODE_KEY_<n>` and names it in `env` of the provider's `providers` entry; the config text holds no key.
 The agent gets the Candidate's env without `OPENCODE_CONFIG`, `OPENCODE_CONFIG_DIR`, `OPENCODE_DB`, `CODEX_HOME` and `INTERVIEW_SENSEI_*`; the recipe's variables go over it.
 `agentEnvironment` in `launch-recipe.ts` filters it. `CLAUDE_CONFIG_DIR` passes unchanged.
@@ -271,6 +307,7 @@ A slice adds content to a zone like this:
 2. Add the widget to the zone's `content` in `targetZones`.
 
 The slice leaves `Canvas` and the top bar (`widgets/top-bar`) unchanged.
+React Flow also turns text selection off in its nodes; text the Candidate selects, such as a fragment for a Side thread inside `data-discuss-scope`, sets `user-select: text`.
 The owner approved one exception in #45: the top bar gets «Новая цель» and «Настройки».
 Spec #45 also puts «Меню цели» there, with «В архив», and the item «Архив» in the Target switcher.
 Issue #71 adds `overhang` to a zone: the canvas pixels a widget takes to the right of the zone's width, such as the open setup chat.

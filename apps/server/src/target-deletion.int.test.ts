@@ -20,7 +20,7 @@ import {
 import type { SessionView } from "./chat-test-support.ts";
 import { processedVacancy } from "./inbox-test-support.ts";
 import { demoApi, model } from "./model-test-support.ts";
-import { demoWithMock } from "./progress-test-support.ts";
+import { demoWithSideThread } from "./side-thread-test-support.ts";
 import { deleteTarget } from "./target-deletion.ts";
 
 const demoName = "Middle backend-разработчик на TypeScript";
@@ -67,7 +67,7 @@ async function targetRows(dataDirectory: string, targetId: string) {
     );
     // These rows reach the Target through their Mock interview; the data directory has one Target.
     const interviewRows = await Promise.all(
-      ["asked_questions", "attempts", "disputes"].map(async (table) => {
+      ["asked_questions", "attempts", "disputes", "side_threads"].map(async (table) => {
         const result = await database.execute<{ rows: number }>(
           `select count(*)::int as rows from interviews.${table}`,
         );
@@ -108,12 +108,12 @@ async function targetData(
 }
 
 /**
- * The demo Target with a finished Mock interview, a material with its proposal, Inbox processing
- * and report, and a draft change of its setup agent; the agent then crashes, so no session of the
- * Target runs.
+ * The demo Target with a finished Mock interview and a Side thread from its Debrief, a material
+ * with its proposal, Inbox processing and report, and a draft change of its setup agent; the agents
+ * then crash, so no session of the Target runs.
  */
 async function demoWithData(dataDirectory: string) {
-  const api = await demoWithMock(dataDirectory);
+  const api = await demoWithSideThread(dataDirectory);
   const opened = await request(api.server, {
     method: "POST",
     url: `/api/targets/${api.target.id}/setup-session`,
@@ -153,6 +153,7 @@ describe("deleting an archived Target", () => {
         "interviews.attempts": 1,
         "interviews.disputes": 1,
         "interviews.interviews": 1,
+        "interviews.side_threads": 1,
         "question_bank.questions": 31,
         "question_bank.topics": 5,
         "sources.inbox_proposals": 1,
