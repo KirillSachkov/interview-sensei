@@ -1,8 +1,57 @@
+import { randomUUID } from "node:crypto";
+
+import type { Transaction } from "../../../shared/storage/index.ts";
 import type { QuestionFilter, QuestionRepository } from "../domain/ports.ts";
 import type { Question, Topic } from "../domain/question.ts";
-import { validateQuestion } from "../domain/question.ts";
+import { topicKey, validateQuestion } from "../domain/question.ts";
 
-export function createQuestionBank(repository: QuestionRepository) {
+/**
+ * The Target's Topics with these names, in the order of the names, one per distinct name; creates
+ * the missing ones. A name matches an existing Topic by topicKey.
+ */
+/** One Topic per distinct name: the existing one, or a new one with the name. */
+function namedTopics({
+  targetId,
+  names,
+  existing,
+}: {
+  targetId: string;
+  names: readonly string[];
+  existing: ReadonlyMap<string, Topic>;
+}): ReadonlyMap<string, Topic> {
+  const named = new Map<string, Topic>();
+  for (const name of names) {
+    const key = topicKey(name);
+    if (!named.has(key)) {
+      named.set(key, existing.get(key) ?? { id: randomUUID(), targetId, name: name.trim() });
+    }
+  }
+  return named;
+}
+
+async function ensureTopics(
+  repository: QuestionRepository<Transaction>,
+  { targetId, names, transaction }: EnsureTopics,
+): Promise<readonly Topic[]> {
+  const stored = await repository.topics(targetId, transaction);
+  const existing = new Map(
+    stored.map((topic) => [topicKey(topic.name), { id: topic.id, targetId, name: topic.name }]),
+  );
+  const named = namedTopics({ targetId, names, existing });
+  const created = [...named.values()].filter((topic) => !existing.has(topicKey(topic.name)));
+  if (created.length > 0) {
+    await repository.addTopics(created, transaction);
+  }
+  return [...named.values()];
+}
+
+interface EnsureTopics {
+  readonly targetId: string;
+  readonly names: readonly string[];
+  readonly transaction: Transaction | undefined;
+}
+
+export function createQuestionBank(repository: QuestionRepository<Transaction>) {
   return {
     seed: async (topics: readonly Topic[], questions: readonly Question[]) => {
       for (const question of questions) {
@@ -18,6 +67,8 @@ export function createQuestionBank(repository: QuestionRepository) {
       await repository.seed(topics, questions);
     },
     topics: repository.topics,
+    ensureTopics: async (targetId: string, names: readonly string[], transaction?: Transaction) =>
+      ensureTopics(repository, { targetId, names, transaction }),
     search: async (targetId: string, filter: QuestionFilter = {}) =>
       repository.search(targetId, filter),
     rate: repository.rate,

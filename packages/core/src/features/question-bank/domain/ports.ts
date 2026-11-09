@@ -7,9 +7,17 @@ export interface QuestionFilter {
   readonly hidden?: boolean;
   readonly limit?: number;
 }
-export interface QuestionRepository {
+/**
+ * `Transaction` is the storage's open transaction, opaque to the domain: a write joins it when the
+ * server applies the changes of several slices at once.
+ */
+export interface QuestionRepository<Transaction> {
   readonly seed: (topics: readonly Topic[], questions: readonly Question[]) => Promise<void>;
-  readonly topics: (targetId: string) => Promise<readonly TopicSummary[]>;
+  readonly addTopics: (topics: readonly Topic[], transaction?: Transaction) => Promise<void>;
+  readonly topics: (
+    targetId: string,
+    transaction?: Transaction,
+  ) => Promise<readonly TopicSummary[]>;
   readonly search: (targetId: string, filter: QuestionFilter) => Promise<readonly Question[]>;
   readonly rate: (id: string, rating: QuestionRating | null) => Promise<boolean>;
   readonly hide: (id: string, hidden: boolean) => Promise<boolean>;

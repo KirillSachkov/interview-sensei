@@ -1,6 +1,7 @@
 import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
 
-import type { Database } from "../../../shared/storage/index.ts";
+import { executorOf } from "../../../shared/storage/index.ts";
+import type { Database, Executor, Transaction } from "../../../shared/storage/index.ts";
 import type { QuestionFilter, QuestionRepository } from "../domain/ports.ts";
 import type { Question, QuestionContent } from "../domain/question.ts";
 import { questions, topics } from "./schema.ts";
@@ -39,7 +40,22 @@ async function search(
   return rows.map((row) => toQuestion(row));
 }
 
-export function drizzleQuestionRepository(database: Database): QuestionRepository {
+async function topicSummaries(executor: Executor, targetId: string) {
+  return executor
+    .select({
+      id: topics.id,
+      targetId: topics.targetId,
+      name: topics.name,
+      questionCount: count(questions.id),
+    })
+    .from(topics)
+    .leftJoin(questions, eq(topics.id, questions.topicId))
+    .where(eq(topics.targetId, targetId))
+    .groupBy(topics.id)
+    .orderBy(asc(topics.name));
+}
+
+export function drizzleQuestionRepository(database: Database): QuestionRepository<Transaction> {
   return {
     seed: async (newTopics, newQuestions) => {
       await database.transaction(async (transaction) => {
@@ -56,19 +72,13 @@ export function drizzleQuestionRepository(database: Database): QuestionRepositor
         }
       });
     },
-    topics: async (targetId) =>
-      database
-        .select({
-          id: topics.id,
-          targetId: topics.targetId,
-          name: topics.name,
-          questionCount: count(questions.id),
-        })
-        .from(topics)
-        .leftJoin(questions, eq(topics.id, questions.topicId))
-        .where(eq(topics.targetId, targetId))
-        .groupBy(topics.id)
-        .orderBy(asc(topics.name)),
+    addTopics: async (newTopics, transaction) => {
+      await executorOf(database, transaction)
+        .insert(topics)
+        .values([...newTopics]);
+    },
+    topics: async (targetId, transaction) =>
+      topicSummaries(executorOf(database, transaction), targetId),
     search: async (targetId, filter) => search(database, targetId, filter),
     rate: async (id, rating) => {
       const rows = await database

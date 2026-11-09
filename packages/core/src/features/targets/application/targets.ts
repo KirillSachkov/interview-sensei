@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import type { Transaction } from "../../../shared/storage/index.ts";
 import type { Clock } from "../../../shared/time/index.ts";
 import type { TargetAgents, TargetRepository, TargetTopics } from "../domain/ports.ts";
 import type {
@@ -7,13 +8,14 @@ import type {
   Section,
   Target,
   TargetAgent,
+  TargetUpdate,
   TargetView,
   TopicSummary,
 } from "../domain/target.ts";
 
 interface Dependencies {
-  repository: TargetRepository;
-  topics: TargetTopics;
+  repository: TargetRepository<Transaction>;
+  topics: TargetTopics<Transaction>;
   agents: TargetAgents;
   clock: Clock;
 }
@@ -58,17 +60,48 @@ function withTopics(plan: readonly Section[], topics: readonly TopicSummary[]) {
 async function get(
   { repository, topics }: Dependencies,
   id: string,
+  transaction?: Transaction,
 ): Promise<TargetView | undefined> {
-  const target = await repository.get(id);
+  const target = await repository.get(id, transaction);
   if (target === undefined) {
     return undefined;
   }
   const [plan, preferences, targetTopics] = await Promise.all([
-    repository.sections(id),
-    repository.preferences(id),
-    topics.topics(id),
+    repository.sections(id, transaction),
+    repository.preferences(id, transaction),
+    topics.topics(id, transaction),
   ]);
   return { ...target, sections: withTopics(plan, targetTopics), preferences };
+}
+
+/** Rejects a Section that references a Topic outside its Target. */
+function checkTopics(plan: readonly Section[], targetTopics: readonly TopicSummary[]): void {
+  if (
+    plan.some((section) =>
+      section.topicIds.some((topicId) => !targetTopics.some((topic) => topic.id === topicId)),
+    )
+  ) {
+    throw new Error("A Section must reference only Topics of its own Target");
+  }
+}
+
+/**
+ * Stores the Target's new fields, status and Interview plan; undefined for an unknown Target. Pass
+ * the transaction when other slices write in it too: every query then runs inside it.
+ */
+async function update(
+  dependencies: Dependencies,
+  {
+    id,
+    change,
+    transaction,
+  }: { id: string; change: TargetUpdate; transaction: Transaction | undefined },
+): Promise<TargetView | undefined> {
+  const { repository, topics } = dependencies;
+  const plan = change.sections.map((section) => ({ ...section, targetId: id }));
+  checkTopics(plan, await topics.topics(id, transaction));
+  const found = await repository.update(id, { ...change, sections: plan }, transaction);
+  return found ? get(dependencies, id, transaction) : undefined;
 }
 
 function targetRecord(
@@ -104,13 +137,7 @@ async function create(dependencies: Dependencies, input: NewTarget): Promise<Tar
     topicIds: section.topicIds,
   }));
   const targetTopics = await topics.topics(id);
-  if (
-    plan.some((section) =>
-      section.topicIds.some((topicId) => !targetTopics.some((topic) => topic.id === topicId)),
-    )
-  ) {
-    throw new Error("A Section must reference only Topics of its own Target");
-  }
+  checkTopics(plan, targetTopics);
   const preferences = (input.preferences ?? []).map((rule) => ({
     id: rule.id,
     text: rule.text,
@@ -134,7 +161,9 @@ export function createTargets(dependencies: Dependencies) {
   const { repository } = dependencies;
   return {
     create: async (input: NewTarget = {}) => create(dependencies, input),
-    get: async (id: string) => get(dependencies, id),
+    get: async (id: string, transaction?: Transaction) => get(dependencies, id, transaction),
+    update: async (id: string, change: TargetUpdate, transaction?: Transaction) =>
+      update(dependencies, { id, change, transaction }),
     list: repository.list,
     activeDemo: repository.activeDemo,
     /** The Target's agent; undefined for an unknown Target. */

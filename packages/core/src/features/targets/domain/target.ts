@@ -52,6 +52,19 @@ export interface NewTarget {
   readonly preferences?: readonly Omit<Preference, "targetId" | "createdAt">[];
 }
 
+/**
+ * The Target after its setup changed: its fields, its status and its whole Interview plan, which
+ * replaces the old one. Sections keep their ids; Sections missing from the plan go away.
+ */
+export interface TargetUpdate {
+  readonly name: string;
+  readonly level: Level | null;
+  readonly tone: Target["tone"];
+  readonly language: string;
+  readonly status: TargetStatus;
+  readonly sections: readonly Omit<Section, "targetId">[];
+}
+
 /** The Target's agent: the Candidate's choice, or the default agent when `chosen` is false. */
 export interface TargetAgent {
   /** Null when the Target has no choice and no agent is available. */
