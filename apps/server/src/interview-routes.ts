@@ -72,7 +72,13 @@ function refuseStart(reply: FastifyReply, outcome: Exclude<StartOrClosing, { typ
   }
 }
 
-function registerStart(server: FastifyInstance, { interviews }: Dependencies) {
+const targetArchived = {
+  error: "target_archived",
+  message: "Цель в архиве. Верните её из архива, чтобы начать мок.",
+} as const;
+
+/** `POST /api/targets/:id/interviews`; an archived Target gets 409 `target_archived`, as its setup does. */
+function registerStart(server: FastifyInstance, { interviews, targets }: Dependencies) {
   server.post<{ Params: { id: string }; Body: unknown }>(
     "/api/targets/:id/interviews",
     { schema: { params } },
@@ -80,6 +86,10 @@ function registerStart(server: FastifyInstance, { interviews }: Dependencies) {
       const start = startRequestOf(request.params.id, request.body);
       if (start === undefined) {
         return reply.code(400).send({ error: "invalid_request" });
+      }
+      const target = await targets.get(start.targetId);
+      if (target?.status === "archived") {
+        return reply.code(409).send(targetArchived);
       }
       const outcome = await startOrClosing(interviews, start);
       return outcome.type === "started"

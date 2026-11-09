@@ -124,6 +124,16 @@ describe("target archive", () => {
     expect(response.json()).toMatchObject({ error: "target_archived" });
   });
 
+  it("refuses a Mock interview of an archived Target", async () => {
+    const api = await interviewApi();
+    await archive(api);
+
+    const response = await api.start([api.sectionId("Опыт и резюме")]);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ error: "target_archived" });
+  });
+
   it.each(["archive", "restore"])("answers 404 to %s of an unknown Target", async (action) => {
     const api = await demoApi();
 
