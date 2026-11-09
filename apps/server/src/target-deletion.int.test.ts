@@ -19,6 +19,7 @@ import {
 } from "./chat-test-support.ts";
 import type { SessionView } from "./chat-test-support.ts";
 import { demoApi, model } from "./model-test-support.ts";
+import { demoWithMock } from "./progress-test-support.ts";
 import { upload } from "./source-test-support.ts";
 import { deleteTarget } from "./target-deletion.ts";
 
@@ -64,7 +65,20 @@ async function targetRows(dataDirectory: string, targetId: string) {
     const own = await database.execute<{ rows: number }>(
       `select count(*)::int as rows from targets.targets where id = '${targetId}'`,
     );
-    return Object.fromEntries([["targets.targets", own.rows[0]?.rows], ...counted]);
+    // These rows reach the Target through their Mock interview; the data directory has one Target.
+    const interviewRows = await Promise.all(
+      ["asked_questions", "attempts", "disputes"].map(async (table) => {
+        const result = await database.execute<{ rows: number }>(
+          `select count(*)::int as rows from interviews.${table}`,
+        );
+        return [`interviews.${table}`, result.rows[0]?.rows] as const;
+      }),
+    );
+    return Object.fromEntries([
+      ["targets.targets", own.rows[0]?.rows],
+      ...counted,
+      ...interviewRows,
+    ]);
   } finally {
     await storage.close();
   }
@@ -94,11 +108,11 @@ async function targetData(
 }
 
 /**
- * The demo Target with a material file and a draft change of its setup agent; the agent then
- * crashes, so no session of the Target runs.
+ * The demo Target with a finished Mock interview, a material file and a draft change of its setup
+ * agent; the agent then crashes, so no session of the Target runs.
  */
 async function demoWithData(dataDirectory: string) {
-  const api = await demoApi(dataDirectory);
+  const api = await demoWithMock(dataDirectory);
   await upload(api.server, { targetId: api.target.id, name: "vacancy.txt", body: "Go" });
   const opened = await request(api.server, {
     method: "POST",
@@ -117,7 +131,11 @@ async function demoWithData(dataDirectory: string) {
 async function archivedDemo() {
   const dataDirectory = await temporaryDirectory();
   const api = await demoWithData(dataDirectory);
-  await request(api.server, { method: "POST", url: `/api/targets/${api.target.id}/archive` });
+  const archived = await request(api.server, {
+    method: "POST",
+    url: `/api/targets/${api.target.id}/archive`,
+  });
+  expect(archived.statusCode).toBe(200);
   await api.stop();
   return { dataDirectory, targetId: api.target.id, sessionId: api.sessionId };
 }
@@ -129,7 +147,11 @@ describe("deleting an archived Target", () => {
       files: true,
       sessionFiles: true,
       rows: {
-        "agent_sessions.sessions": 1,
+        "agent_sessions.sessions": 2,
+        "interviews.asked_questions": 1,
+        "interviews.attempts": 1,
+        "interviews.disputes": 1,
+        "interviews.interviews": 1,
         "question_bank.questions": 30,
         "question_bank.topics": 5,
         "sources.sources": 1,

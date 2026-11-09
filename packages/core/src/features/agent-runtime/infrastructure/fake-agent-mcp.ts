@@ -65,7 +65,7 @@ function toolResult(result: unknown): ToolResult {
 export async function callMcpTool(
   url: string,
   name: string,
-  args: Readonly<Record<string, unknown>> = {},
+  args: object = {},
 ): Promise<ToolResult> {
   resultOf(
     await post(url, {

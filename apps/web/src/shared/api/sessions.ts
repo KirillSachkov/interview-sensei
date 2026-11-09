@@ -1,4 +1,5 @@
 import { request } from "./request";
+import { sent } from "./http";
 
 /** One line of the chat; the server folds the agent's events into these. */
 export type ChatEntry =
@@ -49,6 +50,8 @@ export interface SessionView {
   readonly createdAt: string;
   readonly entries: readonly ChatEntry[];
   readonly failure: SessionFailure | null;
+  /** `hidden` while the agent's text stays out of the chat, such as before the answer in a mock. */
+  readonly agentText: "continues" | "new" | "hidden";
 }
 
 /** An AgentSession without its chat, from GET /api/sessions. */
@@ -79,24 +82,8 @@ export function isSessionView(value: unknown): value is SessionView {
 }
 
 async function readJson(response: Response): Promise<unknown> {
-  if (!response.ok) {
-    throw new Error((await serverMessage(response)) ?? `HTTP ${response.status}`);
-  }
+  await sent(response);
   return response.json();
-}
-
-/** The Russian message the server put in an error body, if there is one. */
-async function serverMessage(response: Response): Promise<string | undefined> {
-  const body: unknown = await response.json().catch(() => null);
-  if (
-    typeof body === "object" &&
-    body !== null &&
-    "message" in body &&
-    typeof body.message === "string"
-  ) {
-    return body.message;
-  }
-  return undefined;
 }
 
 /** Every session, the newest first. */

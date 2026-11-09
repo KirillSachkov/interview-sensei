@@ -11,14 +11,15 @@ import type { CanvasZone } from "@/shared/ui/canvas";
 
 import { GoalZone } from "./goal-zone";
 import type { GoalZoneProps, QuestionsView, SetupAnchor } from "./goal-zone";
+import { MockInterviews } from "./mock-interview/mock-interviews";
 import { QuestionsPanel } from "./questions-panel";
-import { SessionsPlaceholder } from "./sessions-placeholder";
 
 /**
  * The zones of the Target's canvas. A slice adds its widget to a zone's `content` here and leaves
  * the canvas itself unchanged.
  */
 function targetZones(goal: GoalZoneProps): CanvasZone[] {
+  const { target } = goal;
   return [
     {
       id: "goal",
@@ -32,7 +33,7 @@ function targetZones(goal: GoalZoneProps): CanvasZone[] {
       hint: "моки по этой цели",
       width: 1080,
       minHeight: 640,
-      content: <SessionsPlaceholder />,
+      content: <MockInterviews targetId={target.id} />,
     },
   ];
 }

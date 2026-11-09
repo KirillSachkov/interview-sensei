@@ -3,14 +3,11 @@ import path from "node:path";
 import { fastify } from "fastify";
 import type { FastifyInstance } from "fastify";
 
-import { registerAgentSessionRoutes } from "./agent-session-routes.ts";
+import { registerApi } from "./api-routes.ts";
 import { composeFeatures, mcpRoute } from "./composition.ts";
-import type { FeatureDependencies, Features, UserEnvironment } from "./composition.ts";
+import type { FeatureDependencies, UserEnvironment } from "./composition.ts";
 import { prepare } from "./lifecycle.ts";
 import { loopbackOrigin, registerMcpRoute } from "./mcp.ts";
-import { registerSourceRoutes } from "./source-routes.ts";
-import { registerTargetRoutes } from "./target-routes.ts";
-import { registerTargetSetupRoutes } from "./target-setup-routes.ts";
 import { registerWebApp } from "./web-app.ts";
 
 /**
@@ -49,21 +46,6 @@ export interface ServerDependencies extends Pick<
    * Vite dev server of `pnpm dev`. See acceptLocalRequestsOnly.
    */
   allowedOrigins?: readonly string[];
-}
-
-/** The `/api` routes of the composed features. */
-function registerApi(server: FastifyInstance, features: Features) {
-  server.get("/api/health", features.health);
-  registerTargetRoutes(server, features);
-  registerTargetSetupRoutes(server, features);
-  registerSourceRoutes(server, features);
-  registerAgentSessionRoutes(server, {
-    runtime: features.runtime,
-    sessions: features.sessions,
-    onError: (error) => {
-      server.log.error({ err: error }, "A session command from the browser failed");
-    },
-  });
 }
 
 /**

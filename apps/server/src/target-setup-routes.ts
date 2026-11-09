@@ -95,7 +95,7 @@ function registerSetupEnd(server: FastifyInstance, { targets, sessions }: Depend
         (session) => session.kind === "target-setup" && session.targetId === id,
       );
       // Only the live one ends; the others ended before.
-      await Promise.all(setups.map(async (session) => sessions.end(session.id)));
+      await Promise.all(setups.map(async (session) => sessions.stop(session.id)));
       return reply.code(204).send();
     },
   );

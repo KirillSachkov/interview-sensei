@@ -1,4 +1,5 @@
-// How the fake agent asks the client for permission, like a real ACP adapter.
+// How the fake agent asks the client's permission for a tool call, like the adapters of real
+// agents: it announces the tool call, then asks with only its id.
 import type { AgentContext, PermissionOption } from "@agentclientprotocol/sdk/unstable";
 
 /** The options of every permission request, like those of a real adapter. */

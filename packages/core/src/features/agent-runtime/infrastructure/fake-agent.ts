@@ -19,6 +19,7 @@
 // - `/env` replies with the sorted names of its environment variables as JSON: «env: <json>».
 // - `/system`, `/skills` and `/tools` reply with the role, skills and bans of the session's
 //   profile; see `fake-agent-profile.ts`.
+// - The template messages of a mock interview get the interviewer's turns of `fake-agent-interviewer.ts`.
 // - Any other text gets the reply «Фейковый агент получил: «<text>»» in several chunks.
 //
 // The variable INTERVIEW_SENSEI_FAKE_AGENT_MODE stands for broken agents in launcher tests:
@@ -40,17 +41,14 @@ import {
 } from "@agentclientprotocol/sdk/unstable";
 import type { AgentContext, McpServer } from "@agentclientprotocol/sdk/unstable";
 
-import { callMcpTool } from "./fake-agent-mcp.ts";
-import { askPermission, permissionOptions } from "./fake-agent-permission.ts";
-import { callTool, toolCommand } from "./fake-agent-tool.ts";
+import { interviewerTurn } from "./fake-agent-interviewer.ts";
+import { callBrief, callTool, toolCommand } from "./fake-agent-tool.ts";
 import type { ToolCall } from "./fake-agent-tool.ts";
 import { fakeAgentModes } from "./fake-agent-modes.ts";
+import { askPermission, permissionOptions } from "./fake-agent-permission.ts";
 import { profileReply, profileSettings, sessionCapabilities } from "./fake-agent-profile.ts";
 import type { ProfileSettings } from "./fake-agent-profile.ts";
-
-// A short pause between chunks lets a person see the reply grow; the fake agent stands for an
-// external program and has no injected Timer.
-const chunkPauseMs = 40;
+import { sendChunk, sendText } from "./fake-agent-text.ts";
 
 /** The MCP servers each session got in `session/new`. */
 const sessionMcpServers = new Map<string, McpServer[]>();
@@ -63,13 +61,6 @@ const modes = fakeAgentModes(agentMode);
 
 /** Resolves the waiting `/wait` turn of each session when the client cancels it. */
 const cancelWaiters = new Map<string, () => void>();
-
-async function sendChunk(client: AgentContext, sessionId: string, text: string): Promise<void> {
-  await client.notify("session/update", {
-    sessionId,
-    update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text } },
-  });
-}
 
 /** Resolves when everything written to stdout so far has reached the pipe. */
 async function flushStdout(): Promise<void> {
@@ -99,12 +90,7 @@ async function waitForCancel(client: AgentContext, sessionId: string) {
 
 /** Sends the reply in chunks of one word and ends the turn. */
 async function reply(client: AgentContext, sessionId: string, text: string) {
-  for (const word of text.split(/(?<= )/u)) {
-    /* oxlint-disable eslint/no-await-in-loop -- chunks go out one after another, like a real stream */
-    await sendChunk(client, sessionId, word);
-    await delay(chunkPauseMs);
-    /* oxlint-enable eslint/no-await-in-loop */
-  }
+  await sendText(client, sessionId, text);
   return { stopReason: "end_turn" as const };
 }
 
@@ -121,26 +107,14 @@ function mcpServerOf(sessionId: string) {
   return server;
 }
 
+/** How the fake agent calls our MCP tools in the session: on its server, after asking permission. */
+function toolAccess(client: AgentContext, sessionId: string) {
+  const ask = async (call: ToolCall) => askPermission(client, sessionId, call);
+  return { server: mcpServerOf(sessionId), ask };
+}
+
 async function readBrief(client: AgentContext, sessionId: string) {
-  const server = mcpServerOf(sessionId);
-  const outcome = await askPermission(client, sessionId, {
-    toolCallId: randomUUID(),
-    title: "get_brief",
-    kind: "other",
-    rawInput: {},
-    // The structural field the server recognizes our MCP tools by.
-    _meta: { fakeAgent: { mcpServer: server.name } },
-  });
-  if (outcome.outcome !== "selected" || outcome.optionId === "reject-once") {
-    return reply(client, sessionId, "Фейковый агент не получил разрешения на get_brief");
-  }
-  try {
-    const brief = await callMcpTool(server.url, "get_brief");
-    return await reply(client, sessionId, `Фейковый агент прочитал brief: ${brief.text}`);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return reply(client, sessionId, `Фейковый агент не смог вызвать get_brief: ${message}`);
-  }
+  return reply(client, sessionId, await callBrief(toolAccess(client, sessionId)));
 }
 
 async function askForeignTool(client: AgentContext, sessionId: string) {
@@ -228,8 +202,7 @@ async function respond(client: AgentContext, sessionId: string, text: string) {
     const command = commands.get(text);
     return command === undefined ? echo(client, sessionId, text) : command(client, sessionId);
   }
-  const ask = async (call: ToolCall) => askPermission(client, sessionId, call);
-  return reply(client, sessionId, await callTool(tool, { server: mcpServerOf(sessionId), ask }));
+  return reply(client, sessionId, await callTool(tool, toolAccess(client, sessionId)));
 }
 
 const app = agent({ name: "interview-sensei-fake-agent" })
@@ -257,6 +230,10 @@ const app = agent({ name: "interview-sensei-fake-agent" })
     const profile = profileReply(text, sessionSettings.get(sessionId));
     if (profile !== null) {
       return reply(client, sessionId, await profile);
+    }
+    const interview = interviewerTurn(text);
+    if (interview !== null) {
+      return interview({ client, sessionId, server: mcpServerOf(sessionId) });
     }
     return respond(client, sessionId, text);
   })

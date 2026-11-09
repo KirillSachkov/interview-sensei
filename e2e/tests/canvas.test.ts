@@ -1,13 +1,15 @@
 // Spec #42, seam 3: the canvas frame; spec #45, seam 3: a new Target, its setup and the manual
-// actions. The tests share the server's data directory and run in order: the first one sees no
-// Targets and opens the demo Target, the rest work on it. Later Targets sort after the demo, so `/`
-// still opens it. No other test file creates Targets. Only Targets that a test created go to the
-// archive or away; changes of the demo Target are undone in the same test.
+// actions; spec #41: the mock interview, last. The tests share the server's data directory and run
+// in order: the first one sees no Targets and opens the demo Target, the rest work on it. Later
+// Targets sort after the demo, so `/` still opens it. No other test file creates Targets. Only
+// Targets that a test created go to the archive or away; changes of the demo Target are undone in
+// the same test.
 import { expect, test } from "@playwright/test";
-import type { Page } from "@playwright/test";
 
 import {
+  agentButton,
   attachFiles,
+  chooseAgent,
   demoName,
   expectAppliedPlan,
   greetFakeAgent,
@@ -33,12 +35,9 @@ import {
   finishSetup,
   switcherItem,
 } from "./target-actions.ts";
+import { mockInterviewTests } from "./mock-interview-tests.ts";
 
 test.describe.configure({ mode: "serial" });
-
-function agentButton(page: Page) {
-  return page.getByRole("button", { name: /^Агент:/u });
-}
 
 test("without Targets the Candidate opens the demo Target onto its canvas", async ({ page }) => {
   await page.goto("/");
@@ -62,12 +61,6 @@ test("the app opens on the canvas of the Target", async ({ page }) => {
   await expect(page.getByRole("button", { name: demoName })).toBeVisible();
   await expect(zones(page).goal).toContainText(demoName);
 });
-
-/** Opens the agent menu of the top bar and chooses the item with the name. */
-async function chooseAgent(page: Page, name: RegExp) {
-  await agentButton(page).click();
-  await page.getByRole("menu", { name: "Агент цели" }).getByRole("menuitemradio", { name }).click();
-}
 
 test("the agent menu shows the default agent and whether each agent is available", async ({
   page,
@@ -295,3 +288,5 @@ test("a draft Target is deleted at once after the confirmation", async ({ page }
   await openSwitcher(page);
   await expect(switcherItem(page, /Цель без названия/u)).toHaveCount(0);
 });
+
+mockInterviewTests();

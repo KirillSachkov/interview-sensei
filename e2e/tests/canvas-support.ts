@@ -1,5 +1,5 @@
-// Helpers of the canvas tests in canvas.test.ts: the zones, the setup chat, the onboarding of a
-// new Target and the files of its materials.
+// Helpers of the canvas tests in canvas.test.ts: the zones, the agent menu, the setup chat, the
+// onboarding of a new Target and the files of its materials.
 import { expect } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 
@@ -12,6 +12,17 @@ export function zones(page: Page) {
     goal: canvas.getByRole("region", { name: "Цель", exact: true }),
     sessions: canvas.getByRole("region", { name: "Сессии", exact: true }),
   };
+}
+
+/** The agent button of the top bar. */
+export function agentButton(page: Page) {
+  return page.getByRole("button", { name: /^Агент:/u });
+}
+
+/** Opens the agent menu of the top bar and chooses the item with the name. */
+export async function chooseAgent(page: Page, name: RegExp) {
+  await agentButton(page).click();
+  await page.getByRole("menu", { name: "Агент цели" }).getByRole("menuitemradio", { name }).click();
 }
 
 /** The setup chat beside the canvas; `/tool <name> <json>` makes the fake agent call our tool. */

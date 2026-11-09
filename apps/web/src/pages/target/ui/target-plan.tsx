@@ -5,6 +5,7 @@ import { setSectionEnabled } from "@/shared/api";
 import type { PlanSection, QuestionScope, TargetView } from "@/shared/api";
 
 import { questionCount } from "../lib/question-count";
+import { refreshPlanViews } from "../model/plan-views";
 
 const kindNames: Record<PlanSection["kind"], string> = {
   conversation: "разговор",
@@ -31,8 +32,9 @@ function SectionToggle({ targetId, section }: { targetId: string; section: PlanS
   const queryClient = useQueryClient();
   const toggle = useMutation({
     mutationFn: async (enabled: boolean) => setSectionEnabled(targetId, section.id, enabled),
-    onSuccess: (target) => {
+    onSuccess: async (target) => {
       queryClient.setQueryData(["targets", targetId], target);
+      await refreshPlanViews(queryClient, targetId);
     },
   });
   return (

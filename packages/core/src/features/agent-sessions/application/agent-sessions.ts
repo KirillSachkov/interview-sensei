@@ -2,20 +2,22 @@ import path from "node:path";
 
 import type { AgentSession, SessionView } from "../domain/agent-session.ts";
 import { isLive } from "../domain/agent-session.ts";
-import type { AgentLauncher, LiveAgent } from "../domain/ports.ts";
+import type { AgentLauncher } from "../domain/ports.ts";
 import { replay } from "../domain/session-view.ts";
 import {
   answerPermission,
   cancelPermissions,
-  closeMcp,
+  end,
   launch,
   liveSession,
   record,
   runTurn,
 } from "./live-session.ts";
 import type { LiveSession, LiveSessionDependencies, SessionListener } from "./live-session.ts";
-import { sessionOpener } from "./open-session.ts";
+import { runningFor, sessionOpener, stopNow } from "./open-session.ts";
 import type { OpenSession, StartRequest } from "./open-session.ts";
+import { drain, enqueue, hideAgentText, queuePrompt } from "./server-prompts.ts";
+import type { QueueContext, QueueOutcome } from "./server-prompts.ts";
 
 export interface AgentSessionsDependencies extends LiveSessionDependencies {
   readonly launcher: AgentLauncher;
@@ -38,17 +40,37 @@ export interface AgentSessions {
    */
   readonly start: (request: StartRequest) => Promise<SessionView>;
   /**
-   * The live session of the kind for the Target, or a new one that `prepare` describes. Calls for
-   * the same kind and Target run one after another, so the Target has one live session of the
-   * kind. Rejects when `prepare` rejects, and with SessionsClosedError once close has begun.
+   * The live session of the kind for the Target, or a new one that `prepare` describes; one live
+   * session per kind and Target. Rejects as `prepare` does, and with SessionsClosedError on close.
    */
   readonly open: OpenSession;
   /** Every session, the newest first. */
   readonly list: () => Promise<readonly AgentSession[]>;
-  /** Whether a live session of the Target runs on this server now. */
+  /** Whether a live session of the Target, of any kind, runs on this server now. */
   readonly running: (targetId: string) => boolean;
   readonly view: (sessionId: string) => Promise<SessionView | undefined>;
+  /** Sends the Candidate's prompt to the agent; refuses it while the agent works. */
   readonly prompt: (sessionId: string, text: string) => Promise<PromptOutcome>;
+  /**
+   * Sends the server's prompt, such as a template message of a mock interview, once the agent has
+   * started and finished its current turn and the server's earlier prompts. It stays out of the
+   * chat. With `showAgentText`, the agent's hidden text goes to the chat again from this prompt on.
+   * Resolves when the agent gets it, or with `closed` when the session ends first.
+   */
+  readonly queuePrompt: (
+    sessionId: string,
+    text: string,
+    options: { readonly showAgentText: boolean },
+  ) => Promise<QueueOutcome>;
+  /** Hides the agent's text from the chat until a prompt with `showAgentText`; only when live. */
+  readonly hideAgentText: (sessionId: string) => Promise<void>;
+  /**
+   * Stops the agent after its current turn and the server's queued prompts, and marks the session
+   * as ended. Does nothing for a session that is not live.
+   */
+  readonly end: (sessionId: string) => Promise<void>;
+  /** Stops the agent at once, even in a turn, and ends the session; false when it is not live. */
+  readonly stop: (sessionId: string) => Promise<boolean>;
   /**
    * Passes the Candidate's choice to the agent's permission request. `not_found` when the request
    * no longer waits or did not offer the option.
@@ -61,11 +83,6 @@ export interface AgentSessions {
   readonly cancel: (sessionId: string) => Promise<void>;
   /** Calls the listener after each change of a live session; returns the unsubscribe function. */
   readonly subscribe: (sessionId: string, listener: SessionListener) => () => void;
-  /**
-   * Stops the live session's agent and marks the session as ended, as «Завершить» asks; false
-   * when the session is not live.
-   */
-  readonly end: (sessionId: string) => Promise<boolean>;
   /** Marks sessions that were live when the server last stopped as ended. Call it at start. */
   readonly endInterrupted: () => Promise<void>;
   /**
@@ -86,6 +103,8 @@ export class SessionsClosedError extends Error {
 interface Context {
   readonly dependencies: AgentSessionsDependencies;
   readonly live: Map<string, LiveSession>;
+  /** The live sessions for the server's queued prompts and ends. */
+  readonly queue: QueueContext;
   /** Starts that have not yet put their session into `live`; close waits for them. */
   readonly starting: Set<Promise<unknown>>;
   closing: boolean;
@@ -94,7 +113,7 @@ interface Context {
 /** Creates the session and starts its agent; close ends it when close began meanwhile. */
 async function createAndLaunch(
   context: Context,
-  { kind, agent, targetId, opening }: StartRequest,
+  { kind, agent, targetId, roleAddition, opening }: StartRequest,
 ): Promise<SessionView> {
   const { dependencies } = context;
   const { repository, clock } = dependencies;
@@ -105,49 +124,39 @@ async function createAndLaunch(
     createdAt: clock.now(),
   });
   // A finished session leaves `live`: later reads come from the journal.
-  const session = liveSession(created, dependencies, () => {
-    context.live.delete(created.id);
+  const session = liveSession(created, dependencies, {
+    onFinished: () => {
+      context.live.delete(created.id);
+    },
+    onIdle: () => {
+      void drain(context.queue, session);
+    },
   });
   if (context.closing) {
     // Close began during the create: the session ends before its agent ever starts.
     await record(session, { type: "session_ended" });
     throw new SessionsClosedError();
   }
-  launchLive(context, session, opening);
+  launchLive(context, session, { roleAddition, opening });
   return session.view;
 }
 
-/** Records the prompt and starts the turn; the caller checked that the agent takes prompts. */
-async function send(
-  session: LiveSession,
-  agent: LiveAgent,
-  message: { text: string; origin?: "app" },
-): Promise<void> {
-  // Set before the first await, so a second prompt in the meantime sees the turn.
-  session.turnActive = true;
-  await record(session, { type: "prompt_sent", ...message });
-  void runTurn(session, agent, message.text);
-}
-
 /**
- * Hands the session to `live`, where close finds it, and starts its agent in the background; then
- * sends the opening prompt, if any.
+ * Hands the session to `live`, where close finds it, and starts its agent in the background. The
+ * opening is the first server prompt: the agent gets it once it starts, so it speaks first.
  */
 function launchLive(
   { dependencies, live }: Context,
   session: LiveSession,
-  opening: string | undefined,
+  { roleAddition, opening }: { roleAddition: string | undefined; opening: string | undefined },
 ): void {
   const { launcher, sessionsDirectory } = dependencies;
+  if (opening !== undefined) {
+    session.queued.push({ type: "prompt", text: opening, showAgentText: false, settle: () => {} });
+  }
   live.set(session.view.id, session);
   const workingDirectory = path.join(sessionsDirectory, session.view.id);
-  session.started = (async () => {
-    await launch(session, { launcher, workingDirectory });
-    const { agent } = session;
-    if (opening !== undefined && agent !== null && session.view.status === "idle") {
-      await send(session, agent, { text: opening, origin: "app" });
-    }
-  })();
+  session.started = launch(session, { launcher, workingDirectory, roleAddition });
 }
 
 async function start(context: Context, request: StartRequest): Promise<SessionView> {
@@ -183,7 +192,10 @@ async function prompt(context: Context, sessionId: string, text: string): Promis
   if (agent === null || session.turnActive || !isLive(session.view.status)) {
     return isLive(session.view.status) ? "busy" : "closed";
   }
-  await send(session, agent, { text });
+  // Set before the first await, so a second prompt in the meantime sees the turn.
+  session.turnActive = true;
+  await record(session, { type: "prompt_sent", text });
+  void runTurn(session, agent, text);
   return "accepted";
 }
 
@@ -228,26 +240,6 @@ async function endInterrupted({ dependencies: { repository, clock } }: Context):
   );
 }
 
-async function end(session: LiveSession): Promise<void> {
-  // Wait for a starting agent, so its process does not outlive the server.
-  await session.started;
-  const { agent } = session;
-  session.agent = null;
-  cancelPermissions(session);
-  await agent?.stop();
-  await closeMcp(session);
-  if (isLive(session.view.status)) {
-    await record(session, { type: "session_ended" });
-  }
-  await session.written;
-}
-
-function liveOf({ live }: Context, targetId: string): LiveSession[] {
-  return [...live.values()].filter(
-    (session) => session.view.targetId === targetId && isLive(session.view.status),
-  );
-}
-
 async function close(context: Context): Promise<void> {
   context.closing = true;
   // A session being created ends in its start, before the storage closes.
@@ -260,9 +252,18 @@ async function close(context: Context): Promise<void> {
 
 /** AgentSessions of this server: starts their agents, keeps their journals and tells listeners. */
 export function createAgentSessions(dependencies: AgentSessionsDependencies): AgentSessions {
+  const live = new Map<string, LiveSession>();
   const context: Context = {
     dependencies,
-    live: new Map(),
+    live,
+    queue: {
+      live,
+      repository: dependencies.repository,
+      endSession: async (session) => {
+        live.delete(session.view.id);
+        await end(session);
+      },
+    },
     starting: new Set(),
     closing: false,
   };
@@ -273,9 +274,16 @@ export function createAgentSessions(dependencies: AgentSessionsDependencies): Ag
       start: async (request) => start(context, request),
     }),
     list: async () => dependencies.repository.list(),
-    running: (targetId) => liveOf(context, targetId).length > 0,
+    running: (targetId) => runningFor(context.live, targetId),
     view: async (sessionId) => view(context, sessionId),
     prompt: async (sessionId, text) => prompt(context, sessionId, text),
+    queuePrompt: async (sessionId, text, options) =>
+      queuePrompt(context.queue, { sessionId, text }, options),
+    hideAgentText: async (sessionId) => hideAgentText(context.queue, sessionId),
+    end: async (sessionId) => {
+      await enqueue(context.queue, sessionId, (settle) => ({ type: "end", settle }));
+    },
+    stop: async (sessionId) => stopNow(context.live, sessionId),
     answerPermission: async (sessionId, request) => answer(context, sessionId, request),
     cancel: async (sessionId) => cancel(context, sessionId),
     subscribe: (sessionId, listener) => {
@@ -284,13 +292,6 @@ export function createAgentSessions(dependencies: AgentSessionsDependencies): Ag
       return () => {
         listeners?.delete(listener);
       };
-    },
-    end: async (sessionId) => {
-      const session = context.live.get(sessionId);
-      if (session !== undefined) {
-        await end(session);
-      }
-      return session !== undefined;
     },
     endInterrupted: async () => endInterrupted(context),
     close: async () => close(context),

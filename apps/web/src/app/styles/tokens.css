@@ -17,6 +17,7 @@
   --color-on-accent: #ffffff;
   --color-ok: #2f9e44;
   --color-off: #adb5bd;
+  --color-warn: #f08c00;
   --color-danger: #c92a2a;
   /* The dimmed page behind a dialog. */
   --color-backdrop: rgb(0 0 0 / 20%);

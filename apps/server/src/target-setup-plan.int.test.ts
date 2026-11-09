@@ -148,6 +148,19 @@ describe("the Interview plan through the draft", () => {
 });
 
 describe("the Questions through the draft", () => {
+  it("stores the Questions applied through the draft as confirmed", async () => {
+    const { server } = await startServer(await temporaryDirectory());
+    // The rule «не подтверждён» (#47): the Candidate accepted these by applying the draft.
+    const { target } = await appliedTarget(server);
+
+    const stored = await questionsOf(server, target.id);
+
+    expect(stored.map(({ text, unconfirmed }) => ({ text, unconfirmed }))).toStrictEqual(
+      expect.arrayContaining(questions.map(({ text }) => ({ text, unconfirmed: false }))),
+    );
+    expect(stored).toHaveLength(questions.length);
+  });
+
   it("add_questions leaves out duplicates of the Target and of the draft, and returns them", async () => {
     const { server } = await startServer(await temporaryDirectory());
     const { events } = await appliedTarget(server);

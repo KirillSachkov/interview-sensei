@@ -18,11 +18,15 @@ module.exports = {
       name: "server-composes-features-in-one-module",
       severity: "error",
       comment:
-        "Only src/composition.ts imports core features (@interview-sensei/core/<feature>): it calls " +
-        "each feature's module factory once and hands the routes finished services. Take a service " +
+        "Only src/composition.ts and its parts src/composition-<part>.ts import core features " +
+        "(@interview-sensei/core/<feature>): it calls each feature's module factory once and hands " +
+        "the routes finished services. Take a service " +
         "or type from ./composition.ts instead; shared subpaths such as time and session-kinds stay " +
         "open to every file.",
-      from: { path: "^src/", pathNot: String.raw`^src/composition\.ts$` },
+      from: {
+        path: "^src/",
+        pathNot: [String.raw`^src/composition\.ts$`, String.raw`^src/composition-[a-z]+\.ts$`],
+      },
       to: { path: "(^|/)node_modules/@interview-sensei/core/src/features/" },
     },
   ],

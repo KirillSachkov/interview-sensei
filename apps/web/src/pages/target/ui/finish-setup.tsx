@@ -83,6 +83,7 @@ export function FinishSetup({
       queryClient.removeQueries({ queryKey: ["targets", targetId, "setup-session"] });
       onFinished();
       await queryClient.invalidateQueries({ queryKey: ["targets"] });
+      await queryClient.invalidateQueries({ queryKey: ["progress", targetId] });
     },
   });
   const size = draft.data?.length ?? 0;

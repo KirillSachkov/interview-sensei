@@ -1,0 +1,27 @@
+// The HTTP and WebSocket API under `/api`: server.ts registers it after the request guards.
+import type { FastifyInstance } from "fastify";
+
+import { registerAgentSessionRoutes } from "./agent-session-routes.ts";
+import type { Features } from "./composition.ts";
+import { registerInterviewRoutes } from "./interview-routes.ts";
+import { registerProgressRoutes } from "./progress-routes.ts";
+import { registerSourceRoutes } from "./source-routes.ts";
+import { registerTargetRoutes } from "./target-routes.ts";
+import { registerTargetSetupRoutes } from "./target-setup-routes.ts";
+
+/** The HTTP and WebSocket API under `/api`. */
+export function registerApi(server: FastifyInstance, features: Features) {
+  server.get("/api/health", features.health);
+  registerTargetRoutes(server, features);
+  registerTargetSetupRoutes(server, features);
+  registerSourceRoutes(server, features);
+  registerInterviewRoutes(server, features);
+  registerProgressRoutes(server, features);
+  registerAgentSessionRoutes(server, {
+    runtime: features.runtime,
+    sessions: features.sessions,
+    onError: (error) => {
+      server.log.error({ err: error }, "A session command from the browser failed");
+    },
+  });
+}

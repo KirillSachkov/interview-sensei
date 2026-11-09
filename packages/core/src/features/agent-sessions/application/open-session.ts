@@ -1,13 +1,19 @@
 import type { SessionKind } from "../../../shared/session-kinds/index.ts";
 import type { SessionView } from "../domain/agent-session.ts";
 import { isLive } from "../domain/agent-session.ts";
+import { end } from "./live-session.ts";
 import type { LiveSession } from "./live-session.ts";
 
-/** A new session: its kind, its agent, its Target, and the application's first prompt. */
+/**
+ * A new session: its kind, its agent, its Target, the addition to the role of the kind's profile,
+ * and the server's first prompt.
+ */
 export interface StartRequest {
   readonly kind: SessionKind;
   readonly agent: string;
   readonly targetId?: string | null;
+  /** Goes after the role of the kind's profile in the agent's system prompt. */
+  readonly roleAddition?: string;
   /** Sent to the agent once it starts, so it speaks first; the chat does not show it. */
   readonly opening?: string;
 }
@@ -44,6 +50,25 @@ async function openNow({ live, start }: OpenerDependencies, key: OpenKey, prepar
   const { agent, opening } = await prepare();
   const request = { ...key, agent, ...(opening === undefined ? {} : { opening }) };
   return { session: await start(request), created: true };
+}
+
+/** Whether a live session of the Target, of any kind, runs now. */
+export function runningFor(live: ReadonlyMap<string, LiveSession>, targetId: string): boolean {
+  return [...live.values()].some(
+    (session) => session.view.targetId === targetId && isLive(session.view.status),
+  );
+}
+
+/** Ends the live session at once, even in a turn; false when the session is not live. */
+export async function stopNow(
+  live: ReadonlyMap<string, LiveSession>,
+  sessionId: string,
+): Promise<boolean> {
+  const session = live.get(sessionId);
+  if (session !== undefined) {
+    await end(session);
+  }
+  return session !== undefined;
 }
 
 /** Settles after the previous open; its failure belongs to its own caller. */

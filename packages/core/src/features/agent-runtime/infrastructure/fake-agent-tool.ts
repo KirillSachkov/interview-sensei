@@ -1,4 +1,5 @@
 // The fake agent's `/tool <name> <json>`: API tests drive the agent's work with our MCP tools by it.
+// `/brief` calls `get_brief` the same way.
 import { randomUUID } from "node:crypto";
 
 import { callMcpTool } from "./fake-agent-mcp.ts";
@@ -38,9 +39,43 @@ interface ToolCallDependencies {
   ) => Promise<{ outcome: "selected"; optionId: string } | { outcome: "cancelled" }>;
 }
 
+/** Asks permission for the call with our structural marker, which the server allows by itself. */
+async function permitted(
+  name: string,
+  input: Record<string, unknown>,
+  { server, ask }: ToolCallDependencies,
+): Promise<boolean> {
+  const outcome = await ask({
+    toolCallId: randomUUID(),
+    title: name,
+    kind: "other",
+    rawInput: input,
+    // The structural field the server recognizes our MCP tools by.
+    _meta: { fakeAgent: { mcpServer: server.name } },
+  });
+  return outcome.outcome === "selected" && outcome.optionId !== "reject-once";
+}
+
 /**
- * Asks permission for the call with our structural marker, which the server allows by itself, then
- * calls the tool. Resolves with the reply: «Результат <name>: <text>» or «Ошибка <name>: <text>».
+ * `/brief`: calls `get_brief` after permission. Resolves with the reply «Фейковый агент прочитал
+ * brief: <brief>», or with why it could not.
+ */
+export async function callBrief(dependencies: ToolCallDependencies): Promise<string> {
+  if (!(await permitted("get_brief", {}, dependencies))) {
+    return "Фейковый агент не получил разрешения на get_brief";
+  }
+  try {
+    const brief = await callMcpTool(dependencies.server.url, "get_brief");
+    return `Фейковый агент прочитал brief: ${brief.text}`;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return `Фейковый агент не смог вызвать get_brief: ${message}`;
+  }
+}
+
+/**
+ * Asks permission for the call, then calls the tool. Resolves with the reply: «Результат <name>:
+ * <text>» or «Ошибка <name>: <text>».
  */
 export async function callTool(
   { name, args }: { name: string; args: string },
@@ -48,15 +83,7 @@ export async function callTool(
 ): Promise<string> {
   try {
     const input = parseArguments(args);
-    const outcome = await ask({
-      toolCallId: randomUUID(),
-      title: name,
-      kind: "other",
-      rawInput: input,
-      // The structural field the server recognizes our MCP tools by.
-      _meta: { fakeAgent: { mcpServer: server.name } },
-    });
-    if (outcome.outcome !== "selected" || outcome.optionId === "reject-once") {
+    if (!(await permitted(name, input, { server, ask }))) {
       return `Фейковый агент не получил разрешения на ${name}`;
     }
     const result = await callMcpTool(server.url, name, input);

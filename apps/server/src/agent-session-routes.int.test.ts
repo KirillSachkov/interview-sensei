@@ -18,6 +18,7 @@ const view: SessionView = {
   createdAt: "2026-01-02T03:04:05.000Z",
   entries: [],
   failure: null,
+  agentText: "new",
 };
 
 /** AgentSessions whose prompt and cancel reject, as when the database or the agent breaks. */
@@ -30,7 +31,10 @@ const brokenSessions: AgentSessions = {
   prompt: () => Promise.reject(new Error("prompt broke")),
   cancel: () => Promise.reject(new Error("cancel broke")),
   answerPermission: () => Promise.reject(new Error("not used")),
+  queuePrompt: () => Promise.reject(new Error("not used")),
+  hideAgentText: () => Promise.reject(new Error("not used")),
   end: () => Promise.reject(new Error("not used")),
+  stop: () => Promise.reject(new Error("not used")),
   subscribe: () => () => {},
   endInterrupted: async () => {},
   close: async () => {},

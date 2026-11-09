@@ -53,20 +53,34 @@ interface EnsureTopics {
   readonly transaction: Transaction | undefined;
 }
 
+async function seed(
+  repository: QuestionRepository<Transaction>,
+  topics: readonly Topic[],
+  questions: readonly Question[],
+) {
+  for (const question of questions) {
+    validateQuestion(question);
+    if (
+      !topics.some((topic) => topic.id === question.topicId && topic.targetId === question.targetId)
+    ) {
+      throw new Error("A Question must reference a Topic of its own Target");
+    }
+  }
+  await repository.seed(topics, questions);
+}
+
 export function createQuestionBank(repository: QuestionRepository<Transaction>) {
   return {
-    seed: async (topics: readonly Topic[], questions: readonly Question[]) => {
-      for (const question of questions) {
-        validateQuestion(question);
-        if (
-          !topics.some(
-            (topic) => topic.id === question.topicId && topic.targetId === question.targetId,
-          )
-        ) {
-          throw new Error("A Question must reference a Topic of its own Target");
-        }
+    seed: async (topics: readonly Topic[], questions: readonly Question[]) =>
+      seed(repository, topics, questions),
+    /** Adds one Question, such as one the interviewer made up, to a Topic of its Target. */
+    add: async (question: Question) => {
+      validateQuestion(question);
+      const topics = await repository.topics(question.targetId);
+      if (!topics.some((topic) => topic.id === question.topicId)) {
+        throw new Error("A Question must reference a Topic of its own Target");
       }
-      await repository.seed(topics, questions);
+      await repository.seed([], [question]);
     },
     topics: repository.topics,
     ensureTopics: async (targetId: string, names: readonly string[], transaction?: Transaction) =>

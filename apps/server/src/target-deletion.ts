@@ -20,8 +20,8 @@ type Dependencies = Pick<Features, "targets" | "sessions" | "storage"> & {
 async function endSessions(sessions: Features["sessions"], targetId: string) {
   const all = await sessions.list();
   const owned = all.filter((session) => session.targetId === targetId);
-  // `end` stops only a live session; the others ended before.
-  await Promise.all(owned.map(async (session) => sessions.end(session.id)));
+  // `stop` stops only a live session; the others ended before.
+  await Promise.all(owned.map(async (session) => sessions.stop(session.id)));
 }
 
 /**

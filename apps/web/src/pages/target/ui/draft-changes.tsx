@@ -11,6 +11,7 @@ import {
 import type { SessionView } from "@/shared/api";
 
 import { changeText } from "../lib/change-text";
+import { refreshPlanViews } from "../model/plan-views";
 
 function failureText(error: Error): string {
   return error instanceof DraftProblemsError
@@ -49,7 +50,10 @@ function useDraftApply(targetId: string) {
     onSuccess: async (target) => {
       queryClient.setQueryData(["targets", targetId], target);
       queryClient.setQueryData(["targets", targetId, "draft"], []);
-      await queryClient.invalidateQueries({ queryKey: ["targets"], exact: true });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["targets"], exact: true }),
+        refreshPlanViews(queryClient, targetId),
+      ]);
     },
   });
 }

@@ -11,6 +11,7 @@ import {
   temporaryDirectory,
 } from "./chat-test-support.ts";
 import type { SessionView } from "./chat-test-support.ts";
+import { setupChat } from "./setup-test-support.ts";
 
 /** Posts one JSON-RPC message of the 2025-06-18 revision to the MCP address. */
 async function postMcp(url: string, message: object) {
@@ -118,6 +119,20 @@ describe("mcp and permissions", () => {
     expect(permissionRequests(answered)).toMatchObject([
       { answer: { outcome: "selected", optionId: "reject-once" } },
     ]);
+  });
+
+  it("passes a foreign tool's permission request of a Target setup session to the Candidate", async () => {
+    const { server } = await startServer(await temporaryDirectory());
+    // The setup profile has `askCandidate`: the setup chat shows the requests for shell and web.
+    const { events } = await setupChat(server);
+
+    events.send({ type: "prompt", text: "/permission" });
+
+    const asking = await events.waitFor(isAskingPermission);
+    const [request] = permissionRequests(asking);
+    expect(request).toMatchObject({ input: "touch interview-sensei/get_brief.txt", answer: null });
+    events.send({ type: "permission", requestId: request?.requestId, optionId: "allow-once" });
+    await events.waitFor(hasAnswered("Фейковый агент получил ответ: «Разрешить»"));
   });
 
   it("answers a waiting permission request with cancelled when the Candidate stops the turn", async () => {

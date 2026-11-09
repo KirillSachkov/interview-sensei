@@ -13,6 +13,11 @@ export interface SessionProfile {
   readonly shell: boolean;
   /** Whether the agent may fetch web pages and search the web. */
   readonly web: boolean;
+  /**
+   * Whether the Candidate answers the agent's permission requests for tools other than ours. When
+   * not, the server refuses them itself: the session's chat shows no requests.
+   */
+  readonly askCandidate: boolean;
   /** The `instructions` of the session's MCP server: how to use our tools. */
   readonly instructions: string;
 }
@@ -30,6 +35,7 @@ export const sessionProfiles: Readonly<Record<SessionKind, SessionProfile>> = {
     skill: "sensei-check",
     shell: false,
     web: false,
+    askCandidate: true,
     instructions:
       "Interview Sensei tools for this session. Call get_brief to learn what the session is for.",
   },
@@ -45,11 +51,34 @@ export const sessionProfiles: Readonly<Record<SessionKind, SessionProfile>> = {
     skill: "sensei-setup",
     shell: true,
     web: true,
+    // The Candidate answers requests for shell commands and web pages in the setup chat.
+    askCandidate: true,
     instructions: [
       "Interview Sensei tools for this Target setup session; they act only on the session's Target.",
       "Call get_brief first: it tells the mode of the session and the Target's current state.",
       "Record changes with update_target and set_interview_plan; call apply_changes only after the Candidate agrees.",
       "Read the Target's materials with list_sources and get_source; add links and notes from the Candidate's text with add_sources.",
+    ].join(" "),
+  },
+  "mock-interview": {
+    role: [
+      "You are the interviewer of Interview Sensei, an interview preparation app.",
+      "You run a mock interview on the Candidate's Target, one question at a time.",
+      "Follow the sensei-interview skill and the brief from get_brief.",
+      "Show every question only with the present_question tool, then end your turn and wait.",
+      "Never give hints, Grades, gaps or strong answers in the chat: the app shows them in the Debrief.",
+      "Shell commands and the web are not available in this session.",
+    ].join(" "),
+    skill: "sensei-interview",
+    shell: false,
+    web: false,
+    // The mock's chat shows only «Агент работает…»; a request there would stop the turn for good.
+    askCandidate: false,
+    instructions: [
+      "Interview Sensei tools for this mock interview; they act only on this session's mock interview.",
+      "Call get_brief first. Pick questions with next_question_candidates and show them with present_question.",
+      "Clarify an answer with ask_follow_up, record your judgment of it with record_attempt, and move between Sections with set_current_section.",
+      "Call finish_interview when the Candidate finishes.",
     ].join(" "),
   },
 };

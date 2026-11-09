@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 
 import { isIdle, openEvents } from "./chat-test-support.ts";
+import { interviewApi } from "./interview-test-support.ts";
 import { demoApi } from "./model-test-support.ts";
 import type { TargetView } from "./model-test-support.ts";
 
@@ -71,6 +72,16 @@ describe("target archive", () => {
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({ error: "session_running" });
     await expect(listed(api, "/api/targets")).resolves.toStrictEqual([api.target.id]);
+  });
+
+  it("refuses the archive while a Mock interview of the Target runs", async () => {
+    const api = await interviewApi();
+    await api.started(["Опыт и резюме"]);
+
+    const response = await archive(api);
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ error: "session_running" });
   });
 
   it("allows the archive once the Target's agent session has stopped", async () => {

@@ -88,6 +88,8 @@ export interface AgentLauncher {
     agent: string;
     /** The session kind; the launcher picks the agent's permission mode by it. */
     kind: string;
+    /** Text added to the role of the kind's profile, such as the tone of a mock interview. */
+    roleAddition?: string;
     /** The session directory inside the data directory, the agent's `cwd`. */
     workingDirectory: string;
     /** The session's own MCP server, passed to the agent in `session/new`. */

@@ -6,6 +6,7 @@ Root `AGENTS.md` owns authority and scope.
 ## Application code
 
 The stack is TypeScript on Node 24 in a pnpm workspace; NestJS is not used.
+The npm package `interview-sensei` runs on Node 22.15 or newer, so server and core code use only APIs that Node 22.15 has.
 
 | Workspace       | Role                                                                          |
 | --------------- | ----------------------------------------------------------------------------- |
@@ -47,7 +48,8 @@ The slice's `index.ts` exports the factory, its migrations, its MCP tools and th
 It also exports the constants, errors and dependency types that the server needs, such as `SessionsClosedError`.
 It does not export application or infrastructure parts.
 
-`apps/server/src/composition.ts` is the only server file that imports core features; `server-composes-features-in-one-module` checks it.
+`apps/server/src/composition.ts` and its parts `composition-<part>.ts` are the only server files that import core features; `server-composes-features-in-one-module` checks it.
+A part keeps `composition.ts` within the lint limits on lines and imports; only `composition.ts` imports a part.
 `composeFeatures` opens the storage and calls each factory once.
 Routes take composed services and their types from `composition.ts`.
 Shared subpaths, such as `time`, `storage` and `session-kinds`, stay open to every server file.
@@ -63,12 +65,19 @@ A new slice plugs in like this:
 4. Add its MCP tools to its session kinds in `sessionTools` there.
 5. For a new session kind, follow [session profiles](#session-profiles).
 
+The gateway reads a tool set when a session starts, after `composeFeatures` has built every service.
+So a tool set may use services built after the gateway, such as `interviews`: `sessionTools` reads them in a getter, and `bind` hands them over.
+`progress` counts the Attempts of `interviews`, and the brief of `interviews` reads `progress` back.
+`composeInterviews` gives `interviews` a function that calls `progress`, which exists by the first call.
+
 ### Session profiles
 
-Each session kind has a profile (#42): the agent's role, one skill, whether shell and web are allowed, and the `instructions` of its MCP server.
+Each session kind has a profile (#42): the agent's role, one skill, whether shell and web are allowed, whether the Candidate answers permission requests (`askCandidate`), and the `instructions` of its MCP server.
 Profiles live in `sessionProfiles` in `shared/session-kinds/profiles.ts`, beside `sessionKinds`. Write their texts in English.
 `agent-runtime` builds the launch recipe from the profile; recipes never name a session kind.
 `mcp-gateway` serves the profile's `instructions` at MCP `initialize`.
+A session may add text to the role when it starts: `roleAddition` of `AgentSessions.start` goes after the profile's role.
+The mock interview adds the Target's tone and language this way (`interviewerRole` in `interviews`).
 
 A slice adds a session kind like this:
 
@@ -121,7 +130,8 @@ It names the session's MCP server `interview-sensei-<random hex>`, so a server n
 A tool lives in the `application/` of the slice that owns its data: define it there with `sessionTool` from `src/shared/mcp` and export it from the slice's `index.ts`.
 Content that differs by session kind lives in that slice's `domain/`.
 `get_brief` is the template: the tool is in `mcp-gateway/application/get-brief.ts`, and the brief of each kind is in `briefFor` in `mcp-gateway/domain/brief.ts`.
-A kind whose brief needs a slice's data gets its own `get_brief` from that slice: `target-setup` builds the brief of the Target setup from the Target.
+A kind whose brief needs a slice's data gets its own `get_brief` from that slice instead: `target-setup` builds the brief of the Target setup from the Target, and `interviews` gives the one of `mock-interview`.
+A tool refuses a call by throwing an `Error` whose English message names the rule, such as «The last question already has its Attempt»; the agent gets it as the tool's error.
 `sessionTools` in `apps/server/src/composition.ts` lists the tools of each session kind; add the new tool there.
 A tool acts only on the session it receives. Write its name in snake_case and its description in English.
 API tests call a tool as the agent does: the fake agent's prompt `/tool <name> <json>` calls it on the session's MCP address with these arguments ([testing](docs/agents/testing.md#test-levels)).
@@ -134,6 +144,9 @@ It allows a request in two cases, and only with that session's MCP server name:
 - The request carries no marker, the announced `tool_call` carries ours, and the request gives no other `kind`.
 
 Then the server picks `allow_once`; without that option, and for an agent kind it does not know, the Candidate decides.
+The Candidate decides only when the profile's `askCandidate` is true, as in `service-chat`.
+Otherwise the server refuses the request itself with `reject_once`, or `cancelled` without that option; `refusal` in `permissions.ts` picks it.
+The `mock-interview` chat shows no requests, so a request there would stop the turn for good (#41).
 The runtime keeps announced tool calls only until they complete or fail, or the turn ends.
 Each agent's marker lives in `mcpServerReaders`:
 
@@ -218,6 +231,8 @@ A slice adds content to a zone like this:
 The slice leaves `Canvas` and the top bar (`widgets/top-bar`) unchanged.
 The owner approved one exception in #45: the top bar gets «Новая цель» and «Настройки».
 Spec #45 also puts «Меню цели» there, with «В архив», and the item «Архив» in the Target switcher.
+Zone content that only `pages/target` uses stays in that page's `ui/`, such as `ui/mock-interview/`: Steiger's `fsd/insignificant-slice` rejects a widget slice with one reference.
+React Flow turns pointer events off in the zone nodes, so the root of a zone's interactive content sets `pointer-events: auto`.
 A new zone is a new entry in `targetZones` and needs the owner's decision.
 An input or a scrolled list inside a widget gets the React Flow classes `nodrag`, `nopan` and `nowheel` where the canvas must not take its pointer or wheel.
 
@@ -238,7 +253,7 @@ User-facing text is in Russian.
 | `shared-is-technical`                       | dependency-cruiser | `src/shared/` does not depend on feature slices.                        |
 | `no-circular`                               | dependency-cruiser | No import cycles, type-only imports included. In web and e2e, oxlint `import/no-cycle` reports value-import cycles. |
 | `server-uses-core-exports`                  | dependency-cruiser | The server imports core by package subpath, never by a path into `packages/core/src`. |
-| `server-composes-features-in-one-module`    | dependency-cruiser | Only `apps/server/src/composition.ts` imports core features; other server files take services from it. |
+| `server-composes-features-in-one-module`    | dependency-cruiser | Only `apps/server/src/composition.ts` and its parts `composition-<part>.ts` import core features; other server files take services from it. |
 | `not-to-unresolvable`                       | dependency-cruiser | Every import resolves, including core subpath exports.                  |
 | `tsPreCompilationDeps` (option)             | dependency-cruiser | An option, not a rule: the rules above count type-only imports as dependencies. |
 | `interview-sensei/require-disable-reason`   | oxlint             | Every disable directive gives a reason after `--`.                      |
@@ -250,8 +265,10 @@ User-facing text is in Russian.
 
 The clock lives in `packages/core/src/shared/time`; only `system-clock.ts` reads the real time.
 Node runs server sources directly by type stripping: use only erasable syntax and `.ts` import extensions.
-So the server has no build step. `pnpm build` builds the web app into `apps/web/dist/web` and copies `skills/` to `apps/web/dist/skills`.
+So the server in the repository has no build step. `pnpm build` builds the web app into `apps/web/dist/web` and copies `skills/` to `apps/web/dist/skills`.
 The `interview-sensei` command serves the first and gives the agents the second.
+Then `pnpm build` compiles the server and core into the npm package in `apps/server/dist/package`, keeping the repository layout.
+A file that the code reads beside itself, as the migrations, needs the same place in the package; `apps/server/scripts/build-package.ts` copies it.
 Dependency versions are exact. `pnpm-workspace.yaml` holds the supply-chain settings: release age, trust policy and allowed install scripts.
 Add a trust exclusion or install script only with a comment that gives the reason.
 

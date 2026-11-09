@@ -19,6 +19,30 @@ export {
   sessionEventsUrl,
   startServiceChat,
 } from "./sessions";
+export {
+  answerFollowUp,
+  answerQuestion,
+  fetchDebrief,
+  fetchInterview,
+  fetchLatestInterviews,
+  fetchPlanSections,
+  finishInterview,
+  interviewEventsUrl,
+  interviewMessage,
+  startInterview,
+} from "./interviews";
+export type { AttemptDebrief, Difficulty, InterviewView, QuestionCard } from "./interviews";
+export { disputeGrade, fetchHistory, fetchInterviewSummary, fetchProgress } from "./progress";
+export type {
+  HistoryFilter,
+  HistoryPage,
+  InterviewSummary,
+  SessionSummary,
+  TargetProgress,
+  TopicProgress,
+  TopicStatus,
+} from "./progress";
+export { fetchQuestionMarks } from "./questions";
 export type { ChatEntry, PermissionEntry, SessionView } from "./sessions";
 export {
   chooseTargetAgent,

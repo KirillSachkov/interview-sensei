@@ -3,8 +3,8 @@ import type { ReactNode, SubmitEvent } from "react";
 
 import type { SessionView } from "@/shared/api";
 
-import { useSessionEvents } from "../model/use-session-events";
 import { agentName } from "@/entities/agent";
+import { useSessionEvents } from "@/entities/session";
 import { AttachButton, AttachedFiles, useAttachedFiles } from "./attachments";
 import type { ChatAttachments } from "./attachments";
 import { ChatEntries } from "./chat-entries";

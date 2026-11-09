@@ -1,5 +1,6 @@
 import type { TargetView } from "@/shared/api";
 
+import { Readiness } from "./readiness/readiness";
 import { SetupChat } from "./setup-chat";
 import { SourcesCard } from "./sources-card";
 import { TargetCard } from "./target-card";
@@ -20,8 +21,8 @@ export interface GoalZoneProps {
 }
 
 /**
- * The «Цель» zone: the Target's name and level, «Настроить цель», the Interview plan and the
- * materials. The setup chat opens beside the card or the Section where the Candidate opened it.
+ * The «Цель» zone: the Target's name and level, «Настроить цель», «Готовность», the Interview plan
+ * and the materials. The setup chat opens beside the card or the Section where the Candidate opened it.
  */
 export function GoalZone({
   zone: { target, setupAnchor, onSetup, onCloseSetup, onQuestions },
@@ -43,6 +44,7 @@ export function GoalZone({
         </button>
         {setupAnchor === "target" ? chat : null}
       </div>
+      <Readiness targetId={target.id} />
       <TargetPlan
         target={target}
         actions={{
