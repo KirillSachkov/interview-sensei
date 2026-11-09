@@ -53,6 +53,9 @@ export function InterviewerChat({ sessionId }: { sessionId: string }) {
           </li>
         ))}
       </ol>
+      {view?.agentText === "hidden" && status !== null && status !== "ended" ? (
+        <p className="muted">Ответы интервьюера скрыты, пока вы не ответите на вопрос.</p>
+      ) : null}
       {status === "working" || status === "starting" ? (
         <p className="muted" aria-live="polite">
           Агент работает…

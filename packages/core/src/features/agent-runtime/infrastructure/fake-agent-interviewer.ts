@@ -9,6 +9,7 @@
 // - `[followup]` in an answer: `ask_follow_up` instead of `record_attempt`; a refused one gives
 //   «Follow-up отклонён: <tool result>» and the Attempt.
 // - `[section]`: `set_current_section` with the brief's next Section before the next question.
+// - `[last]`: no next question after the Attempt, so no question waits for an answer.
 // - A quiz result or «Не знаю»: «Квиз оценён: N.» or «Вопрос пропущен.», then the next question.
 // - «Five minutes of the time limit are left.»: «Осталось 5 минут: веду интервью к концу.».
 // - «The Candidate finished the mock interview.»: `finish_interview`, then «Итог записан.».
@@ -65,8 +66,16 @@ async function judge(actions: InterviewerActions, text: string, note: string): P
   if (text.includes("[twice]")) {
     await actions.say(`Повторная запись: ${await actions.call("record_attempt", judgment(grade))}`);
   }
+  await goOn(actions, text, recorded);
+}
+
+/** After the Attempt: the next Section and the next question, as the answer's markers say. */
+async function goOn(actions: InterviewerActions, text: string, recorded: string): Promise<void> {
   if (text.includes("[section]")) {
     await moveToNextSection(actions);
+  }
+  if (text.includes("[last]")) {
+    return;
   }
   await presentNext(actions, {
     format: text.includes("[quiz]") ? "quiz" : "open",

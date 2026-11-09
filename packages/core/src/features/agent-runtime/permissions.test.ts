@@ -2,7 +2,7 @@
 // They sit at the slice root: domain-is-pure keeps even test imports such as vitest out of domain/.
 import { describe, expect, it } from "vitest";
 
-import { automaticAnswer } from "./domain/permissions.ts";
+import { automaticAnswer, refusal } from "./domain/permissions.ts";
 import type { PermissionOption, ToolCallFields } from "./domain/ports.ts";
 
 const ourServer = "interview-sensei-1a2b3c4d";
@@ -262,5 +262,17 @@ describe("automatic answer for OpenCode", () => {
         }),
       ).toBeNull();
     }
+  });
+});
+
+// A session kind whose chat shows no permission requests, such as the mock interview, has nobody
+// to answer them: the server refuses every request that is not a call of our MCP tools.
+describe("refusal of a permission request that no Candidate answers", () => {
+  it("rejects once when the agent offers it", () => {
+    expect(refusal(allOptions)).toStrictEqual({ outcome: "selected", optionId: "reject" });
+  });
+
+  it("cancels the request when the agent offers no reject_once", () => {
+    expect(refusal([allowOnce, allowAlways])).toStrictEqual({ outcome: "cancelled" });
   });
 });

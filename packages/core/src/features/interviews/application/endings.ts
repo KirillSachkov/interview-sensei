@@ -3,7 +3,7 @@
 // the server stopped while it ran. Its Attempts stay either way.
 import { candidateFinished } from "../domain/agent-messages.ts";
 import type { MockInterview } from "../domain/interview.ts";
-import { change, inBackground, tellInterviewer } from "./context.ts";
+import { change, inBackground, tellAnswer } from "./context.ts";
 import type { Context } from "./context.ts";
 
 /** How long the server waits for `finish_interview` after the Candidate presses «Завершить». */
@@ -59,7 +59,7 @@ export async function finish(context: Context, id: string) {
     }
     if (interview.finishRequestedAt === null) {
       await repository.update(id, { finishRequestedAt: clock.now().toISOString() });
-      tellInterviewer(context, interview.sessionId, candidateFinished);
+      tellAnswer(context, interview.sessionId, candidateFinished);
       awaitFinish(context, interview);
     }
     return "accepted";

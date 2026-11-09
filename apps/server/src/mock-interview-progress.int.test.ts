@@ -6,7 +6,6 @@ import { describe, expect, it } from "vitest";
 import {
   cardAt,
   hasQuestions,
-  hasSpoken,
   interviewApi,
   isGraded,
   saysWhenIdle,
@@ -15,6 +14,7 @@ import type { Interview } from "./interview-test-support.ts";
 import { callTool, dispute } from "./progress-test-support.ts";
 
 type Api = Awaited<ReturnType<typeof interviewApi>>;
+type Run = Awaited<ReturnType<Api["started"]>>;
 
 const experience = "Опыт разработки";
 const reason = "Я привёл пример из практики, интервьюер его не учёл.";
@@ -54,17 +54,30 @@ async function weakDeeperAnswer(api: Api) {
   return { ...run, deeper, graded };
 }
 
-/** Finishes the Mock interview with the agent's summary, then starts the next one. */
+/**
+ * Answers the first question with `[last]` and waits for the agent's reply: no question waits for
+ * an answer then, so the chat shows the agent's replies, such as the MCP address of `/mcp`.
+ */
+async function answerLast(api: Api, { interview, events, chat }: Run, text = "Ответ [last]") {
+  await api.answer(interview.id, text);
+  await events.waitFor(isGraded(0));
+  await chat.waitFor(saysWhenIdle("Ответ получен."));
+}
+
+/**
+ * Finishes the Mock interview with the agent's summary, then starts the next one and answers its
+ * first question with `[last]`.
+ */
 async function nextInterview(
   api: Api,
-  { interview, events }: Awaited<ReturnType<Api["started"]>>,
+  { interview, events }: Run,
   names: readonly string[] = ["Проектирование"],
 ) {
   await api.finish(interview.id);
   await events.waitFor(isFinished);
   const next = await api.started(names);
   await next.events.waitFor(hasQuestions(1));
-  await next.chat.waitFor(hasSpoken);
+  await answerLast(api, next);
   return next;
 }
 
@@ -196,9 +209,11 @@ describe("progress and disputes", () => {
 
   it("gives the agent the Target's progress with get_progress", async () => {
     const api = await interviewApi();
-    const { chat } = await gradedAnswer(api, "Ответ [grade:2]");
+    const run = await api.started(["Опыт и резюме"]);
+    await run.events.waitFor(hasQuestions(1));
+    await answerLast(api, run, "Ответ [grade:2] [last]");
 
-    const progress = await callTool(chat, "get_progress");
+    const progress = await callTool(run.chat, "get_progress");
 
     expect(progress).toMatchObject({
       readiness: { confident: 0, shaky: 1, notStarted: 4, total: 5 },

@@ -70,7 +70,7 @@ So a tool set may use services built after the gateway, such as `interviews`: `s
 
 ### Session profiles
 
-Each session kind has a profile (#42): the agent's role, one skill, whether shell and web are allowed, and the `instructions` of its MCP server.
+Each session kind has a profile (#42): the agent's role, one skill, whether shell and web are allowed, whether the Candidate answers permission requests (`askCandidate`), and the `instructions` of its MCP server.
 Profiles live in `sessionProfiles` in `shared/session-kinds/profiles.ts`, beside `sessionKinds`. Write their texts in English.
 `agent-runtime` builds the launch recipe from the profile; recipes never name a session kind.
 `mcp-gateway` serves the profile's `instructions` at MCP `initialize`.
@@ -141,6 +141,9 @@ It allows a request in two cases, and only with that session's MCP server name:
 - The request carries no marker, the announced `tool_call` carries ours, and the request gives no other `kind`.
 
 Then the server picks `allow_once`; without that option, and for an agent kind it does not know, the Candidate decides.
+The Candidate decides only when the profile's `askCandidate` is true, as in `service-chat`.
+Otherwise the server refuses the request itself with `reject_once`, or `cancelled` without that option; `refusal` in `permissions.ts` picks it.
+The `mock-interview` chat shows no requests, so a request there would stop the turn for good (#41).
 The runtime keeps announced tool calls only until they complete or fail, or the turn ends.
 Each agent's marker lives in `mcpServerReaders`:
 

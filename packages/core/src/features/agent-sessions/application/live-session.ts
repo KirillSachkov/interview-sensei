@@ -44,6 +44,8 @@ export type QueuedItem =
   | {
       readonly type: "prompt";
       readonly text: string;
+      /** Shows the agent's hidden text again from this prompt on. */
+      readonly showAgentText: boolean;
       readonly settle: (outcome: "accepted" | "closed") => void;
     }
   | { readonly type: "end"; readonly settle: (outcome: "accepted" | "closed") => void };

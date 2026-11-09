@@ -63,7 +63,7 @@ export interface SessionView extends AgentSession {
   /**
    * Where the agent's next text chunk goes: `continues` the last agent message when the message ids
    * allow, starts a `new` one after a prompt or the end of a turn, or stays out of the chat while
-   * `hidden` until the current turn ends.
+   * `hidden`, over turns, until the server shows the text again or the session ends.
    */
   readonly agentText: "continues" | "new" | "hidden";
 }

@@ -150,6 +150,26 @@ async function finishMock(sessions: Locator) {
   await expect(result).toContainText("Фейковый интервьюер: мок завершён.");
 }
 
+/** The chat shows the reply to the answer, never the hint, and tells that replies are hidden. */
+async function expectInterviewerChat(sessions: Locator) {
+  const interviewer = sessions.getByRole("complementary", { name: "Интервьюер" });
+  await expect(interviewer).toContainText("Ответ получен.");
+  await expect(interviewer).not.toContainText("Подсказка до ответа");
+  await expect(interviewer).toContainText("Ответы интервьюера скрыты");
+}
+
+/**
+ * `[followup]`: the interviewer asks a Follow-up and records no Attempt before the finish, so the
+ * ended mock shows the answered question without a Grade.
+ */
+async function finishWithoutGrade(sessions: Locator) {
+  const second = sessions.getByRole("article", { name: "Вопрос 2" });
+  await answer(second, "Не уверен. [followup]");
+  await expect(second).toContainText("Фейковый Follow-up");
+  await finishMock(sessions);
+  await expect(second).toContainText("Без оценки");
+}
+
 test("the Candidate starts a mock, answers, opens the Debrief and finishes the mock", async ({
   page,
 }) => {
@@ -160,10 +180,8 @@ test("the Candidate starts a mock, answers, opens the Debrief and finishes the m
   const first = sessions.getByRole("article", { name: "Вопрос 1" });
   await answer(first, "Я вёл сервис платежей. [grade:3]");
   await openDebrief(first, "3 из 3");
-  const interviewer = sessions.getByRole("complementary", { name: "Интервьюер" });
-  await expect(interviewer).toContainText("Ответ получен.");
-  await expect(interviewer).not.toContainText("Подсказка до ответа");
-  await finishMock(sessions);
+  await expectInterviewerChat(sessions);
+  await finishWithoutGrade(sessions);
 });
 
 // Spec #41, ticket #54: a Dispute corrects the Grade at once, and the summary Debrief shows how the

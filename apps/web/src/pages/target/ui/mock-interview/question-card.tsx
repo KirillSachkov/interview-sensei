@@ -58,16 +58,20 @@ function GivenAnswer({ card }: { card: Card }) {
   );
 }
 
+/** Whether the Mock interview takes answers, or runs without them while it finishes, or ended. */
+type Stage = "answering" | "finishing" | "ended";
+
 /** What the card shows below the question: the answer form, or the answer and what follows it. */
 function AnswerPart({
   interviewId,
   card,
-  canAnswer,
+  stage,
 }: {
   interviewId: string;
   card: Card;
-  canAnswer: boolean;
+  stage: Stage;
 }) {
+  const canAnswer = stage === "answering";
   if (card.answer === null) {
     return canAnswer ? (
       <OpenAnswer interviewId={interviewId} card={card} />
@@ -79,15 +83,29 @@ function AnswerPart({
     <>
       <GivenAnswer card={card} />
       <FollowUps interviewId={interviewId} card={card} canAnswer={canAnswer} />
-      <AttemptPart interviewId={interviewId} card={card} />
+      <AttemptPart interviewId={interviewId} card={card} ended={stage === "ended"} />
     </>
   );
 }
 
-/** «Посмотреть разбор» once the Attempt is recorded; until then, that the interviewer judges. */
-function AttemptPart({ interviewId, card }: { interviewId: string; card: Card }) {
+/**
+ * «Посмотреть разбор» once the Attempt is recorded; until then, that the interviewer judges. An
+ * ended Mock interview gets no more Attempts.
+ */
+function AttemptPart({
+  interviewId,
+  card,
+  ended,
+}: {
+  interviewId: string;
+  card: Card;
+  ended: boolean;
+}) {
   if (card.attemptId !== null) {
     return <Debrief interviewId={interviewId} attemptId={card.attemptId} />;
+  }
+  if (ended) {
+    return <p className="muted">Без оценки</p>;
   }
   // A Follow-up waits for the Candidate, not for the interviewer.
   return card.followUps.at(-1)?.answer === null ? null : (
@@ -115,21 +133,21 @@ export function QuestionCard({
   targetId,
   card,
   number,
-  canAnswer,
+  stage,
 }: {
   interviewId: string;
   targetId: string;
   card: Card;
   number: number;
-  canAnswer: boolean;
+  stage: Stage;
 }) {
-  const answering = canAnswer && card.answer === null;
+  const answering = stage === "answering" && card.answer === null;
   return (
     <article className="card question-card" aria-label={`Вопрос ${number}`}>
       <CardMarks targetId={targetId} card={card} />
       <p className="question-text">{card.text}</p>
       {card.format === "quiz" && !answering ? <QuizOptions card={card} /> : null}
-      <AnswerPart interviewId={interviewId} card={card} canAnswer={canAnswer} />
+      <AnswerPart interviewId={interviewId} card={card} stage={stage} />
     </article>
   );
 }

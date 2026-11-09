@@ -71,6 +71,7 @@ The marker `[twice]` makes it call `record_attempt` once more and reply «Пов
 Markers in the Candidate's answer steer it: `[followup]` makes it call `ask_follow_up` instead of `record_attempt`, and a refused Follow-up gives «Follow-up отклонён: <tool result>», then the Attempt.
 `[quiz]` makes the next question the first quiz candidate, and `[deeper]` makes it a Deeper question in the same Topic with the recorded Attempt as its parent.
 `[new]` makes it show a made-up question in the last Topic, and `[section]` calls `set_current_section` with the brief's next Section first.
+`[last]` makes it show no next question, so its replies to chat messages reach the chat.
 On «The Candidate answered your Follow-up.» it replies «Уточнение получено.» and reads the same markers in that answer.
 On a quiz result it replies «Квиз оценён: N.», on «Не знаю» «Вопрос пропущен.», then it shows the next question without `record_attempt`.
 On «Five minutes of the time limit are left.» it replies «Осталось 5 минут: веду интервью к концу.».

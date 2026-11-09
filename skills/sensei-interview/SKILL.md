@@ -63,6 +63,7 @@ Quiz results and «Не знаю» count as answers too.
 
 The Candidate may write to you in the chat beside the current question, for example to clarify its wording.
 Answer briefly in the Target's language. Clarify the question; leave its answer, hints and your judgment to the Debrief.
+While a question or Follow-up waits for the answer, the app shows your chat text only after the Candidate answers.
 
 ## Grades
 

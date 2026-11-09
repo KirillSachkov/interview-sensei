@@ -13,6 +13,11 @@ export interface SessionProfile {
   readonly shell: boolean;
   /** Whether the agent may fetch web pages and search the web. */
   readonly web: boolean;
+  /**
+   * Whether the Candidate answers the agent's permission requests for tools other than ours. When
+   * not, the server refuses them itself: the session's chat shows no requests.
+   */
+  readonly askCandidate: boolean;
   /** The `instructions` of the session's MCP server: how to use our tools. */
   readonly instructions: string;
 }
@@ -30,6 +35,7 @@ export const sessionProfiles: Readonly<Record<SessionKind, SessionProfile>> = {
     skill: "sensei-check",
     shell: false,
     web: false,
+    askCandidate: true,
     instructions:
       "Interview Sensei tools for this session. Call get_brief to learn what the session is for.",
   },
@@ -45,6 +51,8 @@ export const sessionProfiles: Readonly<Record<SessionKind, SessionProfile>> = {
     skill: "sensei-interview",
     shell: false,
     web: false,
+    // The mock's chat shows only «Агент работает…»; a request there would stop the turn for good.
+    askCandidate: false,
     instructions: [
       "Interview Sensei tools for this mock interview; they act only on this session's mock interview.",
       "Call get_brief first. Pick questions with next_question_candidates and show them with present_question.",

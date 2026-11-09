@@ -7,7 +7,7 @@ import { opencodeKeys } from "../domain/opencode-credentials.ts";
 import type { OpencodeCredentialRow, OpencodeKey } from "../domain/opencode-credentials.ts";
 import { opencodeConfigSchema } from "../domain/opencode-recipe.ts";
 import type { LaunchProfile, SkillSource } from "../domain/launch-recipe.ts";
-import { automaticAnswer } from "../domain/permissions.ts";
+import { automaticAnswer, refusal } from "../domain/permissions.ts";
 import type {
   AcpLauncher,
   AgentUpdate,
@@ -64,11 +64,12 @@ const finishedStatuses = new Set(["completed", "failed"]);
 
 /**
  * Keeps the tool calls the agent announced in the current turn, by `toolCallId`, and answers
- * permission requests for our MCP tools by itself. A finished tool call and the end of the turn
- * remove the kept tool calls.
+ * permission requests for our MCP tools by itself. Other requests go to the Candidate, or get the
+ * server's refusal when the profile does not `askCandidate`. A finished tool call and the end of
+ * the turn remove the kept tool calls.
  */
 function permissionGate(
-  agent: AgentKind,
+  { agent, askCandidate }: { agent: AgentKind; askCandidate: boolean },
   request: SessionRequest,
 ): { session: SessionRequest; endTurn: () => void } {
   const announced = new Map<string, ToolCallFields>();
@@ -95,11 +96,13 @@ function permissionGate(
         announced: earlier,
         options: permission.options,
       });
+      if (answer !== null) {
+        return answer;
+      }
       // The Candidate sees the announced tool call too: the request may carry only its id.
-      return (
-        answer ??
-        request.onPermission({ ...permission, toolCall: { ...earlier, ...permission.toolCall } })
-      );
+      return askCandidate
+        ? request.onPermission({ ...permission, toolCall: { ...earlier, ...permission.toolCall } })
+        : refusal(permission.options);
     },
   };
   return {
@@ -199,7 +202,7 @@ export function createAgentRuntime(dependencies: AgentRuntimeDependencies): Agen
         dataDirectory,
         sessionDirectory: workingDirectory,
       });
-      const gate = permissionGate(agent, request);
+      const gate = permissionGate({ agent, askCandidate: sessionProfile.askCandidate }, request);
       return forgettingTurns(await launch(recipe, gate.session), gate.endTurn);
     },
   };

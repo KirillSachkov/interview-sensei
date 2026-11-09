@@ -53,10 +53,12 @@ export type SessionEvent =
       readonly answer: PermissionAnswer;
     }
   /**
-   * The agent's text from here to the end of the current turn stays out of the chat, such as the
-   * text after a mock interview shows a question. The journal keeps it.
+   * The agent's text from here on stays out of the chat, over turns, until `agent_text_shown`;
+   * such as the text after a mock interview shows a question. The journal keeps it.
    */
   | { readonly type: "agent_text_hidden" }
+  /** The agent's text goes to the chat again, such as after the Candidate's answer. */
+  | { readonly type: "agent_text_shown" }
   | { readonly type: "session_failed"; readonly failure: SessionFailure }
   /** The server stopped while the session was live; its agent process is gone. */
   | { readonly type: "session_ended" };

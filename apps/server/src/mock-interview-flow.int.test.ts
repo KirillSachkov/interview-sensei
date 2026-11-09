@@ -165,8 +165,11 @@ describe("mock interview questions", () => {
 
 describe("mock interview time limit", () => {
   it("tells the agent 5 minutes before the limit", async () => {
-    const { interview, chat, time } = await limitedInterview();
+    const { interview, events, chat, api, time } = await limitedInterview();
     expect(interview).toMatchObject({ limitMinutes: 30, endsAt: "2026-01-02T03:34:05.000Z" });
+    // `[last]`: no question waits for an answer, so the agent's reply reaches the chat.
+    await api.answer(interview.id, "Ответ [last]");
+    await events.waitFor(isGraded(0));
 
     time.pass(minutes(25));
     await time.fire(minutes(25));

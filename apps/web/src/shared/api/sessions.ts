@@ -47,6 +47,8 @@ export interface SessionView {
   readonly createdAt: string;
   readonly entries: readonly ChatEntry[];
   readonly failure: SessionFailure | null;
+  /** `hidden` while the agent's text stays out of the chat, such as before the answer in a mock. */
+  readonly agentText: "continues" | "new" | "hidden";
 }
 
 /** An AgentSession without its chat, from GET /api/sessions. */

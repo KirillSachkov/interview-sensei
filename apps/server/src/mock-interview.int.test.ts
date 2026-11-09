@@ -4,7 +4,7 @@
 // fake-agent-interviewer.ts in core.
 import { describe, expect, it } from "vitest";
 
-import { agentTexts, fixedTime } from "./chat-test-support.ts";
+import { agentTexts, fixedTime, isIdle } from "./chat-test-support.ts";
 import {
   agentTextWith,
   ask,
@@ -22,6 +22,25 @@ import type { Interview } from "./interview-test-support.ts";
 
 /** The fake interviewer's text right after it shows a question. */
 const hint = "Подсказка до ответа";
+
+/** The hint, or the fake agent's echo of a chat message: «Фейковый агент получил: «…»». */
+const hiddenText = new RegExp(`${hint}|Фейковый агент получил`, "u");
+
+/**
+ * Starts a mock, sends a chat message while the first question waits for its answer, then
+ * answers it. `asked` is the chat once the agent replied to the message.
+ */
+async function chatThenAnswer(api: Awaited<ReturnType<typeof interviewApi>>, answer: string) {
+  const run = await api.started(["Опыт и резюме"]);
+  await run.events.waitFor(hasQuestions(1));
+  await run.chat.waitFor(hasSpoken);
+  run.chat.send({ type: "prompt", text: "Подскажи ответ" });
+  const asked = await run.chat.waitFor(
+    (view) => isIdle(view) && view.entries.some((entry) => entry.text === "Подскажи ответ"),
+  );
+  await api.answer(run.interview.id, answer);
+  return { ...run, asked };
+}
 
 const judgment = {
   gaps: "Фейковый интервьюер: не хватает примера из практики.",
@@ -96,21 +115,6 @@ describe("mock interview", () => {
     await expect(api.debrief(interview.id, graded)).resolves.toMatchObject({ grade: 1 });
   });
 
-  it("keeps the agent's text between showing a question and the answer out of the browser", async () => {
-    const api = await interviewApi();
-
-    const { interview, events, chat } = await api.answered(["Опыт и резюме"], "Ответ [grade:2]");
-
-    await events.waitFor(hasQuestions(2));
-    const after = await chat.waitFor(saysWhenIdle("Ответ получен."));
-    expect(everyAgentText(chat.views).filter((text) => text.includes(hint))).toStrictEqual([]);
-    expect(agentTexts(after)).toStrictEqual(["Начинаем мок-собеседование.", "Ответ получен."]);
-    // The server's template messages are not the Candidate's chat lines either.
-    expect(after.entries.filter((entry) => entry.type === "candidate_message")).toStrictEqual([]);
-    const stored = await api.get(`/api/sessions/${interview.sessionId}`);
-    expect(stored.body).not.toContain(hint);
-  });
-
   it("keeps the Grade out of the browser until the Candidate opens the Debrief", async () => {
     const api = await interviewApi();
 
@@ -181,12 +185,62 @@ describe("mock interview", () => {
       statusCode: 201,
     });
   });
+});
+
+// The «Интервьюер» chat and what the interviewer's agent may do.
+describe("mock interview chat", () => {
+  it("keeps the agent's text between showing a question and the answer out of the browser, its chat replies included", async () => {
+    const api = await interviewApi();
+
+    const { interview, events, chat } = await chatThenAnswer(api, "Ответ [grade:2]");
+
+    await events.waitFor(hasQuestions(2));
+    const after = await chat.waitFor(saysWhenIdle("Ответ получен."));
+    expect(everyAgentText(chat.views).filter((text) => hiddenText.test(text))).toStrictEqual([]);
+    expect(agentTexts(after)).toStrictEqual(["Начинаем мок-собеседование.", "Ответ получен."]);
+    // The server's template messages are not the Candidate's chat lines.
+    expect(
+      after.entries
+        .filter((entry) => entry.type === "candidate_message")
+        .map((entry) => entry.text),
+    ).toStrictEqual(["Подскажи ответ"]);
+    const stored = await api.get(`/api/sessions/${interview.sessionId}`);
+    expect(stored.body).not.toMatch(hiddenText);
+  });
+
+  it("tells the browser that the agent's text is hidden only while a question waits for the answer", async () => {
+    const api = await interviewApi();
+
+    // `[last]`: no next question waits for an answer after this one.
+    const { asked, chat } = await chatThenAnswer(api, "Ответ [last]");
+
+    expect(asked.agentText).toBe("hidden");
+    const after = await chat.waitFor(saysWhenIdle("Ответ получен."));
+    expect(after.agentText).not.toBe("hidden");
+  });
+
+  it("refuses the interviewer's permission request for a foreign tool itself, so the turn goes on and the chat shows no request", async () => {
+    const api = await interviewApi();
+    const { events, chat } = await api.answered(["Опыт и резюме"], "Ответ [last]");
+    await events.waitFor(isGraded(0));
+    await chat.waitFor(saysWhenIdle("Ответ получен."));
+
+    // `/permission` asks for a shell command and replies with the answer it got.
+    await expect(ask(chat, "/permission", "Фейковый агент получил ответ")).resolves.toBe(
+      "Фейковый агент получил ответ: «Отклонить»",
+    );
+    const requests = chat.views
+      .flatMap((view) => view.entries)
+      .filter((entry) => entry.type === "permission_request");
+    expect(requests).toStrictEqual([]);
+  });
 
   it("gives the interviewer the Target's tone and language, its skill, and no shell or web", async () => {
     const api = await interviewApi();
-    const { events, chat } = await api.started(["Опыт и резюме"]);
-    await events.waitFor(hasQuestions(1));
-    await chat.waitFor(hasSpoken);
+    // `[last]`: no next question waits for an answer, so the agent's replies reach the chat.
+    const { events, chat } = await api.answered(["Опыт и резюме"], "Ответ [last]");
+    await events.waitFor(isGraded(0));
+    await chat.waitFor(saysWhenIdle("Ответ получен."));
 
     await expect(ask(chat, "/tools", "Запреты:")).resolves.toBe('Запреты: ["shell","web"]');
     await expect(ask(chat, "/skills", "Skills:")).resolves.toBe('Skills: ["sensei-interview"]');

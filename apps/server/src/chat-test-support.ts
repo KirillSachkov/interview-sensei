@@ -82,6 +82,8 @@ export interface SessionView {
   readonly status: string;
   readonly entries: readonly Entry[];
   readonly failure: object | null;
+  /** `hidden` while the agent's text stays out of the chat. */
+  readonly agentText?: string;
 }
 
 /** The test trusts the server's shape of the view; the assertions check its content. */

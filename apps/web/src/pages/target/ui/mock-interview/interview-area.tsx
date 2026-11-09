@@ -35,6 +35,14 @@ function Header({ view }: { view: InterviewView }) {
   );
 }
 
+/** Whether the cards take answers: only while the Mock interview runs and is not finishing. */
+function stageOf(view: InterviewView) {
+  if (view.status !== "running") {
+    return "ended";
+  }
+  return view.finishRequestedAt === null ? "answering" : "finishing";
+}
+
 /**
  * The running Mock interview: the header with «Завершить», the question cards from top to bottom,
  * and the «Интервьюер» column beside the current question. `onEnded` runs once it is no longer
@@ -77,7 +85,7 @@ export function InterviewArea({
                 targetId={view.targetId}
                 card={card}
                 number={index + 1}
-                canAnswer={running && view.finishRequestedAt === null}
+                stage={stageOf(view)}
               />
             </li>
           ))}

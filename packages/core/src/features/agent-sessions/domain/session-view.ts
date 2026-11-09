@@ -28,6 +28,7 @@ export function statusAfter(status: SessionStatus, event: SessionEvent): Session
     }
     case "agent_update":
     case "agent_text_hidden":
+    case "agent_text_shown":
     case "permission_requested":
     case "permission_answered": {
       return status;
@@ -160,6 +161,7 @@ function entriesAfter(view: SessionView, { id, event }: RecordedEvent): readonly
       return withAnswer(view.entries, event);
     }
     case "agent_text_hidden":
+    case "agent_text_shown":
     case "session_started":
     case "session_failed":
     case "session_ended": {
@@ -184,7 +186,10 @@ function agentTextAfter(view: SessionView, event: SessionEvent): SessionView["ag
     }
     case "prompt_sent":
     case "turn_ended":
-    case "turn_failed":
+    case "turn_failed": {
+      return view.agentText === "hidden" ? "hidden" : "new";
+    }
+    case "agent_text_shown":
     case "session_failed":
     case "session_ended": {
       return "new";

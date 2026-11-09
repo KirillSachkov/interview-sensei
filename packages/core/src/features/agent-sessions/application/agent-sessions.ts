@@ -15,7 +15,7 @@ import {
   runTurn,
 } from "./live-session.ts";
 import type { LiveSession, LiveSessionDependencies, SessionListener } from "./live-session.ts";
-import { drain, enqueue, hideAgentText } from "./server-prompts.ts";
+import { drain, enqueue, hideAgentText, queuePrompt } from "./server-prompts.ts";
 import type { QueueContext, QueueOutcome } from "./server-prompts.ts";
 
 export interface AgentSessionsDependencies extends LiveSessionDependencies {
@@ -54,13 +54,15 @@ export interface AgentSessions {
   /**
    * Sends the server's prompt, such as a template message of a mock interview, once the agent has
    * started and finished its current turn and the server's earlier prompts. It stays out of the
-   * chat. Resolves when the agent gets it, or with `closed` when the session ends first.
+   * chat. With `showAgentText`, the agent's hidden text goes to the chat again from this prompt on.
+   * Resolves when the agent gets it, or with `closed` when the session ends first.
    */
-  readonly queuePrompt: (sessionId: string, text: string) => Promise<QueueOutcome>;
-  /**
-   * Keeps the agent's text out of the chat until its current turn ends; the journal keeps it. Does
-   * nothing for a session that is not live.
-   */
+  readonly queuePrompt: (
+    sessionId: string,
+    text: string,
+    options?: { readonly showAgentText?: boolean },
+  ) => Promise<QueueOutcome>;
+  /** Hides the agent's text from the chat until a prompt with `showAgentText`; only when live. */
   readonly hideAgentText: (sessionId: string) => Promise<void>;
   /**
    * Stops the agent after its current turn and the server's queued prompts, and marks the session
@@ -276,8 +278,8 @@ export function createAgentSessions(dependencies: AgentSessionsDependencies): Ag
     list: async () => dependencies.repository.list(),
     view: async (sessionId) => view(context, sessionId),
     prompt: async (sessionId, text) => prompt(context, sessionId, text),
-    queuePrompt: async (sessionId, text) =>
-      enqueue(context.queue, sessionId, (settle) => ({ type: "prompt", text, settle })),
+    queuePrompt: async (sessionId, text, options) =>
+      queuePrompt(context.queue, sessionId, { text, showAgentText: options?.showAgentText }),
     hideAgentText: async (sessionId) => hideAgentText(context.queue, sessionId),
     end: async (sessionId) => {
       await enqueue(context.queue, sessionId, (settle) => ({ type: "end", settle }));

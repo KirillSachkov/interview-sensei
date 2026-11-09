@@ -88,3 +88,14 @@ export function automaticAnswer(permission: PermissionCase): PermissionAnswer | 
   const allow = permission.options.find((option) => option.kind === "allow_once");
   return allow === undefined ? null : { outcome: "selected", optionId: allow.optionId };
 }
+
+/**
+ * The server's refusal of a request that no Candidate answers: `reject_once`, so the agent goes on
+ * with its turn, or `cancelled` when the agent does not offer it. It never rejects for good.
+ */
+export function refusal(options: readonly PermissionOption[]): PermissionAnswer {
+  const reject = options.find((option) => option.kind === "reject_once");
+  return reject === undefined
+    ? { outcome: "cancelled" }
+    : { outcome: "selected", optionId: reject.optionId };
+}

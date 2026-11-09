@@ -205,7 +205,7 @@ async function questionToShow(
   return { question, section };
 }
 
-/** Shows the Question as a card; the rest of the agent's turn stays out of the chat. */
+/** Shows the Question as a card; the agent's text stays out of the chat until the answer. */
 export async function present(
   context: Context,
   sessionId: string,
@@ -235,7 +235,8 @@ export async function present(
       answer: null,
       followUps: [],
     });
-    // The rest of this turn could hint at the answer, so the chat leaves it out.
+    // Until the Candidate answers, the agent's text could hint at the answer, its replies to the
+    // Candidate's chat messages included; the chat leaves it out.
     await sessions.hideAgentText(sessionId);
     return "The question is shown to the Candidate. End your turn now and wait for the Candidate's answer.";
   });

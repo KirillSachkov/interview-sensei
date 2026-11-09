@@ -25,7 +25,7 @@ export function InterviewResult({ interview }: { interview: InterviewView }) {
               targetId={interview.targetId}
               card={card}
               number={index + 1}
-              canAnswer={false}
+              stage="ended"
             />
           </li>
         ))}

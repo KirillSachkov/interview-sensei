@@ -6,7 +6,7 @@ import { candidateAnswered, questionSkipped, quizAnswered } from "../domain/agen
 import { quizJudgment, skippedJudgment } from "../domain/app-judgment.ts";
 import type { AskedQuestion, CandidateAnswer, MockInterview } from "../domain/interview.ts";
 import { presentedQuestion } from "../domain/interview.ts";
-import { change, tellInterviewer } from "./context.ts";
+import { change, tellAnswer } from "./context.ts";
 import type { Context, InterviewsDependencies } from "./context.ts";
 
 /** Free text, the chosen quiz options, or «Не знаю». */
@@ -116,7 +116,7 @@ async function recordByApp(
     hinted: false,
     recordedAt: clock.now().toISOString(),
   });
-  tellInterviewer(
+  tellAnswer(
     context,
     interview.sessionId,
     skipped ? questionSkipped(id) : quizAnswered(judgment.grade, id),
@@ -158,7 +158,7 @@ export async function answerPresented(
     const { interview, question } = found;
     await repository.answer(question.id, recordedAnswer(reply, clock.now().toISOString()));
     if ("text" in reply) {
-      tellInterviewer(context, interview.sessionId, candidateAnswered(reply.text));
+      tellAnswer(context, interview.sessionId, candidateAnswered(reply.text));
     } else {
       await recordByApp(context, { interview, question, reply });
     }

@@ -132,5 +132,18 @@ export async function change<Result>(
 
 /** Sends a template message to the interviewer after its current turn. */
 export function tellInterviewer(context: Context, sessionId: string, text: string): void {
-  inBackground(context, async () => context.dependencies.sessions.queuePrompt(sessionId, text));
+  inBackground(context, async () =>
+    context.dependencies.sessions.queuePrompt(sessionId, text, { showAgentText: false }),
+  );
+}
+
+/**
+ * Sends the template message of the Candidate's answer, or of the finish, after the agent's current
+ * turn. The agent's text stays hidden while a question or Follow-up waits for the answer (#41,
+ * story 26); from this message on it goes to the chat again.
+ */
+export function tellAnswer(context: Context, sessionId: string, text: string): void {
+  inBackground(context, async () =>
+    context.dependencies.sessions.queuePrompt(sessionId, text, { showAgentText: true }),
+  );
 }

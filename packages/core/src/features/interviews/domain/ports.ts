@@ -101,9 +101,16 @@ export interface InterviewSessions {
     targetId: string;
     roleAddition: string;
   }) => Promise<{ readonly id: string }>;
-  /** Sends a template message after the agent's current turn; it stays out of the chat. */
-  readonly queuePrompt: (sessionId: string, text: string) => Promise<unknown>;
-  /** Keeps the rest of the agent's current turn out of the chat. */
+  /**
+   * Sends a template message after the agent's current turn; it stays out of the chat. With
+   * `showAgentText`, the agent's hidden text goes to the chat again from this message on.
+   */
+  readonly queuePrompt: (
+    sessionId: string,
+    text: string,
+    options: { readonly showAgentText: boolean },
+  ) => Promise<unknown>;
+  /** Keeps the agent's text out of the chat until a template message shows it again. */
   readonly hideAgentText: (sessionId: string) => Promise<void>;
   /** Stops the agent after its current turn. */
   readonly end: (sessionId: string) => Promise<void>;
