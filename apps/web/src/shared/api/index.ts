@@ -2,7 +2,7 @@ export { fetchAgents } from "./agents";
 export type { AgentAvailability } from "./agents";
 export { fetchHealth } from "./health";
 export { applyDraft, DraftProblemsError, fetchDraft } from "./drafts";
-export type { DraftChange, DraftOperation } from "./drafts";
+export type { DraftOperation } from "./drafts";
 export {
   fetchSessions,
   isSessionView,
