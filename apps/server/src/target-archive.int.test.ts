@@ -134,6 +134,17 @@ describe("target archive", () => {
     expect(response.json()).toMatchObject({ error: "target_archived" });
   });
 
+  it.each(["archive", "restore"])("answers 404 to %s of an unknown Target", async (action) => {
+    const api = await demoApi();
+
+    const response = await post(api, `/api/targets/${unknownId}/${action}`);
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toStrictEqual({ error: "target_not_found" });
+  });
+});
+
+describe("the archive and a start of an agent session at the same time", () => {
   it("never both archives a Target and opens its setup session at the same time", async () => {
     const api = await demoApi();
 
@@ -154,14 +165,5 @@ describe("target archive", () => {
     ]);
 
     expect([started.statusCode, archived.statusCode]).not.toStrictEqual([201, 200]);
-  });
-
-  it.each(["archive", "restore"])("answers 404 to %s of an unknown Target", async (action) => {
-    const api = await demoApi();
-
-    const response = await post(api, `/api/targets/${unknownId}/${action}`);
-
-    expect(response.statusCode).toBe(404);
-    expect(response.json()).toStrictEqual({ error: "target_not_found" });
   });
 });

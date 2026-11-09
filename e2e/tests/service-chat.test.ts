@@ -87,13 +87,19 @@ test("the chat shows the agent's Markdown formatted and raw HTML as text", async
   await expect(reply.locator("b")).toHaveCount(0);
 });
 
-test("the chat drops the agent's javascript: link and loads no remote image", async ({ page }) => {
+/** The addresses of the images the page requests from now on. */
+function requestedImages(page: Page): string[] {
   const images: string[] = [];
   page.on("request", (request) => {
     if (request.resourceType() === "image") {
       images.push(request.url());
     }
   });
+  return images;
+}
+
+test("the chat drops the agent's javascript: link and loads no remote image", async ({ page }) => {
+  const images = requestedImages(page);
   await startNewChat(page);
 
   await sendMessage(page, "/markdown");
@@ -102,8 +108,10 @@ test("the chat drops the agent's javascript: link and loads no remote image", as
   await expect(reply).toContainText("Опасная ссылка");
   await expect(reply.locator('[href^="javascript"]')).toHaveCount(0);
   await expect(reply.locator("img")).toHaveCount(0);
-  const image = reply.getByRole("link", { name: "Изображение: Схема" });
-  await expect(image).toHaveAttribute("href", "https://example.com/tracker.png");
+  await expect(reply.getByRole("link", { name: "Изображение: Схема" })).toHaveAttribute(
+    "href",
+    "https://example.com/tracker.png",
+  );
   expect(images).not.toContain("https://example.com/tracker.png");
 });
 

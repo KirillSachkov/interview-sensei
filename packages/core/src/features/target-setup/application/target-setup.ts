@@ -208,9 +208,7 @@ async function addQuestionsIn(
   const added = kept.map((question) => withId(question));
   const operation = { type: "add_questions", questions: added } as const;
   const recorded =
-    added.length === 0
-      ? null
-      : await recordIn(dependencies, { targetId, operation }, transaction);
+    added.length === 0 ? null : await recordIn(dependencies, { targetId, operation }, transaction);
   return { recorded, added, duplicates };
 }
 

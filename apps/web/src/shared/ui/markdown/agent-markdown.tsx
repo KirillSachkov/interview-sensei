@@ -12,7 +12,7 @@ function ImageLink({ alt = "", src }: { alt?: string; src?: string }) {
   return src === undefined ? (
     <span>{name}</span>
   ) : (
-    <a href={src} {...linkProps}>
+    <a href={src} target={linkProps.target} rel={linkProps.rel}>
       {name}
     </a>
   );
