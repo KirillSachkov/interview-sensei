@@ -77,6 +77,18 @@ Profiles live in `sessionProfiles` in `shared/session-kinds/profiles.ts`, beside
 `mcp-gateway` serves the profile's `instructions` at MCP `initialize`.
 A session may add text to the role when it starts: `roleAddition` of `AgentSessions.start` goes after the profile's role.
 The mock interview adds the Target's tone and language this way (`interviewerRole` in `interviews`).
+The `side-thread` kind (#80) explains: skill `sensei-explain`, web on, shell off, and `askCandidate: true`, because the Side thread has a chat.
+`interviews` starts it with the agent of its Mock interview and adds the Target's language (`sideThreadRole`).
+Its tools only read: `get_brief` of `interviews` with the Handoff brief, `get_target`, `search_questions` and `get_progress`.
+`get_source` joins them once the Sources slice exists.
+
+### Server messages
+
+The server talks to the interviewer with template messages in `interviews/domain/agent-messages.ts` (#10): the start, an answer, a quiz result, «Не знаю», a Follow-up answer, five minutes left and the finish.
+They go through `AgentSessions.queuePrompt`, after the agent's current turn, and stay out of the chat.
+The sixth message of #10, `discussedInSideThread`, tells the interviewer only that the Candidate discussed question N in a Side thread, never its content.
+It is a note, not a prompt: `AgentSessions.addNote` puts it before the next prompt the agent gets, the Candidate's or the server's, so the current turn goes on.
+The journal keeps notes in `notes` of that `prompt_sent`; the chat leaves them out.
 
 A slice adds a session kind like this:
 

@@ -2,11 +2,13 @@ import { useMutation } from "@tanstack/react-query";
 import { useEffect } from "react";
 
 import { finishInterview } from "@/shared/api";
-import type { InterviewView } from "@/shared/api";
+import type { InterviewView, QuestionCard as Card } from "@/shared/api";
 
 import { useInterviewEvents } from "../../model/use-interview-events";
+import { DiscussSeparately } from "./discuss-separately";
 import { InterviewerChat } from "./interviewer-chat";
 import { QuestionCard } from "./question-card";
+import { SideThreadChat } from "./side-thread-chat";
 import { SectionStrip } from "./section-strip";
 import { TimeLeft } from "./time-left";
 
@@ -43,9 +45,21 @@ function stageOf(view: InterviewView) {
   return view.finishRequestedAt === null ? "answering" : "finishing";
 }
 
+/** The Side threads of the card, to the right of its question. */
+function SideThreads({ view, card, number }: { view: InterviewView; card: Card; number: number }) {
+  const threads = view.sideThreads.filter((thread) => thread.askedQuestionId === card.id);
+  return threads.length === 0 ? null : (
+    <div className="side-threads">
+      {threads.map((thread) => (
+        <SideThreadChat key={thread.id} thread={thread} number={number} />
+      ))}
+    </div>
+  );
+}
+
 /**
  * The running Mock interview: the header with «Завершить», the question cards from top to bottom,
- * and the «Интервьюер» column beside the current question. `onEnded` runs once it is no longer
+ * the «Интервьюер» column beside the current question, and the Side threads to the right of theirs. `onEnded` runs once it is no longer
  * running.
  */
 export function InterviewArea({
@@ -86,7 +100,9 @@ export function InterviewArea({
                 card={card}
                 number={index + 1}
                 stage={stageOf(view)}
+                discuss={<DiscussSeparately interviewId={view.id} cardId={card.id} />}
               />
+              <SideThreads view={view} card={card} number={index + 1} />
             </li>
           ))}
         </ol>

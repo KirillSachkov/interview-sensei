@@ -31,6 +31,8 @@ export type {
   TopicStatus,
 } from "./progress";
 export { fetchQuestionMarks, rateQuestion } from "./questions";
+export { openSideThread } from "./side-threads";
+export type { SideThread } from "./side-threads";
 export type { QuestionRating } from "./questions";
 export { fetchSessions, isSessionView, sessionEventsUrl, startServiceChat } from "./sessions";
 export type { ChatEntry, PermissionEntry, SessionView } from "./sessions";

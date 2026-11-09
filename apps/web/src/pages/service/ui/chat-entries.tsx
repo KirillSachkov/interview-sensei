@@ -1,6 +1,6 @@
 import type { ChatEntry } from "@/shared/api";
 
-import { PermissionRequest } from "./permission-request";
+import { PermissionRequest } from "@/entities/session";
 
 /** How the Candidate answers the agent's permission requests in the chat. */
 interface PermissionAnswering {

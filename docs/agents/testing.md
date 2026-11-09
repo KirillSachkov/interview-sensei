@@ -88,6 +88,14 @@ Other prompts in a mock interview's chat, such as `/system` or `/tools`, get the
 A test runs the 2-minute wait for `finish_interview` with that timer; `/wait` in the interviewer chat keeps the message that the Candidate finished from the agent.
 `/crash` in the interviewer chat makes the mock interview «прерван».
 
+The fake agent has a side thread mode for Side threads (`fake-agent-side-thread.ts`).
+On «The Candidate opened a side thread from a mock interview.» it calls `get_brief` and replies «Разбираю вопрос кандидата: «<candidateQuestion>»».
+`/brief` in the Side thread's chat replies with the whole Handoff brief as JSON.
+`/tool-list` replies with the sorted names of the session's MCP tools: «MCP tools: <json>».
+`/call <name>` calls our MCP tool without arguments and replies «MCP <name>: <result or error>».
+A prompt that starts with the server's note «The Candidate discussed question N in a side thread.» first gets «Отметка: <note>», then the reply to the rest.
+`side-thread-test-support.ts` in the server opens a Side thread at a question card and follows its chat.
+
 ## Ports
 
 `pnpm dev` uses server port 4310 and web port 5173; set `SERVER_PORT` and `WEB_PORT` to change them.

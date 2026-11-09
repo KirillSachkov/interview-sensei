@@ -80,8 +80,11 @@ Every Inbox processing and Mock interview for that Target follows the active Pre
 
 **Side thread**:
 A separate Agent session that branches from a Mock interview at a chosen moment, for clarification and explanation.
+It runs with the agent of its Mock interview; the code calls its kind `side-thread`.
 It starts from a Handoff brief, not from the whole Mock interview history. A Side thread cannot record Attempts or change Grades.
 A Side thread opened before the Candidate answers the current Question marks that Attempt as received with a hint.
+After the answer, during Follow-ups, after the end of the Mock interview and on an earlier Question it gives no hint mark.
+The interviewer never sees a Side thread: it learns only that the Candidate discussed the Question in one, at the start of its next message.
 The Candidate can delete a Side thread for good; the hint mark on the Attempt stays.
 
 **Handoff brief**:

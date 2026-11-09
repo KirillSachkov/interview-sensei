@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { answerQuestion } from "@/shared/api";
 import type { QuestionCard as Card } from "@/shared/api";
 
@@ -115,31 +117,40 @@ function AttemptPart({
   );
 }
 
-/** The marks above the question: «глубже», «не подтверждён» and the Candidate's rating. */
+/**
+ * The marks above the question: «глубже», «не подтверждён», «с подсказкой» after a Side thread
+ * before the answer, and the Candidate's rating.
+ */
 function CardMarks({ targetId, card }: { targetId: string; card: Card }) {
   const marks = useQuestionMarks(targetId, card.questionId);
   return (
     <div className="card-marks">
       {card.parentAttemptId === null ? null : <span className="tag accent">глубже</span>}
       {marks?.unconfirmed === true ? <span className="tag">не подтверждён</span> : null}
+      {card.hinted ? <span className="tag">с подсказкой</span> : null}
       <QuestionRatingButtons targetId={targetId} questionId={card.questionId} />
     </div>
   );
 }
 
-/** One question of the interviewer as a card: the question, the answer and its Debrief. */
+/**
+ * One question of the interviewer as a card: the question, the answer and its Debrief. `discuss`
+ * is «Обсудить отдельно», where the card opens Side threads.
+ */
 export function QuestionCard({
   interviewId,
   targetId,
   card,
   number,
   stage,
+  discuss = null,
 }: {
   interviewId: string;
   targetId: string;
   card: Card;
   number: number;
   stage: Stage;
+  discuss?: ReactNode;
 }) {
   const answering = stage === "answering" && card.answer === null;
   return (
@@ -148,6 +159,7 @@ export function QuestionCard({
       <p className="question-text">{card.text}</p>
       {card.format === "quiz" && !answering ? <QuizOptions card={card} /> : null}
       <AnswerPart interviewId={interviewId} card={card} stage={stage} />
+      {discuss}
     </article>
   );
 }

@@ -22,6 +22,7 @@ function GradeLine({ debrief }: { debrief: AttemptDebrief }) {
         )}
         {gradedBy === "quiz" ? <span className="tag">квиз</span> : null}
         {gradedBy === "skip" ? <span className="tag">пропущено</span> : null}
+        {debrief.hinted ? <span className="tag">с подсказкой</span> : null}
       </p>
       {dispute === null ? null : (
         <p>

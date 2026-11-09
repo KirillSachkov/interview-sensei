@@ -1,6 +1,7 @@
 // The Mock interview API of the server. The view never holds a Grade: it comes only with the
 // Debrief of an Attempt.
 import { checked, isObject, path, sent } from "./http";
+import type { SideThread } from "./side-threads";
 
 /** The Candidate's answer as the server recorded it. */
 interface CandidateAnswer {
@@ -26,6 +27,8 @@ export interface QuestionCard {
   readonly followUps: readonly FollowUp[];
   /** Set once the interviewer recorded the Attempt: the Debrief is ready. */
   readonly attemptId: string | null;
+  /** A Side thread opened before the answer: the Attempt is received with a hint. */
+  readonly hinted: boolean;
 }
 
 interface FollowUp {
@@ -59,6 +62,8 @@ export interface InterviewView {
   readonly summary: string | null;
   readonly nextStep: string | null;
   readonly questions: readonly QuestionCard[];
+  /** The Side threads in the order they were opened. */
+  readonly sideThreads: readonly SideThread[];
 }
 
 /** The Debrief of one Attempt. */
@@ -70,6 +75,8 @@ export interface AttemptDebrief {
   readonly gaps: string;
   readonly justification: string;
   readonly strongAnswer: string;
+  /** The Candidate got a hint in a Side thread before answering. */
+  readonly hinted: boolean;
   /** The Candidate's latest Dispute: its Grade applies instead of `grade`. */
   readonly dispute: { readonly grade: number; readonly reason: string } | null;
 }

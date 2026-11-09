@@ -254,3 +254,46 @@ test("the Candidate disputes a Grade and sees the summary Debrief with the Topic
   await finishWithSummaryDebrief(sessions);
   await expectReadiness(goal);
 });
+
+// Spec #80, ticket #81: «Обсудить отдельно» opens a Side thread to the right of the question card.
+
+/** Opens a Side thread at the card with the Candidate's question. */
+async function discussSeparately(card: Locator, question: string) {
+  await card.getByRole("button", { name: "Обсудить отдельно" }).click();
+  const form = card.getByRole("form", { name: "Обсудить отдельно" });
+  await form.getByRole("textbox", { name: "Ваш вопрос" }).fill(question);
+  await form.getByRole("button", { name: "Открыть ветку" }).click();
+}
+
+/** The thread right of the card answers the question; the card shows «с подсказкой». */
+async function expectThreadBeside(card: Locator, thread: Locator, question: string) {
+  await expect(thread).toContainText(`Разбираю вопрос кандидата: «${question}»`);
+  const cardBox = await card.boundingBox();
+  const threadBox = await thread.boundingBox();
+  expect(threadBox?.x ?? 0).toBeGreaterThan((cardBox?.x ?? 0) + (cardBox?.width ?? 0));
+  await expect(card).toContainText("с подсказкой");
+}
+
+/** Writes in the Side thread and waits for the agent's reply. */
+async function writeInThread(thread: Locator, text: string) {
+  await thread.getByRole("textbox", { name: "Сообщение в ветку" }).fill(text);
+  await thread.getByRole("button", { name: "Отправить" }).click();
+  await expect(thread).toContainText(`Фейковый агент получил: «${text}»`);
+}
+
+test("the Candidate discusses a question in a side thread beside it, and the question gets the hint mark", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const { sessions } = zones(page);
+  await startMock(sessions);
+  const first = sessions.getByRole("article", { name: "Вопрос 1" });
+  const question = "Что значит «вклад»?";
+
+  await discussSeparately(first, question);
+
+  const thread = sessions.getByRole("complementary", { name: "Ветка к вопросу 1" });
+  await expectThreadBeside(first, thread, question);
+  await writeInThread(thread, "А пример?");
+  await finishMock(sessions);
+});
