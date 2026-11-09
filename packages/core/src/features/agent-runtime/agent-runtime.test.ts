@@ -184,4 +184,21 @@ describe("agent runtime start", () => {
 
     await expect(start("fake")).rejects.toThrow(/not offered/u);
   });
+
+  it("refuses to start a session kind that has no launch recipe", async () => {
+    const { runtime, recipes } = runtimeOffering(["claude"]);
+
+    await expect(
+      runtime.start({
+        agent: "claude",
+        kind: "unknown",
+        workingDirectory: "/home/candidate/.interview-sensei/sessions/1",
+        mcpServer: { name: ourServer, url: "http://127.0.0.1:1/mcp" },
+        onUpdate: () => {},
+        onExit: () => {},
+        onPermission: () => Promise.resolve(candidateAnswer),
+      }),
+    ).rejects.toThrow(/no launch recipe/u);
+    expect(recipes).toStrictEqual([]);
+  });
 });

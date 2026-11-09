@@ -1,6 +1,7 @@
 import path from "node:path";
 
-import type { AgentSession, SessionKind, SessionView } from "../domain/agent-session.ts";
+import type { SessionKind } from "../../../shared/session-kinds/index.ts";
+import type { AgentSession, SessionView } from "../domain/agent-session.ts";
 import { isLive } from "../domain/agent-session.ts";
 import type { AgentLauncher } from "../domain/ports.ts";
 import { replay } from "../domain/session-view.ts";
@@ -27,7 +28,7 @@ export interface AgentSessionsDependencies extends LiveSessionDependencies {
  * - `closed`: the session failed or ended and takes no prompts.
  * - `not_found`: no session has this id.
  */
-export type PromptOutcome = "accepted" | "busy" | "closed" | "not_found";
+type PromptOutcome = "accepted" | "busy" | "closed" | "not_found";
 
 export interface AgentSessions {
   /**

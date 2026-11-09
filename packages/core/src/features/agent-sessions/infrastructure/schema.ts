@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { index, integer, jsonb, pgSchema, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
-import type { SessionKind, SessionStatus } from "../domain/agent-session.ts";
+import type { SessionStatus } from "../domain/agent-session.ts";
 import type { SessionEvent } from "../domain/session-event.ts";
 
 /** The Postgres schema that the agent-sessions slice owns. */
@@ -12,7 +12,7 @@ export const sessions = agentSessionsSchema.table("sessions", {
   id: uuid("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  kind: text("kind").$type<SessionKind>().notNull(),
+  kind: text("kind").notNull(),
   agent: text("agent").notNull(),
   acpSessionId: text("acp_session_id"),
   status: text("status").$type<SessionStatus>().notNull(),

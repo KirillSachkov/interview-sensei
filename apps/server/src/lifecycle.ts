@@ -1,8 +1,7 @@
 import { fastifyWebsocket } from "@fastify/websocket";
-import type { AgentSessions } from "@interview-sensei/core/agent-sessions";
-import type { Storage } from "@interview-sensei/core/storage";
 import type { FastifyInstance } from "fastify";
 
+import type { Features } from "./composition.ts";
 import { acceptLocalRequestsOnly } from "./local-requests.ts";
 
 /**
@@ -12,12 +11,17 @@ import { acceptLocalRequestsOnly } from "./local-requests.ts";
 export async function prepare(
   server: FastifyInstance,
   {
-    storage,
-    sessions,
+    features: { storage, sessions },
     allowedOrigins,
-  }: { storage: Storage; sessions: AgentSessions; allowedOrigins: readonly string[] },
+    exemptRoutes,
+  }: {
+    features: Pick<Features, "storage" | "sessions">;
+    allowedOrigins: readonly string[];
+    /** Routes with their own Host and Origin checks; see acceptLocalRequestsOnly. */
+    exemptRoutes: readonly string[];
+  },
 ) {
-  acceptLocalRequestsOnly(server, { allowedOrigins });
+  acceptLocalRequestsOnly(server, { allowedOrigins, exemptRoutes });
   // Agents stop and their sessions end before the final dump closes the database.
   server.addHook("onClose", async () => {
     try {

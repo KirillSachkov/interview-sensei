@@ -1,4 +1,4 @@
-import type { AgentSession, SessionKind, SessionStatus } from "./agent-session.ts";
+import type { AgentSession, SessionStatus } from "./agent-session.ts";
 import type {
   AgentUpdate,
   PermissionAnswer,
@@ -10,7 +10,7 @@ import type {
 /** Stores AgentSessions and their event journals. */
 export interface SessionRepository {
   readonly create: (session: {
-    kind: SessionKind;
+    kind: string;
     agent: string;
     createdAt: Date;
   }) => Promise<AgentSession>;
@@ -58,7 +58,7 @@ interface McpServerAddress {
 /** Gives each session its own MCP address; the mcp-gateway slice implements it. */
 export interface McpAddresses {
   /** Opens the address with the tool set of the session kind; throws when it cannot. */
-  readonly open: (session: { sessionId: string; kind: SessionKind }) => McpServerAddress;
+  readonly open: (session: { sessionId: string; kind: string }) => McpServerAddress;
   /** Closes the address when the session's agent is gone. */
   readonly close: (sessionId: string) => Promise<void>;
 }
@@ -68,7 +68,7 @@ export interface AgentLauncher {
   readonly start: (request: {
     agent: string;
     /** The session kind; the launcher picks the agent's permission mode by it. */
-    kind: SessionKind;
+    kind: string;
     /** The session directory inside the data directory, the agent's `cwd`. */
     workingDirectory: string;
     /** The session's own MCP server, passed to the agent in `session/new`. */

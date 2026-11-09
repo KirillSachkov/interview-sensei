@@ -1,4 +1,3 @@
-import { mcpRoute } from "@interview-sensei/core/mcp-gateway";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 
 import { isLoopbackHost } from "./loopback.ts";
@@ -53,14 +52,19 @@ function refusal(
  * Every request needs a loopback Host with the server's port. A request with an Origin, and every
  * request other than GET or HEAD or that opens a WebSocket, needs the server's own loopback
  * origin or one of `allowedOrigins`, such as the Vite dev server of `pnpm dev`. Others get 403.
- * The MCP addresses keep their own Host and Origin checks: agents send no Origin.
+ * `exemptRoutes`, such as the MCP addresses, keep their own Host and Origin checks: agents send
+ * no Origin.
  */
 export function acceptLocalRequestsOnly(
   server: FastifyInstance,
-  { allowedOrigins }: { allowedOrigins: readonly string[] },
+  {
+    allowedOrigins,
+    exemptRoutes,
+  }: { allowedOrigins: readonly string[]; exemptRoutes: readonly string[] },
 ): void {
   server.addHook("onRequest", async (request, reply) => {
-    if (request.routeOptions.url === mcpRoute) {
+    const route = request.routeOptions.url;
+    if (route !== undefined && exemptRoutes.includes(route)) {
       return;
     }
     const ports = new Set(server.addresses().map((address) => address.port));

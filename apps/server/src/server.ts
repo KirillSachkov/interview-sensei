@@ -1,31 +1,20 @@
-import { agentSessionsMigrations } from "@interview-sensei/core/agent-sessions";
-import { checkHealth } from "@interview-sensei/core/health";
-import { openStorage } from "@interview-sensei/core/storage";
-import type { UserEnvironment } from "@interview-sensei/core/agent-runtime";
-import type { SliceMigrations } from "@interview-sensei/core/storage";
-import type { Clock, Timer } from "@interview-sensei/core/time";
 import { fastify } from "fastify";
 import type { FastifyInstance } from "fastify";
 
 import { registerAgentSessionRoutes } from "./agent-session-routes.ts";
-import { composeAgentSessions } from "./compose-agent-sessions.ts";
+import { composeFeatures, mcpRoute } from "./composition.ts";
+import type { FeatureDependencies, UserEnvironment } from "./composition.ts";
 import { prepare } from "./lifecycle.ts";
+import { loopbackOrigin, registerMcpRoute } from "./mcp.ts";
 import { registerWebApp } from "./web-app.ts";
-
-/**
- * The migrations of every core slice that stores data, applied at each start in this order. A
- * slice exports its SliceMigrations from its index.ts; add it here.
- */
-const sliceMigrations: readonly SliceMigrations[] = [agentSessionsMigrations];
 
 /** `info` logs every request; `warn` keeps only problems. */
 export type LogLevel = "info" | "warn";
 
-export interface ServerDependencies {
-  clock: Clock;
-  timer: Timer;
-  /** The data directory this server owns; see resolveDataDirectory. */
-  dataDirectory: string;
+export interface ServerDependencies extends Pick<
+  FeatureDependencies,
+  "clock" | "timer" | "dataDirectory"
+> {
   /** The lowest level of the Fastify JSON logs; no logs when omitted, as in tests. */
   logLevel?: LogLevel;
   /**
@@ -69,27 +58,21 @@ export async function buildServer({
     // spare connections without a request, so close drops them instead of waiting minutes.
     forceCloseConnections: true,
   });
-  const storage = await openStorage({
-    dataDirectory,
-    clock,
-    timer,
-    migrations: sliceMigrations,
-    onDumpFailed: (error) => {
-      server.log.error({ err: error }, "The periodic database dump failed");
-    },
-  });
-  const { runtime, sessions } = composeAgentSessions(server, storage, {
+  const features = await composeFeatures({
     clock,
     timer,
     dataDirectory,
     fakeAgent,
     userEnvironment,
+    origin: () => loopbackOrigin(server),
+    log: server.log,
   });
-  await prepare(server, { storage, sessions, allowedOrigins });
-  server.get("/api/health", () => checkHealth(clock));
+  registerMcpRoute(server, features.mcp);
+  await prepare(server, { features, allowedOrigins, exemptRoutes: [mcpRoute] });
+  server.get("/api/health", features.health);
   registerAgentSessionRoutes(server, {
-    runtime,
-    sessions,
+    runtime: features.runtime,
+    sessions: features.sessions,
     onError: (error) => {
       server.log.error({ err: error }, "A session command from the browser failed");
     },

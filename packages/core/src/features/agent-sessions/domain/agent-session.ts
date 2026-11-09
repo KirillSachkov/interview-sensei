@@ -1,9 +1,5 @@
 import type { PermissionAnswer, PermissionRequest, SessionFailure } from "./session-event.ts";
 
-/** The kinds of AgentSession. The skeleton has one: the service chat. */
-export const sessionKinds = ["service-chat"] as const;
-export type SessionKind = (typeof sessionKinds)[number];
-
 /**
  * - `starting`: the agent process starts.
  * - `idle`: the agent waits for a prompt.
@@ -21,7 +17,8 @@ export function isLive(status: SessionStatus): boolean {
 /** The stored AgentSession without its journal. */
 export interface AgentSession {
   readonly id: string;
-  readonly kind: SessionKind;
+  /** The session kind, such as `service-chat`; `shared/session-kinds` lists them. */
+  readonly kind: string;
   /** The agent that runs the session, such as `fake`. */
   readonly agent: string;
   readonly status: SessionStatus;

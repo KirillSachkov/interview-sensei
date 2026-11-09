@@ -1,3 +1,4 @@
+import { sessionKinds } from "../../../shared/session-kinds/index.ts";
 import type { AgentAvailability, AgentHost, AgentKind } from "../domain/agent.ts";
 import { agentAvailability, isAgentKind } from "../domain/agent.ts";
 import { launchRecipe } from "../domain/launch-recipe.ts";
@@ -32,7 +33,7 @@ export interface AgentRuntime {
    * other permission requests go to `onPermission`.
    */
   readonly start: (
-    request: SessionRequest & { agent: string; kind: RuntimeSessionKind; workingDirectory: string },
+    request: SessionRequest & { agent: string; kind: string; workingDirectory: string },
   ) => Promise<LiveAgent>;
 }
 
@@ -109,6 +110,21 @@ function forgettingTurns(agent: LiveAgent, endTurn: () => void): LiveAgent {
   };
 }
 
+/**
+ * The session kinds with a launch recipe. It compiles only while every kind in
+ * `shared/session-kinds` is a RuntimeSessionKind: a new kind needs its recipe first.
+ */
+const recipeKinds: readonly RuntimeSessionKind[] = sessionKinds;
+
+/** The session kind of a launch recipe; throws for a kind without one. */
+function recipeKind(kind: string): RuntimeSessionKind {
+  const known = recipeKinds.find((candidate) => candidate === kind);
+  if (known === undefined) {
+    throw new Error(`The session kind ${kind} has no launch recipe`);
+  }
+  return known;
+}
+
 /** The agent's availability on this machine now; throws the reason when it is unavailable. */
 async function availableHost(
   { agents, inspectHost }: Pick<AgentRuntimeDependencies, "agents" | "inspectHost">,
@@ -130,10 +146,11 @@ export function createAgentRuntime(dependencies: AgentRuntimeDependencies): Agen
   return {
     listAgents: async () => agentAvailability(agents, await inspectHost()),
     start: async ({ agent: requested, kind, workingDirectory, ...request }) => {
+      const sessionKind = recipeKind(kind);
       const { agent, host } = await availableHost(dependencies, requested);
       const recipe = launchRecipe({
         agent,
-        sessionKind: kind,
+        sessionKind,
         host,
         dataDirectory,
         sessionDirectory: workingDirectory,

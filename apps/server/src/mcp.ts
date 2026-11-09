@@ -1,35 +1,14 @@
-import { sessionKinds } from "@interview-sensei/core/agent-sessions";
-import type { SessionKind } from "@interview-sensei/core/agent-sessions";
-import {
-  createMcpGateway,
-  getBrief,
-  mcpRoute,
-  randomNameSuffix,
-  randomToken,
-  streamableHttpEndpoint,
-} from "@interview-sensei/core/mcp-gateway";
-import type { McpGateway, SessionTool } from "@interview-sensei/core/mcp-gateway";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 
-/**
- * The MCP tool set of each session kind. A slice exports its tools from its index.ts; add them to
- * the kinds that need them.
- */
-const sessionTools: Readonly<Record<SessionKind, readonly SessionTool[]>> = {
-  "service-chat": [getBrief],
-};
-
-function toolsFor(kind: string): readonly SessionTool[] {
-  const known = sessionKinds.find((candidate) => candidate === kind);
-  return known === undefined ? [] : sessionTools[known];
-}
+import { mcpRoute } from "./composition.ts";
+import type { McpGateway } from "./composition.ts";
 
 /**
  * The loopback origin of the server's port, for the MCP addresses; throws before it listens. The
  * agent runs on this machine and connects to an address the server listens on: the IPv4 loopback
  * when the server has one, as on `localhost`, and the IPv6 loopback otherwise, as on `::1`.
  */
-function loopbackOrigin(server: FastifyInstance): string {
+export function loopbackOrigin(server: FastifyInstance): string {
   const addresses = server.addresses();
   const address = addresses.find(({ family }) => family === "IPv4") ?? addresses[0];
   if (address === undefined) {
@@ -55,22 +34,10 @@ function webRequest(request: FastifyRequest): Request {
 }
 
 /**
- * Gives each AgentSession its own MCP address with the tools of its kind and serves them over
- * streamable HTTP at `/mcp/<token>`. An address that the gateway never gave or has closed gets 404.
+ * Serves the MCP addresses of the gateway over streamable HTTP at `/mcp/<token>`. An address that
+ * the gateway never gave or has closed gets 404.
  */
-export function mountMcpGateway(server: FastifyInstance): McpGateway {
-  const gateway = createMcpGateway({
-    toolsFor,
-    origin: () => loopbackOrigin(server),
-    newToken: randomToken,
-    newNameSuffix: randomNameSuffix,
-    serve: (tools, session) =>
-      streamableHttpEndpoint(tools, session, {
-        onError: (error) => {
-          server.log.warn({ err: error }, "An MCP request failed");
-        },
-      }),
-  });
+export function registerMcpRoute(server: FastifyInstance, gateway: McpGateway): void {
   server.route<{ Params: { token: string } }>({
     method: ["GET", "POST", "DELETE"],
     url: mcpRoute,
@@ -82,5 +49,4 @@ export function mountMcpGateway(server: FastifyInstance): McpGateway {
       return endpoint.handle(webRequest(request), request.body);
     },
   });
-  return gateway;
 }

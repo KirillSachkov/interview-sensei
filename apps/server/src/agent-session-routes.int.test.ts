@@ -1,13 +1,12 @@
 // The session WebSocket when AgentSessions fails underneath it: the server must log the
 // failure and keep serving, not crash on an unhandled rejection.
 import { fastifyWebsocket } from "@fastify/websocket";
-import type { AgentRuntime } from "@interview-sensei/core/agent-runtime";
-import type { AgentSessions, SessionView } from "@interview-sensei/core/agent-sessions";
 import { fastify } from "fastify";
 import type { FastifyInstance } from "fastify";
 import { describe, expect, it, onTestFinished } from "vitest";
 
 import { registerAgentSessionRoutes } from "./agent-session-routes.ts";
+import type { AgentRuntime, AgentSessions, SessionView } from "./composition.ts";
 
 const sessionId = "00000000-0000-4000-8000-000000000000";
 

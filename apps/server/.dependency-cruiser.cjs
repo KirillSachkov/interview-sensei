@@ -14,6 +14,17 @@ module.exports = {
       from: { path: "^src/" },
       to: { path: "(^|/)packages/core/src/" },
     },
+    {
+      name: "server-composes-features-in-one-module",
+      severity: "error",
+      comment:
+        "Only src/composition.ts imports core features (@interview-sensei/core/<feature>): it calls " +
+        "each feature's module factory once and hands the routes finished services. Take a service " +
+        "or type from ./composition.ts instead; shared subpaths such as time and session-kinds stay " +
+        "open to every file.",
+      from: { path: "^src/", pathNot: String.raw`^src/composition\.ts$` },
+      to: { path: "(^|/)node_modules/@interview-sensei/core/src/features/" },
+    },
   ],
   // extends merges these options into the base options.
   options: {

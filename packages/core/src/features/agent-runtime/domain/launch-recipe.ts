@@ -4,8 +4,8 @@
 import type { AgentHost, AgentKind } from "./agent.ts";
 
 /**
- * The session kinds this runtime has launch recipes for. The server checks at compile time that
- * every session kind of agent-sessions is one of them.
+ * The session kinds this runtime has launch recipes for. agent-runtime checks at compile time that
+ * every kind in `shared/session-kinds` is one of them.
  */
 export type RuntimeSessionKind = "service-chat";
 

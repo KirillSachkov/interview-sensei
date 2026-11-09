@@ -1,12 +1,10 @@
-import type { AgentRuntime } from "@interview-sensei/core/agent-runtime";
-import { SessionsClosedError, sessionKinds } from "@interview-sensei/core/agent-sessions";
-import type {
-  AgentSessions,
-  SessionKind,
-  SessionView,
-} from "@interview-sensei/core/agent-sessions";
+import { sessionKinds } from "@interview-sensei/core/session-kinds";
+import type { SessionKind } from "@interview-sensei/core/session-kinds";
 import type { FastifyInstance } from "fastify";
 import type { WebSocket } from "ws";
+
+import { SessionsClosedError } from "./composition.ts";
+import type { AgentRuntime, AgentSessions, SessionView } from "./composition.ts";
 
 const sessionParams = {
   type: "object",
