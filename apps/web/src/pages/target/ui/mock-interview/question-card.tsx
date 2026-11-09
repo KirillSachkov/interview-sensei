@@ -154,7 +154,7 @@ export function QuestionCard({
 }) {
   const answering = stage === "answering" && card.answer === null;
   return (
-    <article className="card question-card" aria-label={`Вопрос ${number}`}>
+    <article className="card question-card" aria-label={`Вопрос ${number}`} data-discuss-scope="">
       <CardMarks targetId={targetId} card={card} />
       <p className="question-text">{card.text}</p>
       {card.format === "quiz" && !answering ? <QuizOptions card={card} /> : null}

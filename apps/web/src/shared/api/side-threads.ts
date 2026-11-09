@@ -1,15 +1,27 @@
 // The Side thread API of the server (#80). Its chat goes over the session's socket, as the
 // interviewer chat does.
-import { checked, isObject, path } from "./http";
+import { checked, isObject, path, sent } from "./http";
 
-/** A Side thread of a Mock interview, opened at a question card. */
+/**
+ * Where the Side thread opened: a question card (`id` of its asked question), an interviewer
+ * message (`id` of its chat entry) or a Debrief (`id` of the Attempt).
+ */
+export interface SideThreadOrigin {
+  readonly kind: "question" | "message" | "debrief";
+  readonly id: string;
+}
+
+/** A Side thread of a Mock interview. */
 export interface SideThread {
   readonly id: string;
   readonly interviewId: string;
   /** The Side thread's AgentSession: its chat goes over the session's socket. */
   readonly sessionId: string;
+  readonly origin: SideThreadOrigin;
   /** The asked question the Side thread discusses. */
   readonly askedQuestionId: string;
+  /** The text the Candidate selected; null without a selection. */
+  readonly fragment: string | null;
   /** The Candidate's question at the opening; null without one. */
   readonly question: string | null;
   /** Whether the Side thread marked the question's Attempt as received with a hint. */
@@ -26,15 +38,27 @@ function isSideThread(value: unknown): value is SideThread {
   );
 }
 
-/** «Обсудить отдельно» at the card, with the Candidate's question; empty text means none. */
+/** «Обсудить отдельно» at the origin, with the selected fragment and the Candidate's question. */
 export async function openSideThread(
   interviewId: string,
-  { cardId, question }: { cardId: string; question: string },
+  {
+    origin,
+    fragment,
+    question,
+  }: { origin: SideThreadOrigin; fragment: string | null; question: string },
 ): Promise<SideThread> {
   const response = await fetch(`/api/interviews/${path(interviewId)}/side-threads`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ origin: { kind: "question", id: cardId }, question }),
+    body: JSON.stringify({ origin, ...(fragment === null ? {} : { fragment }), question }),
   });
   return checked(response, isSideThread);
+}
+
+/** ✕: deletes the Side thread with its chat for good; the hint mark stays. */
+export async function deleteSideThread({ interviewId, id }: SideThread): Promise<void> {
+  const response = await fetch(`/api/interviews/${path(interviewId)}/side-threads/${path(id)}`, {
+    method: "DELETE",
+  });
+  await sent(response);
 }

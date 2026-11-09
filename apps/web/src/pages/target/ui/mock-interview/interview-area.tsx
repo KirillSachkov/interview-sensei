@@ -8,8 +8,8 @@ import { useInterviewEvents } from "../../model/use-interview-events";
 import { DiscussSeparately } from "./discuss-separately";
 import { InterviewerChat } from "./interviewer-chat";
 import { QuestionCard } from "./question-card";
-import { SideThreadChat } from "./side-thread-chat";
 import { SectionStrip } from "./section-strip";
+import { SideThreads } from "./side-threads";
 import { TimeLeft } from "./time-left";
 
 function Header({ view }: { view: InterviewView }) {
@@ -45,22 +45,29 @@ function stageOf(view: InterviewView) {
   return view.finishRequestedAt === null ? "answering" : "finishing";
 }
 
-/** The Side threads of the card, to the right of its question. */
-function SideThreads({ view, card, number }: { view: InterviewView; card: Card; number: number }) {
-  const threads = view.sideThreads.filter((thread) => thread.askedQuestionId === card.id);
-  return threads.length === 0 ? null : (
-    <div className="side-threads">
-      {threads.map((thread) => (
-        <SideThreadChat key={thread.id} thread={thread} number={number} />
-      ))}
-    </div>
+/** The question card with «Обсудить отдельно», and its Side threads to the right. */
+function QuestionRow({ view, card, number }: { view: InterviewView; card: Card; number: number }) {
+  return (
+    <>
+      <QuestionCard
+        interviewId={view.id}
+        targetId={view.targetId}
+        card={card}
+        number={number}
+        stage={stageOf(view)}
+        discuss={
+          <DiscussSeparately interviewId={view.id} origin={{ kind: "question", id: card.id }} />
+        }
+      />
+      <SideThreads view={view} card={card} number={number} />
+    </>
   );
 }
 
 /**
  * The running Mock interview: the header with «Завершить», the question cards from top to bottom,
- * the «Интервьюер» column beside the current question, and the Side threads to the right of theirs. `onEnded` runs once it is no longer
- * running.
+ * the «Интервьюер» column beside the current question, and the Side threads to the right of
+ * theirs. `onEnded` runs once it is no longer running.
  */
 export function InterviewArea({
   interview,
@@ -76,7 +83,7 @@ export function InterviewArea({
       onEnded();
     }
   }, [running, onEnded]);
-  const chat = <InterviewerChat sessionId={view.sessionId} />;
+  const chat = <InterviewerChat interviewId={view.id} sessionId={view.sessionId} />;
   const last = view.questions.length - 1;
   return (
     <section className="mock" aria-label="Мок-собеседование">
@@ -94,15 +101,7 @@ export function InterviewArea({
           {view.questions.map((card, index) => (
             <li key={card.id} className="mock-row">
               {index === last ? chat : <div />}
-              <QuestionCard
-                interviewId={view.id}
-                targetId={view.targetId}
-                card={card}
-                number={index + 1}
-                stage={stageOf(view)}
-                discuss={<DiscussSeparately interviewId={view.id} cardId={card.id} />}
-              />
-              <SideThreads view={view} card={card} number={index + 1} />
+              <QuestionRow view={view} card={card} number={index + 1} />
             </li>
           ))}
         </ol>

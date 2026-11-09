@@ -4,18 +4,21 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 
+import {
+  answer,
+  deleteThread,
+  discussSeparately,
+  finishMock,
+  openDebrief,
+  startMock,
+  startMockOn,
+  writeInThread,
+  zones,
+} from "./canvas-steps.ts";
+
 test.describe.configure({ mode: "serial" });
 
 const demoName = "Middle backend-разработчик на TypeScript";
-
-/** The Target's canvas with its two zones. */
-function zones(page: Page) {
-  const canvas = page.getByRole("region", { name: "Холст цели" });
-  return {
-    goal: canvas.getByRole("region", { name: "Цель", exact: true }),
-    sessions: canvas.getByRole("region", { name: "Сессии", exact: true }),
-  };
-}
 
 function agentButton(page: Page) {
   return page.getByRole("button", { name: /^Агент:/u });
@@ -119,37 +122,6 @@ unknownTargetTest("/targets/unknown");
 // Spec #41: the fake agent's interviewer mode takes the Grade from the marker in the answer and
 // sends a hint right after it shows a question, which the chat must leave out.
 
-/** Starts a mock on «Опыт и резюме» only, from the dialog «Начать мок». */
-async function startMock(sessions: Locator) {
-  await sessions.getByRole("button", { name: "Начать мок" }).click();
-  const dialog = sessions.getByRole("dialog", { name: "Начать мок" });
-  await dialog.getByRole("checkbox", { name: "TypeScript и Node.js" }).uncheck();
-  await dialog.getByRole("checkbox", { name: "Проектирование" }).uncheck();
-  await dialog.getByRole("button", { name: "Начать" }).click();
-}
-
-/** Answers the card's question; Enter sends the answer. */
-async function answer(card: Locator, text: string) {
-  const field = card.getByRole("textbox", { name: "Ваш ответ" });
-  await field.fill(text);
-  await field.press("Enter");
-  await expect(card).toContainText(`Ваш ответ: ${text}`);
-}
-
-/** Opens the card's Debrief and checks its Grade. */
-async function openDebrief(card: Locator, grade: string) {
-  await card.getByRole("button", { name: "Посмотреть разбор" }).click();
-  await expect(card.getByRole("region", { name: "Разбор" })).toContainText(`Оценка: ${grade}`);
-}
-
-/** Presses «Завершить» and waits for the interviewer's summary. */
-async function finishMock(sessions: Locator) {
-  await sessions.getByRole("button", { name: "Завершить" }).click();
-  const result = sessions.getByRole("region", { name: "Итог мока" });
-  await expect(result.getByRole("heading", { name: "Мок завершён" })).toBeVisible();
-  await expect(result).toContainText("Фейковый интервьюер: мок завершён.");
-}
-
 /** The chat shows the reply to the answer, never the hint, and tells that replies are hidden. */
 async function expectInterviewerChat(sessions: Locator) {
   const interviewer = sessions.getByRole("complementary", { name: "Интервьюер" });
@@ -186,19 +158,6 @@ test("the Candidate starts a mock, answers, opens the Debrief and finishes the m
 
 // Spec #41, ticket #54: a Dispute corrects the Grade at once, and the summary Debrief shows how the
 // Topic status changed.
-
-/** Starts a mock on the one Section, from the dialog «Начать мок». */
-async function startMockOn(sessions: Locator, section: string) {
-  await sessions.getByRole("button", { name: "Начать мок" }).click();
-  const dialog = sessions.getByRole("dialog", { name: "Начать мок" });
-  for (const other of ["Опыт и резюме", "TypeScript и Node.js", "Проектирование"]) {
-    if (other !== section) {
-      // oxlint-disable-next-line eslint/no-await-in-loop -- the checkboxes change one after another
-      await dialog.getByRole("checkbox", { name: other }).uncheck();
-    }
-  }
-  await dialog.getByRole("button", { name: "Начать" }).click();
-}
 
 /** Disputes the Grade in the card's open Debrief: a new Grade and the reason. */
 async function disputeGrade(card: Locator, grade: string, reason: string) {
@@ -257,14 +216,6 @@ test("the Candidate disputes a Grade and sees the summary Debrief with the Topic
 
 // Spec #80, ticket #81: «Обсудить отдельно» opens a Side thread to the right of the question card.
 
-/** Opens a Side thread at the card with the Candidate's question. */
-async function discussSeparately(card: Locator, question: string) {
-  await card.getByRole("button", { name: "Обсудить отдельно" }).click();
-  const form = card.getByRole("form", { name: "Обсудить отдельно" });
-  await form.getByRole("textbox", { name: "Ваш вопрос" }).fill(question);
-  await form.getByRole("button", { name: "Открыть ветку" }).click();
-}
-
 /** The thread right of the card answers the question; the card shows «с подсказкой». */
 async function expectThreadBeside(card: Locator, thread: Locator, question: string) {
   await expect(thread).toContainText(`Разбираю вопрос кандидата: «${question}»`);
@@ -272,13 +223,6 @@ async function expectThreadBeside(card: Locator, thread: Locator, question: stri
   const threadBox = await thread.boundingBox();
   expect(threadBox?.x ?? 0).toBeGreaterThan((cardBox?.x ?? 0) + (cardBox?.width ?? 0));
   await expect(card).toContainText("с подсказкой");
-}
-
-/** Writes in the Side thread and waits for the agent's reply. */
-async function writeInThread(thread: Locator, text: string) {
-  await thread.getByRole("textbox", { name: "Сообщение в ветку" }).fill(text);
-  await thread.getByRole("button", { name: "Отправить" }).click();
-  await expect(thread).toContainText(`Фейковый агент получил: «${text}»`);
 }
 
 test("the Candidate discusses a question in a side thread beside it, and the question gets the hint mark", async ({
@@ -295,5 +239,24 @@ test("the Candidate discusses a question in a side thread beside it, and the que
   const thread = sessions.getByRole("complementary", { name: "Ветка к вопросу 1" });
   await expectThreadBeside(first, thread, question);
   await writeInThread(thread, "А пример?");
+  await finishMock(sessions);
+});
+
+// Spec #80, ticket #82: ✕ deletes a Side thread for good after a confirmation; the hint mark stays.
+
+test("the Candidate deletes a side thread after confirming, and the question keeps the hint mark", async ({
+  page,
+}) => {
+  const { sessions } = zones(page);
+  const first = sessions.getByRole("article", { name: "Вопрос 1" });
+  const thread = sessions.getByRole("complementary", { name: "Ветка к вопросу 1" });
+  await page.goto("/");
+  await startMock(sessions);
+  await discussSeparately(first, "Что значит «вклад»?");
+  await expect(thread).toContainText("Разбираю вопрос кандидата");
+
+  await deleteThread(thread);
+
+  await expect(first).toContainText("с подсказкой");
   await finishMock(sessions);
 });

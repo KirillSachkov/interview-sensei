@@ -1,8 +1,20 @@
+import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import type { SubmitEvent } from "react";
 
 import { PermissionRequest, useSessionEvents } from "@/entities/session";
+import { deleteSideThread } from "@/shared/api";
 import type { ChatEntry, SessionView, SideThread } from "@/shared/api";
+
+import { FragmentQuote } from "./discuss-separately";
+import { useRefreshSideThreads } from "./side-thread-refresh";
+
+/** Where the Side thread opened, as its title says. */
+const originTitles = {
+  question: "Ветка",
+  message: "Ветка из сообщения интервьюера",
+  debrief: "Ветка из разбора",
+} as const;
 
 /** A line of the Side thread chat; tool calls never reach it, permission requests do. */
 function Line({
@@ -106,9 +118,62 @@ function ThreadForm({
   );
 }
 
+/** ✕ asks first: «Удалить» deletes the Side thread and its chat for good. */
+function DeleteThread({ thread }: { thread: SideThread }) {
+  const [asking, setAsking] = useState(false);
+  const refresh = useRefreshSideThreads(thread.interviewId);
+  const deletion = useMutation({
+    mutationFn: async () => deleteSideThread(thread),
+    onSuccess: refresh,
+  });
+  if (!asking) {
+    return (
+      <button
+        type="button"
+        className="ghost side-thread-close"
+        aria-label="Удалить ветку"
+        title="Удалить ветку"
+        onClick={() => {
+          setAsking(true);
+        }}
+      >
+        ✕
+      </button>
+    );
+  }
+  return (
+    <div className="side-thread-confirm" role="alertdialog" aria-label="Удалить ветку?">
+      <p>Удалить ветку навсегда? Переписка удалится; пометка «с подсказкой» у вопроса останется.</p>
+      <div className="answer-actions">
+        <button
+          type="button"
+          className="danger"
+          disabled={deletion.isPending}
+          onClick={() => {
+            deletion.mutate();
+          }}
+        >
+          Удалить
+        </button>
+        <button
+          type="button"
+          className="ghost"
+          onClick={() => {
+            setAsking(false);
+          }}
+        >
+          Отмена
+        </button>
+      </div>
+      {deletion.isError ? <p role="alert">Ветка не удалилась: {deletion.error.message}</p> : null}
+    </div>
+  );
+}
+
 /**
  * A Side thread to the right of its question (#80): a chat with the same agent as the mock
- * interview, which explains. The reply comes in chunks; «Остановить» ends the agent's turn.
+ * interview, which explains. The reply comes in chunks; «Остановить» ends the agent's turn, and ✕
+ * deletes the thread.
  */
 export function SideThreadChat({ thread, number }: { thread: SideThread; number: number }) {
   const { view, notice, lost, prompt, cancel, answerPermission } = useSessionEvents(
@@ -117,7 +182,11 @@ export function SideThreadChat({ thread, number }: { thread: SideThread; number:
   const status = lost === null ? (view?.status ?? null) : null;
   return (
     <aside className="side-thread" aria-label={`Ветка к вопросу ${number}`}>
-      <h4>Ветка</h4>
+      <header className="side-thread-head">
+        <h4>{originTitles[thread.origin.kind]}</h4>
+        <DeleteThread thread={thread} />
+      </header>
+      <FragmentQuote fragment={thread.fragment} />
       {thread.question === null ? null : (
         <p className="chat-line mine">
           <span className="muted">Вы: </span>

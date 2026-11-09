@@ -4,6 +4,7 @@ import { useState } from "react";
 import { fetchDebrief } from "@/shared/api";
 import type { AttemptDebrief } from "@/shared/api";
 
+import { DiscussSeparately } from "./discuss-separately";
 import { DisputeForm } from "./dispute-form";
 
 /** The Grade, «~~1~~ → 3» after a Dispute, with the reason of the correction. */
@@ -71,7 +72,7 @@ function DebriefBody({ interviewId, attemptId }: { interviewId: string; attemptI
   }
   const { gaps, justification, strongAnswer } = debrief.data;
   return (
-    <section className="debrief" aria-label="Разбор">
+    <section className="debrief" aria-label="Разбор" data-discuss-scope="">
       <GradeLine debrief={debrief.data} />
       <h4>Пробелы</h4>
       <p>{gaps.trim() === "" ? "Нет" : gaps}</p>
@@ -84,6 +85,7 @@ function DebriefBody({ interviewId, attemptId }: { interviewId: string; attemptI
         </>
       )}
       <Dispute interviewId={interviewId} attemptId={attemptId} />
+      <DiscussSeparately interviewId={interviewId} origin={{ kind: "debrief", id: attemptId }} />
     </section>
   );
 }

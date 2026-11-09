@@ -1,9 +1,13 @@
 import type { InterviewView } from "@/shared/api";
 
 import { QuestionCard } from "./question-card";
+import { SideThreads } from "./side-threads";
 import { SummaryDebrief } from "./summary-debrief";
 
-/** A Mock interview that ended: its summary Debrief and every card. */
+/**
+ * A Mock interview that ended: its summary Debrief and every card with its Side threads to the
+ * right. A Debrief opens new ones.
+ */
 export function InterviewResult({ interview }: { interview: InterviewView }) {
   const finished = interview.status === "finished";
   return (
@@ -19,7 +23,7 @@ export function InterviewResult({ interview }: { interview: InterviewView }) {
       <SummaryDebrief interviewId={interview.id} />
       <ol className="mock-questions result" aria-label="Вопросы">
         {interview.questions.map((card, index) => (
-          <li key={card.id}>
+          <li key={card.id} className="result-row">
             <QuestionCard
               interviewId={interview.id}
               targetId={interview.targetId}
@@ -27,6 +31,7 @@ export function InterviewResult({ interview }: { interview: InterviewView }) {
               number={index + 1}
               stage="ended"
             />
+            <SideThreads view={interview} card={card} number={index + 1} />
           </li>
         ))}
       </ol>

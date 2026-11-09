@@ -2,10 +2,15 @@ import { useState } from "react";
 import type { SubmitEvent } from "react";
 
 import { useSessionEvents } from "@/entities/session";
-import type { ChatEntry } from "@/shared/api";
+import type { ChatEntry, SessionView } from "@/shared/api";
 
-/** A line of the interviewer chat; tool calls never reach it. */
-function Line({ entry }: { entry: ChatEntry }) {
+import { DiscussSeparately } from "./discuss-separately";
+
+/**
+ * A line of the interviewer chat; tool calls never reach it. An interviewer message has
+ * «Обсудить отдельно».
+ */
+function Line({ entry, interviewId }: { entry: ChatEntry; interviewId: string }) {
   switch (entry.type) {
     case "candidate_message": {
       return (
@@ -16,7 +21,12 @@ function Line({ entry }: { entry: ChatEntry }) {
       );
     }
     case "agent_message": {
-      return <p className="chat-line">{entry.text}</p>;
+      return (
+        <div className="chat-message" data-discuss-scope="">
+          <p className="chat-line">{entry.text}</p>
+          <DiscussSeparately interviewId={interviewId} origin={{ kind: "message", id: entry.id }} />
+        </div>
+      );
     }
     case "turn_failed": {
       return <p role="alert">Интервьюер не смог ответить: {entry.message}</p>;
@@ -31,25 +41,58 @@ function Line({ entry }: { entry: ChatEntry }) {
   }
 }
 
-/** The «Интервьюер» column beside the current question: a chat with the interviewer. */
-export function InterviewerChat({ sessionId }: { sessionId: string }) {
-  const { view, notice, lost, prompt } = useSessionEvents(sessionId);
+/** The Candidate types while the agent works, and sends once it waits for a message. */
+function InterviewerForm({
+  status,
+  onSend,
+}: {
+  status: SessionView["status"] | null;
+  onSend: (text: string) => void;
+}) {
   const [text, setText] = useState("");
-  const status = lost === null ? (view?.status ?? null) : null;
   const submit = (event: SubmitEvent) => {
     event.preventDefault();
     if (text.trim() !== "" && status === "idle") {
-      prompt(text);
+      onSend(text);
       setText("");
     }
   };
+  return (
+    <form className="interviewer-form" onSubmit={submit}>
+      <input
+        className="nodrag nopan"
+        aria-label="Сообщение интервьюеру"
+        placeholder="Уточнить вопрос"
+        value={text}
+        disabled={status !== "idle" && status !== "working"}
+        onChange={(event) => {
+          setText(event.target.value);
+        }}
+      />
+      <button type="submit" disabled={status !== "idle" || text.trim() === ""}>
+        Отправить
+      </button>
+    </form>
+  );
+}
+
+/** The «Интервьюер» column beside the current question: a chat with the interviewer. */
+export function InterviewerChat({
+  interviewId,
+  sessionId,
+}: {
+  interviewId: string;
+  sessionId: string;
+}) {
+  const { view, notice, lost, prompt } = useSessionEvents(sessionId);
+  const status = lost === null ? (view?.status ?? null) : null;
   return (
     <aside className="interviewer" aria-label="Интервьюер">
       <h4>Интервьюер</h4>
       <ol className="interviewer-lines nowheel" aria-label="Сообщения интервьюера">
         {(view?.entries ?? []).map((entry) => (
           <li key={entry.id}>
-            <Line entry={entry} />
+            <Line entry={entry} interviewId={interviewId} />
           </li>
         ))}
       </ol>
@@ -63,21 +106,7 @@ export function InterviewerChat({ sessionId }: { sessionId: string }) {
       ) : null}
       {lost === null ? null : <p role="alert">{lost}</p>}
       {notice === null ? null : <output>{notice}</output>}
-      <form className="interviewer-form" onSubmit={submit}>
-        <input
-          className="nodrag nopan"
-          aria-label="Сообщение интервьюеру"
-          placeholder="Уточнить вопрос"
-          value={text}
-          disabled={status !== "idle" && status !== "working"}
-          onChange={(event) => {
-            setText(event.target.value);
-          }}
-        />
-        <button type="submit" disabled={status !== "idle" || text.trim() === ""}>
-          Отправить
-        </button>
-      </form>
+      <InterviewerForm status={status} onSend={prompt} />
     </aside>
   );
 }
