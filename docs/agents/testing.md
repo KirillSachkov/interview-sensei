@@ -101,7 +101,8 @@ Tests and CI turn the browser off with `--no-browser` or `INTERVIEW_SENSEI_NO_BR
   On a pull request, that commit is the merge with `main`.
   The workflow pins the gitleaks version and its archive checksum.
   `.gitleaksignore` lists the findings that are not secrets, one fingerprint per line with a reason above it.
-  A secret that reaches `main` fails every later run until someone removes it from history or lists it there.
+  A real secret that reaches `main` fails every later run: rotate it, then remove it from history.
+  Add a finding to `.gitleaksignore` only when it is not a secret.
   Run the same scan locally with `gitleaks git --log-opts="--full-history HEAD" --redact`.
 
 Repository protection settings are not implied by these jobs.
