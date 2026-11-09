@@ -96,11 +96,12 @@ Tests and CI turn the browser off with `--no-browser` or `INTERVIEW_SENSEI_NO_BR
 - `deps-audit` runs `pnpm audit --audit-level high` on `pnpm-lock.yaml` without an install.
   High and critical advisories fail it; low and moderate ones only appear in the log.
   The owner chose this threshold in #30.
+  Run the same check locally with `pnpm audit --audit-level high`.
 - `secrets-scan` runs gitleaks on every commit reachable from the checked-out commit.
   On a pull request, that commit is the merge with `main`.
   The workflow pins the gitleaks version and its archive checksum.
   `.gitleaksignore` lists the findings that are not secrets, one fingerprint per line with a reason above it.
-  A change to that list needs the owner's review.
+  A secret that reaches `main` fails every later run until someone removes it from history or lists it there.
   Run the same scan locally with `gitleaks git --log-opts="--full-history HEAD" --redact`.
 
 Repository protection settings are not implied by these jobs.
