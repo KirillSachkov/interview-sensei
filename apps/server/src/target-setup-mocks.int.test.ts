@@ -1,13 +1,19 @@
-// Spec #45 with spec #41, seam 1: the draft of changes keeps the Candidate's progress. A Topic
-// that the draft merges into another one hands over its Attempts, so the Topic status and
-// «Готовность» count them under the Topic that stays.
+// Spec #45 with spec #41 and the rule «не подтверждён» of spec #47, seam 1: the draft of changes
+// and the data of Mock interviews. A Topic that the draft merges into another one hands over its
+// Attempts, so the Topic status and «Готовность» count them under the Topic that stays. A
+// made-up Question that the Candidate changes through the draft becomes confirmed.
+import type { FastifyInstance } from "fastify";
 import { describe, expect, it } from "vitest";
 
 import { isIdle, openEvents } from "./chat-test-support.ts";
+import { cardAt, hasQuestions, interviewApi } from "./interview-test-support.ts";
 import { demoWithMock } from "./progress-test-support.ts";
 import { api, applyDraft, callTool } from "./setup-test-support.ts";
 
-type Api = Awaited<ReturnType<typeof demoWithMock>>;
+interface Api {
+  readonly server: FastifyInstance;
+  readonly target: { readonly id: string };
+}
 
 /** The Topic status of each Topic of the plan, by name. */
 async function statuses({ server, target }: Api) {
@@ -16,7 +22,7 @@ async function statuses({ server, target }: Api) {
   return Object.fromEntries(topics.map((topic) => [topic.name, topic.status]));
 }
 
-/** The demo Target's setup session, once its agent takes prompts. */
+/** The Target's setup session, once its agent takes prompts. */
 async function setupOf({ server, target }: Api) {
   const opened = await api(server).post(`/api/targets/${target.id}/setup-session`);
   const events = await openEvents(server, opened.json<{ id: string }>().id);
@@ -48,5 +54,23 @@ describe("progress after the draft of changes", () => {
       "Асинхронность Node.js": "not_started",
       "Данные и надёжность": "not_started",
     });
+  });
+});
+
+describe("the mark «не подтверждён» after the draft of changes", () => {
+  it("confirms a made-up Question that the Candidate rephrases through the draft", async () => {
+    const mock = await interviewApi();
+    const { events } = await mock.answered(["Опыт и резюме"], "Ответ [new]");
+    const made = cardAt(await events.waitFor(hasQuestions(2)), 1);
+    const setup = await setupOf(mock);
+    const text = "Расскажите о проекте, которым гордитесь.";
+    await callTool(setup, "edit_questions", { edits: [{ id: made.questionId, text }] });
+
+    await applyDraft(mock.server, mock.target.id);
+
+    const bank = await mock.questions();
+    expect(bank.filter((question) => question.id === made.questionId)).toMatchObject([
+      { text, unconfirmed: false },
+    ]);
   });
 });

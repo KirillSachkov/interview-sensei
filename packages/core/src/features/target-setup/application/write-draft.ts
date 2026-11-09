@@ -12,6 +12,7 @@ import type {
   SetupQuestionEdit,
   TargetUpdate,
 } from "../domain/ports.ts";
+import { confirms } from "../domain/question-confirmation.ts";
 import type { StateSources } from "./setup-state.ts";
 
 /** What writing the draft uses: the slices that keep the Target's data, and the clock. */
@@ -44,15 +45,19 @@ function updateOf(state: SetupState, topicIds: readonly string[]): TargetUpdate 
   };
 }
 
-/** The fields of the Question that the draft changed; null when it changed none. */
+/**
+ * The fields of the Question that the draft changed; null when it changed none. An edit that
+ * confirms a made-up Question also takes off its mark «не подтверждён».
+ */
 function editOf(before: SetupQuestion, after: DraftQuestion, topicId: string) {
-  const edit: SetupQuestionEdit = {
-    id: before.id,
+  const fields = {
     ...(after.text === before.text ? {} : { text: after.text }),
     ...(topicId === before.topicId ? {} : { topicId }),
     ...(after.hidden === before.hidden ? {} : { hidden: after.hidden }),
     ...(after.rating === before.rating ? {} : { rating: after.rating }),
   };
+  const confirmed = before.unconfirmed && confirms(fields) ? { unconfirmed: false as const } : {};
+  const edit: SetupQuestionEdit = { id: before.id, ...fields, ...confirmed };
   return Object.keys(edit).length > 1 ? edit : null;
 }
 

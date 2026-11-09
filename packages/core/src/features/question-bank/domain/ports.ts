@@ -39,13 +39,17 @@ export interface QuestionRepository<Transaction> {
   /** Moves the Questions of the Topic `from` to the Topic `into`, then deletes `from`. */
   readonly mergeTopic: (from: string, into: string, transaction?: Transaction) => Promise<void>;
 }
-/** The new text, Topic, visibility or rating of one Question. */
+/**
+ * The new text, Topic, visibility or rating of one Question; `unconfirmed: false` confirms a
+ * Question that the interviewer made up.
+ */
 export interface QuestionEdit {
   readonly id: string;
   readonly text?: string;
   readonly topicId?: string;
   readonly hidden?: boolean;
   readonly rating?: QuestionRating | null;
+  readonly unconfirmed?: false;
 }
 /** Resolves a Section only within the current Target; undefined means it does not belong to it. */
 export interface SectionTopics {

@@ -101,15 +101,21 @@ export interface SetupQuestion {
   readonly level: Level;
   readonly hidden: boolean;
   readonly rating: QuestionRating | null;
+  /** The interviewer made it up, and the Candidate has not confirmed it. */
+  readonly unconfirmed: boolean;
 }
 
-/** The new text, Topic, visibility or rating of one Question. */
+/**
+ * The new text, Topic, visibility or rating of one Question; `unconfirmed: false` confirms a
+ * made-up Question.
+ */
 export interface SetupQuestionEdit {
   readonly id: string;
   readonly text?: string;
   readonly topicId?: string;
   readonly hidden?: boolean;
   readonly rating?: QuestionRating | null;
+  readonly unconfirmed?: false;
 }
 
 /** The question-bank slice reads and writes the Target's Questions and renames its Topics. */
@@ -133,9 +139,10 @@ export interface SetupQuestions<Transaction> {
     rename: TopicRename,
     transaction?: Transaction,
   ) => Promise<TopicMerge | null>;
+  /** Adds the Questions as confirmed: the Candidate applied them. */
   readonly addQuestions: (
     targetId: string,
-    questions: readonly (SetupQuestion & { readonly createdAt: string })[],
+    questions: readonly (Omit<SetupQuestion, "unconfirmed"> & { readonly createdAt: string })[],
     transaction?: Transaction,
   ) => Promise<void>;
   /** Stores the given fields of each Question. */
