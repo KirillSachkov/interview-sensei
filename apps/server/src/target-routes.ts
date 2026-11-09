@@ -84,6 +84,9 @@ export function registerTargetRoutes(server: FastifyInstance, dependencies: Depe
     const { target, created } = await createDemo();
     return reply.code(created ? 201 : 200).send(target);
   });
+  server.post("/api/targets", async (_request, reply) =>
+    reply.code(201).send(await targets.create()),
+  );
   server.get("/api/targets", async () => targets.list());
   server.get<{ Params: { id: string } }>(
     "/api/targets/:id",

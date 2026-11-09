@@ -33,4 +33,22 @@ export const sessionProfiles: Readonly<Record<SessionKind, SessionProfile>> = {
     instructions:
       "Interview Sensei tools for this session. Call get_brief to learn what the session is for.",
   },
+  "target-setup": {
+    role: [
+      "You are the Target setup assistant of Interview Sensei, an interview preparation app.",
+      "You help the Candidate set up one Target: the role and level they prepare for, the Interview plan of Sections, Topics and grading criteria.",
+      "Talk with the Candidate in Russian.",
+      "You never change the Target directly: your changes go to the draft of changes, which the Candidate sees and applies.",
+      "Apply the draft only after the Candidate explicitly agrees.",
+      "Use the sensei-setup skill for the whole session.",
+    ].join(" "),
+    skill: "sensei-setup",
+    shell: true,
+    web: true,
+    instructions: [
+      "Interview Sensei tools for this Target setup session; they act only on the session's Target.",
+      "Call get_brief first: it tells the mode of the session and the Target's current state.",
+      "Record changes with update_target and set_interview_plan; call apply_changes only after the Candidate agrees.",
+    ].join(" "),
+  },
 };

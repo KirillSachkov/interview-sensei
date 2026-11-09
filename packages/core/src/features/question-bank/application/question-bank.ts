@@ -5,10 +5,6 @@ import type { QuestionFilter, QuestionRepository } from "../domain/ports.ts";
 import type { Question, Topic } from "../domain/question.ts";
 import { topicKey, validateQuestion } from "../domain/question.ts";
 
-/**
- * The Target's Topics with these names, in the order of the names, one per distinct name; creates
- * the missing ones. A name matches an existing Topic by topicKey.
- */
 /** One Topic per distinct name: the existing one, or a new one with the name. */
 function namedTopics({
   targetId,
@@ -29,6 +25,10 @@ function namedTopics({
   return named;
 }
 
+/**
+ * The Target's Topic of each name, in the order of the names; creates the missing ones. A name
+ * matches an existing Topic by topicKey, and names that match get the same Topic.
+ */
 async function ensureTopics(
   repository: QuestionRepository<Transaction>,
   { targetId, names, transaction }: EnsureTopics,
@@ -42,7 +42,7 @@ async function ensureTopics(
   if (created.length > 0) {
     await repository.addTopics(created, transaction);
   }
-  return [...named.values()];
+  return names.flatMap((name) => named.get(topicKey(name)) ?? []);
 }
 
 interface EnsureTopics {

@@ -12,7 +12,8 @@
     "./storage": "./src/shared/storage/index.ts",
     "./time": "./src/shared/time/index.ts",
     "./targets": "./src/features/targets/index.ts",
-    "./question-bank": "./src/features/question-bank/index.ts"
+    "./question-bank": "./src/features/question-bank/index.ts",
+    "./target-setup": "./src/features/target-setup/index.ts"
   },
   "scripts": {
     "lint": "oxlint",

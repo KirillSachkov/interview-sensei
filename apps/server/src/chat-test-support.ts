@@ -119,7 +119,7 @@ async function startChat(server: FastifyInstance): Promise<string> {
 }
 
 /** Opens the session's event socket; keeps the session views and, apart, the other replies. */
-async function openEvents(server: FastifyInstance, sessionId: string) {
+export async function openEvents(server: FastifyInstance, sessionId: string) {
   const views: SessionView[] = [];
   const replies: unknown[] = [];
   let received = Promise.withResolvers<null>();

@@ -9,6 +9,14 @@ import {
   demoQuestions,
 } from "@interview-sensei/core/question-bank";
 import { targetsModule, targetsMigrations, getTarget } from "@interview-sensei/core/targets";
+import {
+  applyChanges,
+  setInterviewPlan,
+  setupBrief,
+  targetSetupMigrations,
+  targetSetupModule,
+  updateTarget,
+} from "@interview-sensei/core/target-setup";
 
 import { agentRuntimeModule } from "@interview-sensei/core/agent-runtime";
 import type { AgentRuntime, UserEnvironment } from "@interview-sensei/core/agent-runtime";
@@ -25,7 +33,6 @@ import type { SliceMigrations, Storage } from "@interview-sensei/core/storage";
 import type { Clock, Timer } from "@interview-sensei/core/time";
 import type { Targets } from "@interview-sensei/core/targets";
 import type { QuestionBank } from "@interview-sensei/core/question-bank";
-import type { FastifyBaseLogger } from "fastify";
 
 export type { AgentRuntime, UserEnvironment } from "@interview-sensei/core/agent-runtime";
 export { SessionsClosedError } from "@interview-sensei/core/agent-sessions";
@@ -42,15 +49,30 @@ const sliceMigrations: readonly SliceMigrations[] = [
   agentSessionsMigrations,
   questionBankMigrations,
   targetsMigrations,
+  targetSetupMigrations,
 ];
 
 /**
  * The MCP tool set of each session kind. A slice exports its tools from its index.ts; add them to
  * the kinds that need them. It compiles only while every session kind has an entry.
  */
-const sessionTools: Readonly<Record<SessionKind, readonly SessionTool[]>> = {
-  "service-chat": [getBrief],
-};
+function sessionTools({
+  targets,
+  questionBank,
+  targetSetup,
+}: ReturnType<typeof composeTargets>): Readonly<Record<SessionKind, readonly SessionTool[]>> {
+  return {
+    "service-chat": [getBrief],
+    "target-setup": [
+      setupBrief(targetSetup),
+      getTarget(targets),
+      searchQuestions(questionBank, targets),
+      updateTarget(targetSetup),
+      setInterviewPlan(targetSetup),
+      applyChanges(targetSetup),
+    ],
+  };
+}
 
 export interface FeatureDependencies {
   clock: Clock;
@@ -65,24 +87,19 @@ export interface FeatureDependencies {
   userEnvironment: UserEnvironment | undefined;
   /** The server's own loopback origin for the MCP addresses; throws before it listens. */
   origin: () => string;
-  /** Receives the failures of background work. */
-  log: FastifyBaseLogger;
+  /** Receives the failures of background work: the server's logger. */
+  log: {
+    readonly warn: (details: object | string, message?: string) => void;
+    readonly error: (details: object, message: string) => void;
+  };
 }
 
 /**
  * Opens the storage on the data directory and composes every core feature on it. Rejects with
  * DataDirectoryInUseError when another server holds the data directory.
  */
-export async function composeFeatures({
-  clock,
-  timer,
-  dataDirectory,
-  skillsDirectory,
-  fakeAgent,
-  userEnvironment,
-  origin,
-  log,
-}: FeatureDependencies) {
+export async function composeFeatures(dependencies: FeatureDependencies) {
+  const { clock, timer, dataDirectory, log } = dependencies;
   const storage = await openStorage({
     dataDirectory,
     clock,
@@ -92,17 +109,16 @@ export async function composeFeatures({
       log.error({ err: error }, "The periodic database dump failed");
     },
   });
-  const { runtime, mcp, sessions } = composeAgents(storage, {
-    timer,
-    dataDirectory,
-    skillsDirectory,
-    fakeAgent,
-    userEnvironment,
-    origin,
-    log,
-    clock,
+  const runtime = agentRuntimeModule({
+    ...dependencies,
+    onWarning: (message) => {
+      log.warn(message);
+    },
   });
-  const { questionBank, targets } = composeTargets(storage, clock, runtime);
+  const slices = composeTargets(storage, clock, runtime);
+  const tools = sessionTools(slices);
+  const { mcp, sessions } = composeSessions(storage, { ...dependencies, runtime, tools });
+  const { targets, questionBank } = slices;
   const modelTools = {
     getTarget: getTarget(targets),
     searchQuestions: searchQuestions(questionBank, targets),
@@ -113,15 +129,17 @@ export async function composeFeatures({
     runtime,
     mcp,
     sessions,
-    targets,
-    questionBank,
+    ...slices,
     createDemo,
     modelTools,
     health: healthModule({ clock }),
   };
 }
 
-/** Targets and their Questions; a Target's agent is one of the agents that `runtime` offers. */
+/**
+ * Targets, their Questions and the drafts of their changes; a Target's agent is one of the agents
+ * that `runtime` offers.
+ */
 function composeTargets(storage: Storage, clock: Clock, runtime: AgentRuntime) {
   const questionBank = questionBankModule({ database: storage.database });
   const targets = targetsModule({
@@ -130,7 +148,14 @@ function composeTargets(storage: Storage, clock: Clock, runtime: AgentRuntime) {
     topics: questionBank,
     agents: runtime,
   });
-  return { questionBank, targets };
+  const targetSetup = targetSetupModule({
+    database: storage.database,
+    transaction: storage.transaction,
+    clock,
+    targets,
+    topics: questionBank,
+  });
+  return { questionBank, targets, targetSetup };
 }
 
 interface DemoDependencies {
@@ -233,31 +258,23 @@ function demoCreator(dependencies: DemoDependencies) {
   };
 }
 
-function composeAgents(
+/** The MCP addresses with the tool set of each kind, and the AgentSessions that use them. */
+function composeSessions(
   storage: Storage,
   {
-    timer,
+    runtime,
+    tools,
+    clock,
     dataDirectory,
-    skillsDirectory,
-    fakeAgent,
-    userEnvironment,
     origin,
     log,
-    clock,
-  }: FeatureDependencies,
+  }: Pick<FeatureDependencies, "clock" | "dataDirectory" | "origin" | "log"> & {
+    runtime: AgentRuntime;
+    tools: Readonly<Record<SessionKind, readonly SessionTool[]>>;
+  },
 ) {
-  const runtime = agentRuntimeModule({
-    timer,
-    dataDirectory,
-    skillsDirectory,
-    fakeAgent,
-    userEnvironment,
-    onWarning: (message) => {
-      log.warn(message);
-    },
-  });
   const mcp = mcpGatewayModule({
-    tools: sessionTools,
+    tools,
     origin,
     onError: (error) => {
       log.warn({ err: error }, "An MCP request failed");
@@ -273,7 +290,7 @@ function composeAgents(
       log.error({ err: error }, "An agent session failed in the background");
     },
   });
-  return { runtime, mcp, sessions };
+  return { mcp, sessions };
 }
 
 /** The composed services that the routes and the server lifecycle receive. */

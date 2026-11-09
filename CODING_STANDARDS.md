@@ -121,6 +121,7 @@ It names the session's MCP server `interview-sensei-<random hex>`, so a server n
 A tool lives in the `application/` of the slice that owns its data: define it there with `sessionTool` from `src/shared/mcp` and export it from the slice's `index.ts`.
 Content that differs by session kind lives in that slice's `domain/`.
 `get_brief` is the template: the tool is in `mcp-gateway/application/get-brief.ts`, and the brief of each kind is in `briefFor` in `mcp-gateway/domain/brief.ts`.
+A kind whose brief needs a slice's data gets its own `get_brief` from that slice: `target-setup` builds the brief of the Target setup from the Target.
 `sessionTools` in `apps/server/src/composition.ts` lists the tools of each session kind; add the new tool there.
 A tool acts only on the session it receives. Write its name in snake_case and its description in English.
 API tests call a tool as the agent does: the fake agent's prompt `/tool <name> <json>` calls it on the session's MCP address with these arguments ([testing](docs/agents/testing.md#test-levels)).
@@ -185,6 +186,15 @@ Generate migrations with `db:generate`; never write or edit them by hand. Pretti
 The slice exports its `SliceMigrations` from `index.ts`, and `sliceMigrations` in `apps/server/src/composition.ts` lists it.
 A slice queries only its own schema.
 
+A change that spans slices writes in one shared transaction, such as applying a draft of changes (#48).
+`Storage.transaction` in `shared/storage` opens it; `composeFeatures` passes it to the slice that runs the change, `target-setup` for the draft.
+That slice reaches the other slices only through its domain ports, as [references between slices](#references-between-slices) say; slices still never import each other.
+A write port takes the open transaction as its last parameter, and so does each read the change makes.
+The domain port declares it as a type parameter `Transaction`, so `domain/` stays free of storage code; `application/` and `infrastructure/` use `Transaction` from `shared/storage`.
+The repository runs its queries on `executorOf(database, transaction)`: on the transaction when it gets one, on the database otherwise.
+Inside the transaction every query of the change uses it, reads included: PGlite runs one transaction at a time, so a query on the database would wait for the transaction and never finish.
+Any rejection rolls back the writes of every slice; `shared-transaction.int.test.ts` in `apps/server` checks it.
+
 ### Canvas zones
 
 The web app opens on the canvas of one Target, `pages/target`, built on React Flow (`@xyflow/react`).
@@ -197,6 +207,7 @@ A slice adds content to a zone like this:
 2. Add the widget to the zone's `content` in `targetZones`.
 
 The slice leaves `Canvas` and the top bar (`widgets/top-bar`) unchanged.
+The owner approved one exception in #45: the top bar gets «Новая цель» and «Настройки».
 A new zone is a new entry in `targetZones` and needs the owner's decision.
 An input or a scrolled list inside a widget gets the React Flow classes `nodrag`, `nopan` and `nowheel` where the canvas must not take its pointer or wheel.
 
