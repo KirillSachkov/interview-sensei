@@ -2,6 +2,10 @@ import type { DraftOperation } from "@/shared/api";
 
 const levelNames = { junior: "Junior", middle: "Middle", senior: "Senior" } as const;
 const toneNames = { friendly: "дружелюбный", neutral: "нейтральный", strict: "строгий" } as const;
+const languageNames: Readonly<Record<string, string>> = { ru: "русский", en: "английский" };
+
+/** The Russian name of the Interviewer's language; an unknown code stays as it is. */
+const languageName = (language: string) => languageNames[language] ?? language;
 
 /** The count with the Russian word form for it: «1 секция», «2 секции», «5 секций». */
 function counted(count: number, [one, few, many]: readonly [string, string, string]): string {
@@ -25,7 +29,7 @@ function targetText(operation: Operation<"update_target">): string {
     operation.name === undefined ? null : `название «${operation.name}»`,
     operation.level === undefined ? null : `уровень ${levelNames[operation.level]}`,
     operation.tone === undefined ? null : `тон ${toneNames[operation.tone]}`,
-    operation.language === undefined ? null : `язык ${operation.language}`,
+    operation.language === undefined ? null : `язык ${languageName(operation.language)}`,
   ];
   return `Цель: ${parts.filter((part) => part !== null).join(", ")}`;
 }
@@ -53,7 +57,7 @@ function preferenceText(operation: Operation<"save_preference">): string {
     operation.active === false ? "выключить" : null,
     operation.active === true ? "включить" : null,
   ];
-  return `Preference: ${parts.filter((part) => part !== null).join(", ")}`;
+  return `Пожелание: ${parts.filter((part) => part !== null).join(", ")}`;
 }
 
 /** What the edits do to the Questions, each kind once. */

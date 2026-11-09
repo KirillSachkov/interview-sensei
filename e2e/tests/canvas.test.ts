@@ -174,7 +174,7 @@ test("after a reload the setup chat shows «Есть неприменённые 
 
   await zones(page).goal.getByRole("button", { name: "Настроить цель" }).click();
   await expect(unapplied(chat, 2)).toBeVisible();
-  await chat.panel.getByRole("button", { name: "Убрать изменение: Цель: язык en" }).click();
+  await chat.panel.getByRole("button", { name: "Убрать изменение: Цель: язык английский" }).click();
   await expect(unapplied(chat, 1)).toBeVisible();
   await expect(chat.changes).toHaveText([/^Цель: тон строгий/u]);
 });
