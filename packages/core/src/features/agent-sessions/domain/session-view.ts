@@ -128,7 +128,9 @@ function entriesAfter(
 ): readonly ChatEntry[] {
   switch (event.type) {
     case "prompt_sent": {
-      return [...entries, { id: `candidate-${id}`, type: "candidate_message", text: event.text }];
+      return event.origin === "app"
+        ? entries
+        : [...entries, { id: `candidate-${id}`, type: "candidate_message", text: event.text }];
     }
     case "agent_update": {
       const chunk = messageChunk(event.update);

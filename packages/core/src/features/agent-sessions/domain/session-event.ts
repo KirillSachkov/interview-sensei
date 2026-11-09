@@ -36,7 +36,11 @@ export type SessionFailure =
  */
 export type SessionEvent =
   | { readonly type: "session_started"; readonly acpSessionId: string }
-  | { readonly type: "prompt_sent"; readonly text: string }
+  /**
+   * A prompt to the agent: the Candidate's message, or with `origin: "app"` the application's own
+   * prompt, such as the one that starts the onboarding. The chat shows only the Candidate's.
+   */
+  | { readonly type: "prompt_sent"; readonly text: string; readonly origin?: "app" }
   | { readonly type: "agent_update"; readonly update: AgentUpdate }
   | { readonly type: "turn_ended"; readonly stopReason: string }
   /** The agent answered the prompt with an error and still runs; the session takes prompts. */

@@ -1,9 +1,8 @@
 import path from "node:path";
 
-import type { SessionKind } from "../../../shared/session-kinds/index.ts";
 import type { AgentSession, SessionView } from "../domain/agent-session.ts";
 import { isLive } from "../domain/agent-session.ts";
-import type { AgentLauncher } from "../domain/ports.ts";
+import type { AgentLauncher, LiveAgent } from "../domain/ports.ts";
 import { replay } from "../domain/session-view.ts";
 import {
   answerPermission,
@@ -15,6 +14,8 @@ import {
   runTurn,
 } from "./live-session.ts";
 import type { LiveSession, LiveSessionDependencies, SessionListener } from "./live-session.ts";
+import { sessionOpener } from "./open-session.ts";
+import type { OpenSession, StartRequest } from "./open-session.ts";
 
 export interface AgentSessionsDependencies extends LiveSessionDependencies {
   readonly launcher: AgentLauncher;
@@ -35,11 +36,13 @@ export interface AgentSessions {
    * Creates the session and starts its agent in the background; the view reports progress.
    * Rejects with SessionsClosedError once close has begun.
    */
-  readonly start: (request: {
-    kind: SessionKind;
-    agent: string;
-    targetId?: string | null;
-  }) => Promise<SessionView>;
+  readonly start: (request: StartRequest) => Promise<SessionView>;
+  /**
+   * The live session of the kind for the Target, or a new one that `prepare` describes. Calls for
+   * the same kind and Target run one after another, so the Target has one live session of the
+   * kind. Rejects when `prepare` rejects, and with SessionsClosedError once close has begun.
+   */
+  readonly open: OpenSession;
   /** Every session, the newest first. */
   readonly list: () => Promise<readonly AgentSession[]>;
   readonly view: (sessionId: string) => Promise<SessionView | undefined>;
@@ -84,7 +87,7 @@ interface Context {
 /** Creates the session and starts its agent; close ends it when close began meanwhile. */
 async function createAndLaunch(
   context: Context,
-  { kind, agent, targetId }: { kind: SessionKind; agent: string; targetId?: string | null },
+  { kind, agent, targetId, opening }: StartRequest,
 ): Promise<SessionView> {
   const { dependencies } = context;
   const { repository, clock } = dependencies;
@@ -103,22 +106,44 @@ async function createAndLaunch(
     await record(session, { type: "session_ended" });
     throw new SessionsClosedError();
   }
-  launchLive(context, session);
+  launchLive(context, session, opening);
   return session.view;
 }
 
-/** Hands the session to `live`, where close finds it, and starts its agent in the background. */
-function launchLive({ dependencies, live }: Context, session: LiveSession): void {
+/** Records the prompt and starts the turn; the caller checked that the agent takes prompts. */
+async function send(
+  session: LiveSession,
+  agent: LiveAgent,
+  message: { text: string; origin?: "app" },
+): Promise<void> {
+  // Set before the first await, so a second prompt in the meantime sees the turn.
+  session.turnActive = true;
+  await record(session, { type: "prompt_sent", ...message });
+  void runTurn(session, agent, message.text);
+}
+
+/**
+ * Hands the session to `live`, where close finds it, and starts its agent in the background; then
+ * sends the opening prompt, if any.
+ */
+function launchLive(
+  { dependencies, live }: Context,
+  session: LiveSession,
+  opening: string | undefined,
+): void {
   const { launcher, sessionsDirectory } = dependencies;
   live.set(session.view.id, session);
   const workingDirectory = path.join(sessionsDirectory, session.view.id);
-  session.started = launch(session, { launcher, workingDirectory });
+  session.started = (async () => {
+    await launch(session, { launcher, workingDirectory });
+    const { agent } = session;
+    if (opening !== undefined && agent !== null && session.view.status === "idle") {
+      await send(session, agent, { text: opening, origin: "app" });
+    }
+  })();
 }
 
-async function start(
-  context: Context,
-  request: { kind: SessionKind; agent: string; targetId?: string | null },
-): Promise<SessionView> {
+async function start(context: Context, request: StartRequest): Promise<SessionView> {
   if (context.closing) {
     throw new SessionsClosedError();
   }
@@ -151,10 +176,7 @@ async function prompt(context: Context, sessionId: string, text: string): Promis
   if (agent === null || session.turnActive || !isLive(session.view.status)) {
     return isLive(session.view.status) ? "busy" : "closed";
   }
-  // Set before the first await, so a second prompt in the meantime sees the turn.
-  session.turnActive = true;
-  await record(session, { type: "prompt_sent", text });
-  void runTurn(session, agent, text);
+  await send(session, agent, { text });
   return "accepted";
 }
 
@@ -233,6 +255,10 @@ export function createAgentSessions(dependencies: AgentSessionsDependencies): Ag
   };
   return {
     start: async (request) => start(context, request),
+    open: sessionOpener({
+      live: context.live,
+      start: async (request) => start(context, request),
+    }),
     list: async () => dependencies.repository.list(),
     view: async (sessionId) => view(context, sessionId),
     prompt: async (sessionId, text) => prompt(context, sessionId, text),

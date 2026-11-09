@@ -23,6 +23,7 @@ const view: SessionView = {
 /** AgentSessions whose prompt and cancel reject, as when the database or the agent breaks. */
 const brokenSessions: AgentSessions = {
   start: () => Promise.resolve(view),
+  open: () => Promise.reject(new Error("not used")),
   list: () => Promise.resolve([]),
   view: () => Promise.resolve(view),
   prompt: () => Promise.reject(new Error("prompt broke")),
