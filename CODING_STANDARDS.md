@@ -13,7 +13,7 @@ The stack is TypeScript on Node 24 in a pnpm workspace; NestJS is not used.
 | `apps/web`      | React, Vite, TanStack Router and Query, Feature-Sliced Design.                |
 | `packages/core` | Feature slices in `src/features/<feature>/` and technical code in `src/shared/`. |
 | `e2e`           | Playwright tests against the built app that `interview-sensei` serves.        |
-| `skills/`       | Skills the application gives the Candidate's agent; not a workspace.          |
+| `skills/`       | Skills the application gives the Candidate's agent, one per session kind; not a workspace. |
 
 Shared settings live in `config/`: TypeScript, oxlint with the project plugin, and the dependency-cruiser base.
 
@@ -60,9 +60,34 @@ A new slice plugs in like this:
 2. Add one call of the factory to `composeFeatures` in `composition.ts`.
 3. Add its migrations to `sliceMigrations` there, when it stores data.
 4. Add its MCP tools to its session kinds in `sessionTools` there.
-5. For a new session kind, add it to `sessionKinds` in `shared/session-kinds`.
-   Then add its launch recipe to `RuntimeSessionKind` in `agent-runtime` and its entry to `sessionTools`.
-   Both fail to compile until they have them.
+5. For a new session kind, follow [session profiles](#session-profiles).
+
+### Session profiles
+
+Each session kind has a profile (#42): the agent's role, one skill, whether shell and web are allowed, and the `instructions` of its MCP server.
+Profiles live in `sessionProfiles` in `shared/session-kinds/profiles.ts`, beside `sessionKinds`. Write their texts in English.
+`agent-runtime` builds the launch recipe from the profile; recipes never name a session kind.
+`mcp-gateway` serves the profile's `instructions` at MCP `initialize`.
+
+A slice adds a session kind like this:
+
+1. Add the kind to `sessionKinds` in `shared/session-kinds/kinds.ts`.
+2. Add its profile to `sessionProfiles` and its tool set to `sessionTools` in `composition.ts`; both fail to compile until they have the entry.
+3. Add its skill as `skills/<name>/SKILL.md` in English, with `name` equal to the directory and a `description`. Name the skill in the profile.
+4. Leave the recipes in `agent-runtime/domain/*-recipe.ts` unchanged; they translate any profile.
+
+At each start the runtime reads the skill from `skills/` and the recipe copies it into the data directory, so a changed skill reaches the next session:
+
+| Agent | Role | Skill | Shell and web off |
+| --- | --- | --- | --- |
+| Claude Code | ACP `systemPrompt`, `append` | local plugin `interview-sensei` in `agents/claude/skills/<skill>`; `skills` lists only `interview-sensei:<skill>` | `disallowedTools`: `Bash`; `WebFetch`, `WebSearch` |
+| Codex | ACP `systemPrompt`, `append` | `.agents/skills` of the ACP `additionalDirectories` entry `agents/codex/skills/<skill>` | `CODEX_CONFIG`: `features.shell_tool = false`; `web_search = "disabled"` |
+| OpenCode | `prompt` of its own primary agent `interview-sensei`, selected as the session's mode | `skills.paths` with `agents/opencode/skills/<skill>` | that agent's `permission`: `bash`; `webfetch`, `websearch` = `deny` |
+| fake | ACP `systemPrompt`, `append` | as Codex, in `agents/fake/skills/<skill>` | `_meta.fakeAgent.disallowedTools` |
+
+The OpenCode config uses the 1.x keys `agent`, `prompt`, `permission` and `skills.paths`, which 2.x still reads as deprecated.
+An agent without the ACP capability for the recipe's `systemPrompt` or `additionalDirectories` does not start, and neither does one that does not offer the recipe's mode.
+A profile that allows shell or web gets no ban for it. The permission modes stay as [storage](#storage) and #17 set them.
 
 ### Local requests
 

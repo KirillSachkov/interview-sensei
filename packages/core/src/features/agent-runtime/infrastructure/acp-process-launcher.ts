@@ -3,12 +3,19 @@ import type { ChildProcessByStdio } from "node:child_process";
 import { once } from "node:events";
 import { Readable, Writable } from "node:stream";
 
-import { client, ndJsonStream, PROTOCOL_VERSION, RequestError } from "@agentclientprotocol/sdk";
+// The unstable entry types the ACP `systemPrompt` of `session/new`, which the adapters accept.
+import {
+  client,
+  ndJsonStream,
+  PROTOCOL_VERSION,
+  RequestError,
+} from "@agentclientprotocol/sdk/unstable";
 import type {
   ClientContext,
   InitializeResponse,
+  NewSessionRequest,
   NewSessionResponse,
-} from "@agentclientprotocol/sdk";
+} from "@agentclientprotocol/sdk/unstable";
 
 import type { Timer } from "../../../shared/time/index.ts";
 import { agentEnvironment } from "../domain/launch-recipe.ts";
@@ -68,8 +75,8 @@ async function stopProcess(child: AgentProcess, timer: Timer): Promise<void> {
 }
 
 /**
- * Sets the recipe's permission mode, so the Candidate's own mode never applies. An agent that does
- * not offer the mode does not start.
+ * Sets the recipe's mode, so the Candidate's own mode never applies; for OpenCode the mode is the
+ * recipe's own agent. An agent that does not offer the mode does not start.
  */
 async function setMode(
   agent: ClientContext,
@@ -80,9 +87,34 @@ async function setMode(
   }
   const offered = session.modes?.availableModes.some((available) => available.id === mode);
   if (offered !== true) {
-    throw new Error(`The agent does not offer the permission mode ${mode}`);
+    throw new Error(`The agent does not offer the mode ${mode}`);
   }
   await agent.request("session/set_mode", { sessionId: session.sessionId, modeId: mode });
+}
+
+/**
+ * The role and the skill directories of the recipe in `session/new`. The role and the skill must
+ * reach the agent, so an agent without the capabilities for them does not start.
+ */
+function profileFields(
+  { systemPrompt, additionalDirectories }: LaunchRecipe,
+  { agentCapabilities }: InitializeResponse,
+): Pick<NewSessionRequest, "systemPrompt" | "additionalDirectories"> {
+  const capabilities = agentCapabilities?.sessionCapabilities;
+  if (systemPrompt !== null && (capabilities?.systemPrompt ?? null) === null) {
+    throw new Error("The agent does not accept a system prompt");
+  }
+  if (additionalDirectories.length > 0 && (capabilities?.additionalDirectories ?? null) === null) {
+    throw new Error("The agent does not accept additional directories");
+  }
+  return {
+    ...(systemPrompt === null
+      ? {}
+      : { systemPrompt: { mode: "append", content: [{ type: "text", text: systemPrompt }] } }),
+    ...(additionalDirectories.length === 0
+      ? {}
+      : { additionalDirectories: [...additionalDirectories] }),
+  };
 }
 
 /** Opens the session with our MCP server; an agent without MCP over HTTP cannot have it. */
@@ -101,6 +133,7 @@ async function openAcpSession(
   const session = await agent.request("session/new", {
     cwd: recipe.cwd,
     mcpServers: [{ type: "http", name: mcpServer.name, url: mcpServer.url, headers: [] }],
+    ...profileFields(recipe, initialized),
     ...(recipe.sessionMeta === null ? {} : { _meta: { ...recipe.sessionMeta } }),
   });
   await setMode(agent, { session, mode: recipe.mode });

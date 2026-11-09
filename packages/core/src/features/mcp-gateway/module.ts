@@ -1,5 +1,5 @@
 import type { SessionTool } from "../../shared/mcp/index.ts";
-import { isSessionKind } from "../../shared/session-kinds/index.ts";
+import { isSessionKind, sessionProfiles } from "../../shared/session-kinds/index.ts";
 import type { SessionKind } from "../../shared/session-kinds/index.ts";
 import { createMcpGateway } from "./application/mcp-gateway.ts";
 import type { McpGateway } from "./application/mcp-gateway.ts";
@@ -18,9 +18,14 @@ export interface McpGatewayModuleDependencies {
   readonly onError: (error: Error) => void;
 }
 
+/** The MCP `instructions` of the kind's profile; none for an unknown kind. */
+function instructionsFor(kind: string): string | null {
+  return isSessionKind(kind) ? sessionProfiles[kind].instructions : null;
+}
+
 /**
- * Gives each AgentSession its own MCP address with the tool set of its kind, served over
- * streamable HTTP. A session of an unknown kind gets no tools. The HTTP server routes `mcpRoute`
+ * Gives each AgentSession its own MCP address with the tool set and the instructions of its kind,
+ * served over streamable HTTP. A session of an unknown kind gets no tools and no instructions. The HTTP server routes `mcpRoute`
  * to `endpoint(token)`.
  */
 export function mcpGatewayModule({
@@ -33,6 +38,10 @@ export function mcpGatewayModule({
     origin,
     newToken: randomToken,
     newNameSuffix: randomNameSuffix,
-    serve: (sessionTools, session) => streamableHttpEndpoint(sessionTools, session, { onError }),
+    serve: (sessionTools, session) =>
+      streamableHttpEndpoint(sessionTools, session, {
+        onError,
+        instructions: instructionsFor(session.kind),
+      }),
   });
 }

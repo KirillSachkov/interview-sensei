@@ -2,9 +2,10 @@
 // The launcher is an in-memory stand-in for the ACP port: the test plays the agent's side.
 import { describe, expect, it } from "vitest";
 
+import { sessionProfiles } from "../../shared/session-kinds/index.ts";
 import { createAgentRuntime } from "./application/agent-runtime.ts";
 import type { AgentHost } from "./domain/agent.ts";
-import type { LaunchRecipe } from "./domain/launch-recipe.ts";
+import type { LaunchRecipe, SkillSource } from "./domain/launch-recipe.ts";
 import type {
   AgentUpdate,
   PermissionAnswer,
@@ -44,6 +45,16 @@ const host: AgentHost = {
   opencodeModel: {},
 };
 
+/** A skill reader that makes up the skill's one file and keeps the names it was asked for. */
+function skillReader() {
+  const read: string[] = [];
+  const readSkill = (name: string): Promise<SkillSource> => {
+    read.push(name);
+    return Promise.resolve({ name, files: [{ path: "SKILL.md", content: `# ${name}\n` }] });
+  };
+  return { read, readSkill };
+}
+
 /** Starts the fake agent through an in-memory launcher and returns the agent's side of ACP. */
 async function startAgent() {
   const launched = Promise.withResolvers<SessionRequest>();
@@ -52,6 +63,7 @@ async function startAgent() {
     agents: ["fake"],
     inspectHost: () => Promise.resolve(host),
     dataDirectory: "/home/candidate/.interview-sensei",
+    readSkill: skillReader().readSkill,
     launch: (_recipe, session) => {
       launched.resolve(session);
       return Promise.resolve({
@@ -126,10 +138,12 @@ describe("agent runtime permission gate", () => {
 /** A runtime offering the agents; `recipes` collects what it hands the launcher. */
 function runtimeOffering(agents: Parameters<typeof createAgentRuntime>[0]["agents"]) {
   const recipes: LaunchRecipe[] = [];
+  const { read, readSkill } = skillReader();
   const runtime = createAgentRuntime({
     agents,
     inspectHost: () => Promise.resolve(host),
     dataDirectory: "/home/candidate/.interview-sensei",
+    readSkill,
     launch: (recipe) => {
       recipes.push(recipe);
       return Promise.resolve({
@@ -150,7 +164,7 @@ function runtimeOffering(agents: Parameters<typeof createAgentRuntime>[0]["agent
       onExit: () => {},
       onPermission: () => Promise.resolve(candidateAnswer),
     });
-  return { runtime, start, recipes };
+  return { runtime, start, recipes, read };
 }
 
 describe("agent runtime start", () => {
@@ -172,6 +186,20 @@ describe("agent runtime start", () => {
     expect(recipes).toMatchObject([{ args: ["claude-agent-acp.js"], mode: "default" }]);
   });
 
+  it("starts the agent with the role and the freshly read skill of the session kind's profile", async () => {
+    const { start, recipes, read } = runtimeOffering(["claude"]);
+
+    await start("claude");
+
+    expect(read).toStrictEqual(["sensei-check"]);
+    expect(recipes).toMatchObject([
+      {
+        systemPrompt: sessionProfiles["service-chat"].role,
+        sessionMeta: { claudeCode: { options: { skills: ["interview-sensei:sensei-check"] } } },
+      },
+    ]);
+  });
+
   it("refuses to start an unavailable agent and gives the reason", async () => {
     const { start, recipes } = runtimeOffering(["codex"]);
 
@@ -185,7 +213,7 @@ describe("agent runtime start", () => {
     await expect(start("fake")).rejects.toThrow(/not offered/u);
   });
 
-  it("refuses to start a session kind that has no launch recipe", async () => {
+  it("refuses to start a session kind that has no profile", async () => {
     const { runtime, recipes } = runtimeOffering(["claude"]);
 
     await expect(
@@ -198,7 +226,7 @@ describe("agent runtime start", () => {
         onExit: () => {},
         onPermission: () => Promise.resolve(candidateAnswer),
       }),
-    ).rejects.toThrow(/no launch recipe/u);
+    ).rejects.toThrow(/no profile/u);
     expect(recipes).toStrictEqual([]);
   });
 });

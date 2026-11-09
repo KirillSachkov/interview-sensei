@@ -56,6 +56,8 @@ export interface FeatureDependencies {
   timer: Timer;
   /** The data directory this server owns; see resolveDataDirectory. */
   dataDirectory: string;
+  /** The application's skills for the agents; see ServerDependencies. */
+  skillsDirectory: string;
   /** Offers only the fake ACP agent; see ServerDependencies. */
   fakeAgent: boolean;
   /** The Candidate's home and env; see ServerDependencies. */
@@ -74,6 +76,7 @@ export async function composeFeatures({
   clock,
   timer,
   dataDirectory,
+  skillsDirectory,
   fakeAgent,
   userEnvironment,
   origin,
@@ -98,6 +101,7 @@ export async function composeFeatures({
   const { runtime, mcp, sessions } = composeAgents(storage, {
     timer,
     dataDirectory,
+    skillsDirectory,
     fakeAgent,
     userEnvironment,
     origin,
@@ -219,9 +223,24 @@ function demoCreator(dependencies: DemoDependencies) {
 
 function composeAgents(
   storage: Storage,
-  { timer, dataDirectory, fakeAgent, userEnvironment, origin, log, clock }: FeatureDependencies,
+  {
+    timer,
+    dataDirectory,
+    skillsDirectory,
+    fakeAgent,
+    userEnvironment,
+    origin,
+    log,
+    clock,
+  }: FeatureDependencies,
 ) {
-  const runtime = agentRuntimeModule({ timer, dataDirectory, fakeAgent, userEnvironment });
+  const runtime = agentRuntimeModule({
+    timer,
+    dataDirectory,
+    skillsDirectory,
+    fakeAgent,
+    userEnvironment,
+  });
   const mcp = mcpGatewayModule({
     tools: sessionTools,
     origin,

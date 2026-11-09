@@ -37,6 +37,8 @@ export async function demoApi(dataDirectory?: string) {
 export async function model() {
   const features = await composeFeatures({
     dataDirectory: await temporaryDirectory(),
+    // These tests start no agent, so no skill is read.
+    skillsDirectory: await temporaryDirectory(),
     clock: { now: () => new Date(fixedTime) },
     timer: { repeat: () => () => {}, after: () => () => {} },
     fakeAgent: true,

@@ -42,6 +42,8 @@ async function setup(loginContent = "token") {
     args: [],
     env: {},
     sessionMeta: null,
+    systemPrompt: null,
+    additionalDirectories: [],
     mode: null,
     cwd: home,
     dataDirectory,

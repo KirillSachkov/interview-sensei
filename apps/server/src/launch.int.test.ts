@@ -146,7 +146,9 @@ describe("interview-sensei command", () => {
     const { code } = await launch.stop();
 
     expect(code).toBe(0);
+    // `agents` holds the fake agent's copy of its session's skill.
     await expect(readdir(dataDirectory)).resolves.toStrictEqual([
+      "agents",
       "database",
       "database.dump.tar.gz",
       "sessions",

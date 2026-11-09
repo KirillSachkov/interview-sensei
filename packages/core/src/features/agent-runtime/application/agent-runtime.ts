@@ -1,8 +1,9 @@
-import { isSessionKind } from "../../../shared/session-kinds/index.ts";
+import { isSessionKind, sessionProfiles } from "../../../shared/session-kinds/index.ts";
+import type { SessionProfile } from "../../../shared/session-kinds/index.ts";
 import type { AgentAvailability, AgentHost, AgentKind } from "../domain/agent.ts";
 import { agentAvailability, isAgentKind } from "../domain/agent.ts";
 import { launchRecipe } from "../domain/launch-recipe.ts";
-import type { RuntimeSessionKind } from "../domain/launch-recipe.ts";
+import type { LaunchProfile, SkillSource } from "../domain/launch-recipe.ts";
 import { automaticAnswer } from "../domain/permissions.ts";
 import type {
   AcpLauncher,
@@ -22,6 +23,8 @@ export interface AgentRuntimeDependencies {
   readonly inspectHost: () => Promise<AgentHost>;
   /** The data directory: the agents' own homes and configs live in it. */
   readonly dataDirectory: string;
+  /** Reads a skill of the application by its directory name, at each start. */
+  readonly readSkill: (name: string) => Promise<SkillSource>;
   readonly launch: AcpLauncher;
 }
 
@@ -110,15 +113,20 @@ function forgettingTurns(agent: LiveAgent, endTurn: () => void): LiveAgent {
   };
 }
 
-/**
- * The session kind of a launch recipe; throws for a kind without one. It compiles only while
- * every kind in `shared/session-kinds` is a RuntimeSessionKind: a new kind needs its recipe first.
- */
-function recipeKind(kind: string): RuntimeSessionKind {
+/** The profile of the session kind; throws for an unknown kind. */
+function profileOf(kind: string): SessionProfile {
   if (!isSessionKind(kind)) {
-    throw new Error(`The session kind ${kind} has no launch recipe`);
+    throw new Error(`The session kind ${kind} has no profile`);
   }
-  return kind;
+  return sessionProfiles[kind];
+}
+
+/** The profile as the recipes take it, with the skill's files read now. */
+async function launchProfile(
+  { role, skill, shell, web }: SessionProfile,
+  readSkill: AgentRuntimeDependencies["readSkill"],
+): Promise<LaunchProfile> {
+  return { role, skill: await readSkill(skill), shell, web };
 }
 
 /** The agent's availability on this machine now; throws the reason when it is unavailable. */
@@ -138,15 +146,15 @@ async function availableHost(
 }
 
 export function createAgentRuntime(dependencies: AgentRuntimeDependencies): AgentRuntime {
-  const { agents, inspectHost, dataDirectory, launch } = dependencies;
+  const { agents, inspectHost, dataDirectory, readSkill, launch } = dependencies;
   return {
     listAgents: async () => agentAvailability(agents, await inspectHost()),
     start: async ({ agent: requested, kind, workingDirectory, ...request }) => {
-      const sessionKind = recipeKind(kind);
+      const sessionProfile = profileOf(kind);
       const { agent, host } = await availableHost(dependencies, requested);
       const recipe = launchRecipe({
         agent,
-        sessionKind,
+        profile: await launchProfile(sessionProfile, readSkill),
         host,
         dataDirectory,
         sessionDirectory: workingDirectory,
