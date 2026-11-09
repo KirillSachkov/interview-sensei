@@ -200,10 +200,11 @@ Any rejection rolls back the writes of every slice; `shared-transaction.int.test
 The web app opens on the canvas of one Target, `pages/target`, built on React Flow (`@xyflow/react`).
 `Canvas` in `shared/ui/canvas` is the frame: it places zones from left to right, moves and scales the view.
 A zone is one React Flow node that groups its widgets; the widgets are plain React inside it, stacked from top to bottom.
+The zone node takes pointer events, so its buttons work although the node is neither selectable nor draggable.
 `targetZones` in `pages/target/ui/target-page.tsx` lists the zones «Цель» and «Сессии» and the content of each.
 A slice adds content to a zone like this:
 
-1. Write its widget in `widgets/<name>/` and export it from the slice's `index.ts`.
+1. Write its widget in `widgets/<name>/` and export it from the slice's `index.ts`. A widget that only `pages/target` uses stays in `pages/target/ui`, as `TargetCard`, the plan and the setup chat do: Steiger's `insignificant-slice` refuses a slice with one user.
 2. Add the widget to the zone's `content` in `targetZones`.
 
 The slice leaves `Canvas` and the top bar (`widgets/top-bar`) unchanged.
