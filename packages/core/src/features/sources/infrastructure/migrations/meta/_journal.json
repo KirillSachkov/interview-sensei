@@ -19,8 +19,15 @@
     {
       "idx": 2,
       "version": "7",
-      "when": 1794252176588,
-      "tag": "0002_inbox_recheck",
+      "when": 1794251846589,
+      "tag": "0002_inbox_read_parts",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794253009997,
+      "tag": "0003_inbox_recheck",
       "breakpoints": true
     }
   ]

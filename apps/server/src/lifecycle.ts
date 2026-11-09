@@ -5,7 +5,8 @@ import type { Features } from "./composition.ts";
 import { acceptLocalRequestsOnly } from "./local-requests.ts";
 
 /**
- * Ends sessions of the last run, marks its running Mock interviews «прерван», and registers the
+ * Ends sessions of the last run, marks its running Mock interviews «прерван», closes its running
+ * Inbox processing with partial reports, and registers the
  * shutdown order, the WebSocket plugin and the check that only the Candidate's own browser reaches
  * the server.
  */
@@ -36,6 +37,7 @@ export async function prepare(
   try {
     await sessions.endInterrupted();
     await interviews.endInterrupted();
+    await sources.inbox.endInterrupted();
     await server.register(fastifyWebsocket);
   } catch (error) {
     await storage.close();

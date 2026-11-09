@@ -117,14 +117,8 @@
           "tableFrom": "questions",
           "tableTo": "topics",
           "schemaTo": "question_bank",
-          "columnsFrom": [
-            "target_id",
-            "topic_id"
-          ],
-          "columnsTo": [
-            "target_id",
-            "id"
-          ],
+          "columnsFrom": ["target_id", "topic_id"],
+          "columnsTo": ["target_id", "id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -165,18 +159,12 @@
         "topics_target_id_name_unique": {
           "name": "topics_target_id_name_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "target_id",
-            "name"
-          ]
+          "columns": ["target_id", "name"]
         },
         "topics_target_id_id_unique": {
           "name": "topics_target_id_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "target_id",
-            "id"
-          ]
+          "columns": ["target_id", "id"]
         }
       },
       "policies": {},

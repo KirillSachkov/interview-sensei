@@ -6,10 +6,12 @@ import type { ToolSession } from "../../../shared/mcp/index.ts";
 import type { InboxMode, InboxProposal, ProposalItem } from "../domain/inbox.ts";
 import { sessionTarget } from "./inbox-context.ts";
 import type { InboxContext, InboxDependencies } from "./inbox-context.ts";
+import { endInterrupted, stop } from "./inbox-ending.ts";
 import { start, startRecheck } from "./inbox-start.ts";
 import { addBankQuestions } from "./inbox-add.ts";
 import type { MaterialQuestion } from "./inbox-add.ts";
-import { brief, createTopic, listInbox, readSource, writeReport } from "./inbox-work.ts";
+import { markSourceFailed, readSource } from "./inbox-materials.ts";
+import { brief, createTopic, listInbox, writeReport } from "./inbox-work.ts";
 import type { ReportInput } from "./inbox-work.ts";
 import { inboxState, markReportSeen, reportList, reportView } from "./inbox-views.ts";
 
@@ -89,6 +91,10 @@ export function createInbox(dependencies: InboxDependencies) {
     startRecheck: async (targetId: string) => startRecheck(context, targetId),
     /** The history of the Target's reports, the newest first; null for an unknown Target. */
     reports: async (targetId: string) => reportList(context, targetId),
+    /** «Остановить разбор»: a partial report, the unread materials back in the Inbox. */
+    stop: async (targetId: string) => stop(context, targetId),
+    /** Closes the runs of the last start of the server with partial reports; call it at start. */
+    endInterrupted: async () => endInterrupted(context),
     state: async (targetId: string) => inboxState(context, targetId),
     /** The report for its panel; `onlyNew` keeps the added Questions the Candidate has not seen. */
     report: async (targetId: string, reportId: string, { onlyNew = false } = {}) =>
@@ -104,6 +110,8 @@ export function createInbox(dependencies: InboxDependencies) {
       addBankQuestions(context, session, questions),
     createTopic: async (session: ToolSession, topic: { sectionId: string; name: string }) =>
       createTopic(context, session, topic),
+    markSourceFailed: async (session: ToolSession, failure: { id: string; reason: string }) =>
+      markSourceFailed(context, session, failure),
     writeReport: async (session: ToolSession, report: ReportInput) =>
       writeReport(context, session, report),
     /** Waits for the background work of started runs; the server calls it before it closes. */

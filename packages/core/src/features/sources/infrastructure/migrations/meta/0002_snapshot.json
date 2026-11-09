@@ -1,5 +1,5 @@
 {
-  "id": "cd0aa67b-f665-4b9d-b2e6-c0c4de41493f",
+  "id": "e0b59d26-8760-4151-a661-cad2f5f4bbb5",
   "prevId": "f8d6ac83-26f6-4f0f-b68b-995ec7f915b6",
   "version": "7",
   "dialect": "postgresql",
@@ -20,24 +20,11 @@
           "primaryKey": false,
           "notNull": true
         },
-        "mode": {
-          "name": "mode",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'processing'"
-        },
         "items": {
           "name": "items",
           "type": "jsonb",
           "primaryKey": false,
           "notNull": true
-        },
-        "reason": {
-          "name": "reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         },
         "status": {
           "name": "status",
@@ -259,6 +246,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": 0
+        },
+        "read_parts": {
+          "name": "read_parts",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
         },
         "started_at": {
           "name": "started_at",

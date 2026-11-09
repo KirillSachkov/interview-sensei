@@ -72,7 +72,7 @@ function proposalQueries(
 
 function runQueries(
   database: Database,
-): Pick<Repository, "createRun" | "runningRun" | "setRunSession" | "recordAdded" | "finishRun"> {
+): Pick<Repository, "createRun" | "runningRun" | "setRunSession" | "finishRun"> {
   return {
     createRun: async (run, transaction) => {
       const rows = await transaction
@@ -94,7 +94,39 @@ function runQueries(
       return row === undefined ? undefined : toRun(row);
     },
     setRunSession: async (runId, sessionId) => {
-      await database.update(inboxRuns).set({ sessionId }).where(eq(inboxRuns.id, runId));
+      const rows = await database
+        .update(inboxRuns)
+        .set({ sessionId })
+        .where(and(eq(inboxRuns.id, runId), eq(inboxRuns.status, "running")))
+        .returning({ id: inboxRuns.id });
+      return rows.length > 0;
+    },
+    finishRun: async (runId, finishedAt, transaction) => {
+      await transaction
+        .update(inboxRuns)
+        .set({ status: "finished", finishedAt: new Date(finishedAt) })
+        .where(eq(inboxRuns.id, runId));
+    },
+  };
+}
+
+/** Every running run, and what a run's agent read and added. */
+function progressQueries(
+  database: Database,
+): Pick<Repository, "allRunning" | "recordRead" | "recordAdded"> {
+  return {
+    allRunning: async () => {
+      const rows = await database.select().from(inboxRuns).where(eq(inboxRuns.status, "running"));
+      return rows.map((row) => toRun(row));
+    },
+    recordRead: async (runId, { sourceId, part }) => {
+      const read = sql`coalesce(${inboxRuns.readParts} -> ${sourceId}::text, '[]'::jsonb)`;
+      await database
+        .update(inboxRuns)
+        .set({
+          readParts: sql`jsonb_set(${inboxRuns.readParts}, array[${sourceId}::text], ${read} || ${JSON.stringify([part])}::jsonb)`,
+        })
+        .where(eq(inboxRuns.id, runId));
     },
     recordAdded: async (runId, { questionIds, duplicates }, transaction) => {
       await transaction
@@ -103,12 +135,6 @@ function runQueries(
           questionIds: sql`${inboxRuns.questionIds} || ${JSON.stringify(questionIds)}::jsonb`,
           duplicates: sql`${inboxRuns.duplicates} + ${duplicates}`,
         })
-        .where(eq(inboxRuns.id, runId));
-    },
-    finishRun: async (runId, finishedAt, transaction) => {
-      await transaction
-        .update(inboxRuns)
-        .set({ status: "finished", finishedAt: new Date(finishedAt) })
         .where(eq(inboxRuns.id, runId));
     },
   };
@@ -155,6 +181,7 @@ export function drizzleInboxRepository(database: Database): Repository {
   return {
     ...proposalQueries(database),
     ...runQueries(database),
+    ...progressQueries(database),
     ...reportQueries(database),
     erase: async (targetId, transaction) => {
       await transaction.delete(inboxReports).where(eq(inboxReports.targetId, targetId));

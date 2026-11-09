@@ -8,6 +8,7 @@ import type { Source } from "../domain/source.ts";
 import { textFormat, textParts } from "../domain/source-text.ts";
 import { inBackground } from "./inbox-context.ts";
 import type { InboxContext, InboxDependencies } from "./inbox-context.ts";
+import { closeRun, watchAgent } from "./inbox-ending.ts";
 
 /**
  * - `started`: the Sources are «разбирается»; the server reads them and starts the agent in the
@@ -115,7 +116,8 @@ async function readText(context: InboxContext, source: Source): Promise<boolean>
     }
     const failure =
       error instanceof UnreadableSourceError ? error.message : "материал не удалось прочитать";
-    await repository.setStatus(source.targetId, { ids: [source.id], status: "failed", failure });
+    const change = { ids: [source.id], status: "failed", failure, from: "processing" } as const;
+    await repository.setStatus(source.targetId, change);
     return false;
   }
 }
@@ -132,49 +134,51 @@ async function readTexts(context: InboxContext, sources: readonly Source[]): Pro
   return readable;
 }
 
-/** Finishes the run in a transaction of its own. */
-async function finish({ dependencies }: InboxContext, run: InboxRun): Promise<void> {
-  const { inbox, clock, transaction } = dependencies;
-  await transaction(async (opened) => inbox.finishRun(run.id, clock.now().toISOString(), opened));
-}
-
-/** Ends the run without an agent: its Sources that still wait go back to the Inbox. */
-async function abandon(context: InboxContext, run: InboxRun): Promise<void> {
-  const { repository, inbox, clock, transaction } = context.dependencies;
-  await transaction(async (opened) => {
-    await repository.setStatus(
-      run.targetId,
-      { ids: run.sourceIds, status: "inbox", from: "processing" },
-      opened,
-    );
-    await inbox.finishRun(run.id, clock.now().toISOString(), opened);
-  });
-}
-
-/** Starts the agent with the opening message; a failed start gives the Sources back to the Inbox. */
-async function startAgent(context: InboxContext, run: InboxRun, agent: string): Promise<void> {
-  const { sessions, inbox } = context.dependencies;
+/** Starts the agent's session; a failed start closes the run with a partial report. */
+async function startSession(context: InboxContext, run: InboxRun, agent: string) {
   try {
-    const session = await sessions.start({
+    return await context.dependencies.sessions.start({
       kind: "inbox-processing",
       agent,
       targetId: run.targetId,
       opening: run.mode === "recheck" ? recheckOpening : inboxOpening,
     });
-    await inbox.setRunSession(run.id, session.id);
   } catch (error) {
-    await abandon(context, run);
+    await closeRun(context, run, "agent_not_started");
     throw error;
   }
 }
 
-/** Reads the texts, then starts the agent; without a readable material the run just ends. */
+/**
+ * Starts the agent with the opening message unless the Candidate stopped the run meanwhile; a run
+ * stopped during the start stops its agent.
+ */
+async function startAgent(context: InboxContext, run: InboxRun, agent: string): Promise<void> {
+  const { sessions, inbox } = context.dependencies;
+  const current = await inbox.runningRun(run.targetId);
+  if (current?.id !== run.id) {
+    return;
+  }
+  const session = await startSession(context, run, agent);
+  if (await inbox.setRunSession(run.id, session.id)) {
+    watchAgent(context, run, session.id);
+  } else {
+    await sessions.stop(session.id);
+  }
+}
+
+/**
+ * Reads the texts, then starts the agent; without a readable material the run ends with a partial
+ * report.
+ */
 async function begin(
   context: InboxContext,
   { run, sources, agent }: { run: InboxRun; sources: readonly Source[]; agent: string },
 ): Promise<void> {
   const readable = await readTexts(context, sources);
-  await (readable === 0 ? finish(context, run) : startAgent(context, run, agent));
+  await (readable === 0
+    ? closeRun(context, run, "nothing_readable")
+    : startAgent(context, run, agent));
 }
 
 /** A new running Inbox processing of the Sources; a recheck has none. */
@@ -191,6 +195,7 @@ function newRun(
     sourceIds: sources.map((source) => source.id),
     questionIds: [],
     duplicates: 0,
+    readParts: {},
     startedAt: clock.now().toISOString(),
     finishedAt: null,
   };

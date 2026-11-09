@@ -131,7 +131,12 @@ function ReportBody({
 }) {
   return (
     <>
-      <p>{report.partial ? `Отчёт неполный. ${report.summary}` : report.summary}</p>
+      {report.partial ? (
+        <p className="muted">
+          Отчёт частичный: работа закончилась раньше, чем агент написал отчёт.
+        </p>
+      ) : null}
+      <p>{report.summary}</p>
       {report.mode === "recheck" ? (
         <section className="report-block" aria-label="Скрыть?">
           <h3>Скрыть?</h3>

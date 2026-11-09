@@ -71,6 +71,10 @@ export const inboxRuns = sourcesSchema.table(
       .notNull()
       .default(sql`'[]'::jsonb`),
     duplicates: integer("duplicates").notNull().default(0),
+    readParts: jsonb("read_parts")
+      .$type<InboxRun["readParts"]>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     startedAt: timestamp("started_at", { withTimezone: true, mode: "date" }).notNull(),
     finishedAt: timestamp("finished_at", { withTimezone: true, mode: "date" }),
   },

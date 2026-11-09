@@ -20,6 +20,7 @@ export {
   reviewQuestions,
   startInboxProcessing,
   startRecheck,
+  stopInboxProcessing,
 } from "./inbox";
 export type {
   HideProposal,

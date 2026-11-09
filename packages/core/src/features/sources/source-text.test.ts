@@ -95,6 +95,26 @@ describe(textFormat, () => {
     expect(textFormat({ file: null, url: "https://example.com/vacancy" })).toBe("web");
   });
 
+  it("knows a video file and a link to a video hosting as a video", () => {
+    expect(
+      ["talk.mp4", "talk.MOV", "talk.mkv", "talk.webm", "talk.avi", "talk.m4v"].map((name) =>
+        textFormat(file(name)),
+      ),
+    ).toStrictEqual(Array.from({ length: 6 }, () => "video"));
+    expect(
+      [
+        "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+        "https://youtu.be/dQw4w9WgXcQ",
+        "https://m.youtube.com/watch?v=1",
+        "https://vimeo.com/76979871",
+        "https://rutube.ru/video/abc/",
+        "https://vkvideo.ru/video-1_2",
+        "https://example.com/files/talk.mp4?download=1",
+      ].map((url) => textFormat({ file: null, url })),
+    ).toStrictEqual(Array.from({ length: 7 }, () => "video"));
+    expect(textFormat({ file: null, url: "https://example.com/youtube.com" })).toBe("web");
+  });
+
   it("has no way to read other files", () => {
     expect(
       ["archive.zip", "slides.pptx", "photo.png", "README"].map((name) => textFormat(file(name))),

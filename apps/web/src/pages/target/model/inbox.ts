@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 
-import { fetchInbox, startInboxProcessing, startRecheck } from "@/shared/api";
+import { fetchInbox, startInboxProcessing, startRecheck, stopInboxProcessing } from "@/shared/api";
 import type { SessionView } from "@/shared/api";
 
 import { refreshAppliedViews } from "./plan-views";
@@ -61,6 +61,20 @@ export function useStartRecheck(targetId: string) {
   return useMutation({
     mutationFn: async () => startRecheck(targetId),
     onSettled: async () => queryClient.invalidateQueries({ queryKey: inboxQueryKey(targetId) }),
+  });
+}
+
+/** «Остановить разбор»: the server answers once the processing is closed with a partial report. */
+export function useStopProcessing(targetId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => stopInboxProcessing(targetId),
+    onSettled: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: inboxQueryKey(targetId) }),
+        queryClient.invalidateQueries({ queryKey: sourcesQueryKey(targetId) }),
+      ]);
+    },
   });
 }
 

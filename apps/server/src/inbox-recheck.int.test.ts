@@ -15,6 +15,8 @@ import {
   sectionOf,
   sessionEnded,
   startProcessing,
+  stopProcessing,
+  textOf,
   topicOf,
 } from "./inbox-test-support.ts";
 import {
@@ -39,6 +41,7 @@ async function startRecheck(server: FastifyInstance, targetId: string) {
 /** The recheck report with its list «скрыть?», as the panel reads it. */
 interface RecheckReport {
   readonly mode: string;
+  readonly partial: boolean;
   readonly toHide: readonly {
     readonly questionId: string;
     readonly text: string;
@@ -194,6 +197,18 @@ describe("the recheck of the bank", () => {
     expect(reply).toMatch(
       /^Ошибка write_inbox_report: The Question .+ is not a Question of this Target$/u,
     );
+  });
+
+  it("«Остановить» ends the recheck with a partial report that hides nothing", async () => {
+    const { server, target } = await manualRecheck();
+    const before = await questionsOf(server, target.id);
+
+    const stopped = await stopProcessing(server, target.id);
+
+    expect(stopped.statusCode).toBe(200);
+    const report = await recheckReport(server, target.id, textOf(stopped.json(), "reportId"));
+    expect(report).toMatchObject({ mode: "recheck", partial: true, toHide: [] });
+    await expect(questionsOf(server, target.id)).resolves.toStrictEqual(before);
   });
 
   it("refuses a recheck of a Target without Questions", async () => {

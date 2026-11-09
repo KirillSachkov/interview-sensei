@@ -103,6 +103,7 @@ export const sessionProfiles: Readonly<Record<SessionKind, SessionProfile>> = {
       "Interview Sensei tools for this Inbox processing; they act only on this session's Target.",
       "Call get_brief first, then list_inbox, and read every part of each material with read_source.",
       "Add Questions with add_bank_questions, create a missing Topic inside a Section with create_topic, and look for duplicates in meaning with search_questions.",
+      "Mark a material you cannot read even on the web with mark_source_failed.",
       "Finish with write_inbox_report.",
     ].join(" "),
   },
