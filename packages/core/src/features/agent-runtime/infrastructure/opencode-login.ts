@@ -11,10 +11,13 @@ import type { OpencodeLoginCommand } from "../domain/opencode-login.ts";
 import { inspectAgentHost } from "./installation.ts";
 import type { UserEnvironment } from "./installation.ts";
 
-/** How the login ended: OpenCode's exit code, or why the application refused to start it. */
+/**
+ * How the login ended: OpenCode's exit code, why the application refused to start it, or why
+ * OpenCode failed to start.
+ */
 export type OpencodeLoginResult =
   | { readonly type: "exited"; readonly code: number }
-  | { readonly type: "refused"; readonly reason: string };
+  | { readonly type: "refused" | "failed"; readonly reason: string };
 
 /**
  * Runs `opencode auth login --standalone` in the application's OpenCode homes with the terminal's
@@ -52,8 +55,8 @@ async function run(
     await once(child, "exit");
   } catch (error) {
     // `once` rejects on the `error` event: OpenCode did not start.
-    const reason = error instanceof Error ? error.message : "unknown error";
-    return { type: "refused", reason: `Не удалось запустить OpenCode: ${reason}.` };
+    const reason = error instanceof Error ? error.message : "неизвестная ошибка";
+    return { type: "failed", reason: `Не удалось запустить OpenCode: ${reason}.` };
   }
   return { type: "exited", code: exitCode(child.exitCode, child.signalCode) };
 }

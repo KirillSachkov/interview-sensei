@@ -67,7 +67,7 @@ async function loginOpencode(options: LaunchOptions): Promise<void> {
     timer: systemTimer,
   });
   const result = await login();
-  if (result.type === "refused") {
+  if (result.type !== "exited") {
     process.stderr.write(`${result.reason}\n`);
     process.exitCode = 1;
     return;
