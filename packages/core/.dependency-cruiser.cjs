@@ -20,7 +20,7 @@ module.exports = {
       severity: "error",
       comment:
         "application/ depends on domain/ ports, not on their implementations. Take the " +
-        "infrastructure implementation as a parameter; the server composes them.",
+        "infrastructure implementation as a parameter; the slice's module.ts composes them.",
       from: { path: "^src/features/([^/]+)/application/" },
       to: { path: "^src/features/$1/infrastructure/" },
     },
