@@ -148,7 +148,7 @@ describe("deleting an archived Target", () => {
       files: true,
       sessionFiles: true,
       rows: {
-        "agent_sessions.sessions": 3,
+        "agent_sessions.sessions": 4,
         "interviews.asked_questions": 1,
         "interviews.attempts": 1,
         "interviews.disputes": 1,
