@@ -6,6 +6,7 @@ import type { Locator, Page } from "@playwright/test";
 
 import { onboarding, zones } from "./canvas-support.ts";
 import type { setupChat } from "./canvas-support.ts";
+import { openTarget } from "./target-actions.ts";
 
 type SetupChat = ReturnType<typeof setupChat>;
 
@@ -83,6 +84,24 @@ async function expectReport(
   );
 }
 
+/** Opens the latest Inbox report of «Rust-разработчик» from «Материалы». */
+async function openRustReport(page: Page) {
+  await openTarget(page, rustName);
+  await page.getByRole("button", { name: "Показать всё" }).click();
+  const materials = zones(page).goal.getByRole("article", { name: "Материалы" });
+  await materials.getByRole("button", { name: "Отчёт о разборе" }).click();
+  return page.getByRole("complementary", { name: "Отчёт о разборе" });
+}
+
+/** «Выбрать все», then the bulk action «Скрыть»; resolves with the bar of the bulk actions. */
+async function hideEvery(report: Locator) {
+  await report.getByRole("button", { name: "Выбрать все" }).click();
+  const actions = report.getByRole("group", { name: "Действия с выбранными" });
+  await expect(actions).toContainText("Выбрано: 1");
+  await actions.getByRole("button", { name: "Скрыть" }).click();
+  return actions;
+}
+
 export function inboxTests() {
   test.describe("Inbox processing of a material from the setup chat", () => {
     test.use({ viewport: { width: 1600, height: 1000 } });
@@ -102,6 +121,22 @@ export function inboxTests() {
       await expect(materials.getByRole("listitem")).toContainText(["готов"]);
       await expect(materials).not.toContainText("Не разобрано");
       await expectReport(page, { chat, materials });
+    });
+
+    test("the report's filter «Только новые» shows the new Questions, and «Скрыть» hides the chosen ones at once", async ({
+      page,
+    }) => {
+      const report = await openRustReport(page);
+      const added = report.getByRole("list", { name: "Добавленные вопросы" });
+      await report.getByRole("checkbox", { name: "Только новые (1)" }).check();
+      await expect(added.getByRole("listitem").last()).toContainText("новый");
+
+      const actions = await hideEvery(report);
+
+      await expect(actions).toBeHidden();
+      await expect(added.getByRole("listitem").last()).toContainText("скрыт");
+      await report.getByRole("button", { name: "Отметить просмотренными" }).click();
+      await expect(report).toContainText("Новых вопросов нет.");
     });
   });
 }
