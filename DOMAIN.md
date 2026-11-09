@@ -41,9 +41,9 @@ A Topic merged into another one hands over its Questions and Attempts, so its pr
 
 **Question**:
 An interview question with its source and Topic.
-A Question that an agent made up without a Source, in a Mock interview or in Inbox processing, is unconfirmed («не подтверждён») until the Candidate accepts it.
+A Question that an agent made up without a Source, in a Mock interview or in Inbox processing, is unconfirmed («не подтверждён») until the Candidate confirms it.
 A Question from material or one the Candidate applied through the draft of changes is confirmed.
-Through the draft, a new text, a move to another Topic or the useful rating confirms an unconfirmed Question; hiding it, another rating or a Topic merge does not.
+Through the draft of changes, a new text, a move to another Topic or the useful Question rating confirms an unconfirmed Question; hiding it, another rating or a Topic merge does not.
 _Avoid_: Task, when the item is not an algorithm problem.
 
 **Mock interview**:
@@ -76,7 +76,7 @@ An Attempt is never changed after it is recorded; a Dispute adds a correction in
 
 **Grade**:
 The assessment of one Attempt on a scale from 0 to 3, with a short justification.
-The agent grades a free answer. The server grades a quiz answer by the quiz rule and gives a skipped Attempt 0; it explains these Grades itself.
+The agent grades a free answer. The server grades a quiz answer by its correct options and gives a skipped Attempt 0; it explains these Grades itself.
 
 **Dispute**:
 The Candidate's correction of a Grade, with a required reason. The corrected Grade applies at once; the agent does not arbitrate.

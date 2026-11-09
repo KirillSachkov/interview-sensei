@@ -33,7 +33,7 @@ npx interview-sensei
 - Node 22.15 или новее. Вместе с Node ставится `npx`.
 - Вход хотя бы в одного своего агента:
   - Claude Code: войдите в `claude`, как обычно. Приложение использует ваш вход.
-    ❗ Приложение подключает Claude Code через Agent SDK (`claude-agent-acp`). На 2026-11-08 такое использование подписки списывается из отдельных кредитов Agent SDK, а правила Anthropic для него неоднозначны. Подробнее — [ADR-0001](docs/adr/0001-extend-existing-agent-via-mcp-and-skills.md#consequences).
+    ❗ Приложение подключает Claude Code через Agent SDK (`claude-agent-acp`). На 2026-11-08 такое использование подписки списывается из отдельных кредитов Agent SDK, а правила Anthropic для него неоднозначны. Подробнее: [ADR-0001](docs/adr/0001-extend-existing-agent-via-mcp-and-skills.md#consequences).
   - Codex: выполните `codex login`.
   - OpenCode: установите OpenCode, чтобы команда `opencode` была в `PATH`, и войдите в него.
     OpenCode 2.x работает в приложении только со входом по API-ключу, например DeepSeek: выполните `opencode auth login` и выберите вход по ключу.
