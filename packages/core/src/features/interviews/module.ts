@@ -1,13 +1,15 @@
-import type { Database } from "../../shared/storage/index.ts";
+import type { Database, Transaction } from "../../shared/storage/index.ts";
 import type { Clock, Timer } from "../../shared/time/index.ts";
 import { createInterviews } from "./application/interviews.ts";
 import type { Interviews } from "./application/interviews.ts";
 import type {
   InterviewAgents,
+  InterviewErasure,
   InterviewProgress,
   InterviewQuestions,
   InterviewSessions,
   InterviewTargets,
+  InterviewTopicMerge,
 } from "./domain/ports.ts";
 import { drizzleInterviewRepository } from "./infrastructure/drizzle-interview-repository.ts";
 
@@ -31,10 +33,21 @@ export interface InterviewsModuleDependencies {
   readonly onError: (error: unknown) => void;
 }
 
-/** Mock interviews on the server's database. */
+/**
+ * Mock interviews on the server's database. Deleting a Target erases its Mock interviews with
+ * `eraseTarget`; a Topic merge of the Target setup moves their asked questions with `mergeTopic`.
+ */
 export function interviewsModule({
   database,
   ...dependencies
-}: InterviewsModuleDependencies): Interviews {
-  return createInterviews({ repository: drizzleInterviewRepository(database), ...dependencies });
+}: InterviewsModuleDependencies): Interviews &
+  InterviewErasure<Transaction> &
+  InterviewTopicMerge<Transaction> {
+  const repository = drizzleInterviewRepository(database);
+  return {
+    ...createInterviews({ repository, ...dependencies }),
+    eraseTarget: async (targetId, transaction) => repository.eraseTarget(targetId, transaction),
+    mergeTopic: async (targetId, topics, transaction) =>
+      repository.mergeTopic(targetId, topics, transaction),
+  };
 }

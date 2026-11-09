@@ -265,7 +265,7 @@ async function runTurn(session: LiveSession, agent: LiveAgent, text: string) {
   }
 }
 
-/** Stops the session's agent and marks the session as ended, once its journal writes are done. */
+/** Stops the agent and marks the session as ended, once a starting agent has started. */
 export async function end(session: LiveSession): Promise<void> {
   // Wait for a starting agent, so its process does not outlive the server.
   await session.started;

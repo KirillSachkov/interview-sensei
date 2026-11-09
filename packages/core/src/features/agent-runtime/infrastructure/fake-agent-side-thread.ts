@@ -2,8 +2,6 @@
 // which it knows by its first sentence, as a real explaining agent would.
 // - «The Candidate opened a side thread from a mock interview.»: `get_brief`, then «Разбираю
 //   вопрос кандидата: «<candidateQuestion of the brief>»».
-// - `/call <name>` in any session calls our MCP tool without arguments after the permission
-//   request that the server allows, and replies «MCP <name>: <tool result or error>».
 // - A prompt that starts with the server's note «The Candidate discussed question N in a side
 //   thread.» first gets «Отметка: <note> », then the reply to the rest of the prompt.
 // A failed step ends the turn with «Фейковый интервьюер сломался: <error>».
@@ -28,26 +26,11 @@ const opened: Steps = async (actions) => {
   await actions.say(`Разбираю вопрос кандидата: «${candidateQuestionOf(brief)}»`);
 };
 
-/** Calls the tool and replies with its result, or with the error that refused it. */
-const callNamed =
-  (name: string): Steps =>
-  async (actions) => {
-    try {
-      await actions.say(`MCP ${name}: ${await actions.call(name, {})}`);
-    } catch (error) {
-      await actions.say(`MCP ${name}: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  };
-
-const callCommand = /^\/call (?<name>[a-z_]+)$/u;
-
-/** The explaining agent's turn for the server's message or `/call`, or null for another prompt. */
+/** The explaining agent's turn for the server's opening message, or null for another prompt. */
 function sideThreadTurn(text: string) {
-  if (text.startsWith("The Candidate opened a side thread from a mock interview.")) {
-    return turnOf(opened);
-  }
-  const name = callCommand.exec(text)?.groups?.name;
-  return name === undefined ? null : turnOf(callNamed(name));
+  return text.startsWith("The Candidate opened a side thread from a mock interview.")
+    ? turnOf(opened)
+    : null;
 }
 
 /** The turn that calls our MCP tools: the interviewer's or the explaining agent's; null otherwise. */

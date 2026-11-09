@@ -1,8 +1,14 @@
 /**
- * The kinds of AgentSession: the service chat, «Проверка агента» in the UI; the mock interview,
- * where the agent is the interviewer; and the Side thread, where the same agent explains.
+ * The kinds of AgentSession: the service chat, «Проверка агента» in the UI; the Target setup,
+ * «Настройка цели»; the mock interview, where the agent is the interviewer; and the Side thread,
+ * where the same agent explains.
  */
-export const sessionKinds = ["service-chat", "mock-interview", "side-thread"] as const;
+export const sessionKinds = [
+  "service-chat",
+  "target-setup",
+  "mock-interview",
+  "side-thread",
+] as const;
 export type SessionKind = (typeof sessionKinds)[number];
 
 /** Whether the text names a session kind, such as a kind stored by an older version. */

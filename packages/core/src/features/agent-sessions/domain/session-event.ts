@@ -37,8 +37,9 @@ export type SessionFailure =
 export type SessionEvent =
   | { readonly type: "session_started"; readonly acpSessionId: string }
   /**
-   * A prompt to the agent. A prompt of the server, such as a template message of a mock interview,
-   * has the origin `server` and stays out of the chat; the Candidate's prompts have no origin.
+   * A prompt to the agent. A prompt of the server, such as the one that starts the onboarding or a
+   * template message of a mock interview, has the origin `server` and stays out of the chat; the
+   * Candidate's prompts have no origin.
    * `notes` are the server's notes that the agent got before the text, such as that the Candidate
    * discussed a question in a Side thread; the chat leaves them out.
    */

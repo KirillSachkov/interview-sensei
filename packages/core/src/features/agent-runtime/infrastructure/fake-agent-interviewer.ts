@@ -125,7 +125,8 @@ async function callTool(
   if (outcome.outcome !== "selected" || outcome.optionId === "reject-once") {
     return `Фейковый агент не получил разрешения на ${name}`;
   }
-  return callMcpTool(server.url, name, input);
+  const result = await callMcpTool(server.url, name, input);
+  return result.text;
 }
 
 /** Runs the turn's steps; a failure becomes the turn's last text. */

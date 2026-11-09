@@ -5,6 +5,7 @@ import { chooseTargetAgent, fetchAgents, fetchTargetAgent } from "@/shared/api";
 import type { TargetAgent } from "@/shared/api";
 
 import { Menu, MenuChoice } from "./menu";
+import { useSettings } from "./settings-menu";
 
 function CurrentAgent({ current: { agent, chosen } }: { current: TargetAgent }) {
   return (
@@ -24,6 +25,7 @@ function AgentChoices({
   onChoose: (agent: string | null) => void;
 }) {
   const agents = useQuery({ queryKey: ["agents"], queryFn: fetchAgents });
+  const preset = useSettings().data?.defaultAgent ?? null;
   return (
     <>
       <MenuChoice
@@ -33,7 +35,9 @@ function AgentChoices({
         }}
       >
         <span>По умолчанию</span>
-        <span className="hint">первый доступный агент</span>
+        <span className="hint">
+          {preset === null ? "первый доступный агент" : `${agentName(preset)}, из «Настроек»`}
+        </span>
       </MenuChoice>
       {(agents.data ?? []).map((option) => (
         <MenuChoice
@@ -57,7 +61,8 @@ function AgentChoices({
 
 /**
  * The Target's agent. The menu shows whether each agent is available and stores the choice;
- * «По умолчанию» returns the Target to the default agent, the first available one.
+ * «По умолчанию» returns the Target to the default agent of «Настройки», or to the first
+ * available one.
  */
 export function AgentPicker({ targetId }: { targetId: string }) {
   const queryClient = useQueryClient();

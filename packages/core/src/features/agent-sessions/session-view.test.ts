@@ -137,9 +137,14 @@ describe("session view", () => {
     ).toBe("rm -rf ~");
   });
 
-  it("shows the agent's arguments, shortened, for a request without a title or command", () => {
+  it("shows the agent's whole command, however long", () => {
+    const command = `psql -c "${"select 1; ".repeat(60)}"`;
+    expect(inputOf({ toolCallId: "call-1", rawInput: { command } })).toBe(command);
+  });
+
+  it("shows all of the agent's arguments for a request without a title or command", () => {
     const input = inputOf({ toolCallId: "call-1", rawInput: { path: "a".repeat(500) } });
-    expect(input).toBe(`{"path":"${"a".repeat(190)}…`);
+    expect(input).toBe(`{"path":"${"a".repeat(500)}"}`);
   });
 
   it("shows no input for a permission request without raw input", () => {

@@ -30,6 +30,20 @@ export interface SessionRepository {
   readonly remove: (sessionId: string) => Promise<void>;
 }
 
+/**
+ * Erases the sessions of a Target with their journals. `Transaction` is the storage's open
+ * transaction, opaque to the domain: deleting a Target erases the data of every slice in it.
+ */
+export interface SessionErasure<Transaction> {
+  /** Resolves with the ids of the erased sessions. */
+  readonly eraseTarget: (targetId: string, transaction: Transaction) => Promise<readonly string[]>;
+}
+
+/** The working directories of the sessions, one per session in the data directory. */
+export interface SessionDirectories {
+  readonly remove: (sessionIds: readonly string[]) => Promise<void>;
+}
+
 /** How the agent process ended without a request from the server. */
 interface AgentExit {
   readonly exitCode: number | null;

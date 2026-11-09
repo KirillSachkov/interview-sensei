@@ -1,13 +1,10 @@
 /* The Mock interview in the «Сессии» zone: cards from top to bottom, the interviewer beside the
    current one. */
 
-/* React Flow turns pointer events off in nodes that are neither draggable nor selectable; the
-   zone's controls take them back. */
 .mock-zone {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  pointer-events: auto;
 }
 
 .start-mock {

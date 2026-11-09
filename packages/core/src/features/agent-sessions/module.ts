@@ -1,11 +1,13 @@
 import path from "node:path";
 
-import type { Database } from "../../shared/storage/index.ts";
+import type { Database, Transaction } from "../../shared/storage/index.ts";
 import type { Clock } from "../../shared/time/index.ts";
 import { createAgentSessions } from "./application/agent-sessions.ts";
 import type { AgentSessions } from "./application/agent-sessions.ts";
+import { targetErasure } from "./application/target-erasure.ts";
 import type { AgentLauncher, McpAddresses } from "./domain/ports.ts";
 import { drizzleSessionRepository } from "./infrastructure/drizzle-session-repository.ts";
+import { sessionDirectories } from "./infrastructure/session-directories.ts";
 
 export interface AgentSessionsModuleDependencies {
   /** The server's database, migrated with agentSessionsMigrations. */
@@ -21,7 +23,11 @@ export interface AgentSessionsModuleDependencies {
   readonly onError: (error: unknown) => void;
 }
 
-/** AgentSessions on the server's database, with a journal of each session's events. */
+/**
+ * AgentSessions on the server's database, with a journal of each session's events. Deleting a
+ * Target erases its sessions with `eraseTarget`, then their working directories with
+ * `eraseTargetFiles`.
+ */
 export function agentSessionsModule({
   database,
   launcher,
@@ -29,13 +35,19 @@ export function agentSessionsModule({
   clock,
   dataDirectory,
   onError,
-}: AgentSessionsModuleDependencies): AgentSessions {
-  return createAgentSessions({
-    repository: drizzleSessionRepository(database),
+}: AgentSessionsModuleDependencies) {
+  const repository = drizzleSessionRepository(database);
+  const sessionsDirectory = path.join(dataDirectory, "sessions");
+  const sessions: AgentSessions = createAgentSessions({
+    repository,
     launcher,
     clock,
     mcp,
-    sessionsDirectory: path.join(dataDirectory, "sessions"),
+    sessionsDirectory,
     onError,
   });
+  return {
+    ...sessions,
+    ...targetErasure<Transaction>(repository, sessionDirectories(sessionsDirectory)),
+  };
 }

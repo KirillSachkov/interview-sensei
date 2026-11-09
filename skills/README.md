@@ -5,6 +5,7 @@
 | Skill | Вид сессии |
 | --- | --- |
 | [`sensei-check`](sensei-check/SKILL.md) | `service-chat`, в UI — «Проверка агента» |
+| [`sensei-setup`](sensei-setup/SKILL.md) | `target-setup`, в UI — «Настройка цели» |
 | [`sensei-interview`](sensei-interview/SKILL.md) | `mock-interview`, в UI — мок-собеседование в зоне «Сессии» |
 | [`sensei-explain`](sensei-explain/SKILL.md) | `side-thread`, в UI — ветка «Обсудить отдельно» справа от вопроса мока |
 

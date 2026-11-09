@@ -47,11 +47,14 @@ function MenuPopup({
 export function Menu({
   label,
   button,
+  buttonLabel,
   children,
 }: {
   /** The menu's accessible name. */
   label: string;
   button: ReactNode;
+  /** The button's accessible name when its content is only a symbol. */
+  buttonLabel?: string;
   children: (close: () => void) => ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -65,6 +68,7 @@ export function Menu({
       <button
         type="button"
         className="ghost menu-button"
+        aria-label={buttonLabel}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
@@ -111,6 +115,35 @@ export function MenuChoice({
         {checked ? "✓" : ""}
       </span>
       <span className="menu-choice-body">{children}</span>
+    </button>
+  );
+}
+
+/** One action in a Menu, such as «В архив»; `hint` explains it or why it is disabled. */
+export function MenuItem({
+  disabled = false,
+  hint,
+  onChoose,
+  children,
+}: {
+  disabled?: boolean;
+  hint?: string;
+  onChoose: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      disabled={disabled}
+      className="menu-choice"
+      onClick={onChoose}
+    >
+      <span aria-hidden="true" className="check" />
+      <span className="menu-choice-body">
+        <span>{children}</span>
+        {hint === undefined ? null : <span className="hint">{hint}</span>}
+      </span>
     </button>
   );
 }

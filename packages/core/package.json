@@ -13,6 +13,9 @@
     "./time": "./src/shared/time/index.ts",
     "./targets": "./src/features/targets/index.ts",
     "./question-bank": "./src/features/question-bank/index.ts",
+    "./target-setup": "./src/features/target-setup/index.ts",
+    "./app-settings": "./src/features/app-settings/index.ts",
+    "./sources": "./src/features/sources/index.ts",
     "./interviews": "./src/features/interviews/index.ts",
     "./progress": "./src/features/progress/index.ts"
   },

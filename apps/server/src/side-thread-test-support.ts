@@ -5,6 +5,7 @@ import type { SessionView } from "./chat-test-support.ts";
 import { cardNow } from "./interview-flow-test-support.ts";
 import { cardAt, hasQuestions, lastAgentText } from "./interview-test-support.ts";
 import type { interviewApi } from "./interview-test-support.ts";
+import { demoWithMock } from "./progress-test-support.ts";
 
 export interface SideThread {
   readonly id: string;
@@ -128,4 +129,22 @@ export async function hintMarks(
     card: card.hinted,
     attempt: hintedOf(await api.debrief(thread.interviewId, card)),
   };
+}
+
+/**
+ * The demo Target with a finished Mock interview, as demoWithMock gives it, and a Side thread from
+ * the Debrief of its Attempt, for the deletion tests; the thread's agent crashes, so no session of
+ * the Target runs.
+ */
+export async function demoWithSideThread(dataDirectory: string) {
+  const api = await demoWithMock(dataDirectory);
+  const { chat } = await openedSideThread(api, {
+    interviewId: api.interviewId,
+    origin: debriefOrigin(api.graded),
+    question: "Почему такая оценка?",
+  });
+  await chat.waitFor(repliesWith("Разбираю вопрос кандидата"));
+  chat.send({ type: "prompt", text: "/crash" });
+  await chat.waitFor((view) => view.status === "failed");
+  return api;
 }

@@ -2,9 +2,11 @@ import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import type { SubmitEvent } from "react";
 
-import { PermissionRequest, useSessionEvents } from "@/entities/session";
+import { useSessionEvents } from "@/entities/session";
+import { PermissionRequest } from "@/features/agent-chat";
 import { deleteSideThread } from "@/shared/api";
 import type { ChatEntry, SessionView, SideThread } from "@/shared/api";
+import { AgentMarkdown } from "@/shared/ui/markdown";
 
 import { FragmentQuote } from "./discuss-separately";
 import { useRefreshSideThreads } from "./side-thread-refresh";
@@ -36,7 +38,11 @@ function Line({
       );
     }
     case "agent_message": {
-      return <p className="chat-line">{entry.text}</p>;
+      return (
+        <div className="chat-line">
+          <AgentMarkdown text={entry.text} />
+        </div>
+      );
     }
     case "turn_interrupted": {
       return <p className="muted">Ход остановлен.</p>;

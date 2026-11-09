@@ -3,6 +3,7 @@ import type { SubmitEvent } from "react";
 
 import { useSessionEvents } from "@/entities/session";
 import type { ChatEntry, SessionView } from "@/shared/api";
+import { AgentMarkdown } from "@/shared/ui/markdown";
 
 import { DiscussSeparately } from "./discuss-separately";
 
@@ -23,7 +24,9 @@ function Line({ entry, interviewId }: { entry: ChatEntry; interviewId: string })
     case "agent_message": {
       return (
         <div className="chat-message" data-discuss-scope="">
-          <p className="chat-line">{entry.text}</p>
+          <div className="chat-line">
+            <AgentMarkdown text={entry.text} />
+          </div>
           <DiscussSeparately interviewId={interviewId} origin={{ kind: "message", id: entry.id }} />
         </div>
       );

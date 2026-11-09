@@ -48,6 +48,9 @@ function zoneNodes(zones: readonly CanvasZone[]): ZoneNode[] {
       // oxlint-disable-next-line eslint/id-length -- React Flow names the coordinates x and y.
       position: { x: left, y: 0 },
       data: { zone },
+      // React Flow lets pointer events through a node that is neither selectable nor draggable;
+      // the widgets of a zone take clicks, such as «Настроить цель».
+      style: { pointerEvents: "all" },
     };
     left += zone.width + zoneGap;
     return node;

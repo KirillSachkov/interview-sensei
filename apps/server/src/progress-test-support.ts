@@ -1,7 +1,8 @@
-// Helpers of the progress, Dispute and session history API tests on the demo Target.
+// Helpers of the progress, Dispute and session history API tests on the demo Target, and a demo
+// Target with a finished Mock interview for the deletion tests.
 import { browserHeaders } from "./chat-test-support.ts";
-import { ask } from "./interview-test-support.ts";
-import type { Card, interviewApi } from "./interview-test-support.ts";
+import { ask, cardAt, interviewApi, isGraded } from "./interview-test-support.ts";
+import type { Card } from "./interview-test-support.ts";
 
 type Api = Awaited<ReturnType<typeof interviewApi>>;
 type Chat = Awaited<ReturnType<Api["started"]>>["chat"];
@@ -59,4 +60,22 @@ export async function callTool(chat: Chat, name: string): Promise<unknown> {
   const body = await response.text();
   const data = body.split("\n").find((line) => line.startsWith("data:")) ?? "";
   return JSON.parse(toolText(JSON.parse(data.slice("data:".length))));
+}
+
+/**
+ * The demo Target with a finished Mock interview: one asked question with its Attempt and a
+ * Dispute. The interviewer's session has ended, so nothing of the Target runs. Also resolves with
+ * the Mock interview's id and its graded card.
+ */
+export async function demoWithMock(dataDirectory?: string) {
+  const api = await interviewApi(dataDirectory === undefined ? {} : { dataDirectory });
+  const run = await api.answered(["Опыт и резюме"], "Ответ [grade:1] [last]");
+  const graded = cardAt(await run.events.waitFor(isGraded(0)), 0);
+  const payload = { grade: 2, reason: "Пример был." };
+  await dispute(api, { interviewId: run.interview.id, card: graded, payload });
+  await api.finish(run.interview.id);
+  await run.events.waitFor((view) => view.status === "finished");
+  // The session ends after the agent's last turn.
+  await run.chat.waitFor((view) => view.status === "ended");
+  return { ...api, interviewId: run.interview.id, graded };
 }

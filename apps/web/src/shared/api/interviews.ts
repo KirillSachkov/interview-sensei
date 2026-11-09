@@ -2,6 +2,8 @@
 // Debrief of an Attempt.
 import { checked, isObject, path, sent } from "./http";
 import type { SideThread } from "./side-threads";
+import { fetchTarget } from "./targets";
+import type { PlanSection } from "./targets";
 
 /** The Candidate's answer as the server recorded it. */
 interface CandidateAnswer {
@@ -81,13 +83,6 @@ export interface AttemptDebrief {
   readonly dispute: { readonly grade: number; readonly reason: string } | null;
 }
 
-/** A Section of the Target's plan, for the choice of Sections at the start. */
-export interface PlanSection {
-  readonly id: string;
-  readonly name: string;
-  readonly enabled: boolean;
-}
-
 /** The server builds the view; the web app checks only that it got one. */
 function isInterviewView(value: unknown): value is InterviewView {
   return (
@@ -101,15 +96,6 @@ function isInterviewView(value: unknown): value is InterviewView {
 
 function isDebrief(value: unknown): value is AttemptDebrief {
   return isObject(value) && typeof value.grade === "number" && typeof value.gaps === "string";
-}
-
-function isPlanSection(value: unknown): value is PlanSection {
-  return (
-    isObject(value) &&
-    typeof value.id === "string" &&
-    typeof value.name === "string" &&
-    typeof value.enabled === "boolean"
-  );
 }
 
 function postJson(url: string, body?: object) {
@@ -131,13 +117,12 @@ export async function fetchLatestInterviews(targetId: string): Promise<Interview
 }
 
 /** The Sections of the Target's plan in order. */
-export async function fetchPlanSections(targetId: string): Promise<PlanSection[]> {
-  const target = await checked(await fetch(`/api/targets/${path(targetId)}`), isObject);
-  const { sections } = target;
-  if (!Array.isArray(sections) || !sections.every((item: unknown) => isPlanSection(item))) {
-    throw new Error("неожиданный ответ");
+export async function fetchPlanSections(targetId: string): Promise<readonly PlanSection[]> {
+  const target = await fetchTarget(targetId);
+  if (target === null) {
+    throw new Error("цель не найдена");
   }
-  return sections;
+  return target.sections;
 }
 
 /** What the Candidate chose in «Начать мок». */

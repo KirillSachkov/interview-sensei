@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AgentCheckRouteImport } from './routes/agent-check'
+import { Route as ArchiveRouteImport } from './routes/archive'
 import { Route as TargetsTargetIdRouteImport } from './routes/targets.$targetId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -23,6 +24,11 @@ const AgentCheckRoute = AgentCheckRouteImport.update({
   path: '/agent-check',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ArchiveRoute = ArchiveRouteImport.update({
+  id: '/archive',
+  path: '/archive',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TargetsTargetIdRoute = TargetsTargetIdRouteImport.update({
   id: '/targets/$targetId',
   path: '/targets/$targetId',
@@ -32,30 +38,34 @@ const TargetsTargetIdRoute = TargetsTargetIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/agent-check': typeof AgentCheckRoute
+  '/archive': typeof ArchiveRoute
   '/targets/$targetId': typeof TargetsTargetIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/agent-check': typeof AgentCheckRoute
+  '/archive': typeof ArchiveRoute
   '/targets/$targetId': typeof TargetsTargetIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/agent-check': typeof AgentCheckRoute
+  '/archive': typeof ArchiveRoute
   '/targets/$targetId': typeof TargetsTargetIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/agent-check' | '/targets/$targetId'
+  fullPaths: '/' | '/agent-check' | '/archive' | '/targets/$targetId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/agent-check' | '/targets/$targetId'
-  id: '__root__' | '/' | '/agent-check' | '/targets/$targetId'
+  to: '/' | '/agent-check' | '/archive' | '/targets/$targetId'
+  id: '__root__' | '/' | '/agent-check' | '/archive' | '/targets/$targetId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AgentCheckRoute: typeof AgentCheckRoute
+  ArchiveRoute: typeof ArchiveRoute
   TargetsTargetIdRoute: typeof TargetsTargetIdRoute
 }
 
@@ -75,6 +85,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AgentCheckRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/archive': {
+      id: '/archive'
+      path: '/archive'
+      fullPath: '/archive'
+      preLoaderRoute: typeof ArchiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/targets/$targetId': {
       id: '/targets/$targetId'
       path: '/targets/$targetId'
@@ -88,6 +105,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AgentCheckRoute: AgentCheckRoute,
+  ArchiveRoute: ArchiveRoute,
   TargetsTargetIdRoute: TargetsTargetIdRoute,
 }
 export const routeTree = rootRouteImport

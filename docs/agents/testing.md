@@ -53,7 +53,13 @@ Launch recipes are pure: unit tests give them made-up paths, profiles and skills
 Unit tests give `opencodeModelSettings` made-up texts; a missing or invalid file gives no model.
 The fake agent streams a reply in chunks; the prompt `/wait` waits for a cancel, `/fail` answers with a JSON-RPC error, and `/crash` exits with code 1.
 `/brief` calls `get_brief` on the session's MCP address after a permission request that the server allows by itself.
-`/permission` asks permission for a foreign tool and replies with the Candidate's choice; `/mcp` replies with the session's MCP server name and address.
+`/tool <name> <json>` calls any tool of the session's MCP address the same way, with the JSON object as its arguments.
+It replies «Результат <name>: <text>», or «Ошибка <name>: <text>» when the tool reports an error.
+API tests drive an agent's work with our tools this way, such as `/tool update_target {"name":"Go"}` in a Target setup session.
+`/permission` asks permission for a foreign tool and replies with the name of the Candidate's choice.
+It offers one option of each ACP kind, named in English as real agents name them, such as «Allow once»; the page names them by kind.
+`/mcp` replies with the session's MCP server name and address.
+`/markdown` replies with Markdown, raw HTML, a `javascript:` link and a remote image, so a test checks how the chat shows the agent's text.
 `/late` asks permission after its turn ends and sends the outcome it gets, which is `cancelled`.
 A new fake session starts in the mode `candidate-mode`, which stands for the Candidate's own mode; `/mode` replies with the current mode and `/meta` with the `_meta` of `session/new`.
 `/env` replies with the names of the fake agent's environment variables.
@@ -92,7 +98,6 @@ The fake agent has a side thread mode for Side threads (`fake-agent-side-thread.
 On «The Candidate opened a side thread from a mock interview.» it calls `get_brief` and replies «Разбираю вопрос кандидата: «<candidateQuestion>»».
 `/brief` in the Side thread's chat replies with the whole Handoff brief as JSON.
 `/tool-list` replies with the sorted names of the session's MCP tools: «MCP tools: <json>».
-`/call <name>` calls our MCP tool without arguments and replies «MCP <name>: <result or error>».
 A prompt that starts with the server's note «The Candidate discussed question N in a side thread.» first gets «Отметка: <note>», then the reply to the rest.
 `side-thread-test-support.ts` in the server opens a Side thread at a question card, an interviewer message or a Debrief and follows its chat.
 An interviewer message has the id of its chat entry, such as `agent-12`; `[last]` in the answer keeps «Ответ получен.» in the chat for it.
@@ -115,9 +120,10 @@ The server keeps all data in `~/.interview-sensei`; the `INTERVIEW_SENSEI_DATA_D
 `pnpm dev` and `pnpm start` use the default directory; `pnpm start --data-dir <directory>` uses another one.
 `pnpm test:e2e` uses `e2e/.data`, which Git ignores; its webServer command empties it before each run.
 All e2e test files share that data directory, so only `e2e/tests/canvas.test.ts` creates Targets.
-`e2e/tests/canvas-steps.ts` holds the Candidate's steps on the canvas that its tests share.
 Its tests run in order: the first sees no Targets and opens the demo Target, the rest use it.
+Tests that need this order and live in another module, such as the mock interview tests of `e2e/tests/mock-interview-tests.ts` and the Side thread tests of `e2e/tests/side-thread-tests.ts`, are declared by a function that `canvas.test.ts` calls.
 Each agent session works in its own directory under `sessions/` in the data directory.
+A Target keeps the files of its materials under `targets/<Target id>/sources/`, one directory per Source.
 The agents' own homes and configs live under `agents/` in the data directory, with symlinks to the Candidate's `auth.json`.
 Claude Code is the exception (#24): it keeps the Candidate's config directory and writes its own state there.
 One running server owns a data directory: a second server on it exits with code 1 and an error message.

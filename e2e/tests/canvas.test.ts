@@ -1,28 +1,45 @@
-// Spec #42, seam 3: the canvas frame. The tests share the server's data directory and run in
-// order: the first one sees no Targets and opens the demo Target, the rest work on it. No other
-// test file creates Targets.
+// Spec #42, seam 3: the canvas frame; spec #45, seam 3: a new Target, its setup and the manual
+// actions; spec #41: the mock interview; spec #80: its Side threads, last. The tests share the
+// server's data directory and run in order: the first one sees no Targets and opens the demo
+// Target, the rest work on it. Later Targets sort after the demo, so `/` still opens it. No other
+// test file creates Targets. Only Targets that a test created go to the archive or away; changes of
+// the demo Target are undone in the same test.
 import { expect, test } from "@playwright/test";
-import type { Locator, Page } from "@playwright/test";
 
 import {
-  answer,
-  deleteThread,
-  discussSeparately,
-  finishMock,
-  openDebrief,
-  startMock,
-  startMockOn,
-  writeInThread,
+  agentButton,
+  attachFiles,
+  chooseAgent,
+  demoName,
+  expectAppliedPlan,
+  greetFakeAgent,
+  onboarding,
+  openGoChat,
+  openGoSetup,
+  setupChat,
+  setupPlan,
+  unapplied,
   zones,
-} from "./canvas-steps.ts";
+} from "./canvas-support.ts";
+import {
+  archiveCurrent,
+  archivedTargets,
+  deletionForm,
+  demoQuestions,
+  expectArchiveUnavailable,
+  kotlinName,
+  newKotlinTarget,
+  openSwitcher,
+  openTarget,
+  sectionBlock,
+  finishSetup,
+  switcherItem,
+} from "./target-actions.ts";
+import { mockInterviewTests } from "./mock-interview-tests.ts";
+import { setupChatTests } from "./setup-chat-tests.ts";
+import { sideThreadTests } from "./side-thread-tests.ts";
 
 test.describe.configure({ mode: "serial" });
-
-const demoName = "Middle backend-разработчик на TypeScript";
-
-function agentButton(page: Page) {
-  return page.getByRole("button", { name: /^Агент:/u });
-}
 
 test("without Targets the Candidate opens the demo Target onto its canvas", async ({ page }) => {
   await page.goto("/");
@@ -46,12 +63,6 @@ test("the app opens on the canvas of the Target", async ({ page }) => {
   await expect(page.getByRole("button", { name: demoName })).toBeVisible();
   await expect(zones(page).goal).toContainText(demoName);
 });
-
-/** Opens the agent menu of the top bar and chooses the item with the name. */
-async function chooseAgent(page: Page, name: RegExp) {
-  await agentButton(page).click();
-  await page.getByRole("menu", { name: "Агент цели" }).getByRole("menuitemradio", { name }).click();
-}
 
 test("the agent menu shows the default agent and whether each agent is available", async ({
   page,
@@ -81,19 +92,6 @@ test("the chosen agent of the Target stays after a reload", async ({ page }) => 
   await expect(agentButton(page)).toContainText("по умолчанию");
 });
 
-/** Starts a chat with the fake agent on «Проверка агента», sends «Привет» and gets the reply. */
-async function greetFakeAgent(page: Page) {
-  await page
-    .getByRole("combobox", { name: "Агент", exact: true })
-    .selectOption({ label: "Фейковый агент" });
-  await page.getByRole("button", { name: "Новый чат" }).click();
-  const messages = page.getByRole("list", { name: "Сообщения" }).getByRole("listitem");
-  await expect(messages).toHaveCount(0);
-  await page.getByLabel("Сообщение").fill("Привет");
-  await page.getByRole("button", { name: "Отправить" }).click();
-  await expect(messages.last()).toHaveText("Агент: Фейковый агент получил: «Привет»");
-}
-
 test("the top bar leads to «Проверка агента», where the fake agent answers", async ({ page }) => {
   await page.goto("/");
 
@@ -119,144 +117,180 @@ unknownTargetTest("/targets/00000000-0000-4000-8000-000000000099");
 // The server answers 400 to an id that is not a UUID; the page shows the same message.
 unknownTargetTest("/targets/unknown");
 
-// Spec #41: the fake agent's interviewer mode takes the Grade from the marker in the answer and
-// sends a hint right after it shows a question, which the chat must leave out.
-
-/** The chat shows the reply to the answer, never the hint, and tells that replies are hidden. */
-async function expectInterviewerChat(sessions: Locator) {
-  const interviewer = sessions.getByRole("complementary", { name: "Интервьюер" });
-  await expect(interviewer).toContainText("Ответ получен.");
-  await expect(interviewer).not.toContainText("Подсказка до ответа");
-  await expect(interviewer).toContainText("Ответы интервьюера скрыты");
-}
-
-/**
- * `[followup]`: the interviewer asks a Follow-up and records no Attempt before the finish, so the
- * ended mock shows the answered question without a Grade.
- */
-async function finishWithoutGrade(sessions: Locator) {
-  const second = sessions.getByRole("article", { name: "Вопрос 2" });
-  await answer(second, "Не уверен. [followup]");
-  await expect(second).toContainText("Фейковый Follow-up");
-  await finishMock(sessions);
-  await expect(second).toContainText("Без оценки");
-}
-
-test("the Candidate starts a mock, answers, opens the Debrief and finishes the mock", async ({
+test("«Новая цель» starts the onboarding, and «Применить» puts the agent's plan on the canvas", async ({
   page,
 }) => {
   await page.goto("/");
-  const { sessions } = zones(page);
-  await startMock(sessions);
+  await page.getByRole("button", { name: "Новая цель" }).click();
+  const chat = await onboarding(page);
+  await chat.callTool("update_target", { name: "Go-разработчик", level: "senior" });
+  await chat.callTool("set_interview_plan", setupPlan);
+  await expect(chat.changes).toHaveCount(2);
+  await expect(zones(page).goal.getByRole("list", { name: "План собеседования" })).toHaveCount(0);
 
-  const first = sessions.getByRole("article", { name: "Вопрос 1" });
-  await answer(first, "Я вёл сервис платежей. [grade:3]");
-  await openDebrief(first, "3 из 3");
-  await expectInterviewerChat(sessions);
-  await finishWithoutGrade(sessions);
+  await chat.panel.getByRole("button", { name: "Применить (2)" }).click();
+
+  await expectAppliedPlan(page);
+  await expect(chat.changes).toHaveCount(0);
 });
 
-// Spec #41, ticket #54: a Dispute corrects the Grade at once, and the summary Debrief shows how the
-// Topic status changed.
+test("«Настроить цель» returns to the running setup chat", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: demoName }).click();
+  await page.getByRole("menuitemradio", { name: "Go-разработчик" }).click();
+  const chat = setupChat(page);
+  await expect(chat.panel).toBeHidden();
 
-/** Disputes the Grade in the card's open Debrief: a new Grade and the reason. */
-async function disputeGrade(card: Locator, grade: string, reason: string) {
-  const debrief = card.getByRole("region", { name: "Разбор" });
-  await debrief.getByRole("button", { name: "Оспорить оценку" }).click();
-  const form = debrief.getByRole("form", { name: "Оспорить оценку" });
-  await form.getByRole("radio", { name: grade, exact: true }).check();
-  await form.getByLabel("Причина").fill(reason);
-  await form.getByRole("button", { name: "Сохранить" }).click();
-}
+  await zones(page).goal.getByRole("button", { name: "Настроить цель" }).click();
 
-/** The Debrief shows the corrected Grade «~~1~~ → 3» with the reason. */
-async function expectCorrected(card: Locator, reason: string) {
-  const debrief = card.getByRole("region", { name: "Разбор" });
-  await expect(debrief).toContainText("Оценка: 1 → 3 из 3");
-  await expect(debrief).toContainText(`Причина исправления: ${reason}`);
-}
+  await expect(chat.messages.first()).toContainText("Агент: Фейковый агент получил");
+  await expect(chat.messages.last()).toContainText("Агент: Результат set_interview_plan:");
+});
 
-/** Finishes the mock; the summary Debrief shows the Topic status change and the unanswered question. */
-async function finishWithSummaryDebrief(sessions: Locator) {
-  await finishMock(sessions);
-  const summary = sessions.getByRole("region", { name: "Итоговый разбор" });
-  await expect(summary.getByRole("list", { name: "Изменения тем" })).toContainText(
-    "Проектирование сервисов: не начато → шатко",
+test("files attached in the setup chat go with the message and appear in «Материалы»", async ({
+  page,
+}) => {
+  const { chat, materials, attached } = await openGoSetup(page);
+  await attachFiles(chat, page);
+  await expect(attached).toHaveText([/vacancy\.txt/u, /resume\.txt/u]);
+  await chat.panel.getByLabel("Сообщение").fill("Вот вакансия и резюме");
+
+  await chat.panel.getByRole("button", { name: "Отправить" }).click();
+
+  await expect(chat.messages.last()).toContainText(
+    "Прикреплённые файлы: «vacancy.txt», «resume.txt».",
   );
-  await expect(summary).toContainText("Без ответа: 1");
-}
-
-/** «Готовность» counts no confident Topic and puts the shaky Topic among those to work on. */
-async function expectReadiness(goal: Locator) {
-  const readiness = goal.getByRole("region", { name: "Готовность" });
-  await expect(readiness).toContainText("0 из 5 тем уверенно");
-  await expect(readiness.getByRole("list", { name: "Подтянуть в первую очередь" })).toContainText(
-    "Проектирование сервисов",
-  );
-}
-
-const disputeReason = "Я назвал сбои и наблюдаемость.";
-
-test("the Candidate disputes a Grade and sees the summary Debrief with the Topic status changes", async ({
-  page,
-}) => {
-  await page.goto("/");
-  const { goal, sessions } = zones(page);
-  const first = sessions.getByRole("article", { name: "Вопрос 1" });
-  await startMockOn(sessions, "Проектирование");
-  await answer(first, "Очередь, ретраи и идемпотентные обработчики. [grade:1]");
-  await openDebrief(first, "1 из 3");
-
-  await disputeGrade(first, "3", disputeReason);
-
-  await expectCorrected(first, disputeReason);
-  await finishWithSummaryDebrief(sessions);
-  await expectReadiness(goal);
+  await expect(attached).toHaveCount(0);
+  await expect(materials.getByRole("listitem")).toHaveText([/vacancy\.txt/u, /resume\.txt/u]);
 });
 
-// Spec #80, ticket #81: «Обсудить отдельно» opens a Side thread to the right of the question card.
-
-/** The thread right of the card answers the question; the card shows «с подсказкой». */
-async function expectThreadBeside(card: Locator, thread: Locator, question: string) {
-  await expect(thread).toContainText(`Разбираю вопрос кандидата: «${question}»`);
-  const cardBox = await card.boundingBox();
-  const threadBox = await thread.boundingBox();
-  expect(threadBox?.x ?? 0).toBeGreaterThan((cardBox?.x ?? 0) + (cardBox?.width ?? 0));
-  await expect(card).toContainText("с подсказкой");
-}
-
-test("the Candidate discusses a question in a side thread beside it, and the question gets the hint mark", async ({
+test("after a reload the setup chat shows «Есть неприменённые изменения», and ✕ removes one", async ({
   page,
 }) => {
-  await page.goto("/");
-  const { sessions } = zones(page);
-  await startMock(sessions);
-  const first = sessions.getByRole("article", { name: "Вопрос 1" });
-  const question = "Что значит «вклад»?";
+  const chat = await openGoChat(page);
+  await chat.callTool("update_target", { tone: "strict" });
+  await chat.callTool("update_target", { language: "en" });
 
-  await discussSeparately(first, question);
+  await page.reload();
 
-  const thread = sessions.getByRole("complementary", { name: "Ветка к вопросу 1" });
-  await expectThreadBeside(first, thread, question);
-  await writeInThread(thread, "А пример?");
-  await finishMock(sessions);
+  await zones(page).goal.getByRole("button", { name: "Настроить цель" }).click();
+  await expect(unapplied(chat, 2)).toBeVisible();
+  await chat.panel.getByRole("button", { name: "Убрать изменение: Цель: язык английский" }).click();
+  await expect(unapplied(chat, 1)).toBeVisible();
+  await expect(chat.changes).toHaveText([/^Цель: тон строгий/u]);
 });
 
-// Spec #80, ticket #82: ✕ deletes a Side thread for good after a confirmation; the hint mark stays.
+test("«Завершить» with a non-empty draft asks what to do with it", async ({ page }) => {
+  const chat = await openGoChat(page);
+  const finish = async (choice: string) => {
+    await chat.panel.getByRole("button", { name: "Завершить" }).click();
+    await chat.panel.getByRole("dialog").getByRole("button", { name: choice }).click();
+    await expect(chat.panel).toBeHidden();
+    await zones(page).goal.getByRole("button", { name: "Настроить цель" }).click();
+  };
 
-test("the Candidate deletes a side thread after confirming, and the question keeps the hint mark", async ({
+  await finish("Оставить черновик");
+
+  await expect(unapplied(chat, 1)).toBeVisible();
+  await finish("Отменить изменения");
+  await expect(chat.panel.getByRole("list", { name: "Сообщения" })).toBeVisible();
+  await expect(chat.changes).toHaveCount(0);
+  await expect(zones(page).goal).toContainText("Go-разработчик");
+});
+
+// Ticket #51: the manual actions on the plan, the archive and the deletion. They work on
+// «Kotlin-разработчик», which the first of them creates; the demo Target lends its Questions.
+
+test("a Section switch on the plan writes at once and stays after a reload", async ({ page }) => {
+  await newKotlinTarget(page);
+  const toggle = sectionBlock(page, "Опыт и резюме").getByRole("switch");
+  await expect(toggle).toBeChecked();
+
+  await toggle.click();
+
+  await expect(sectionBlock(page, "Опыт и резюме")).toContainText("выключена");
+  await page.reload();
+  await expect(sectionBlock(page, "Опыт и резюме").getByRole("switch")).not.toBeChecked();
+  await expect(sectionBlock(page, "Go и конкурентность").getByRole("switch")).toBeChecked();
+});
+
+test("the side panel hides a Question and returns it", async ({ page }) => {
+  const { visible, hidden, count, first } = await demoQuestions(page);
+
+  await visible.first().getByRole("button", { name: "Скрыть" }).click();
+
+  await expect(hidden).toContainText([first]);
+  await expect(visible).toHaveCount(count - 1);
+  await hidden.first().getByRole("button", { name: "Вернуть" }).click();
+  await expect(hidden).toHaveCount(0);
+  await expect(visible).toHaveCount(count);
+});
+
+test("the side panel rates a Question and clears the rating", async ({ page }) => {
+  const { visible } = await demoQuestions(page);
+  const useful = visible.first().getByRole("button", { name: "Полезный" });
+
+  await useful.click();
+
+  await expect(useful).toHaveAttribute("aria-pressed", "true");
+  await useful.click();
+  await expect(useful).toHaveAttribute("aria-pressed", "false");
+});
+
+test("«В архив» waits for the agent session to stop, then moves the Target to «Архив»", async ({
   page,
 }) => {
-  const { sessions } = zones(page);
-  const first = sessions.getByRole("article", { name: "Вопрос 1" });
-  const thread = sessions.getByRole("complementary", { name: "Ветка к вопросу 1" });
-  await page.goto("/");
-  await startMock(sessions);
-  await discussSeparately(first, "Что значит «вклад»?");
-  await expect(thread).toContainText("Разбираю вопрос кандидата");
+  await openTarget(page, kotlinName);
+  await expectArchiveUnavailable(page);
+  await finishSetup(page);
 
-  await deleteThread(thread);
+  await archiveCurrent(page);
 
-  await expect(first).toContainText("с подсказкой");
-  await finishMock(sessions);
+  await expect(zones(page).goal).toContainText(demoName);
+  await page.getByRole("button", { name: demoName }).click();
+  await expect(switcherItem(page, kotlinName)).toHaveCount(0);
+  await page.getByRole("menuitem", { name: /Архив/u }).click();
+  await expect(archivedTargets(page)).toHaveText([new RegExp(kotlinName, "u")]);
 });
+
+test("an archived Target comes back to the Target list with «Вернуть»", async ({ page }) => {
+  await page.goto("/archive");
+
+  await archivedTargets(page).getByRole("button", { name: "Вернуть" }).click();
+
+  await expect(archivedTargets(page)).toHaveCount(0);
+  await openTarget(page, kotlinName);
+  await archiveCurrent(page);
+  await expect(zones(page).goal).toContainText(demoName);
+});
+
+test("an archived Target goes for good once the Candidate types its name", async ({ page }) => {
+  const { name, confirm } = await deletionForm(page, kotlinName);
+  await name.fill("Kotlin");
+  await expect(confirm).toBeDisabled();
+  await name.fill(kotlinName);
+
+  await confirm.click();
+
+  await expect(page.getByText("В архиве нет целей.")).toBeVisible();
+  await openSwitcher(page);
+  await expect(switcherItem(page, kotlinName)).toHaveCount(0);
+});
+
+test("a draft Target is deleted at once after the confirmation", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Новая цель" }).click();
+  await onboarding(page);
+  await page.getByRole("button", { name: "Меню цели" }).click();
+  await page.getByRole("menuitem", { name: "Удалить черновик" }).click();
+
+  await page.getByRole("alertdialog").getByRole("button", { name: "Удалить" }).click();
+
+  await expect(zones(page).goal).toContainText(demoName);
+  await openSwitcher(page);
+  await expect(switcherItem(page, /Цель без названия/u)).toHaveCount(0);
+});
+
+setupChatTests();
+mockInterviewTests();
+sideThreadTests();

@@ -165,6 +165,28 @@ export interface HistoryRepository {
   readonly targetDisputes: (targetId: string) => Promise<readonly Dispute[]>;
 }
 
+/**
+ * Erases the Mock interviews of a Target with their asked questions, Attempts and Disputes.
+ * `Transaction` is the storage's open transaction, opaque to the domain: deleting a Target erases
+ * the data of every slice in it.
+ */
+export interface InterviewErasure<Transaction> {
+  readonly eraseTarget: (targetId: string, transaction: Transaction) => Promise<void>;
+}
+
+/**
+ * Moves the questions asked in the Target's Mock interviews, and so their Attempts, from the Topic
+ * `from` to the Topic `into`, when the Target setup merges `from` into `into`. `Transaction` is the
+ * storage's open transaction of the draft's application.
+ */
+export interface InterviewTopicMerge<Transaction> {
+  readonly mergeTopic: (
+    targetId: string,
+    topics: { readonly from: string; readonly into: string },
+    transaction: Transaction,
+  ) => Promise<void>;
+}
+
 /** Stores the Side threads of Mock interviews. */
 export interface SideThreadRepository {
   readonly createSideThread: (thread: SideThread) => Promise<void>;
@@ -179,7 +201,10 @@ export interface SideThreadRepository {
   readonly deleteSideThread: (id: string) => Promise<void>;
 }
 
-/** Stores Mock interviews, their asked questions, Attempts and Side threads in the `interviews` schema. */
+/**
+ * Stores Mock interviews, their asked questions, Attempts and Side threads in the `interviews`
+ * schema.
+ */
 export interface InterviewRepository extends HistoryRepository, SideThreadRepository {
   /** `running` when the Target already has a running Mock interview; nothing is stored then. */
   readonly create: (interview: MockInterview) => Promise<"created" | "running">;

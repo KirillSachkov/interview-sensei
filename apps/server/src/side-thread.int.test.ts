@@ -132,9 +132,9 @@ describe("side thread agent", () => {
     await expect(ask(chat, "/tool-list", "MCP tools:")).resolves.toBe(
       'MCP tools: ["get_brief","get_progress","get_target","search_questions"]',
     );
-    // `/call <name>` calls the tool with no arguments.
-    await expect(ask(chat, "/call record_attempt", "MCP record_attempt:")).resolves.toMatch(
-      /^MCP record_attempt: .*not found/iu,
+    // `/tool <name> <json>` calls the tool after the permission that the server allows.
+    await expect(ask(chat, "/tool record_attempt {}", "Ошибка record_attempt:")).resolves.toMatch(
+      /^Ошибка record_attempt: .*not found/iu,
     );
     await expect(cardNow(api, run.interview.id, 0)).resolves.toMatchObject({ attemptId: null });
   });

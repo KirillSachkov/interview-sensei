@@ -1,4 +1,5 @@
-// How the fake agent sends text: in chunks of one word, like a real stream.
+// How the fake agent sends text: in chunks of one word, like a real stream; and the Markdown sample
+// of `/markdown`.
 import { setTimeout as delay } from "node:timers/promises";
 
 import type { AgentContext } from "@agentclientprotocol/sdk/unstable";
@@ -32,3 +33,26 @@ export async function sendText(
     /* oxlint-enable eslint/no-await-in-loop */
   }
 }
+
+/**
+ * The reply to `/markdown`: Markdown as real agents write it, with raw HTML that the chat must show
+ * as text, a `javascript:` link that it must drop and a remote image that it must not load.
+ */
+export const markdownSample = [
+  "**Жирный** текст и `код`.",
+  "",
+  "- первый пункт",
+  "- второй пункт",
+  "",
+  "```ts",
+  "const answer = 42;",
+  "```",
+  "",
+  "| Тема | Статус |",
+  "| --- | --- |",
+  "| Горутины | шатко |",
+  "",
+  "[Документация](https://example.com/docs) и <b>сырой HTML</b>",
+  "",
+  "[Опасная ссылка](javascript:alert(1)) и ![Схема](https://example.com/tracker.png)",
+].join("\n");
