@@ -48,7 +48,6 @@ _Avoid_: Question chain.
 **Debrief**:
 The review of an Attempt: its Grade, gaps and an outline of a strong answer. The Candidate opens it for any answered Question. At the end of a Mock interview, a summary Debrief shows Topic status changes and the next step.
 
-
 **Attempt**:
 One Candidate answer to one Question, with its Grade, the gaps it revealed, and whether the Candidate received a hint.
 An Attempt is never changed after it is recorded; a Dispute adds a correction instead.
