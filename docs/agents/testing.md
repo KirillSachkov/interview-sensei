@@ -101,7 +101,7 @@ On «The Candidate opened a side thread from a mock interview.» it calls `get_b
 A prompt that starts with the server's note «The Candidate discussed question N in a side thread.» first gets «Отметка: <note>», then the reply to the rest.
 `side-thread-test-support.ts` in the server opens a Side thread at a question card, an interviewer message or a Debrief and follows its chat.
 An interviewer message has the id of its chat entry, such as `agent-12`; `[last]` in the answer keeps «Ответ получен.» in the chat for it.
-`GET /api/interviews/:id/attempts/:attemptId`, `api.debrief` in the tests, records that the Candidate opened the Debrief: call it only where the test means that.
+`api.debrief` in the tests only reads the Debrief; `POST /api/interviews/:id/attempts/:attemptId/debrief-opened` records that the Candidate opened it.
 
 ## Ports
 

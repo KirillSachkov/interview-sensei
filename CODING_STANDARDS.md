@@ -87,7 +87,8 @@ The `side-thread` kind (#80) explains: skill `sensei-explain`, web on, shell off
 `interviews` starts it with the agent of its Mock interview and adds the Target's language (`sideThreadRole`).
 Its tools only read: `get_brief` of `interviews` with the Handoff brief, `get_target`, `search_questions`, `get_source` of `sources` and `get_progress`.
 The server builds the Handoff brief from stored data (`handoffBrief`): its `debrief`, the Grade after the latest Dispute with gaps, justification and strong answer, comes only once `asked_questions.debrief_opened` is set.
-`GET /api/interviews/:id/attempts/:attemptId` sets it, because the browser asks for the Debrief only when the Candidate opens it; a Side thread from a Debrief sets it too.
+`POST /api/interviews/:id/attempts/:attemptId/debrief-opened` sets it: the browser sends it when the Candidate opens the Debrief, before it reads the Debrief; a Side thread from a Debrief sets it too.
+`GET /api/interviews/:id/attempts/:attemptId` only reads the Debrief and records nothing.
 Deleting a Side thread stops its agent at once and deletes its AgentSession, journal and session directory with `AgentSessions.remove`; `asked_questions.hinted` stays.
 
 ### Server messages

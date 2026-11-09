@@ -29,6 +29,7 @@ export {
   finishInterview,
   interviewEventsUrl,
   interviewMessage,
+  recordDebriefOpened,
   startInterview,
 } from "./interviews";
 export type { AttemptDebrief, Difficulty, InterviewView, QuestionCard } from "./interviews";

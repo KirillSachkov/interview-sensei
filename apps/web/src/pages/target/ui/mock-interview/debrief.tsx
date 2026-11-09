@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { fetchDebrief } from "@/shared/api";
+import { fetchDebrief, recordDebriefOpened } from "@/shared/api";
 import type { AttemptDebrief } from "@/shared/api";
 
 import { DiscussSeparately } from "./discuss-separately";
@@ -62,7 +62,11 @@ function Dispute({ interviewId, attemptId }: { interviewId: string; attemptId: s
 function DebriefBody({ interviewId, attemptId }: { interviewId: string; attemptId: string }) {
   const debrief = useQuery({
     queryKey: ["interviews", interviewId, "attempts", attemptId],
-    queryFn: async () => fetchDebrief(interviewId, attemptId),
+    // The Candidate opens the Debrief here: its Grade may go to Side threads from now on.
+    queryFn: async () => {
+      await recordDebriefOpened(interviewId, attemptId);
+      return fetchDebrief(interviewId, attemptId);
+    },
   });
   if (debrief.isError) {
     return <p role="alert">Разбор не загрузился: {debrief.error.message}</p>;

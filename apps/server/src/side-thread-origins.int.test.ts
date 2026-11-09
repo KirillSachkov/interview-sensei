@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { browserHeaders, isIdle } from "./chat-test-support.ts";
 import type { SessionView } from "./chat-test-support.ts";
 import { ask, cardAt, interviewApi, isGraded, saysWhenIdle } from "./interview-test-support.ts";
+import type { Card } from "./interview-test-support.ts";
 import {
   briefIn,
   debriefOrigin,
@@ -38,6 +39,15 @@ async function gradedFirst(api: Api, grade: number) {
   const run = await api.answered(["Опыт и резюме"], `Ответ [grade:${grade}] [last]`);
   const card = cardAt(await run.events.waitFor(isGraded(0)), 0);
   return { run, card };
+}
+
+/** Records that the Candidate opened the Debrief of the card's Attempt, as the browser does. */
+async function openDebrief(api: Api, interviewId: string, card: Card) {
+  return api.server.inject({
+    method: "POST",
+    url: `/api/interviews/${interviewId}/attempts/${card.attemptId}/debrief-opened`,
+    headers: browserHeaders(api.server),
+  });
 }
 
 /** The Handoff brief that the Side thread's agent reads, once it has answered the opening. */
@@ -134,11 +144,28 @@ describe("side thread brief and the Debrief", () => {
 
     const before = await briefAtCard();
     await api.debrief(run.interview.id, card);
+    const afterRead = await briefAtCard();
+    const opened = await openDebrief(api, run.interview.id, card);
     const after = await briefAtCard();
 
     expect(before).toMatchObject({ origin: "question", debrief: null });
     expect(JSON.stringify(before)).not.toMatch(/Фейковый интервьюер/u);
+    expect(afterRead).toMatchObject({ debrief: null });
+    expect(opened.statusCode).toBe(204);
     expect(after).toMatchObject({ debrief: fakeDebrief(3) });
+  });
+
+  it("refuses to record the opening of a Debrief that the mock interview does not have", async () => {
+    const api = await interviewApi();
+    const { run, card } = await gradedFirst(api, 2);
+
+    const response = await openDebrief(api, run.interview.id, {
+      ...card,
+      attemptId: "00000000-0000-4000-8000-000000000001",
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toStrictEqual({ error: "attempt_not_found" });
   });
 
   it("gives the Grade after the Candidate's latest Dispute", async () => {

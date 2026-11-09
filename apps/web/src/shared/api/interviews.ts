@@ -162,6 +162,15 @@ export async function finishInterview(interviewId: string): Promise<void> {
   await sent(await postJson(`/api/interviews/${path(interviewId)}/finish`));
 }
 
+/** The Candidate opened the Debrief: Side threads on its question learn the Grade from now on. */
+export async function recordDebriefOpened(interviewId: string, attemptId: string): Promise<void> {
+  await sent(
+    await postJson(
+      `/api/interviews/${path(interviewId)}/attempts/${path(attemptId)}/debrief-opened`,
+    ),
+  );
+}
+
 export async function fetchDebrief(
   interviewId: string,
   attemptId: string,
