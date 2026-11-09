@@ -262,6 +262,8 @@ A slice adds content to a zone like this:
 The slice leaves `Canvas` and the top bar (`widgets/top-bar`) unchanged.
 The owner approved one exception in #45: the top bar gets «Новая цель» and «Настройки».
 Spec #45 also puts «Меню цели» there, with «В архив», and the item «Архив» in the Target switcher.
+Issue #71 adds `overhang` to a zone: the canvas pixels a widget takes to the right of the zone's width, such as the open setup chat.
+`Canvas` moves the next zones right by as much, so the widget covers none of them.
 A new zone is a new entry in `targetZones` and needs the owner's decision.
 An input or a scrolled list inside a widget gets the React Flow classes `nodrag`, `nopan` and `nowheel` where the canvas must not take its pointer or wheel.
 

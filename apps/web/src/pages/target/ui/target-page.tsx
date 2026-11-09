@@ -9,7 +9,7 @@ import { rememberTarget } from "@/shared/lib";
 import { Canvas } from "@/shared/ui/canvas";
 import type { CanvasZone } from "@/shared/ui/canvas";
 
-import { GoalZone } from "./goal-zone";
+import { GoalZone, goalZoneOverhang } from "./goal-zone";
 import type { GoalZoneProps, SetupAnchor } from "./goal-zone";
 import { MockInterviews } from "./mock-interview/mock-interviews";
 import { SidePanel, useSidePanel } from "./side-panel";
@@ -25,6 +25,7 @@ function targetZones(goal: GoalZoneProps): CanvasZone[] {
       id: "goal",
       title: "Цель",
       width: 440,
+      overhang: goalZoneOverhang(goal.setupAnchor),
       content: <GoalZone zone={goal} />,
     },
     {

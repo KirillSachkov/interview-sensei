@@ -42,6 +42,9 @@ A Topic merged into another one hands over its Questions and Attempts, so its pr
 **Question**:
 An interview question with its Topic, level and the Section kind it fits.
 A Question from a Source refers to it and to the part of its text it came from, and may have a Reference answer.
+A Question that an agent made up without a Source, in a Mock interview or in Inbox processing, is unconfirmed («не подтверждён») until the Candidate confirms it.
+A Question from a Source or one the Candidate applied through the draft of changes is confirmed.
+Through the draft of changes, a new text, a move to another Topic or the useful Question rating confirms an unconfirmed Question; hiding it, another rating or a Topic merge does not.
 _Avoid_: Task, when the item is not an algorithm problem.
 
 **Reference answer**:
@@ -51,9 +54,15 @@ Inbox processing writes a Reference answer only from the Source itself; a Questi
 
 **Mock interview**:
 The only kind of interview: the agent acts as an interviewer and asks Questions for a Target.
+The Candidate picks its Sections, a time limit and a difficulty: easier, as is or harder. The Target has no difficulty of its own: it is the difficulty of its latest Mock interview, which the next one offers first.
+A Mock interview is running («идёт») until it ends: finished («завершён») when the Candidate ends it, interrupted («прерван») when its agent fails or the server restarts first.
 With a time limit, it follows the arc of a real interview, from general Questions to deeper ones. Without a limit, it continues until the Candidate stops it.
 Stopping early keeps every recorded Attempt and still produces a Debrief.
 _Avoid_: Training session; explanations happen in a Side thread instead.
+
+**Presented question**:
+The Question that the agent of a Mock interview has shown and whose answer it awaits. A Mock interview has at most one: the next Question can be shown only after the Attempt of this one is recorded.
+A Presented question still open when the Mock interview ends stays unanswered («без ответа»).
 
 **Follow-up**:
 A clarification of the Candidate's current answer: "what did you mean", "give an example". It belongs to the same Attempt.
@@ -68,10 +77,12 @@ The review of an Attempt: its Grade, gaps and an outline of a strong answer. The
 
 **Attempt**:
 One Candidate answer to one Question, with its Grade, the gaps it revealed, and whether the Candidate received a hint.
+An Attempt the Candidate gave up with «Не знаю» is skipped («пропущено») and gets Grade 0.
 An Attempt is never changed after it is recorded; a Dispute adds a correction instead.
 
 **Grade**:
-The agent's assessment of one Attempt on a scale from 0 to 3, with a short justification.
+The assessment of one Attempt on a scale from 0 to 3, with a short justification.
+The agent grades a free answer. The server grades a quiz answer by its correct options and gives a skipped Attempt 0; it explains these Grades itself.
 
 **Dispute**:
 The Candidate's correction of a Grade, with a required reason. The corrected Grade applies at once; the agent does not arbitrate.
@@ -86,10 +97,11 @@ The share of Topics with the confident Topic status in the enabled Sections of a
 
 **Inbox**:
 The Sources of a Target that wait for Inbox processing, with the Source status «в Inbox».
-The Candidate adds material in a Target setup session; the agent there proposes Inbox processing with a card, and only the Candidate's button starts it.
+The Candidate attaches material in a Target setup session; each attachment becomes a Source at once, with the Source status «в Inbox».
+The agent there proposes Inbox processing with a card, and only the Candidate's button starts it.
 
 **Inbox processing**:
-The background work on Sources of the Inbox: the server reads the text of each Source into numbered parts, then an Agent session of its own reads every part and adds Questions to the Topics of existing Sections.
+The background work on Sources of the Inbox: the server reads the text of each Source into numbered parts, then an Agent session of its own reads every part, adds Questions to the Topics of existing Sections and writes an Inbox report.
 It may create a Topic inside a Section, but never changes Sections or the Interview plan: it proposes them in the Inbox report.
 A Target has at most one Inbox processing at a time; Sources added meanwhile wait for the next one.
 

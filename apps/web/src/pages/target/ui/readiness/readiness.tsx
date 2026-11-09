@@ -1,8 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import type { TargetProgress, TopicProgress } from "@/shared/api";
 
-import { fetchPlanSections, fetchProgress } from "@/shared/api";
-import type { PlanSection, TargetProgress, TopicProgress } from "@/shared/api";
-
+import { useProgress } from "../../model/progress";
 import { TopicDot, TopicStatusText, topicStatusNames } from "../topic-status";
 import "./readiness.css";
 
@@ -53,40 +51,8 @@ function TopicLine({ topic }: { topic: TopicProgress }) {
   );
 }
 
-/** The plan's Sections with the Topic status dot of each Topic. */
-function PlanTopics({
-  sections,
-  topics,
-}: {
-  sections: readonly PlanSection[];
-  topics: readonly TopicProgress[];
-}) {
-  return (
-    <ul className="plan-topics" aria-label="Темы плана">
-      {sections.map((section) => (
-        <li key={section.id}>
-          <span className={section.enabled ? undefined : "muted"}>{section.name}</span>
-          <ul>
-            {topics
-              .filter((topic) => topic.sectionIds.includes(section.id))
-              .map((topic) => (
-                <TopicLine key={topic.id} topic={topic} />
-              ))}
-          </ul>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function ReadinessBody({
-  progress,
-  sections,
-}: {
-  progress: TargetProgress;
-  sections: readonly PlanSection[];
-}) {
-  const { readiness, focus, topics } = progress;
+function ReadinessBody({ progress }: { progress: TargetProgress }) {
+  const { readiness, focus } = progress;
   return (
     <>
       <p className="readiness-main">
@@ -106,34 +72,22 @@ function ReadinessBody({
           ))}
         </ol>
       )}
-      <h4>Темы плана</h4>
-      <PlanTopics sections={sections} topics={topics} />
     </>
   );
 }
 
 /**
  * «Готовность» in the «Цель» zone: the confident Topics among those of the enabled Sections, the
- * bar by Topic status, three Topics «подтянуть в первую очередь» and the Topic status dots of the
- * plan's Topics.
+ * bar by Topic status and three Topics «подтянуть в первую очередь». The Topic status dots of all
+ * the plan's Topics stand on their chips in the plan.
  */
 export function Readiness({ targetId }: { targetId: string }) {
-  const progress = useQuery({
-    queryKey: ["progress", targetId],
-    queryFn: async () => fetchProgress(targetId),
-  });
-  const sections = useQuery({
-    queryKey: ["targets", targetId, "plan-sections"],
-    queryFn: async () => fetchPlanSections(targetId),
-  });
-  const error = progress.error ?? sections.error;
+  const { data, error } = useProgress(targetId);
   return (
     <section className="card readiness" aria-label="Готовность">
       <h3 className="card-title">Готовность</h3>
       {error === null ? null : <p role="alert">Готовность не загрузилась: {error.message}</p>}
-      {progress.data === undefined || sections.data === undefined ? null : (
-        <ReadinessBody progress={progress.data} sections={sections.data} />
-      )}
+      {data === undefined ? null : <ReadinessBody progress={data} />}
     </section>
   );
 }
