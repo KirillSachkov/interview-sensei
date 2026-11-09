@@ -2,7 +2,8 @@
 // chosen Sources to «разбирается», reads their texts into numbered parts, then starts the agent.
 import { randomUUID } from "node:crypto";
 
-import { inboxOpening, recheckOpening, UnreadableSourceError } from "../domain/inbox.ts";
+import { UnreadableSourceError } from "../domain/inbox.ts";
+import { inboxOpening, recheckOpening } from "../domain/inbox-brief.ts";
 import type { InboxMode, InboxRun } from "../domain/inbox.ts";
 import type { Source } from "../domain/source.ts";
 import { textFormat, textParts } from "../domain/source-text.ts";

@@ -11,13 +11,13 @@ import {
   manualProcessing,
   processingSession,
   replyStartingWith,
-  reportOf,
   sectionOf,
   sessionEnded,
   startProcessing,
   textOf,
   topicOf,
 } from "./inbox-test-support.ts";
+import { reportOf } from "./inbox-report-test-support.ts";
 import { materialQuestion } from "./material-test-support.ts";
 import { first } from "./model-test-support.ts";
 import {

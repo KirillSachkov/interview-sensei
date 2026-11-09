@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 
 import type { ToolSession } from "../../../shared/mcp/index.ts";
 import type { Transaction } from "../../../shared/storage/index.ts";
-import { inboxBrief } from "../domain/inbox.ts";
+import { inboxBrief } from "../domain/inbox-brief.ts";
 import type { DoubtfulQuestion, InboxReport, InboxRun, ReportProposals } from "../domain/inbox.ts";
 import type { InboxTarget } from "../domain/ports.ts";
 import type { Source } from "../domain/source.ts";

@@ -5,8 +5,9 @@ import type { FastifyInstance } from "fastify";
 import { describe, expect, it } from "vitest";
 
 import { browserHeaders } from "./chat-test-support.ts";
-import { manualProcessing, reportOf, textOf, topicOf } from "./inbox-test-support.ts";
-import type { ReportView } from "./inbox-test-support.ts";
+import { manualProcessing, textOf, topicOf } from "./inbox-test-support.ts";
+import { reportOf } from "./inbox-report-test-support.ts";
+import type { ReportView } from "./inbox-report-test-support.ts";
 import { materialQuestion } from "./material-test-support.ts";
 import { callTool, questionsOf, toolResult } from "./setup-test-support.ts";
 import type { Events } from "./setup-test-support.ts";

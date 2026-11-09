@@ -13,10 +13,10 @@ import {
   manualProcessing,
   processingEvents,
   readParts,
-  reportOf,
   startProcessing,
   textOf,
 } from "./inbox-test-support.ts";
+import { reportOf } from "./inbox-report-test-support.ts";
 import { api, appliedTarget, callTool, toolResult } from "./setup-test-support.ts";
 import { sources } from "./source-test-support.ts";
 

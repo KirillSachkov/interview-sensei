@@ -128,48 +128,6 @@ export async function processingEvents(server: FastifyInstance, targetId: string
   return { session, events };
 }
 
-/** The Inbox report as the panel reads it. */
-export interface ReportView {
-  readonly id: string;
-  readonly partial: boolean;
-  readonly summary: string;
-  readonly duplicates: number;
-  readonly added: number;
-  /** How many of the added Questions the Candidate has not seen. */
-  readonly newQuestions: number;
-  readonly sources: readonly { readonly id: string; readonly status: string }[];
-  readonly sections: readonly {
-    readonly id: string | null;
-    readonly name: string;
-    readonly topics: readonly {
-      readonly id: string;
-      readonly name: string;
-      readonly questions: readonly {
-        readonly id: string;
-        readonly text: string;
-        readonly hidden: boolean;
-        readonly unseen: boolean;
-        readonly unconfirmed: boolean;
-      }[];
-    }[];
-  }[];
-  readonly doubtful: readonly { readonly text: string; readonly reason: string }[];
-  readonly proposals: {
-    readonly sections: readonly { readonly name: string; readonly kind: string }[];
-    readonly preferences: readonly { readonly text: string }[];
-  };
-}
-
-export async function reportOf(
-  server: FastifyInstance,
-  targetId: string,
-  reportId: string,
-): Promise<ReportView> {
-  const response = await api(server).get(`/api/targets/${targetId}/inbox-reports/${reportId}`);
-  expect(response.statusCode).toBe(200);
-  return response.json<ReportView>();
-}
-
 /** The field of a tool's JSON result. */
 function fieldOf(result: unknown, key: string): unknown {
   return typeof result === "object" && result !== null ? Reflect.get(result, key) : undefined;

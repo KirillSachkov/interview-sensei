@@ -9,13 +9,13 @@ import {
   inboxOf,
   latestReportId,
   manualProcessing,
-  reportOf,
   sessionEnded,
   startProcessing,
   stopProcessing,
   textOf,
   topicOf,
 } from "./inbox-test-support.ts";
+import { reportOf } from "./inbox-report-test-support.ts";
 import { materialQuestion } from "./material-test-support.ts";
 import { questionsOf, toolResult } from "./setup-test-support.ts";
 import { sources } from "./source-test-support.ts";
