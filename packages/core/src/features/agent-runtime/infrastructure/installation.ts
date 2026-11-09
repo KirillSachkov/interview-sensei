@@ -94,7 +94,11 @@ export function inspectAgentHost(
     const opencodeBinary = await findInPath("opencode", env.PATH);
     return {
       nodeExecutable: process.execPath,
-      fakeAgentScript: path.join(import.meta.dirname, "fake-agent.ts"),
+      // `.ts` beside the sources, `.js` in the npm package that builds them.
+      fakeAgentScript: path.join(
+        import.meta.dirname,
+        `fake-agent${path.extname(import.meta.filename)}`,
+      ),
       claudeAdapter: adapterScript("@agentclientprotocol/claude-agent-acp", "dist/index.js"),
       codexAdapter: adapterScript("@agentclientprotocol/codex-acp", "dist/index.js"),
       opencodeBinary,

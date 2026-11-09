@@ -6,6 +6,7 @@ Root `AGENTS.md` owns authority and scope.
 ## Application code
 
 The stack is TypeScript on Node 24 in a pnpm workspace; NestJS is not used.
+The npm package `interview-sensei` runs on Node 22.15 or newer, so server and core code use only APIs that Node 22.15 has.
 
 | Workspace       | Role                                                                          |
 | --------------- | ----------------------------------------------------------------------------- |
@@ -228,8 +229,10 @@ User-facing text is in Russian.
 
 The clock lives in `packages/core/src/shared/time`; only `system-clock.ts` reads the real time.
 Node runs server sources directly by type stripping: use only erasable syntax and `.ts` import extensions.
-So the server has no build step. `pnpm build` builds the web app into `apps/web/dist/web` and copies `skills/` to `apps/web/dist/skills`.
+So the server in the repository has no build step. `pnpm build` builds the web app into `apps/web/dist/web` and copies `skills/` to `apps/web/dist/skills`.
 The `interview-sensei` command serves the first and gives the agents the second.
+Then `pnpm build` compiles the server and core into the npm package in `apps/server/dist/package`, keeping the repository layout.
+A file that the code reads beside itself, as the migrations, needs the same place in the package; `apps/server/scripts/build-package.ts` copies it.
 Dependency versions are exact. `pnpm-workspace.yaml` holds the supply-chain settings: release age, trust policy and allowed install scripts.
 Add a trust exclusion or install script only with a comment that gives the reason.
 

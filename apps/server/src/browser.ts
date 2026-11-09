@@ -20,17 +20,6 @@ export function browserCommand(platform: NodeJS.Platform, url: string): BrowserC
   return { command: "xdg-open", args: [url] };
 }
 
-/** Tests, CI and headless machines turn the browser off by flag or variable. */
-export function opensBrowser({
-  args,
-  env,
-}: {
-  args: readonly string[];
-  env: NodeJS.ProcessEnv;
-}): boolean {
-  return !args.includes("--no-browser") && env.INTERVIEW_SENSEI_NO_BROWSER !== "1";
-}
-
 /** Opens the URL in the default browser; a failure only prints the URL to open by hand. */
 export function openBrowser(url: string): void {
   const { command, args } = browserCommand(process.platform, url);

@@ -8,7 +8,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "build": "pnpm --filter @interview-sensei/web build",
+    "build": "pnpm --filter @interview-sensei/web build && pnpm --filter @interview-sensei/server build",
     "dev": "pnpm --parallel --filter @interview-sensei/server --filter @interview-sensei/web dev",
     "start": "interview-sensei",
     "check": "pnpm format:check && pnpm lint && pnpm boundaries && pnpm knip",
@@ -21,7 +21,8 @@
     "test:unit": "pnpm --recursive --if-present test:unit",
     "test:integration": "pnpm --recursive --if-present test:integration",
     "test:e2e": "pnpm build && pnpm --filter @interview-sensei/e2e test:e2e",
-    "verify": "pnpm check && pnpm test && pnpm test:e2e && python3 scripts/check.py"
+    "test:package": "pnpm build && pnpm --filter @interview-sensei/server test:package",
+    "verify": "pnpm check && pnpm test && pnpm test:e2e && pnpm --filter @interview-sensei/server test:package && python3 scripts/check.py"
   },
   "prettier": {
     "printWidth": 100

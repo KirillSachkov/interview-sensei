@@ -1,13 +1,20 @@
 import { homedir } from "node:os";
 
-import { DataDirectoryInUseError, resolveDataDirectory } from "@interview-sensei/core/storage";
+import {
+  DataDirectoryInUseError,
+  dataDirectoryVariable,
+  resolveDataDirectory,
+} from "@interview-sensei/core/storage";
 import { systemClock, systemTimer } from "@interview-sensei/core/time";
 import type { FastifyInstance } from "fastify";
 
 import { appUrl } from "./app-url.ts";
 import { isLoopbackHost } from "./loopback.ts";
+import { serverPort } from "./ports.ts";
+import type { PortChoice, PortSetting } from "./ports.ts";
 import { buildServer } from "./server.ts";
 import type { LogLevel } from "./server.ts";
+import { StartError } from "./start-error.ts";
 
 interface RunOptions {
   /** The built web app to serve; see ServerDependencies. */
@@ -20,30 +27,70 @@ interface RunOptions {
   logLevel?: LogLevel;
   /** Browser origins besides the server's own; see ServerDependencies. */
   allowedOrigins?: readonly string[];
-}
-
-/** A start failure the Candidate can fix: the message replaces the stack trace. */
-class StartError extends Error {
-  override name = "StartError";
+  /** The ports to try; by default SERVER_PORT or 4310 and no other. */
+  port?: PortChoice;
+  /**
+   * The data directory the Candidate named, resolved against the working directory; by default
+   * INTERVIEW_SENSEI_DATA_DIR or `~/.interview-sensei`.
+   */
+  dataDirectory?: string;
 }
 
 function isPortInUse(error: unknown): boolean {
   return error instanceof Error && "code" in error && error.code === "EADDRINUSE";
 }
 
-async function listen(server: FastifyInstance, host: string, port: number): Promise<void> {
-  try {
-    await server.listen({ host, port });
-  } catch (error) {
-    // Close writes the final dump and releases the lock, so a failed start ends like a stop.
-    await server.close();
-    if (isPortInUse(error)) {
-      throw new StartError(
-        `Порт ${port} на ${host} занят. Остановите программу на нём или задайте другой порт в SERVER_PORT.`,
-        { cause: error },
-      );
+/** How the message about taken ports names the place to set another port. */
+const portSettingText: Readonly<Record<PortSetting, string>> = {
+  flag: "флагом --port",
+  variable: "в SERVER_PORT",
+};
+
+function takenPortsMessage(host: string, { ports, setting }: PortChoice): string {
+  const [first] = ports;
+  const last = ports.at(-1);
+  const where = portSettingText[setting];
+  if (ports.length === 1) {
+    return `Порт ${first} на ${host} занят. Остановите программу на нём или задайте другой порт ${where}.`;
+  }
+  return `Порты ${first}–${last} на ${host} заняты. Остановите программу на одном из них или задайте другой порт ${where}.`;
+}
+
+/** Listens on the first free port; false when every port is taken. */
+async function listenOnFreePort(
+  server: FastifyInstance,
+  host: string,
+  ports: readonly number[],
+): Promise<boolean> {
+  // The ports are tried one at a time, in order, so the first free one wins.
+  /* oxlint-disable eslint/no-await-in-loop -- sequential by design, see above */
+  for (const port of ports) {
+    try {
+      await server.listen({ host, port });
+      return true;
+    } catch (error) {
+      if (!isPortInUse(error)) {
+        throw error;
+      }
     }
-    throw error;
+  }
+  /* oxlint-enable eslint/no-await-in-loop */
+  return false;
+}
+
+/** Listens on the first free port of the choice; closes the server when it cannot. */
+async function listen(server: FastifyInstance, host: string, choice: PortChoice): Promise<void> {
+  let listening = false;
+  try {
+    listening = await listenOnFreePort(server, host, choice.ports);
+  } finally {
+    // Close writes the final dump and releases the lock, so a failed start ends like a stop.
+    if (!listening) {
+      await server.close();
+    }
+  }
+  if (!listening) {
+    throw new StartError(takenPortsMessage(host, choice));
   }
 }
 
@@ -64,14 +111,15 @@ async function start({
   onListening,
   logLevel = "info",
   allowedOrigins = [],
+  port = serverPort(process.env),
+  dataDirectory,
 }: RunOptions): Promise<void> {
   const host = loopbackHost(process.env);
-  const port = Number(process.env.SERVER_PORT ?? "4310");
   const server = await buildServer({
     clock: systemClock,
     timer: systemTimer,
     dataDirectory: resolveDataDirectory({
-      env: process.env,
+      env: dataDirectory === undefined ? process.env : { [dataDirectoryVariable]: dataDirectory },
       home: homedir(),
       workingDirectory: process.cwd(),
     }),
@@ -98,7 +146,7 @@ async function start({
 /**
  * Starts the server on the data directory of the environment until SIGINT or SIGTERM. A start
  * failure the Candidate can fix, such as a taken data directory or port, prints only its message
- * and sets exit code 1.
+ * and sets exit code 1. So does a SERVER_PORT that is not a port number.
  */
 export async function runServer(options: RunOptions = {}): Promise<void> {
   try {

@@ -1,6 +1,6 @@
 import { once } from "node:events";
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
-import { connect } from "node:net";
+import { connect, createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -26,18 +26,57 @@ interface BuiltApp {
   readonly skillsDirectory: string;
 }
 
-/** Runs the `interview-sensei` command on a free port without the system browser. */
-async function startLaunch(app: BuiltApp, dataDirectory?: string) {
+/**
+ * Runs the `interview-sensei` command without the system browser, by default on a free port and a
+ * new data directory. The extra arguments and variables go over these defaults; an undefined
+ * variable is removed.
+ */
+async function startLaunch(
+  app: BuiltApp,
+  {
+    dataDirectory,
+    args = [],
+    env = {},
+  }: { dataDirectory?: string; args?: readonly string[]; env?: NodeJS.ProcessEnv } = {},
+) {
   return startProcess(launchScript, {
-    args: ["--no-browser"],
+    args: ["--no-browser", ...args],
     env: {
       INTERVIEW_SENSEI_DATA_DIR: dataDirectory ?? (await temporaryDirectory()),
       INTERVIEW_SENSEI_FAKE_AGENT: "1",
       INTERVIEW_SENSEI_WEB_DIR: app.webDirectory,
       INTERVIEW_SENSEI_SKILLS_DIR: app.skillsDirectory,
       SERVER_PORT: "0",
+      ...env,
     },
   });
+}
+
+/** Holds a loopback port until the test finishes, so the command cannot listen on it. */
+async function occupyPort(port = 0): Promise<number> {
+  const blocker = createServer();
+  blocker.listen(port, "127.0.0.1");
+  await once(blocker, "listening");
+  onTestFinished(async () => {
+    blocker.close();
+    await once(blocker, "close");
+  });
+  const address = blocker.address();
+  if (address === null || typeof address === "string") {
+    throw new Error("The blocker listens on no TCP port");
+  }
+  return address.port;
+}
+
+/** Holds port 4310, the default, unless another program already holds it. */
+async function occupyDefaultPort(): Promise<void> {
+  try {
+    await occupyPort(4310);
+  } catch (error) {
+    if (!(error instanceof Error && "code" in error && error.code === "EADDRINUSE")) {
+      throw error;
+    }
+  }
 }
 
 async function appUrl(launch: ReturnType<typeof startProcess>): Promise<string> {
@@ -150,7 +189,7 @@ describe("interview-sensei command", () => {
 
   it("gives the agent the skills beside the web build", async () => {
     const dataDirectory = path.join(await temporaryDirectory(), "data");
-    const launch = await startLaunch(await builtApp(), dataDirectory);
+    const launch = await startLaunch(await builtApp(), { dataDirectory });
 
     await openLiveChat(await appUrl(launch));
 
@@ -176,7 +215,7 @@ describe("interview-sensei command", () => {
   it("ends live sessions and releases the data directory on SIGTERM with open browser connections", async () => {
     const app = await builtApp();
     const dataDirectory = path.join(await temporaryDirectory(), "data");
-    const launch = await startLaunch(app, dataDirectory);
+    const launch = await startLaunch(app, { dataDirectory });
     const sessionId = await openLiveChat(await appUrl(launch));
 
     const { code } = await launch.stop();
@@ -189,8 +228,72 @@ describe("interview-sensei command", () => {
       "database.dump.tar.gz",
       "sessions",
     ]);
-    const restarted = await appUrl(await startLaunch(app, dataDirectory));
+    const restarted = await appUrl(await startLaunch(app, { dataDirectory }));
     const view = await fetch(new URL(`api/sessions/${sessionId}`, restarted));
     await expect(view.json()).resolves.toMatchObject({ status: "ended" });
+  });
+
+  it("takes the next free port and prints its URL when the default port 4310 is taken", async () => {
+    await occupyDefaultPort();
+    const launch = await startLaunch(await builtApp(), {
+      env: { SERVER_PORT: undefined },
+    });
+
+    const url = new URL(await appUrl(launch));
+
+    expect(Number(url.port)).toBeGreaterThan(4310);
+    expect(Number(url.port)).toBeLessThan(4320);
+    const response = await fetch(url);
+    await expect(response.text()).resolves.toBe(indexHtml);
+  });
+
+  it("exits with code 1 when the port of the --port flag is taken", async () => {
+    const port = await occupyPort();
+    const launch = await startLaunch(await builtApp(), {
+      args: ["--port", String(port)],
+      env: { SERVER_PORT: undefined },
+    });
+
+    const { code, stderr } = await launch.exit();
+
+    expect(code).toBe(1);
+    expect(stderr).toContain(`Порт ${port} на 127.0.0.1 занят`);
+  });
+
+  it("exits with code 1 when the port of SERVER_PORT is taken", async () => {
+    const port = await occupyPort();
+    const launch = await startLaunch(await builtApp(), {
+      env: { SERVER_PORT: String(port) },
+    });
+
+    const { code, stderr } = await launch.exit();
+
+    expect(code).toBe(1);
+    expect(stderr).toContain(`Порт ${port} на 127.0.0.1 занят`);
+  });
+
+  it("keeps the data in the directory of the --data-dir flag over INTERVIEW_SENSEI_DATA_DIR", async () => {
+    const flagDirectory = path.join(await temporaryDirectory(), "flag-data");
+    const variableDirectory = path.join(await temporaryDirectory(), "variable-data");
+    const launch = await startLaunch(await builtApp(), {
+      dataDirectory: variableDirectory,
+      args: ["--data-dir", flagDirectory],
+    });
+    await appUrl(launch);
+
+    await launch.stop();
+
+    await expect(readdir(flagDirectory)).resolves.toContain("database.dump.tar.gz");
+    await expect(readdir(variableDirectory)).rejects.toThrow(/ENOENT/u);
+  });
+
+  it("exits with code 1 and names the flags for an unknown flag", async () => {
+    const launch = await startLaunch(await builtApp(), { args: ["--prot", "4400"] });
+
+    const { code, stderr } = await launch.exit();
+
+    expect(code).toBe(1);
+    expect(stderr).toContain("--prot");
+    expect(stderr).toContain("--port");
   });
 });

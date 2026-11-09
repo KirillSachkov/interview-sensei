@@ -9,10 +9,13 @@ Run every command from the repository root after `pnpm install --frozen-lockfile
 - `pnpm test`: the Vitest projects `unit` and `integration` of every workspace.
 - `pnpm test:unit` or `pnpm test:integration`: one Vitest project.
 - `pnpm build`: the built app into `apps/web/dist`: the web app in `web/` and a copy of `skills/` in `skills/`.
-  The server runs from its sources and needs no build.
+  Then the npm package `interview-sensei` into `apps/server/dist/package`; see [npm package](#npm-package).
+  The server in the repository runs from its sources and needs no build.
 - `pnpm test:e2e`: `pnpm build`, then Playwright in Chromium against the `interview-sensei` command that it starts itself.
   Only the root script builds first; `pnpm --filter @interview-sensei/e2e test:e2e` tests the existing `apps/web/dist`.
-- `pnpm verify`: `pnpm check`, `pnpm test`, `pnpm test:e2e` and `python3 scripts/check.py` in order.
+- `pnpm test:package`: `pnpm build`, then the Vitest project `package` of `apps/server` against the packed npm package.
+  npm downloads the package's dependencies, so the command needs the network.
+- `pnpm verify`: `pnpm check`, `pnpm test`, `pnpm test:e2e`, the Vitest project `package` and `python3 scripts/check.py` in order.
 - `python3 scripts/check.py`: local Markdown links/anchors, own skill identity and invocation metadata, directory hashes, package skill links and client pointers.
 - `git diff --check`: whitespace errors in the change.
 - `pnpm --filter @interview-sensei/core db:generate --name <name>`: drizzle-kit migrations for every core slice with `infrastructure/drizzle.config.ts`.
@@ -28,6 +31,7 @@ Install the Playwright browser once with `pnpm --filter @interview-sensei/e2e ex
 | integration | `apps/server/src/**/*.int.test.ts`    | The server in process through its HTTP API, or `src/main.ts` and `src/launch.ts` as processes. |
 | integration | `packages/core/src/**/*.int.test.ts`  | Core technical code on real infrastructure: PGlite, files, agent discovery and the fake ACP agent as a process, in temporary directories. |
 | e2e         | `e2e/tests/*.test.ts`                 | The real browser against the built app that `interview-sensei` serves. |
+| package     | `apps/server/src/**/*.package.test.ts` | The packed npm package installed by npm into a temporary directory, started with the fake agent. |
 
 Test external behavior at the public boundary, not implementation details.
 Name each test after the behavior it checks.
@@ -63,7 +67,9 @@ They send the page's `Host` and `Origin` from `browserHeaders` in `chat-test-sup
 ## Ports
 
 `pnpm dev` uses server port 4310 and web port 5173; set `SERVER_PORT` and `WEB_PORT` to change them.
-`pnpm start` uses port 4310 too and serves the web app on it; set `SERVER_PORT` to change it.
+`pnpm start` serves the web app on port 4310; when 4310 is taken, it takes the next free port up to 4319.
+Set `--port` or `SERVER_PORT` to choose the port; a chosen port that is taken stops the command with code 1.
+`pnpm dev` never moves to another port: Vite forwards `/api` to exactly 4310 or `SERVER_PORT`.
 `pnpm test:e2e` uses port 4320; set `E2E_SERVER_PORT` to change it.
 A server on a taken port exits with code 1 and a message that names the port.
 Give each worktree its own ports when several run at once.
@@ -72,7 +78,7 @@ Give each worktree its own ports when several run at once.
 ## Data directory
 
 The server keeps all data in `~/.interview-sensei`; the `INTERVIEW_SENSEI_DATA_DIR` variable overrides it.
-`pnpm dev` and `pnpm start` use the default directory.
+`pnpm dev` and `pnpm start` use the default directory; `pnpm start --data-dir <directory>` uses another one.
 `pnpm test:e2e` uses `e2e/.data`, which Git ignores; its webServer command empties it before each run.
 All e2e test files share that data directory, so only `e2e/tests/canvas.test.ts` creates Targets.
 Its tests run in order: the first sees no Targets and opens the demo Target, the rest use it.
@@ -96,11 +102,28 @@ Without the built web app or skills, it exits with code 1 and asks for `pnpm bui
 `INTERVIEW_SENSEI_WEB_DIR` and `INTERVIEW_SENSEI_SKILLS_DIR` replace these directories in tests.
 It opens the URL with `open` on macOS, `rundll32 url.dll,FileProtocolHandler` on Windows and `xdg-open` elsewhere.
 Tests and CI turn the browser off with `--no-browser` or `INTERVIEW_SENSEI_NO_BROWSER=1`.
+Its flags are `--port`, `--data-dir`, `--no-browser` and `--help`; `launch-options.ts` reads them, and a flag goes over its variable.
+An unknown flag or a wrong port stops it with code 1 and the help text.
+
+## npm package
+
+`apps/server/scripts/build-package.ts` builds the package that `npx interview-sensei` runs.
+Rolldown compiles `launch.ts` and the fake agent with every module they import into JavaScript, one file per source file.
+The package keeps the repository layout, so paths from `import.meta.dirname` hold: the migrations, the fake agent and `apps/web/dist`.
+Core is part of the package; other imports stay dependencies with the exact versions from the server and core manifests.
+The build fails when the code imports a package that neither manifest lists.
+The package declares Node 22.15 or newer; the server reads `node:sqlite` only for OpenCode 2.x keys.
+The package tests pack it, install the file with npm into a temporary directory and start its `interview-sensei` with the fake agent.
+They run the package with the Node that runs Vitest; CI runs them on Node 22.15.0, the newest 22 and 24.
 
 ## CI
 
 `harness-check` (`.github/workflows/check.yml`) runs the structural checker and the whitespace check.
 `app-check`, `app-test` and `app-e2e` (`.github/workflows/app.yml`) run `pnpm check`, `pnpm test` and `pnpm test:e2e`.
+`app-package` builds the package on Node 24 and runs the Vitest project `package` on each Node of its matrix.
+`publish` (`.github/workflows/release.yml`) runs on a tag `v<version>` that matches `apps/server/package.json`.
+It runs `pnpm check`, `pnpm test` and `pnpm test:package`, then `npm publish --provenance` by npm trusted publishing.
+Only the owner pushes a release tag; agents never push one. Repository settings do not enforce this yet.
 `deps-audit` and `secrets-scan` (`.github/workflows/security.yml`) check dependencies and Git history.
 
 - `deps-audit` runs `pnpm audit --audit-level high` on `pnpm-lock.yaml` without an install.
