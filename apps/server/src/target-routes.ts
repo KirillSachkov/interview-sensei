@@ -17,6 +17,47 @@ function field(body: unknown, key: string): unknown {
     : undefined;
 }
 
+interface QuestionQuery {
+  topicId?: string;
+  sectionId?: string;
+  hidden?: boolean;
+}
+
+/**
+ * `GET /api/targets/:id/questions`: the Target's visible Questions, or its hidden ones with
+ * `hidden=true`; `topicId` or `sectionId` keeps those of one Topic or of one Section's Topics.
+ */
+function registerQuestions(server: FastifyInstance, { targets, questionBank }: Dependencies) {
+  const uuid = { type: "string", format: "uuid" } as const;
+  server.get<{ Params: { id: string }; Querystring: QuestionQuery }>(
+    "/api/targets/:id/questions",
+    {
+      schema: {
+        params,
+        querystring: {
+          type: "object",
+          properties: { topicId: uuid, sectionId: uuid, hidden: { type: "boolean" } },
+          additionalProperties: false,
+        },
+      },
+    },
+    async (request, reply) => {
+      const { id } = request.params;
+      const { sectionId, ...filter } = request.query;
+      if ((await targets.get(id)) === undefined) {
+        return reply.code(404).send({ error: "target_not_found" });
+      }
+      if (sectionId === undefined) {
+        return questionBank.search(id, filter);
+      }
+      const topicIds = await targets.topicIds(id, sectionId);
+      return topicIds === undefined
+        ? reply.code(404).send({ error: "section_not_found" })
+        : questionBank.search(id, { ...filter, topicIds });
+    },
+  );
+}
+
 function registerQuestionWrites(server: FastifyInstance, { questionBank }: Dependencies) {
   server.put<{ Params: { id: string }; Body: unknown }>(
     "/api/questions/:id/rating",
@@ -40,6 +81,34 @@ function registerQuestionWrites(server: FastifyInstance, { questionBank }: Depen
       }
       const found = await questionBank.hide(request.params.id, hidden);
       return found ? reply.code(204).send() : reply.code(404).send({ error: "question_not_found" });
+    },
+  );
+}
+
+const sectionParams = {
+  type: "object",
+  properties: { id: params.properties.id, sectionId: params.properties.id },
+  required: ["id", "sectionId"],
+} as const;
+
+/**
+ * `PUT /api/targets/:id/sections/:sectionId/enabled` with `{ enabled }`: switches the Section on or
+ * off at once, without the draft of changes, and answers the Target.
+ */
+function registerSections(server: FastifyInstance, { targets }: Dependencies) {
+  server.put<{ Params: { id: string; sectionId: string }; Body: unknown }>(
+    "/api/targets/:id/sections/:sectionId/enabled",
+    { schema: { params: sectionParams } },
+    async (request, reply) => {
+      const enabled = field(request.body, "enabled");
+      if (typeof enabled !== "boolean") {
+        return reply.code(400).send({ error: "invalid_enabled" });
+      }
+      const { id, sectionId } = request.params;
+      const target = await targets.setSectionEnabled(id, sectionId, enabled);
+      return typeof target === "string" || target === undefined
+        ? reply.code(404).send({ error: target ?? "target_not_found" })
+        : target;
     },
   );
 }
@@ -79,7 +148,7 @@ function registerTargetAgent(server: FastifyInstance, { targets }: Dependencies)
 }
 
 export function registerTargetRoutes(server: FastifyInstance, dependencies: Dependencies) {
-  const { targets, questionBank, createDemo } = dependencies;
+  const { targets, createDemo } = dependencies;
   server.post("/api/targets/demo", async (_request, reply) => {
     const { target, created } = await createDemo();
     return reply.code(created ? 201 : 200).send(target);
@@ -94,25 +163,8 @@ export function registerTargetRoutes(server: FastifyInstance, dependencies: Depe
     async (request, reply) =>
       (await targets.get(request.params.id)) ?? reply.code(404).send({ error: "target_not_found" }),
   );
-  server.get<{ Params: { id: string }; Querystring: { topicId?: string; hidden?: boolean } }>(
-    "/api/targets/:id/questions",
-    {
-      schema: {
-        params,
-        querystring: {
-          type: "object",
-          properties: { topicId: { type: "string", format: "uuid" }, hidden: { type: "boolean" } },
-          additionalProperties: false,
-        },
-      },
-    },
-    async (request, reply) => {
-      if ((await targets.get(request.params.id)) === undefined) {
-        return reply.code(404).send({ error: "target_not_found" });
-      }
-      return questionBank.search(request.params.id, request.query);
-    },
-  );
+  registerQuestions(server, dependencies);
   registerQuestionWrites(server, dependencies);
+  registerSections(server, dependencies);
   registerTargetAgent(server, dependencies);
 }

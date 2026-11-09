@@ -42,6 +42,8 @@ export function drizzleTargetRepository(database: Database): TargetRepository<Tr
       return row === undefined ? undefined : toTarget(row);
     },
     setAgent: async (id, agent) => setAgent(database, id, agent),
+    setSectionEnabled: async (targetId, sectionId, enabled) =>
+      setSectionEnabled(database, { targetId, sectionId, enabled }),
     update: async (id, change, transaction) =>
       executorOf(database, transaction).transaction(async (inner) => update(inner, id, change)),
     sections: async (id, transaction) =>
@@ -90,6 +92,18 @@ async function setAgent(database: Database, id: string, agent: string | null) {
     .set({ agent })
     .where(eq(targets.id, id))
     .returning({ id: targets.id });
+  return updated.length > 0;
+}
+
+async function setSectionEnabled(
+  database: Database,
+  { targetId, sectionId, enabled }: { targetId: string; sectionId: string; enabled: boolean },
+) {
+  const updated = await database
+    .update(sections)
+    .set({ enabled })
+    .where(and(eq(sections.targetId, targetId), eq(sections.id, sectionId)))
+    .returning({ id: sections.id });
   return updated.length > 0;
 }
 

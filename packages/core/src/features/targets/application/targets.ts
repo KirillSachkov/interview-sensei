@@ -172,6 +172,14 @@ export function createTargets(dependencies: Dependencies) {
       return target === undefined ? undefined : targetAgent(dependencies.agents, target.agent);
     },
     setAgent: async (id: string, agent: string | null) => setAgent(dependencies, id, agent),
+    /** The Target after the Section is switched on or off; a string names what is missing. */
+    setSectionEnabled: async (targetId: string, sectionId: string, enabled: boolean) => {
+      if ((await repository.get(targetId)) === undefined) {
+        return "target_not_found" as const;
+      }
+      const found = await repository.setSectionEnabled(targetId, sectionId, enabled);
+      return found ? get(dependencies, targetId) : ("section_not_found" as const);
+    },
     topicIds: async (targetId: string, sectionId: string) => {
       const plan = await repository.sections(targetId);
       return plan.find((section) => section.id === sectionId)?.topicIds;

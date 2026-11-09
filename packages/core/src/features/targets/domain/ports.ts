@@ -15,6 +15,12 @@ export interface TargetRepository<Transaction> {
   readonly activeDemo: () => Promise<Target | undefined>;
   /** Stores the Target's agent; resolves false when the Target does not exist. */
   readonly setAgent: (id: string, agent: string | null) => Promise<boolean>;
+  /** Switches the Target's Section on or off; resolves false when it has no such Section. */
+  readonly setSectionEnabled: (
+    targetId: string,
+    sectionId: string,
+    enabled: boolean,
+  ) => Promise<boolean>;
   /**
    * Stores the Target's fields and status and replaces its Interview plan with `sections`;
    * resolves false when the Target does not exist.

@@ -49,7 +49,7 @@ async function topicSummaries(executor: Executor, targetId: string) {
       questionCount: count(questions.id),
     })
     .from(topics)
-    .leftJoin(questions, eq(topics.id, questions.topicId))
+    .leftJoin(questions, and(eq(topics.id, questions.topicId), eq(questions.hidden, false)))
     .where(eq(topics.targetId, targetId))
     .groupBy(topics.id)
     .orderBy(asc(topics.name));

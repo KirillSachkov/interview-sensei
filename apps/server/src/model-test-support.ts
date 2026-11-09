@@ -31,7 +31,7 @@ export async function demoApi(dataDirectory?: string) {
     const response = await get(`/api/targets/${target.id}/questions${query}`);
     return response.json<Questions>();
   };
-  return { ...started, created, target, createDemo, get, put, questions };
+  return { ...started, headers, created, target, createDemo, get, put, questions };
 }
 
 export async function model() {
