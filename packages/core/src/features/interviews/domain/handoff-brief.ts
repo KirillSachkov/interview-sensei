@@ -77,7 +77,8 @@ export function handoffBrief(
 /** The server's first message to the agent of a Side thread opened with the Candidate's question. */
 export const sideThreadOpened = [
   "The Candidate opened a side thread from a mock interview.",
-  "Call get_brief, then answer the Candidate's question from it, candidateQuestion, in the brief's language.",
+  "Call get_brief before you write any text: the Candidate reads every word of this turn, so never announce what you are about to do or which tool or skill you load.",
+  "Your first words are the answer to the Candidate's question from the brief, candidateQuestion, in the brief's language.",
 ].join(" ");
 
 /** The addition to the Side thread agent's role: the Target's language. */
