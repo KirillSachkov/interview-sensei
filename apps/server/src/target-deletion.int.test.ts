@@ -70,14 +70,27 @@ async function targetRows(dataDirectory: string, targetId: string) {
   }
 }
 
-/** The Target's rows in every slice, and whether its files are in the data directory. */
-async function targetData(dataDirectory: string, targetId: string) {
+async function exists(file: string): Promise<boolean> {
+  try {
+    await access(file);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The Target's rows in every slice, whether its files are in the data directory, and whether the
+ * working directory of its session is.
+ */
+async function targetData(
+  dataDirectory: string,
+  { targetId, sessionId }: { targetId: string; sessionId: string },
+) {
   const rows = await targetRows(dataDirectory, targetId);
-  const files = await access(path.join(dataDirectory, "targets", targetId)).then(
-    () => true,
-    () => false,
-  );
-  return { rows, files };
+  const files = await exists(path.join(dataDirectory, "targets", targetId));
+  const sessionFiles = await exists(path.join(dataDirectory, "sessions", sessionId));
+  return { rows, files, sessionFiles };
 }
 
 /**
@@ -97,7 +110,7 @@ async function demoWithData(dataDirectory: string) {
   await events.waitFor((view) => isIdle(view) && agentTexts(view).length > 0);
   events.send({ type: "prompt", text: "/crash" });
   await events.waitFor((view) => view.status === "failed");
-  return api;
+  return { ...api, sessionId: opened.json<{ id: string }>().id };
 }
 
 /** The demo Target with data in every slice, archived; the server is stopped. */
@@ -106,14 +119,15 @@ async function archivedDemo() {
   const api = await demoWithData(dataDirectory);
   await request(api.server, { method: "POST", url: `/api/targets/${api.target.id}/archive` });
   await api.stop();
-  return { dataDirectory, targetId: api.target.id };
+  return { dataDirectory, targetId: api.target.id, sessionId: api.sessionId };
 }
 
 describe("deleting an archived Target", () => {
-  it("erases the Target's data in every slice when the Candidate types its name", async () => {
-    const { dataDirectory, targetId } = await archivedDemo();
-    await expect(targetData(dataDirectory, targetId)).resolves.toStrictEqual({
+  it("erases the Target's data and files in every slice when the Candidate types its name", async () => {
+    const { dataDirectory, targetId, sessionId } = await archivedDemo();
+    await expect(targetData(dataDirectory, { targetId, sessionId })).resolves.toStrictEqual({
       files: true,
+      sessionFiles: true,
       rows: {
         "agent_sessions.sessions": 1,
         "question_bank.questions": 30,
@@ -135,9 +149,9 @@ describe("deleting an archived Target", () => {
 
     expect(response.statusCode).toBe(204);
     await stop();
-    const { rows, files } = await targetData(dataDirectory, targetId);
+    const { rows, files, sessionFiles } = await targetData(dataDirectory, { targetId, sessionId });
     expect(Object.values(rows).every((count) => count === 0)).toBe(true);
-    expect(files).toBe(false);
+    expect({ files, sessionFiles }).toStrictEqual({ files: false, sessionFiles: false });
   });
 
   it("keeps the Target when the typed name differs from its name", async () => {

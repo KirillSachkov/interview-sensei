@@ -80,13 +80,17 @@ async function journal(database: Database, sessionId: string): Promise<readonly 
 }
 
 /** The journals go first: their events reference the sessions. */
-async function eraseTarget(executor: Executor, targetId: string): Promise<void> {
+async function eraseTarget(executor: Executor, targetId: string): Promise<readonly string[]> {
   const owned = executor
     .select({ id: sessions.id })
     .from(sessions)
     .where(eq(sessions.targetId, targetId));
   await executor.delete(events).where(inArray(events.sessionId, owned));
-  await executor.delete(sessions).where(eq(sessions.targetId, targetId));
+  const erased = await executor
+    .delete(sessions)
+    .where(eq(sessions.targetId, targetId))
+    .returning({ id: sessions.id });
+  return erased.map((session) => session.id);
 }
 
 /** Sessions and journals in the `agent_sessions` Postgres schema. */
