@@ -118,7 +118,7 @@ The Candidate attaches the video's transcript as a Source of its own, and Inbox 
 The agent gives «ошибка» with its reason to a Source it cannot read either.
 
 **Inbox report**:
-The summary of one Inbox processing: the processed Sources, the added Questions by Section and Topic, the number of duplicates the server left out, the Questions the agent doubts, and its proposals of new Sections and Preferences; for a Recheck, the list «скрыть?».
+The summary of one Inbox processing: the processed Sources, the added Questions by Section and Topic, each with its Source, the part and the reference answer, the number of duplicates the server left out, the Questions the agent doubts, and its proposals of new Sections and Preferences; for a Recheck, the list «скрыть?».
 The server counts the Sources, Questions and duplicates; the agent writes the summary, the doubts and the proposals.
 When the agent did not read every part of some Sources, the server adds to its summary how many went back to the Inbox.
 A partial Inbox report comes from the server when Inbox processing ended without the agent's report: its summary says why and how many Sources were read to the end, and it has no doubts or proposals.

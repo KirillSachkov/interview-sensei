@@ -73,11 +73,44 @@ export async function inboxState(context: InboxContext, targetId: string) {
   };
 }
 
-/** A Question of the report under its Topic, with the marks the Candidate reviews it by. */
-function reportQuestion(question: InboxBankQuestion) {
+/** The material of the Question with its title and part; null without one or once it is deleted. */
+function questionSource(question: InboxBankQuestion, sources: readonly Source[]) {
+  const [sourceId] = question.sourceIds;
+  const source = sources.find((candidate) => candidate.id === sourceId);
+  return source === undefined
+    ? null
+    : { id: source.id, title: source.title, part: question.sourcePart };
+}
+
+/**
+ * A Question of the report under its Topic, with the marks the Candidate reviews it by, its
+ * material with the part, and its reference answer.
+ */
+function reportQuestion(question: InboxBankQuestion, sources: readonly Source[]) {
   const { id, text, level, sectionKind, hidden, unconfirmed, unseen, rating, ratingComment } =
     question;
-  return { id, text, level, sectionKind, hidden, unconfirmed, unseen, rating, ratingComment };
+  const answer = question.referenceAnswer;
+  return {
+    id,
+    text,
+    level,
+    sectionKind,
+    hidden,
+    unconfirmed,
+    unseen,
+    rating,
+    ratingComment,
+    source: questionSource(question, sources),
+    referenceAnswer:
+      answer === null
+        ? null
+        : {
+            points: answer.points,
+            sample: answer.sample,
+            origin: answer.origin,
+            part: answer.part,
+          },
+  };
 }
 
 interface TopicGroup {
@@ -130,15 +163,17 @@ function bySection(
   {
     target,
     topics,
+    sources,
   }: {
     target: InboxTarget;
     topics: readonly { readonly id: string; readonly name: string }[];
+    sources: readonly Source[];
   },
 ): SectionGroup[] {
   const groups: SectionGroup[] = [];
   for (const question of questions) {
     const group = sectionGroup(groups, target, question.topicId);
-    topicGroup(group, topics, question.topicId).questions.push(reportQuestion(question));
+    topicGroup(group, topics, question.topicId).questions.push(reportQuestion(question, sources));
   }
   return groups;
 }
@@ -205,7 +240,7 @@ export async function reportView(
     sources: sources
       .filter((source) => report.sourceIds.includes(source.id))
       .map((source) => reportSource(source)),
-    sections: bySection(shown, { target, topics }),
+    sections: bySection(shown, { target, topics, sources }),
   };
 }
 

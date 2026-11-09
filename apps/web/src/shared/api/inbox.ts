@@ -60,6 +60,21 @@ export interface ReportQuestion {
   readonly unseen: boolean;
   readonly rating: "useful" | "irrelevant" | "wrong" | null;
   readonly ratingComment: string | null;
+  /** The material the Question came from and its part; null for a made-up Question. */
+  readonly source: {
+    readonly id: string;
+    readonly title: string;
+    readonly part: number | null;
+  } | null;
+  readonly referenceAnswer: ReferenceAnswer | null;
+}
+
+/** The reference answer of a Question: key points, a short sample, its origin and part. */
+export interface ReferenceAnswer {
+  readonly points: readonly string[];
+  readonly sample: string;
+  readonly origin: "material" | "internet" | "agent" | "candidate";
+  readonly part: number | null;
 }
 
 /** A Question of the list «скрыть?» of a recheck. */

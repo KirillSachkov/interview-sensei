@@ -1058,6 +1058,30 @@ button.danger {
   margin-top: 5px;
 }
 
+.report-question-source {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-small);
+}
+
+.report-reference {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-small);
+}
+
+.report-reference summary {
+  cursor: pointer;
+}
+
+.report-reference ul {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-5);
+}
+
+.report-reference p {
+  margin: var(--space-1) 0 0;
+  color: var(--color-muted);
+}
+
 .report-marks .tag:first-child {
   margin-left: 0;
 }

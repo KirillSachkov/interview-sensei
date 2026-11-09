@@ -27,6 +27,7 @@ export type {
   InboxReport,
   InboxState,
   ProposalItem,
+  ReferenceAnswer,
   ReportQuestion,
   ReviewAction,
   ReportSummary,

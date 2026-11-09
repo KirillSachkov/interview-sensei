@@ -177,6 +177,17 @@ export interface InboxAgents {
 }
 
 /** A Question of the bank as Inbox processing reads it. */
+/**
+ * The reference answer of a Question as the report shows it: key points, a short sample, where it
+ * comes from (`material`, `internet`, `agent` or `candidate`) and the part of the material.
+ */
+export interface InboxReferenceAnswer {
+  readonly points: readonly string[];
+  readonly sample: string;
+  readonly origin: "material" | "internet" | "agent" | "candidate";
+  readonly part: number | null;
+}
+
 export interface InboxBankQuestion {
   readonly id: string;
   readonly topicId: string;
@@ -190,6 +201,11 @@ export interface InboxBankQuestion {
   readonly unseen: boolean;
   readonly rating: "useful" | "irrelevant" | "wrong" | null;
   readonly ratingComment: string | null;
+  /** The Sources the Question came from; the first one is its material. */
+  readonly sourceIds: readonly string[];
+  /** The part of the first Source the Question came from, from 1; null when unknown. */
+  readonly sourcePart: number | null;
+  readonly referenceAnswer: InboxReferenceAnswer | null;
 }
 
 /**

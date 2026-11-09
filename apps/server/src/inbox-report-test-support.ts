@@ -26,6 +26,18 @@ export interface ReportView {
         readonly hidden: boolean;
         readonly unseen: boolean;
         readonly unconfirmed: boolean;
+        /** The material the Question came from and its part; null for a made-up Question. */
+        readonly source: {
+          readonly id: string;
+          readonly title: string;
+          readonly part: number | null;
+        } | null;
+        readonly referenceAnswer: {
+          readonly points: readonly string[];
+          readonly sample: string;
+          readonly origin: string;
+          readonly part: number | null;
+        } | null;
       }[];
     }[];
   }[];

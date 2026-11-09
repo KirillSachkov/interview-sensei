@@ -182,6 +182,40 @@ describe("the Inbox report", () => {
     ]);
   });
 
+  it("shows each Question's material with its part and the reference answer from the material", async () => {
+    const { server, target, file, events } = await manualProcessing();
+    await toolResult(events, "read_source", { id: file.id, part: 1 });
+    const topicId = topicOf(target, "Go");
+    await toolResult(events, "add_bank_questions", {
+      questions: [
+        materialQuestion({ topicId, sourceId: file.id }, "Как растёт стек горутины?"),
+        { topicId, text: "Что такое GOMAXPROCS?", level: "middle", sectionKind: "topics" },
+      ],
+    });
+
+    const written = await toolResult(events, "write_inbox_report", { summary: "Готово." });
+
+    const report = await reportOf(server, target.id, textOf(written, "reportId"));
+    const questions = report.sections.flatMap(({ topics }) =>
+      topics.flatMap((topic) => topic.questions),
+    );
+    expect(
+      questions.map(({ text, source, referenceAnswer }) => ({ text, source, referenceAnswer })),
+    ).toStrictEqual([
+      {
+        text: "Как растёт стек горутины?",
+        source: { id: file.id, title: "vacancy [manual].md", part: 1 },
+        referenceAnswer: {
+          points: ["Лёгкий поток рантайма", "Стек растёт по мере нужды", "Планировщик M:N"],
+          sample: "Горутина — функция, которую рантайм Go выполняет в лёгком потоке.",
+          origin: "material",
+          part: 1,
+        },
+      },
+      { text: "Что такое GOMAXPROCS?", source: null, referenceAnswer: null },
+    ]);
+  });
+
   it("the processing agent works through the whole run by itself: Questions in the bank and a full report", async () => {
     const { server } = await startServer(await temporaryDirectory());
     const { target } = await appliedTarget(server);

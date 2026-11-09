@@ -64,6 +64,17 @@ async function proposeVacancy(page: Page, chat: SetupChat) {
   return card;
 }
 
+/** The added Question names its material and part and unfolds its reference answer. */
+async function expectReferenceAnswer(added: Locator) {
+  await expect(added).toContainText("Из «vacancy.md», часть 1");
+  const answer = added.getByRole("group").filter({ hasText: "Опорный ответ" });
+  await answer.getByText("Опорный ответ").click();
+  await expect(answer).toContainText("из материала, часть 1");
+  await expect(answer.getByRole("listitem").first()).toHaveText(
+    "Каждое значение имеет одного владельца.",
+  );
+}
+
 /** Hides the chat, opens the latest Inbox report from «Материалы» and checks what it shows. */
 async function expectReport(
   page: Page,
@@ -76,9 +87,9 @@ async function expectReport(
   const report = page.getByRole("complementary", { name: "Отчёт о разборе" });
   await expect(report).toContainText("Фейковый разборщик: разобрано материалов: 1.");
   await expect(report.getByRole("heading", { name: "Добавлено вопросов: 1" })).toBeVisible();
-  await expect(report.getByRole("list", { name: "Добавленные вопросы" })).toContainText(
-    "Как устроено владение в Rust?",
-  );
+  const added = report.getByRole("list", { name: "Добавленные вопросы" });
+  await expect(added).toContainText("Как устроено владение в Rust?");
+  await expectReferenceAnswer(added);
   await expect(report.getByRole("region", { name: "Предложения агента" })).toContainText(
     "Фейковая секция",
   );
