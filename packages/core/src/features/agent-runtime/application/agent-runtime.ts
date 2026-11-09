@@ -3,7 +3,7 @@ import type { SessionProfile } from "../../../shared/session-kinds/index.ts";
 import type { AgentAvailability, AgentHost, AgentKind } from "../domain/agent.ts";
 import { agentAvailability, isAgentKind } from "../domain/agent.ts";
 import { launchRecipe } from "../domain/launch-recipe.ts";
-import { opencodeKeys } from "../domain/opencode-credentials.ts";
+import { opencodeKeys, opencodeSubscriptionProviders } from "../domain/opencode-credentials.ts";
 import type { OpencodeCredentialRow, OpencodeKey } from "../domain/opencode-credentials.ts";
 import { opencodeConfigSchema } from "../domain/opencode-recipe.ts";
 import type { LaunchProfile, SkillSource } from "../domain/launch-recipe.ts";
@@ -26,6 +26,8 @@ export interface AgentRuntimeDependencies {
   readonly inspectHost: () => Promise<AgentHost>;
   /** Reads the `credential` table of the Candidate's OpenCode 2.x database; none when it cannot. */
   readonly readOpencodeCredentials: (database: string) => Promise<readonly OpencodeCredentialRow[]>;
+  /** Gets a problem the Candidate can fix, such as an OpenCode login the session cannot use; no secrets. */
+  readonly onWarning: (message: string) => void;
   /** The data directory: the agents' own homes and configs live in it. */
   readonly dataDirectory: string;
   /** Reads a skill of the application by its directory name, at each start. */
@@ -170,11 +172,15 @@ async function availableHost(
 /**
  * The Candidate's keys for an OpenCode 2.x session, read only now, so listing the agents never
  * touches the secrets. Other agents and 1.x, which reads the linked `auth.json`, get none.
+ * A provider of the session with only a subscription (OAuth) login gets no key and a warning (#69).
  */
 async function sessionKeys(
   agent: AgentKind,
   host: AgentHost,
-  read: AgentRuntimeDependencies["readOpencodeCredentials"],
+  {
+    readOpencodeCredentials: read,
+    onWarning,
+  }: Pick<AgentRuntimeDependencies, "readOpencodeCredentials" | "onWarning">,
 ): Promise<readonly OpencodeKey[]> {
   if (
     agent !== "opencode" ||
@@ -183,12 +189,17 @@ async function sessionKeys(
   ) {
     return [];
   }
-  return opencodeKeys(await read(host.opencodeDatabase), host.opencodeModel);
+  const rows = await read(host.opencodeDatabase);
+  for (const provider of opencodeSubscriptionProviders(rows, host.opencodeModel)) {
+    onWarning(
+      `OpenCode 2.x: ${provider} has only a subscription (OAuth) login, which sessions of the application cannot use; log in to it with an API key`,
+    );
+  }
+  return opencodeKeys(rows, host.opencodeModel);
 }
 
 export function createAgentRuntime(dependencies: AgentRuntimeDependencies): AgentRuntime {
-  const { agents, inspectHost, readOpencodeCredentials, dataDirectory, readSkill, launch } =
-    dependencies;
+  const { agents, inspectHost, dataDirectory, readSkill, launch } = dependencies;
   return {
     listAgents: async () => agentAvailability(agents, await inspectHost()),
     start: async ({ agent: requested, kind, roleAddition, workingDirectory, ...request }) => {
@@ -198,7 +209,7 @@ export function createAgentRuntime(dependencies: AgentRuntimeDependencies): Agen
         agent,
         profile: await launchProfile(sessionProfile, { roleAddition, readSkill }),
         host,
-        opencodeKeys: await sessionKeys(agent, host, readOpencodeCredentials),
+        opencodeKeys: await sessionKeys(agent, host, dependencies),
         dataDirectory,
         sessionDirectory: workingDirectory,
       });

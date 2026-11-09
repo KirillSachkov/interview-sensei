@@ -74,6 +74,33 @@ function sessionProviders({ model, small_model }: OpencodeModelSettings): Set<st
   );
 }
 
+/** The credential OpenCode would use for each provider the session uses. */
+function chosenCredentials(
+  rows: readonly OpencodeCredentialRow[],
+  model: OpencodeModelSettings,
+): Map<string, OpencodeCredentialRow> {
+  const used = sessionProviders(model);
+  const chosen = new Map<string, OpencodeCredentialRow>();
+  for (const row of rows.toSorted(compareCredentials)) {
+    if (row.integration !== null && (used === null || used.has(row.integration))) {
+      chosen.set(row.integration, row);
+    }
+  }
+  return chosen;
+}
+
+/** Whether the credential JSON is an OAuth login, the 2.x login by subscription. */
+function isOauth(value: string): boolean {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return typeof parsed === "object" && parsed !== null && "type" in parsed
+      ? parsed.type === "oauth"
+      : false;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * The API key of each provider the session uses, for the credential OpenCode would use: the
  * active one, otherwise the newest. Without a chosen model every provider gets its key. A
@@ -84,15 +111,21 @@ export function opencodeKeys(
   rows: readonly OpencodeCredentialRow[],
   model: OpencodeModelSettings,
 ): OpencodeKey[] {
-  const used = sessionProviders(model);
-  const chosen = new Map<string, OpencodeCredentialRow>();
-  for (const row of rows.toSorted(compareCredentials)) {
-    if (row.integration !== null && (used === null || used.has(row.integration))) {
-      chosen.set(row.integration, row);
-    }
-  }
-  return [...chosen].flatMap(([provider, row]) => {
+  return [...chosenCredentials(rows, model)].flatMap(([provider, row]) => {
     const key = apiKey(row.value);
     return key === null ? [] : [{ provider, key }];
   });
+}
+
+/**
+ * The providers the session uses whose credential OpenCode would use is an OAuth login: the
+ * session gets no key for them (#69), so the Candidate needs an API key login there.
+ */
+export function opencodeSubscriptionProviders(
+  rows: readonly OpencodeCredentialRow[],
+  model: OpencodeModelSettings,
+): string[] {
+  return [...chosenCredentials(rows, model)].flatMap(([provider, row]) =>
+    isOauth(row.value) ? [provider] : [],
+  );
 }

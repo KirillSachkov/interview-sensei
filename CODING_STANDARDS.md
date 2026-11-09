@@ -181,6 +181,10 @@ It opens the database `immutable` and read-only, so it creates no `-shm` or `-wa
 `opencodeKeys` takes the key of the credential OpenCode would use, only for the providers of the Candidate's `model` and `small_model`.
 Without either, every provider gets its key, because OpenCode may then pick any of them.
 An OAuth credential gives no key, because a copied refresh token could rotate.
+OpenCode 2.2.6 does rotate it: each refresh stores the provider's new refresh token.
+So OpenCode 2.x works in sessions only with an API key login; the owner chose to keep this limit in #69.
+`opencodeSubscriptionProviders` names the session's providers whose chosen credential is OAuth; the runtime warns of each in the server log.
+The README and the OpenCode note of «Проверка агента» tell the Candidate to log in with an API key.
 An unreadable database gives no keys and a warning in the server log with its path and SQLite's reason, never its content.
 The 2.x recipe passes each key in its own variable `INTERVIEW_SENSEI_OPENCODE_KEY_<n>` and names it in `env` of the provider's `providers` entry; the config text holds no key.
 The agent gets the Candidate's env without `OPENCODE_CONFIG`, `OPENCODE_CONFIG_DIR`, `OPENCODE_DB`, `CODEX_HOME` and `INTERVIEW_SENSEI_*`; the recipe's variables go over it.

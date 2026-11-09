@@ -52,6 +52,7 @@ export function agentRuntimeModule({
     agents: fakeAgent ? ["fake"] : realAgents,
     inspectHost: inspectAgentHost(environment ?? { home: dataDirectory, env: {} }, timer),
     readOpencodeCredentials: (database) => readOpencodeCredentials(database, onWarning),
+    onWarning,
     dataDirectory,
     readSkill: skillDirectory(skillsDirectory),
     // The fake agent needs none of the Candidate's variables.

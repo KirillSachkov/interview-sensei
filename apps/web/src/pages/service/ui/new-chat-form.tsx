@@ -84,6 +84,21 @@ function ClaudeWarning({
   );
 }
 
+/**
+ * The OpenCode 2.x limit of #69: a session gets the Candidate's API keys, never a subscription
+ * login, whose refresh token rotates.
+ */
+function OpencodeLoginNote() {
+  return (
+    <p role="note" aria-label="Вход в OpenCode">
+      OpenCode 2.x работает в приложении только со входом по API-ключу, например DeepSeek. Вход по
+      подписке (OAuth) приложение не передаёт агенту: копия его токена разлогинила бы ваш OpenCode.
+      Если вы вошли по подписке, войдите в провайдера по API-ключу командой{" "}
+      <code>opencode auth login</code> и начните новый чат.
+    </p>
+  );
+}
+
 function AgentSelect({
   agents,
   agent,
@@ -149,6 +164,7 @@ function AgentForm({
           }}
         />
       ) : null}
+      {agent === "opencode" ? <OpencodeLoginNote /> : null}
       {start.isError ? <p role="alert">Чат не начался: {start.error.message}</p> : null}
     </form>
   );
