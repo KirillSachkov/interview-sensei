@@ -12,6 +12,7 @@ export interface SessionRepository {
   readonly create: (session: {
     kind: string;
     agent: string;
+    targetId?: string | null;
     createdAt: Date;
   }) => Promise<AgentSession>;
   /** Appends the event and stores the status after it, in one transaction. */
@@ -58,7 +59,11 @@ interface McpServerAddress {
 /** Gives each session its own MCP address; the mcp-gateway slice implements it. */
 export interface McpAddresses {
   /** Opens the address with the tool set of the session kind; throws when it cannot. */
-  readonly open: (session: { sessionId: string; kind: string }) => McpServerAddress;
+  readonly open: (session: {
+    sessionId: string;
+    kind: string;
+    targetId?: string | null;
+  }) => McpServerAddress;
   /** Closes the address when the session's agent is gone. */
   readonly close: (sessionId: string) => Promise<void>;
 }

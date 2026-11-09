@@ -14,6 +14,7 @@ export const sessions = agentSessionsSchema.table("sessions", {
     .default(sql`gen_random_uuid()`),
   kind: text("kind").notNull(),
   agent: text("agent").notNull(),
+  targetId: uuid("target_id"),
   acpSessionId: text("acp_session_id"),
   status: text("status").$type<SessionStatus>().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull(),

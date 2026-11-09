@@ -21,6 +21,8 @@ export interface AgentSession {
   readonly kind: string;
   /** The agent that runs the session, such as `fake`. */
   readonly agent: string;
+  /** Absent for the skeleton service chat and existing sessions. */
+  readonly targetId?: string | null;
   readonly status: SessionStatus;
   /** ISO 8601. */
   readonly createdAt: string;

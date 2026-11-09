@@ -27,6 +27,16 @@ Technical ports such as `Clock` live in `src/shared/`; application code may use 
 Slices never import each other. `src/shared/` is technical and never imports slices.
 When a slice needs another slice, it defines a port in its `domain/`, and the server passes the other slice in; `agent-sessions` gets `agent-runtime` and `mcp-gateway` this way.
 
+### References between slices
+
+Store cross-slice references as ids, without foreign keys between Postgres schemas.
+A slice reads only its own schema and validates references through a domain port supplied by the server.
+For example, `targets` stores ordered Topic ids on a Section.
+Its `TargetTopics` port lists the Target's Topics; the service rejects a Topic outside that Target before saving the Section.
+`composeFeatures` supplies `question-bank` as that port.
+In the opposite direction, `search_questions` resolves a Section's Topic ids through its `SectionTopics` port, scoped to the session's Target.
+Within a slice, use database constraints for relationships: `question-bank` ties each Question to a Topic of the same Target.
+
 ### Composition
 
 Each slice exports one module factory from `module.ts` at the slice root, such as `mcpGatewayModule`.
