@@ -72,6 +72,15 @@ describe("command line", () => {
     );
   });
 
+  it.each([
+    ["--no-browser=1", "--no-browser"],
+    ["--help=yes", "--help"],
+  ])("refuses the value in %s", (argument, flag) => {
+    expect(() => launchOptions({ args: [argument], env: {} })).toThrow(
+      `Флагу ${flag} не нужно значение.`,
+    );
+  });
+
   it("refuses an argument that is not a flag", () => {
     expect(() => launchOptions({ args: ["start"], env: {} })).toThrow("Лишний аргумент «start».");
   });

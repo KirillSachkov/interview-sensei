@@ -123,7 +123,7 @@ They run the package with the Node that runs Vitest; CI runs them on Node 22.15.
 `app-package` builds the package on Node 24 and runs the Vitest project `package` on each Node of its matrix.
 `publish` (`.github/workflows/release.yml`) runs on a tag `v<version>` that matches `apps/server/package.json`.
 It runs `pnpm check`, `pnpm test` and `pnpm test:package`, then `npm publish --provenance` by npm trusted publishing.
-Only the owner pushes a release tag.
+Only the owner pushes a release tag; agents never push one. Repository settings do not enforce this yet.
 `deps-audit` and `secrets-scan` (`.github/workflows/security.yml`) check dependencies and Git history.
 
 - `deps-audit` runs `pnpm audit --audit-level high` on `pnpm-lock.yaml` without an install.

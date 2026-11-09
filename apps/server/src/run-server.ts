@@ -11,7 +11,7 @@ import type { FastifyInstance } from "fastify";
 import { appUrl } from "./app-url.ts";
 import { isLoopbackHost } from "./loopback.ts";
 import { serverPort } from "./ports.ts";
-import type { PortChoice } from "./ports.ts";
+import type { PortChoice, PortSetting } from "./ports.ts";
 import { buildServer } from "./server.ts";
 import type { LogLevel } from "./server.ts";
 import { StartError } from "./start-error.ts";
@@ -40,13 +40,20 @@ function isPortInUse(error: unknown): boolean {
   return error instanceof Error && "code" in error && error.code === "EADDRINUSE";
 }
 
-function takenPortsMessage(host: string, { ports, hint }: PortChoice): string {
+/** How the message about taken ports names the place to set another port. */
+const portSettingText: Readonly<Record<PortSetting, string>> = {
+  flag: "флагом --port",
+  variable: "в SERVER_PORT",
+};
+
+function takenPortsMessage(host: string, { ports, setting }: PortChoice): string {
   const [first] = ports;
   const last = ports.at(-1);
+  const where = portSettingText[setting];
   if (ports.length === 1) {
-    return `Порт ${first} на ${host} занят. Остановите программу на нём или задайте другой порт ${hint}.`;
+    return `Порт ${first} на ${host} занят. Остановите программу на нём или задайте другой порт ${where}.`;
   }
-  return `Порты ${first}–${last} на ${host} заняты. Остановите программу на одном из них или задайте другой порт ${hint}.`;
+  return `Порты ${first}–${last} на ${host} заняты. Остановите программу на одном из них или задайте другой порт ${where}.`;
 }
 
 /** Listens on the first free port; false when every port is taken. */

@@ -37,7 +37,24 @@ const flagsWithValue: ReadonlySet<string> = new Set(
     .map(([name]) => name),
 );
 
-/** Checks every argument itself, so its errors are in Russian and name the argument. */
+/** Refuses an unknown flag, a flag without its value and a value of a flag that takes none. */
+function checkFlag(name: string, rawName: string, value: string | undefined): void {
+  if (!Object.hasOwn(flags, name)) {
+    throw new StartError(`Неизвестный флаг ${rawName}.`);
+  }
+  const takesValue = flagsWithValue.has(name);
+  if (takesValue && value === undefined) {
+    throw new StartError(`Флагу ${rawName} нужно значение.`);
+  }
+  if (!takesValue && value !== undefined) {
+    throw new StartError(`Флагу ${rawName} не нужно значение.`);
+  }
+}
+
+/**
+ * Checks every argument itself, so its errors are in Russian and name the argument. After it, the
+ * strict parse in launchOptions finds nothing to refuse.
+ */
 function checkArguments(args: readonly string[]): void {
   const { tokens } = parseArgs({
     args: [...args],
@@ -51,12 +68,7 @@ function checkArguments(args: readonly string[]): void {
       throw new StartError(`Лишний аргумент «${token.value}».`);
     }
     if (token.kind === "option") {
-      if (!Object.hasOwn(flags, token.name)) {
-        throw new StartError(`Неизвестный флаг ${token.rawName}.`);
-      }
-      if (flagsWithValue.has(token.name) && token.value === undefined) {
-        throw new StartError(`Флагу ${token.rawName} нужно значение.`);
-      }
+      checkFlag(token.name, token.rawName, token.value);
     }
   }
 }
@@ -64,7 +76,7 @@ function checkArguments(args: readonly string[]): void {
 /**
  * Reads the flags `--port`, `--data-dir`, `--no-browser` and `--help`. The variables SERVER_PORT
  * and INTERVIEW_SENSEI_NO_BROWSER=1 work as before; a flag goes over its variable. Throws
- * StartError for an unknown flag, a missing value or a wrong port.
+ * StartError for an unknown flag, a missing or extra value or a wrong port.
  */
 export function launchOptions({
   args,

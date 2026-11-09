@@ -27,13 +27,17 @@ interface BuiltApp {
 }
 
 /**
- * Runs the `interview-sensei` command without the system browser, by default on a free port. The
- * extra arguments and variables go over these defaults; an undefined variable is removed.
+ * Runs the `interview-sensei` command without the system browser, by default on a free port and a
+ * new data directory. The extra arguments and variables go over these defaults; an undefined
+ * variable is removed.
  */
 async function startLaunch(
   app: BuiltApp,
-  dataDirectory?: string,
-  { args = [], env = {} }: { args?: readonly string[]; env?: NodeJS.ProcessEnv } = {},
+  {
+    dataDirectory,
+    args = [],
+    env = {},
+  }: { dataDirectory?: string; args?: readonly string[]; env?: NodeJS.ProcessEnv } = {},
 ) {
   return startProcess(launchScript, {
     args: ["--no-browser", ...args],
@@ -185,7 +189,7 @@ describe("interview-sensei command", () => {
 
   it("gives the agent the skills beside the web build", async () => {
     const dataDirectory = path.join(await temporaryDirectory(), "data");
-    const launch = await startLaunch(await builtApp(), dataDirectory);
+    const launch = await startLaunch(await builtApp(), { dataDirectory });
 
     await openLiveChat(await appUrl(launch));
 
@@ -211,7 +215,7 @@ describe("interview-sensei command", () => {
   it("ends live sessions and releases the data directory on SIGTERM with open browser connections", async () => {
     const app = await builtApp();
     const dataDirectory = path.join(await temporaryDirectory(), "data");
-    const launch = await startLaunch(app, dataDirectory);
+    const launch = await startLaunch(app, { dataDirectory });
     const sessionId = await openLiveChat(await appUrl(launch));
 
     const { code } = await launch.stop();
@@ -224,14 +228,14 @@ describe("interview-sensei command", () => {
       "database.dump.tar.gz",
       "sessions",
     ]);
-    const restarted = await appUrl(await startLaunch(app, dataDirectory));
+    const restarted = await appUrl(await startLaunch(app, { dataDirectory }));
     const view = await fetch(new URL(`api/sessions/${sessionId}`, restarted));
     await expect(view.json()).resolves.toMatchObject({ status: "ended" });
   });
 
   it("takes the next free port and prints its URL when the default port 4310 is taken", async () => {
     await occupyDefaultPort();
-    const launch = await startLaunch(await builtApp(), undefined, {
+    const launch = await startLaunch(await builtApp(), {
       env: { SERVER_PORT: undefined },
     });
 
@@ -245,7 +249,7 @@ describe("interview-sensei command", () => {
 
   it("exits with code 1 when the port of the --port flag is taken", async () => {
     const port = await occupyPort();
-    const launch = await startLaunch(await builtApp(), undefined, {
+    const launch = await startLaunch(await builtApp(), {
       args: ["--port", String(port)],
       env: { SERVER_PORT: undefined },
     });
@@ -258,7 +262,7 @@ describe("interview-sensei command", () => {
 
   it("exits with code 1 when the port of SERVER_PORT is taken", async () => {
     const port = await occupyPort();
-    const launch = await startLaunch(await builtApp(), undefined, {
+    const launch = await startLaunch(await builtApp(), {
       env: { SERVER_PORT: String(port) },
     });
 
@@ -271,7 +275,8 @@ describe("interview-sensei command", () => {
   it("keeps the data in the directory of the --data-dir flag over INTERVIEW_SENSEI_DATA_DIR", async () => {
     const flagDirectory = path.join(await temporaryDirectory(), "flag-data");
     const variableDirectory = path.join(await temporaryDirectory(), "variable-data");
-    const launch = await startLaunch(await builtApp(), variableDirectory, {
+    const launch = await startLaunch(await builtApp(), {
+      dataDirectory: variableDirectory,
       args: ["--data-dir", flagDirectory],
     });
     await appUrl(launch);
@@ -283,7 +288,7 @@ describe("interview-sensei command", () => {
   });
 
   it("exits with code 1 and names the flags for an unknown flag", async () => {
-    const launch = await startLaunch(await builtApp(), undefined, { args: ["--prot", "4400"] });
+    const launch = await startLaunch(await builtApp(), { args: ["--prot", "4400"] });
 
     const { code, stderr } = await launch.exit();
 

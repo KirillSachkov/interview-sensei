@@ -141,12 +141,7 @@ async function copyToPackage(relativePaths: readonly string[]): Promise<void> {
 
 /** The package manifest: the server's version and the third-party dependencies it runs with. */
 async function packageManifest(imported: ReadonlySet<string>) {
-  const [server, core] = await Promise.all(
-    ["apps/server", "packages/core"].map(async (workspace) => manifest(workspace)),
-  );
-  if (server === undefined || core === undefined) {
-    throw new Error("The server or core manifest is missing");
-  }
+  const [server, core] = await Promise.all([manifest("apps/server"), manifest("packages/core")]);
   const dependencies = runtimeDependencies([server, core]);
   const undeclared = [...imported].filter((name) => !Object.hasOwn(dependencies, name));
   if (undeclared.length > 0) {

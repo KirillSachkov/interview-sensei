@@ -5,11 +5,13 @@ const defaultPort = 4310;
 /** How many ports after the default the `interview-sensei` command tries when it is taken. */
 const sparePorts = 9;
 
-/** The ports to listen on, tried in order, and how the Candidate sets another one. */
+/** Where the Candidate sets another port: the `--port` flag or SERVER_PORT. */
+export type PortSetting = "flag" | "variable";
+
+/** The ports to listen on, tried in order, and where the Candidate sets another one. */
 export interface PortChoice {
   readonly ports: readonly number[];
-  /** Ends the message about taken ports: «задайте другой порт <hint>». */
-  readonly hint: string;
+  readonly setting: PortSetting;
 }
 
 /** The port number in `text`, which comes from `source`, such as a flag or a variable. */
@@ -34,7 +36,7 @@ function variablePort(env: NodeJS.ProcessEnv): number | null {
  * exactly that port.
  */
 export function serverPort(env: NodeJS.ProcessEnv): PortChoice {
-  return { ports: [variablePort(env) ?? defaultPort], hint: "в SERVER_PORT" };
+  return { ports: [variablePort(env) ?? defaultPort], setting: "variable" };
 }
 
 /**
@@ -44,14 +46,14 @@ export function serverPort(env: NodeJS.ProcessEnv): PortChoice {
  */
 export function launchPorts(flag: string | undefined, env: NodeJS.ProcessEnv): PortChoice {
   if (flag !== undefined) {
-    return { ports: [parsePort(flag, "--port")], hint: "флагом --port" };
+    return { ports: [parsePort(flag, "--port")], setting: "flag" };
   }
   const variable = variablePort(env);
   if (variable !== null) {
-    return { ports: [variable], hint: "в SERVER_PORT" };
+    return { ports: [variable], setting: "variable" };
   }
   return {
     ports: Array.from({ length: sparePorts + 1 }, (_port, index) => defaultPort + index),
-    hint: "флагом --port",
+    setting: "flag",
   };
 }
