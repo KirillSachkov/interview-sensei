@@ -99,6 +99,8 @@ export function createTargets(dependencies: Dependencies) {
     get: async (id: string) => get(dependencies, id),
     list: repository.list,
     activeDemo: repository.activeDemo,
+    /** Stores the agent the Candidate chose for the Target, or null for the default agent. */
+    setAgent: repository.setAgent,
     topicIds: async (targetId: string, sectionId: string) => {
       const plan = await repository.sections(targetId);
       return plan.find((section) => section.id === sectionId)?.topicIds;
