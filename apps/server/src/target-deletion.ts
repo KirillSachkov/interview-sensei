@@ -16,15 +16,12 @@ type Dependencies = Pick<Features, "targets" | "sessions" | "storage"> & {
   readonly targetData: readonly TargetData[];
 };
 
-const liveStatuses = new Set(["starting", "idle", "working"]);
-
 /** Stops the agents of the Target's live sessions and marks the sessions as ended. */
 async function endSessions(sessions: Features["sessions"], targetId: string) {
   const all = await sessions.list();
-  const live = all.filter(
-    (session) => session.targetId === targetId && liveStatuses.has(session.status),
-  );
-  await Promise.all(live.map(async (session) => sessions.end(session.id)));
+  const owned = all.filter((session) => session.targetId === targetId);
+  // `end` stops only a live session; the others ended before.
+  await Promise.all(owned.map(async (session) => sessions.end(session.id)));
 }
 
 /**
