@@ -191,24 +191,26 @@ function withId(question: Omit<NewQuestion, "id">): NewQuestion {
 
 /**
  * Records the Questions that neither the Target nor its draft has yet, by questionKey, and
- * returns the duplicates it left out; null for an unknown Target.
+ * returns the duplicates it left out; null for an unknown Target. The check and the record share
+ * one transaction, so a parallel call cannot add the same Question between them.
  */
-async function addQuestions(
+async function addQuestionsIn(
   dependencies: TargetSetupDependencies,
-  targetId: string,
-  questions: readonly Omit<NewQuestion, "id">[],
+  { targetId, questions }: { targetId: string; questions: readonly Omit<NewQuestion, "id">[] },
+  transaction: Transaction,
 ) {
-  const draft = await withDraft(dependencies, targetId);
+  const draft = await withDraft(dependencies, targetId, transaction);
   if (draft === null) {
     return null;
   }
   const texts = draft.after.questions.map((question) => question.text);
   const { kept, duplicates } = withoutDuplicates(questions, texts);
   const added = kept.map((question) => withId(question));
+  const operation = { type: "add_questions", questions: added } as const;
   const recorded =
     added.length === 0
       ? null
-      : await record(dependencies, targetId, { type: "add_questions", questions: added });
+      : await recordIn(dependencies, { targetId, operation }, transaction);
   return { recorded, added, duplicates };
 }
 
@@ -222,7 +224,7 @@ export function createTargetSetup(dependencies: TargetSetupDependencies) {
     record: async (targetId: string, operation: DraftOperation) =>
       record(dependencies, targetId, operation),
     addQuestions: async (targetId: string, questions: readonly Omit<NewQuestion, "id">[]) =>
-      addQuestions(dependencies, targetId, questions),
+      transaction(async (opened) => addQuestionsIn(dependencies, { targetId, questions }, opened)),
     /** Removes one change; false when the Target's draft has no such change. */
     removeChange: async (targetId: string, changeId: string) => drafts.remove(targetId, changeId),
     /** Empties the Target's draft; resolves with the number of removed changes. */
