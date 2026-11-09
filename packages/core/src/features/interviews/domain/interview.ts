@@ -98,6 +98,11 @@ export interface AskedQuestion {
    * on it holds the Grade, gaps, justification and strong answer.
    */
   readonly debriefOpened: boolean;
+  /**
+   * How many entries the interviewer chat had when the question was shown: its messages before
+   * that came while an earlier question was shown. Null for questions shown before Side threads.
+   */
+  readonly chatPosition: number | null;
 }
 
 /** The judgment of one answer: from the agent, or from the quiz rule. */

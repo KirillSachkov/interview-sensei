@@ -1,0 +1,1 @@
+ALTER TABLE "interviews"."asked_questions" ADD COLUMN "chat_position" integer;

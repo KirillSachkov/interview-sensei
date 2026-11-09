@@ -98,7 +98,7 @@ A Side thread opened before the Candidate answers the current Question marks tha
 After the answer, during Follow-ups, after the end of the Mock interview and on an earlier Question it gives no hint mark.
 The interviewer never sees a Side thread: it learns only that the Candidate discussed the Question in one, at the start of its next message.
 The Candidate opens a Side thread at a question card, at an interviewer message or at a Debrief, also of a past Mock interview, and may select a fragment to discuss.
-A Side thread from an interviewer message discusses the current Question, the one the interviewer's chat stands beside.
+A Side thread from an interviewer message discusses the Question that was shown when the message came; a message before the first Question opens none.
 The Candidate can delete a Side thread for good; the hint mark on the Attempt stays.
 After a restart, Side threads stay readable and take no more messages.
 

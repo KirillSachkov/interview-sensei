@@ -81,6 +81,8 @@ export const askedQuestions = interviewsSchema.table(
     hinted: boolean("hinted").notNull().default(false),
     /** The Candidate opened the Debrief: the Handoff brief may hold the Grade from then on. */
     debriefOpened: boolean("debrief_opened").notNull().default(false),
+    /** How many entries the interviewer chat had when the question was shown; null before #80. */
+    chatPosition: integer("chat_position"),
   },
   (table) => [unique().on(table.interviewId, table.position)],
 );

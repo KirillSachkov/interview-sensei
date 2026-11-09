@@ -89,6 +89,9 @@ Its tools only read: `get_brief` of `interviews` with the Handoff brief, `get_ta
 The server builds the Handoff brief from stored data (`handoffBrief`): its `debrief`, the Grade after the latest Dispute with gaps, justification and strong answer, comes only once `asked_questions.debrief_opened` is set.
 `POST /api/interviews/:id/attempts/:attemptId/debrief-opened` sets it: the browser sends it when the Candidate opens the Debrief, before it reads the Debrief; a Side thread from a Debrief sets it too.
 `GET /api/interviews/:id/attempts/:attemptId` only reads the Debrief and records nothing.
+A Side thread from an interviewer message (`agent-N`, the chat entry id) goes to the question that was shown when the message came.
+`present_question` hides the agent's text first, then stores the number of chat entries in `asked_questions.chat_position`; the message belongs to the last question whose position is not after its index in the chat.
+Questions from before this column have none and count as shown at the chat's start.
 Deleting a Side thread stops its agent at once and deletes its AgentSession, journal and session directory with `AgentSessions.remove`; `asked_questions.hinted` stays.
 
 ### Server messages

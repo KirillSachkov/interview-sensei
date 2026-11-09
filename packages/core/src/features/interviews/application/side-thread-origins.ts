@@ -16,15 +16,24 @@ export interface OriginRefusal {
   readonly type: "question_not_found" | "message_not_found" | "attempt_not_found";
 }
 
-/** The interviewer's chat message with the id; undefined when the chat has none. */
+/** The interviewer's chat message with the id and its place in the chat; undefined when none. */
 async function interviewerMessage(
   { sessions }: InterviewsDependencies,
   interview: MockInterview,
   id: string,
-): Promise<string | undefined> {
-  const chat = await sessions.view(interview.sessionId);
-  const entry = chat?.entries.find((line) => line.id === id && line.type === "agent_message");
-  return entry?.text;
+): Promise<{ text: string; index: number } | undefined> {
+  const entries = (await sessions.view(interview.sessionId))?.entries ?? [];
+  const index = entries.findIndex((line) => line.id === id && line.type === "agent_message");
+  const text = entries[index]?.text;
+  return text === undefined ? undefined : { text, index };
+}
+
+/**
+ * The question shown when the chat message at the index came: the last one shown before it. A
+ * question from before Side threads has no chat position and counts as shown before any message.
+ */
+function questionAtMessage(asked: readonly AskedQuestion[], index: number) {
+  return asked.findLast((question) => (question.chatPosition ?? 0) <= index);
 }
 
 /** The Debrief's place: the asked question of the Attempt. */
@@ -45,7 +54,7 @@ async function debriefPlace(
     : { question, fragment, fromDebrief: true };
 }
 
-/** The message's place: the last asked question; the whole message without a selection. */
+/** The message's place: the question shown when it came; the whole message without a selection. */
 async function messagePlace(
   dependencies: InterviewsDependencies,
   interview: MockInterview,
@@ -55,20 +64,20 @@ async function messagePlace(
     fragment,
   }: { asked: readonly AskedQuestion[]; messageId: string; fragment: string | null },
 ): Promise<OriginPlace | OriginRefusal> {
-  const text = await interviewerMessage(dependencies, interview, messageId);
-  const question = asked.at(-1);
-  if (text === undefined) {
+  const message = await interviewerMessage(dependencies, interview, messageId);
+  if (message === undefined) {
     return { type: "message_not_found" };
   }
+  const question = questionAtMessage(asked, message.index);
   return question === undefined
     ? { type: "question_not_found" }
-    : { question, fragment: fragment ?? text, fromDebrief: false };
+    : { question, fragment: fragment ?? message.text, fromDebrief: false };
 }
 
 /**
  * The place of the origin in the Mock interview. The selected fragment goes as given; a message
- * without a selection gives its whole text. A message opens on the last asked question, which the
- * interviewer's chat stands beside.
+ * without a selection gives its whole text. A message opens on the question that was shown when it
+ * came, so a message from before the next question neither discusses nor hints at it.
  */
 export async function placeOf(
   dependencies: InterviewsDependencies,

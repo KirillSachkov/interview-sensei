@@ -36,6 +36,13 @@
       "when": 1794247686052,
       "tag": "0004_side_thread_order",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794248963802,
+      "tag": "0005_side_thread_chat_position",
+      "breakpoints": true
     }
   ]
 }

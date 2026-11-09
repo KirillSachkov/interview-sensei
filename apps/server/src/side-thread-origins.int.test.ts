@@ -5,7 +5,15 @@ import { describe, expect, it } from "vitest";
 
 import { browserHeaders, isIdle } from "./chat-test-support.ts";
 import type { SessionView } from "./chat-test-support.ts";
-import { ask, cardAt, interviewApi, isGraded, saysWhenIdle } from "./interview-test-support.ts";
+import { cardNow } from "./interview-flow-test-support.ts";
+import {
+  ask,
+  cardAt,
+  hasQuestions,
+  interviewApi,
+  isGraded,
+  saysWhenIdle,
+} from "./interview-test-support.ts";
 import type { Card } from "./interview-test-support.ts";
 import {
   briefIn,
@@ -79,6 +87,21 @@ describe("side thread origins", () => {
       question: { number: 1, text: card.text },
       fragment: "Ответ получен.",
     });
+  });
+
+  it("opens at an interviewer message on the question that was shown when the message came, without a hint for the next one", async () => {
+    const api = await interviewApi();
+    const run = await api.answered(["Опыт и резюме"], "Ответ [grade:2]");
+    const shown = await run.events.waitFor((view) => isGraded(0)(view) && hasQuestions(2)(view));
+    const chatView = await run.chat.waitFor(saysWhenIdle("Ответ получен."));
+
+    const { thread } = await openedSideThread(api, {
+      interviewId: run.interview.id,
+      origin: { kind: "message", id: messageId(chatView, "Ответ получен.") },
+    });
+
+    expect(thread).toMatchObject({ askedQuestionId: cardAt(shown, 0).id, hinted: false });
+    await expect(cardNow(api, run.interview.id, 1)).resolves.toMatchObject({ hinted: false });
   });
 
   it("sends the text that the Candidate selected as the fragment", async () => {

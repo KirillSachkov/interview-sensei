@@ -219,6 +219,11 @@ export async function present(
     assertNotFinishing(interview);
     const position = await assertNothingPresented(context, interview);
     const { question, section } = await questionToShow(context, interview, request);
+    // Until the Candidate answers, the agent's text could hint at the answer, its replies to the
+    // Candidate's chat messages included; the chat leaves it out. The chat then holds every message
+    // of the agent before the question, so its length tells which question a message came under.
+    await sessions.hideAgentText(sessionId);
+    const chat = await sessions.view(sessionId);
     await repository.ask({
       id: randomUUID(),
       interviewId: interview.id,
@@ -236,10 +241,8 @@ export async function present(
       followUps: [],
       hinted: false,
       debriefOpened: false,
+      chatPosition: chat?.entries.length ?? null,
     });
-    // Until the Candidate answers, the agent's text could hint at the answer, its replies to the
-    // Candidate's chat messages included; the chat leaves it out.
-    await sessions.hideAgentText(sessionId);
     return "The question is shown to the Candidate. End your turn now and wait for the Candidate's answer.";
   });
 }
