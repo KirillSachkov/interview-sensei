@@ -223,18 +223,16 @@ The agents of the Target's live sessions stop before the transaction: their jour
 The web app opens on the canvas of one Target, `pages/target`, built on React Flow (`@xyflow/react`).
 `Canvas` in `shared/ui/canvas` is the frame: it places zones from left to right, moves and scales the view.
 A zone is one React Flow node that groups its widgets; the widgets are plain React inside it, stacked from top to bottom.
-The zone node takes pointer events, so its buttons work although the node is neither selectable nor draggable.
+React Flow turns pointer events off in a node that is neither selectable nor draggable, so `Canvas` gives each zone node `pointerEvents: "all"`; its widgets take clicks without their own `pointer-events`.
 `targetZones` in `pages/target/ui/target-page.tsx` lists the zones «Цель» and «Сессии» and the content of each.
 A slice adds content to a zone like this:
 
-1. Write its widget in `widgets/<name>/` and export it from the slice's `index.ts`. A widget that only `pages/target` uses stays in `pages/target/ui`, as `TargetCard`, the plan and the setup chat do: Steiger's `insignificant-slice` refuses a slice with one user.
+1. Write its widget in `widgets/<name>/` and export it from the slice's `index.ts`. A widget that only `pages/target` uses stays in `pages/target/ui`, as `TargetCard`, the plan, the setup chat and `ui/mock-interview/` do: Steiger's `fsd/insignificant-slice` refuses a widget slice with one user.
 2. Add the widget to the zone's `content` in `targetZones`.
 
 The slice leaves `Canvas` and the top bar (`widgets/top-bar`) unchanged.
 The owner approved one exception in #45: the top bar gets «Новая цель» and «Настройки».
 Spec #45 also puts «Меню цели» there, with «В архив», and the item «Архив» in the Target switcher.
-Zone content that only `pages/target` uses stays in that page's `ui/`, such as `ui/mock-interview/`: Steiger's `fsd/insignificant-slice` rejects a widget slice with one reference.
-React Flow turns pointer events off in the zone nodes, so the root of a zone's interactive content sets `pointer-events: auto`.
 A new zone is a new entry in `targetZones` and needs the owner's decision.
 An input or a scrolled list inside a widget gets the React Flow classes `nodrag`, `nopan` and `nowheel` where the canvas must not take its pointer or wheel.
 
