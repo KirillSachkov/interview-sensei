@@ -47,6 +47,7 @@ Without it the server offers Claude Code, Codex and OpenCode from `userEnvironme
 The fake agent gets an empty environment plus its recipe's variables.
 Tests that check the real agents' availability pass a temporary directory as `userEnvironment.home` and PATH, and start no real agent.
 For the OpenCode version they put a stub `opencode` script into that PATH; it answers only `--version`.
+`login.int.test.ts` runs `interview-sensei login opencode` with a stub that also records the login it was asked to run.
 For the OpenCode 2.x keys they create a made-up `opencode.db` with `node:sqlite` in that home.
 A stub that hangs stands for a stuck OpenCode: the test runs the timeout task of the injected `Timer` by hand.
 Launch recipes are pure: unit tests give them made-up paths, profiles and skills, and nothing touches the disk.
@@ -127,6 +128,7 @@ Without the built web app or skills, it exits with code 1 and asks for `pnpm bui
 It opens the URL with `open` on macOS, `rundll32 url.dll,FileProtocolHandler` on Windows and `xdg-open` elsewhere.
 Tests and CI turn the browser off with `--no-browser` or `INTERVIEW_SENSEI_NO_BROWSER=1`.
 Its flags are `--port`, `--data-dir`, `--no-browser` and `--help`; `launch-options.ts` reads them, and a flag goes over its variable.
+`interview-sensei login opencode` runs the application's own OpenCode 2.x login instead of the server; it needs no built app.
 An unknown flag or a wrong port stops it with code 1 and the help text.
 
 ## npm package

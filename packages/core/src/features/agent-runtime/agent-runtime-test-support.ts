@@ -34,6 +34,10 @@ export function skillReader() {
   return { read, readSkill };
 }
 
+/** The database of the application's own OpenCode 2.x in the test's data directory. */
+export const ownDatabase =
+  "/home/candidate/.interview-sensei/agents/opencode/data/opencode/opencode.db";
+
 /** The Candidate's OpenCode 2.x API keys of two providers. */
 export const apiKeyCredentials: readonly OpencodeCredentialRow[] = [
   {
@@ -52,11 +56,27 @@ export const apiKeyCredentials: readonly OpencodeCredentialRow[] = [
   },
 ];
 
+/** A started agent whose every turn ends at once. */
+const idleAgent = {
+  acpSessionId: "acp-1",
+  prompt: () => Promise.resolve({ type: "ended" as const, stopReason: "end_turn" }),
+  cancel: async () => {},
+  stop: async () => {},
+};
+
 /** A runtime offering the agents; `recipes` collects what it hands the launcher. */
 export function runtimeOffering(
   agents: Parameters<typeof createAgentRuntime>[0]["agents"],
   machine: AgentHost = host,
-  credentials: readonly OpencodeCredentialRow[] = apiKeyCredentials,
+  {
+    credentials = apiKeyCredentials,
+    ownCredentials = [],
+  }: {
+    /** The credentials of the Candidate's OpenCode 2.x database. */
+    credentials?: readonly OpencodeCredentialRow[];
+    /** The credentials of the application's own OpenCode database (#69). */
+    ownCredentials?: readonly OpencodeCredentialRow[];
+  } = {},
 ) {
   const recipes: LaunchRecipe[] = [];
   const { read, readSkill } = skillReader();
@@ -68,7 +88,7 @@ export function runtimeOffering(
     inspectHost: () => Promise.resolve(machine),
     readOpencodeCredentials: (database) => {
       databases.push(database);
-      return Promise.resolve(credentials);
+      return Promise.resolve(database === ownDatabase ? ownCredentials : credentials);
     },
     onWarning: (message) => {
       warnings.push(message);
@@ -77,12 +97,7 @@ export function runtimeOffering(
     readSkill,
     launch: (recipe) => {
       recipes.push(recipe);
-      return Promise.resolve({
-        acpSessionId: "acp-1",
-        prompt: () => Promise.resolve({ type: "ended", stopReason: "end_turn" }),
-        cancel: async () => {},
-        stop: async () => {},
-      });
+      return Promise.resolve(idleAgent);
     },
   });
   const start = async (agent: string) =>

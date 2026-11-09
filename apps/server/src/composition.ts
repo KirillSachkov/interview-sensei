@@ -32,6 +32,7 @@ import type { Progress } from "@interview-sensei/core/progress";
 import type { QuestionBank } from "@interview-sensei/core/question-bank";
 
 export type { AgentRuntime, UserEnvironment } from "@interview-sensei/core/agent-runtime";
+export { loginToOpencode } from "@interview-sensei/core/agent-runtime";
 export { SessionsClosedError } from "@interview-sensei/core/agent-sessions";
 export { UnknownAgentError } from "@interview-sensei/core/targets";
 export type { AgentSessions, SessionView } from "@interview-sensei/core/agent-sessions";
@@ -39,7 +40,6 @@ export { mcpGatewayModule, mcpRoute } from "@interview-sensei/core/mcp-gateway";
 export type { McpGateway } from "@interview-sensei/core/mcp-gateway";
 export { grades } from "@interview-sensei/core/interviews";
 export type * from "@interview-sensei/core/interviews";
-
 /**
  * The migrations of every core slice that stores data, applied at each start in this order. A
  * slice exports its SliceMigrations from its index.ts; add it here.

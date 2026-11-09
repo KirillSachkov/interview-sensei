@@ -1,9 +1,15 @@
 #!/usr/bin/env node
-// The `interview-sensei` command: the server with the built web app, opened in the browser.
+// The `interview-sensei` command: the server with the built web app, opened in the browser, or
+// `login opencode`, the application's own OpenCode 2.x login (#69).
 import { access } from "node:fs/promises";
+import { homedir } from "node:os";
 import path from "node:path";
 
+import { dataDirectoryVariable, resolveDataDirectory } from "@interview-sensei/core/storage";
+import { systemTimer } from "@interview-sensei/core/time";
+
 import { openBrowser } from "./browser.ts";
+import { loginToOpencode } from "./composition.ts";
 import { launchOptions, usage } from "./launch-options.ts";
 import type { LaunchOptions } from "./launch-options.ts";
 import { runServer } from "./run-server.ts";
@@ -51,11 +57,33 @@ function readOptions(): LaunchOptions | null {
   }
 }
 
-async function launch(options: LaunchOptions): Promise<void> {
-  if (options.help) {
-    process.stdout.write(usage);
+/**
+ * The application's own OpenCode 2.x login (#69) in this terminal. It needs no built app and no
+ * server: OpenCode writes the login into its database in the data directory.
+ */
+async function loginOpencode(options: LaunchOptions): Promise<void> {
+  const result = await loginToOpencode({
+    dataDirectory: resolveDataDirectory({
+      env:
+        options.dataDirectory === undefined
+          ? process.env
+          : { [dataDirectoryVariable]: options.dataDirectory },
+      home: homedir(),
+      workingDirectory: process.cwd(),
+    }),
+    userEnvironment: { home: homedir(), env: process.env },
+    timer: systemTimer,
+  });
+  if (result.type === "refused") {
+    process.stderr.write(`${result.reason}\n`);
+    process.exitCode = 1;
     return;
   }
+  process.exitCode = result.code;
+}
+
+/** Serves the built app and opens it in the browser. */
+async function serve(options: LaunchOptions): Promise<void> {
   const missing = await missingPart();
   if (missing !== null) {
     process.stderr.write(`${missing} Выполните pnpm build в корне репозитория.\n`);
@@ -76,6 +104,14 @@ async function launch(options: LaunchOptions): Promise<void> {
       }
     },
   });
+}
+
+async function launch(options: LaunchOptions): Promise<void> {
+  if (options.help) {
+    process.stdout.write(usage);
+    return;
+  }
+  await (options.command === "login-opencode" ? loginOpencode(options) : serve(options));
 }
 
 const options = readOptions();

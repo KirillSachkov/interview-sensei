@@ -82,8 +82,16 @@ function configV2({ role, shell, web, skill }: LaunchProfile, skillsPath: string
   };
 }
 
-/** OpenCode's own XDG directories in the data directory. */
-function opencodeHomes(root: string) {
+/** The application's own OpenCode directory: its homes and the session skills live there. */
+export function opencodeRoot(dataDirectory: string): string {
+  return child(dataDirectory, "agents", "opencode");
+}
+
+/**
+ * OpenCode's own XDG directories in the data directory. Every session and the application's
+ * login (#69) share them, so OpenCode 2.x keeps one database there.
+ */
+export function opencodeHomes(root: string) {
   return {
     XDG_CONFIG_HOME: child(root, "config"),
     XDG_DATA_HOME: child(root, "data"),
@@ -175,7 +183,7 @@ function opencodeEnv(
 
 export function opencodeRecipe(request: LaunchRequest): LaunchRecipe {
   const { host, profile, dataDirectory, sessionDirectory } = request;
-  const root = child(dataDirectory, "agents", "opencode");
+  const root = opencodeRoot(dataDirectory);
   const skillsPath = child(root, "skills", profile.skill.name);
   const skill = skillCopy(child(skillsPath, profile.skill.name), profile.skill);
   const homes = opencodeHomes(root);

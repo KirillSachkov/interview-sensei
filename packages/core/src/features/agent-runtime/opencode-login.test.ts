@@ -2,7 +2,12 @@
 // made-up credential rows and hands the recipe to an in-memory launcher.
 import { describe, expect, it } from "vitest";
 
-import { apiKeyCredentials, host, runtimeOffering } from "./agent-runtime-test-support.ts";
+import {
+  apiKeyCredentials,
+  host,
+  ownDatabase,
+  runtimeOffering,
+} from "./agent-runtime-test-support.ts";
 import type { AgentHost } from "./domain/agent.ts";
 import type { OpencodeCredentialRow } from "./domain/opencode-credentials.ts";
 
@@ -31,7 +36,7 @@ describe("agent runtime with the Candidate's OpenCode 2.x keys", () => {
 
     await start("opencode");
 
-    expect(databases).toStrictEqual([database]);
+    expect(databases).toStrictEqual([database, ownDatabase]);
     expect(recipes[0]?.env).toMatchObject({ INTERVIEW_SENSEI_OPENCODE_KEY_1: "sk-deepseek" });
     expect(JSON.stringify(recipes[0]?.env)).not.toContain("sk-minimax");
   });
@@ -75,9 +80,11 @@ describe("agent runtime with each OpenCode 2.x login (#69)", () => {
     expect(warnings).toStrictEqual([]);
   });
 
-  it("passes no part of a subscription login and warns to log in with an API key", async () => {
+  it("passes no part of a subscription login and warns to log in for the application", async () => {
     // A copied refresh token would rotate and log the Candidate's own OpenCode out.
-    const { start, recipes, warnings } = runtimeOffering(["opencode"], opencode, [subscription]);
+    const { start, recipes, warnings } = runtimeOffering(["opencode"], opencode, {
+      credentials: [subscription],
+    });
 
     await start("opencode");
 
@@ -86,18 +93,35 @@ describe("agent runtime with each OpenCode 2.x login (#69)", () => {
     expect(launched).not.toContain("access-token");
     expect(launched).not.toContain("INTERVIEW_SENSEI_OPENCODE_KEY");
     expect(warnings).toStrictEqual([
-      "OpenCode 2.x: deepseek has only a subscription (OAuth) login, which sessions of the application cannot use; log in to it with an API key",
+      "OpenCode 2.x: deepseek has only a subscription (OAuth) login, which sessions of the application cannot share; run `npx interview-sensei login opencode` once or log in to it with an API key",
     ]);
   });
 
   it("warns of no subscription login of a provider the session does not use", async () => {
-    const { start, warnings } = runtimeOffering(["opencode"], opencode, [
-      ...apiKeyCredentials,
-      { ...subscription, id: "cred_3", integration: "openai" },
-    ]);
+    const { start, warnings } = runtimeOffering(["opencode"], opencode, {
+      credentials: [...apiKeyCredentials, { ...subscription, id: "cred_3", integration: "openai" }],
+    });
 
     await start("opencode");
 
     expect(warnings).toStrictEqual([]);
+  });
+
+  it("warns of no subscription login once the application has its own login there", async () => {
+    // The session's OpenCode uses the application's own login from its database (#69).
+    const ownLogin = {
+      ...subscription,
+      id: "cred_9",
+      value: subscription.value.replace("refresh-token", "own"),
+    };
+    const { start, recipes, warnings } = runtimeOffering(["opencode"], opencode, {
+      credentials: [subscription],
+      ownCredentials: [ownLogin],
+    });
+
+    await start("opencode");
+
+    expect(warnings).toStrictEqual([]);
+    expect(JSON.stringify(recipes[0])).not.toContain("refresh-token");
   });
 });

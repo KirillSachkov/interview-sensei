@@ -110,14 +110,18 @@ export function opencodeKeys(
 }
 
 /**
- * The providers the session uses whose credential OpenCode would use is an OAuth login: the
- * session gets no key for them (#69), so the Candidate needs an API key login there.
+ * The providers the session uses whose credential OpenCode would use is a subscription (OAuth)
+ * login and that the application's own OpenCode has no login for. The session gets no key from a
+ * subscription login (#69); it needs the application's own login, `interview-sensei login
+ * opencode`, or an API key.
  */
-export function opencodeSubscriptionProviders(
+export function opencodeLoginsToRepeat(
   rows: readonly OpencodeCredentialRow[],
+  ownRows: readonly OpencodeCredentialRow[],
   model: OpencodeModelSettings,
 ): string[] {
+  const own = new Set(ownRows.map((row) => row.integration));
   return [...chosenCredentials(rows, model)].flatMap(([provider, row]) =>
-    credentialLogin(row.value)?.type === "oauth" ? [provider] : [],
+    credentialLogin(row.value)?.type === "oauth" && !own.has(provider) ? [provider] : [],
   );
 }

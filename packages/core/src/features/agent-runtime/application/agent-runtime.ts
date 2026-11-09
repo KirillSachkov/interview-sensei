@@ -3,7 +3,8 @@ import type { SessionProfile } from "../../../shared/session-kinds/index.ts";
 import type { AgentAvailability, AgentHost, AgentKind } from "../domain/agent.ts";
 import { agentAvailability, isAgentKind } from "../domain/agent.ts";
 import { launchRecipe } from "../domain/launch-recipe.ts";
-import { opencodeKeys, opencodeSubscriptionProviders } from "../domain/opencode-credentials.ts";
+import { opencodeKeys, opencodeLoginsToRepeat } from "../domain/opencode-credentials.ts";
+import { opencodeOwnDatabase } from "../domain/opencode-login.ts";
 import type { OpencodeCredentialRow, OpencodeKey } from "../domain/opencode-credentials.ts";
 import { opencodeConfigSchema } from "../domain/opencode-recipe.ts";
 import type { LaunchProfile, SkillSource } from "../domain/launch-recipe.ts";
@@ -172,7 +173,8 @@ async function availableHost(
 /**
  * The Candidate's keys for an OpenCode 2.x session, read only now, so listing the agents never
  * touches the secrets. Other agents and 1.x, which reads the linked `auth.json`, get none.
- * A provider of the session with only a subscription (OAuth) login gets no key and a warning (#69).
+ * A provider of the session with only a subscription (OAuth) login gets no key (#69); without
+ * the application's own login for it, the runtime warns how to log in.
  */
 async function sessionKeys(
   agent: AgentKind,
@@ -180,7 +182,8 @@ async function sessionKeys(
   {
     readOpencodeCredentials: read,
     onWarning,
-  }: Pick<AgentRuntimeDependencies, "readOpencodeCredentials" | "onWarning">,
+    dataDirectory,
+  }: Pick<AgentRuntimeDependencies, "readOpencodeCredentials" | "onWarning" | "dataDirectory">,
 ): Promise<readonly OpencodeKey[]> {
   if (
     agent !== "opencode" ||
@@ -190,9 +193,10 @@ async function sessionKeys(
     return [];
   }
   const rows = await read(host.opencodeDatabase);
-  for (const provider of opencodeSubscriptionProviders(rows, host.opencodeModel)) {
+  const ownRows = await read(opencodeOwnDatabase(dataDirectory));
+  for (const provider of opencodeLoginsToRepeat(rows, ownRows, host.opencodeModel)) {
     onWarning(
-      `OpenCode 2.x: ${provider} has only a subscription (OAuth) login, which sessions of the application cannot use; log in to it with an API key`,
+      `OpenCode 2.x: ${provider} has only a subscription (OAuth) login, which sessions of the application cannot share; run \`npx interview-sensei login opencode\` once or log in to it with an API key`,
     );
   }
   return opencodeKeys(rows, host.opencodeModel);
