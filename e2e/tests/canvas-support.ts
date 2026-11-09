@@ -133,7 +133,9 @@ export async function expectAppliedPlan(page: Page) {
   const plan = zones(page).goal.getByRole("list", { name: "План собеседования" });
   await expect(plan).toContainText("1Опыт и резюме");
   await expect(plan).toContainText("2Go и конкурентность");
-  await expect(plan.getByRole("list", { name: "Темы" })).toHaveText("ГорутиныКаналы");
+  await expect(plan.getByRole("list", { name: "Темы" })).toHaveText(
+    "Горутины: не начатоКаналы: не начато",
+  );
   await expect(zones(page).goal).toContainText("Уровень: Senior");
   await expect(page.getByRole("button", { name: "Go-разработчик" })).not.toContainText("черновик");
 }
