@@ -6,6 +6,18 @@
 
 Источники первичные: README, release-страницы, исходный код, статьи и model cards. Числа скорости для часа аудио — оценки; раздел 3 показывает расчёт. Непроверенные утверждения помечены «не проверено».
 
+## Решение владельца
+
+2026-11-09 владелец принял вариант A по итогам проверки в разделе 6:
+
+- Распознавание ставит само приложение, а не агент. При первом видео приложение предлагает одну загрузку в свой каталог данных.
+- Одна модель — GigaAM v3 RNN-T с пунктуацией. Parakeet v3 не входит в набор по умолчанию.
+- Набор одинаков на macOS, Linux и Windows: `sherpa-onnx-node`, GigaAM v3, Silero VAD, `ffmpeg-static`, `yt-dlp`. Суммарно около 225–250 МБ.
+- Для YouTube `yt-dlp` использует Node приложения через `--js-runtimes node`. Deno не нужен.
+- Голосовой ввод позже использует ту же модель.
+
+Разделы 1–5 описывают исходную лестницу из #36, где инструменты ставит агент. Раздел 6 их уточняет и заменяет рекомендацию раздела 5.
+
 ## Ответ
 
 - **Ступень 1.** `yt-dlp` скачивает только субтитры флагом `--skip-download`. Для этого ffmpeg не нужен. Каждая ОС получает один файл 23–41 МБ. Для YouTube `yt-dlp` рекомендует ещё JS runtime Deno; его ставят отдельно.
@@ -221,7 +233,7 @@ Open ASR Leaderboard в версиях статьи v1–v3 оценивает �
 
 **Ранжирование для русского:** GigaAM v3 → Parakeet v3 ≈ Whisper large-v3 → Whisper turbo и medium → Whisper small → Vosk. Whisper small с 15% WER на Common Voice даёт заметно худший текст.
 
-## 5. Рекомендуемая лестница по ОС
+## 5. Исходная лестница по ОС (заменена разделом 6)
 
 | Ступень | macOS Apple Silicon | Linux x86_64 | Windows x64 |
 | --- | --- | --- | --- |
@@ -250,13 +262,86 @@ Open ASR Leaderboard в версиях статьи v1–v3 оценивает �
 5. **Ожидаемое время.** Агент называет оценку для часа видео на машине кандидата и предупреждает, что это оценка.
 6. **Каждую загрузку и запуск** агент подтверждает отдельно, как требует #36.
 
+## 6. Проверка 2026-11-09 и итоговый набор
+
+Проверка шла в два потока: первоисточники и замер на Mac во временном каталоге. В систему ничего не ставилось.
+
+### Итоговый набор
+
+| Файл | Размер загрузки | Назначение |
+| --- | --- | --- |
+| `sherpa-onnx-node` 2.0.1 и платформенный пакет | 8,8–11,0 МБ [39] | Движок внутри сервера приложения |
+| GigaAM v3 RNN-T с пунктуацией, int8 | 170,2 МБ [25] | Модель для русского |
+| `silero_vad.onnx` | 0,6 МБ [25] | Нарезка звука на фразы |
+| `ffmpeg-static`, бинарники b6.1.1 | 19,2–29,6 МБ [40] | Извлечение звука из любого видео |
+| `yt-dlp` | 23,6–41,2 МБ [1] | Субтитры и звук по ссылке |
+
+- **Один путь на всех ОС.** Встроенный `afconvert` читает MP4 и M4A, но есть только в macOS и не читает WebM. Браузер декодирует форматы по-разному на разных ОС [41][42]. Поэтому звук извлекает `ffmpeg-static`.
+- **Пакет Node.** Платформенные пакеты `sherpa-onnx-darwin-arm64`, `sherpa-onnx-linux-x64` и `sherpa-onnx-win-x64` приходят как `optionalDependencies` [39]. Метод `acceptWaveform` принимает сырые сэмплы `Float32Array` [43].
+- **Только файлы модели.** В архиве GigaAM лежат скрипты `run-*-v3-punct.sh` с `pip install torch`. Приложение берёт только `.onnx` и `tokens.txt`.
+
+### Замер на Apple M4 Pro
+
+Машина: Apple M4 Pro, 12 ядер, 24 ГБ, macOS 27.0.1. Движок: `sherpa-onnx-vad-with-offline-asr` v2.0.1.
+Видео: русская лекция на 3202 с с ручными субтитрами, 6985 слов. WER считался по ручным субтитрам после нормализации регистра, пунктуации и «ё».
+
+| Модель | Потоки | Время | RTF | Пиковая память | WER |
+| --- | --- | --- | --- | --- | --- |
+| GigaAM v3 RNN-T punct | 4 | 151 с | 0,047 | 0,95 ГБ | **12,40%** |
+| GigaAM v3 RNN-T punct | 8 | 88 с | 0,027 | 0,95 ГБ | 12,40% |
+| GigaAM v3 CTC punct | 4 | 75 с | 0,023 | 0,94 ГБ | 13,56% |
+| Parakeet v3 int8 | 4 | 104 с | 0,032 | 1,62 ГБ | 14,29% |
+| Parakeet v3 int8 | 6 | 86 с | 0,027 | 1,70 ГБ | 14,29% |
+| Автосубтитры YouTube `ru-orig` | — | — | — | — | 14,83% |
+
+- **VAD обязателен.** Без нарезки GigaAM падает с `Ort::Exception` в `self_attn`, а Parakeet не закончил за 400 с.
+- **Порог VAD.** При `--silero-vad-max-speech-duration=20` VAD режет длинные фразы посреди слова. Порог нужно настроить.
+- **Имена.** Parakeet ошибается в русских именах: «для ихтерин великое» вместо «для Екатерины Великой».
+- **CTC.** CTC-вариант быстрее, но даёт артефакты «,-» и «..» и однажды выдал невалидный байт UTF-8.
+- **Пунктуация.** Все три модели ставят пунктуацию и регистр.
+- **8 потоков.** У Parakeet время на 8 потоках нестабильно: 119–211 с. Вероятная причина — E-ядра.
+
+Диктовка: клип 10 с, 4 потока, 3 прогона.
+
+| Модель | Декодирование фразы | Загрузка модели | Память |
+| --- | --- | --- | --- |
+| GigaAM v3 RNN-T | 0,17–0,34 с | 0,33–0,37 с | 0,38–0,40 ГБ |
+| Parakeet v3 | 0,24–0,28 с | 0,69–1,1 с | 1,25 ГБ |
+
+Для диктовки sherpa-onnx использует VAD и offline-модель в режиме simulated streaming [44][45]. Вторая модель не нужна.
+
+### Качество по первоисточникам
+
+Общего русского набора для Parakeet v3 и GigaAM v3 в первоисточниках нет.
+
+- NVIDIA: на FLEURS ru WER Parakeet v3 — 5,51%, Whisper large-v3 — 4,17% [46].
+- GigaAM: Whisper large-v3 хуже GigaAM v3 в 1,5–6 раз на всех десяти наборах таблицы [37].
+- Open ASR Leaderboard не включает русский в multilingual-трек [38].
+
+### `yt-dlp` без Deno и без ffmpeg
+
+| Проверка | Результат |
+| --- | --- |
+| Субтитры без JS runtime | Работают за 11,8 с, с предупреждением о deprecated |
+| Субтитры с `--js-runtimes node` | Работают за 10,4 с: `[jsc:node] Solving JS challenges using node` |
+| `-f "bestaudio[ext=m4a]"` без JS и ffmpeg | Работает: 49 МБ за 4 с, DASH m4a |
+| `-f 18` без JS | `Requested format is not available`; с node работает |
+
+- **Флаг для Node.** Приложение передаёт `--js-runtimes node:<process.execPath>` [2][3]. Минимальная версия Node по wiki — 22 [3].
+- **Язык дорожки.** У тестового видео был автодубляж на английский. Форматы назывались `140-0` (en-US) и `140-1` (ru). Приложение должно явно выбрать оригинальную дорожку.
+- **Старт на macOS.** Каждый запуск `yt-dlp_macos` занимает около 8 с: onefile-сборка PyInstaller распаковывается заново.
+
+### Gatekeeper
+
+- `curl` не ставит атрибут `com.apple.quarantine`, бинарник запустился без предупреждения.
+- Apple DTS: большинство Unix-инструментов не ставит карантин на загрузки [47]. Загрузки процессом Node отдельно не проверены.
+
 ## Открытые вопросы
 
-- Работают ли субтитры YouTube без JS runtime через клиент `visionos`. Нужен ручной опыт.
-- Скорость GigaAM v3 и Parakeet v3 на x86-ноутбуке и на Apple Silicon для часового файла. Первичных замеров нет; нужен прототип.
-- Потребление RAM моделями sherpa-onnx не опубликовано.
-- Русский WER Whisper large-v3 и turbo в числах OpenAI не опубликован.
-- Размер и подпись сборки ffmpeg для macOS с evermeet.cx не проверены. На macOS Gatekeeper может блокировать скачанные бинарники; это тоже нужно проверить в прототипе.
+- Скорость GigaAM v3 на x86 без GPU не замерена. Оценка — в 3–6 раз медленнее M4 Pro, то есть 5–15 минут на час. Её нужно проверить на раннерах GitHub Actions `ubuntu-latest` и `windows-latest`.
+- Ставит ли Node атрибут карантина на загрузки и подписаны ли `.dylib` из npm. Проверить в прототипе.
+- Работает ли `ffmpeg-static` из npm без предупреждений Gatekeeper на macOS.
+- Как приложение распакует архивы `.tar.bz2` моделей. В Node нет bzip2. Альтернатива — отдельные `.onnx` с Hugging Face, они на 27–38% больше.
 - Нужна ли диаризация (кто говорит: интервьюер или кандидат). Ни один рекомендованный движок её не делает из коробки.
 
 ## Источники
@@ -299,3 +384,12 @@ Open ASR Leaderboard в версиях статьи v1–v3 оценивает �
 36. OpenAI, анонс large-v3-turbo. https://github.com/openai/whisper/discussions/2363
 37. GigaAM, evaluation.md. https://github.com/salute-developers/GigaAM/blob/main/evaluation.md
 38. Open ASR Leaderboard, arXiv 2510.06961. https://arxiv.org/abs/2510.06961
+39. npm registry, `sherpa-onnx-node` 2.0.1 и платформенные пакеты. https://registry.npmjs.org/sherpa-onnx-node/latest, https://data.jsdelivr.com/v1/packages/npm/sherpa-onnx-darwin-arm64@2.0.1
+40. ffmpeg-static, релиз b6.1.1. https://github.com/eugeneware/ffmpeg-static/releases/tag/b6.1.1
+41. MDN, Audio codecs. https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Formats/Audio_codecs
+42. Microsoft, Supported media formats in Media Foundation. https://learn.microsoft.com/en-us/windows/win32/medfound/supported-media-formats-in-media-foundation
+43. sherpa-onnx, `scripts/node-addon-api/lib/non-streaming-asr.js`. https://github.com/k2-fsa/sherpa-onnx/blob/master/scripts/node-addon-api/lib/non-streaming-asr.js
+44. sherpa-onnx, `nodejs-addon-examples/README.md`. https://github.com/k2-fsa/sherpa-onnx/blob/master/nodejs-addon-examples/README.md
+45. sherpa-onnx, `parakeet-tdt-simulate-streaming-microphone-cxx-api.cc`. https://github.com/k2-fsa/sherpa-onnx/blob/master/cxx-api-examples/parakeet-tdt-simulate-streaming-microphone-cxx-api.cc
+46. NVIDIA, Canary-1B-v2 and Parakeet-TDT-0.6B-v3, arXiv 2509.14128, Tables 11 и 13. https://arxiv.org/html/2509.14128
+47. Apple Developer Forums, Quinn: quarantine and Unix tools. https://developer.apple.com/forums/thread/666452
