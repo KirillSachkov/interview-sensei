@@ -7,11 +7,13 @@ import { browserHeaders, isIdle, openEvents, temporaryDirectory } from "./chat-t
 import { cardNow } from "./interview-flow-test-support.ts";
 import { ask, cardAt, interviewApi, isGraded, lastAgentText } from "./interview-test-support.ts";
 import type { Interview } from "./interview-test-support.ts";
+import { demoWithMock } from "./progress-test-support.ts";
 import {
   debriefOrigin,
   firstQuestion,
   hintMarks,
   isWorkingOn,
+  openSideThread,
   openedSideThread,
   repliesWith,
 } from "./side-thread-test-support.ts";
@@ -148,6 +150,24 @@ describe("side threads of past sessions", () => {
     const view = await api.get(`/api/interviews/${run.interview.id}`);
     expect(view.json<Interview>().sideThreads).toMatchObject([{ id: thread.id }]);
     await expect(cardNow(api, run.interview.id, 0)).resolves.toMatchObject({ hinted: false });
+  });
+
+  it("refuses a side thread on an archived Target, as other new sessions of the Target", async () => {
+    const api = await demoWithMock();
+    await api.server.inject({
+      method: "POST",
+      url: `/api/targets/${api.target.id}/archive`,
+      headers: browserHeaders(api.server),
+    });
+
+    const response = await openSideThread(api, {
+      interviewId: api.interviewId,
+      origin: debriefOrigin(api.graded),
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({ error: "target_archived" });
+    await expect(listed(api, api.interviewId)).resolves.toStrictEqual([]);
   });
 
   it("keeps side threads readable after a restart, and they take no more messages", async () => {

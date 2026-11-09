@@ -3,11 +3,12 @@
 // the Candidate's messages, «Остановить» and the agent's reply in chunks.
 import type { FastifyInstance, FastifyReply } from "fastify";
 
+import type { ArchiveGuard } from "./archive-guard.ts";
 import { SessionsClosedError } from "./composition.ts";
 import type { Features, SideThreadOutcome, SideThreadRequest } from "./composition.ts";
 import { params, uuid } from "./route-params.ts";
 
-type Dependencies = Pick<Features, "interviews">;
+type Dependencies = Pick<Features, "interviews"> & { readonly archiveGuard: ArchiveGuard };
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 /** An interviewer message of the chat: the entry id that the session view gives it. */
@@ -69,14 +70,28 @@ function sideThreadRequestOf(body: unknown): SideThreadRequest | undefined {
     : { origin, fragment, question };
 }
 
-type OpenOrClosing = SideThreadOutcome | { readonly type: "server_closing" };
+type OpenOrClosing =
+  | SideThreadOutcome
+  | { readonly type: "server_closing" }
+  | { readonly type: "target_archived" };
 
+/**
+ * Opens the Side thread as a new agent session of the Mock interview's Target: an archived Target
+ * refuses it, as it refuses its setup session and a Mock interview.
+ */
 async function openOrClosing(
-  interviews: Features["interviews"],
+  { interviews, archiveGuard }: Dependencies,
   { id, request }: { id: string; request: SideThreadRequest },
 ): Promise<OpenOrClosing> {
+  const interview = await interviews.view(id);
+  if (interview === undefined) {
+    return { type: "interview_not_found" };
+  }
   try {
-    return await interviews.openSideThread(id, request);
+    const outcome = await archiveGuard.startSession(interview.targetId, async () =>
+      interviews.openSideThread(id, request),
+    );
+    return outcome === "target_archived" ? { type: outcome } : outcome;
   } catch (error) {
     if (error instanceof SessionsClosedError) {
       return { type: "server_closing" };
@@ -92,6 +107,12 @@ function refuseOpening(reply: FastifyReply, outcome: Exclude<OpenOrClosing, { ty
       return reply.code(503).send({
         error: outcome.type,
         message: "Сервер завершает работу и не открывает новые ветки.",
+      });
+    }
+    case "target_archived": {
+      return reply.code(409).send({
+        error: outcome.type,
+        message: "Цель в архиве. Верните её из архива, чтобы открыть ветку.",
       });
     }
     case "interview_not_found":
@@ -121,13 +142,14 @@ function refuseOpening(reply: FastifyReply, outcome: Exclude<OpenOrClosing, { ty
  *   card (`question`, the asked question's id), an interviewer message (`message`, its chat entry
  *   id) or a Debrief (`debrief`, the Attempt's id). 201 with the Side thread; 400
  *   `invalid_request` or `agent_unavailable`, 404 `interview_not_found`, `question_not_found`,
- *   `message_not_found` or `attempt_not_found`, 503 `server_closing`.
+ *   `message_not_found` or `attempt_not_found`, 409 `target_archived`, 503 `server_closing`.
  * - `GET /api/interviews/:id/side-threads`: the Side threads in the order they were opened; the
  *   view of the Mock interview holds them too.
  * - `DELETE /api/interviews/:id/side-threads/:threadId`: ✕ deletes the Side thread with its
  *   AgentSession and journal for good; the hint mark stays. 204, or 404 `side_thread_not_found`.
  */
-export function registerSideThreadRoutes(server: FastifyInstance, { interviews }: Dependencies) {
+export function registerSideThreadRoutes(server: FastifyInstance, dependencies: Dependencies) {
+  const { interviews } = dependencies;
   server.get<{ Params: { id: string } }>(
     "/api/interviews/:id/side-threads",
     { schema: { params } },
@@ -143,7 +165,7 @@ export function registerSideThreadRoutes(server: FastifyInstance, { interviews }
       if (opening === undefined) {
         return reply.code(400).send({ error: "invalid_request" });
       }
-      const outcome = await openOrClosing(interviews, { id: request.params.id, request: opening });
+      const outcome = await openOrClosing(dependencies, { id: request.params.id, request: opening });
       return outcome.type === "opened"
         ? reply.code(201).send(outcome.thread)
         : refuseOpening(reply, outcome);
