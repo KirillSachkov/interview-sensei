@@ -7,6 +7,7 @@
 // - `/fail` answers the prompt with a JSON-RPC error and keeps running.
 // - `/brief` asks permission to call `get_brief` of our MCP server, then calls it over HTTP and
 //   replies «Фейковый агент прочитал brief: <brief>». The server allows the call by itself.
+// - `/tool <name> <json>` calls a tool of our MCP server the same way; see `fake-agent-tool.ts`.
 // - `/permission` asks permission for a foreign shell command whose title names the session's MCP
 //   server and tool, then replies with the chosen option: «Фейковый агент получил ответ: «<name>»».
 // - `/late` ends the turn, then asks permission for a foreign command outside any turn and sends
@@ -16,6 +17,8 @@
 //   `candidate-mode`, which stands for the mode in the Candidate's own settings.
 // - `/meta` replies with the `_meta` of `session/new` as JSON: «_meta: <json>».
 // - `/env` replies with the sorted names of its environment variables as JSON: «env: <json>».
+// - `/markdown` replies with Markdown: bold, inline code, a list, a code block, a table, a link,
+//   raw HTML, a `javascript:` link and a remote image.
 // - `/system`, `/skills` and `/tools` reply with the role, skills and bans of the session's
 //   profile; see `fake-agent-profile.ts`.
 // - The template messages of a mock interview get the interviewer's turns of `fake-agent-interviewer.ts`.
@@ -41,12 +44,13 @@ import {
 import type { AgentContext, McpServer } from "@agentclientprotocol/sdk/unstable";
 
 import { interviewerTurn } from "./fake-agent-interviewer.ts";
-import { callMcpTool } from "./fake-agent-mcp.ts";
+import { callBrief, callTool, toolCommand } from "./fake-agent-tool.ts";
+import type { ToolCall } from "./fake-agent-tool.ts";
 import { fakeAgentModes } from "./fake-agent-modes.ts";
 import { askPermission, permissionOptions } from "./fake-agent-permission.ts";
 import { profileReply, profileSettings, sessionCapabilities } from "./fake-agent-profile.ts";
 import type { ProfileSettings } from "./fake-agent-profile.ts";
-import { sendChunk, sendText } from "./fake-agent-text.ts";
+import { markdownSample, sendChunk, sendText } from "./fake-agent-text.ts";
 
 /** The MCP servers each session got in `session/new`. */
 const sessionMcpServers = new Map<string, McpServer[]>();
@@ -105,26 +109,14 @@ function mcpServerOf(sessionId: string) {
   return server;
 }
 
+/** How the fake agent calls our MCP tools in the session: on its server, after asking permission. */
+function toolAccess(client: AgentContext, sessionId: string) {
+  const ask = async (call: ToolCall) => askPermission(client, sessionId, call);
+  return { server: mcpServerOf(sessionId), ask };
+}
+
 async function readBrief(client: AgentContext, sessionId: string) {
-  const server = mcpServerOf(sessionId);
-  const outcome = await askPermission(client, sessionId, {
-    toolCallId: randomUUID(),
-    title: "get_brief",
-    kind: "other",
-    rawInput: {},
-    // The structural field the server recognizes our MCP tools by.
-    _meta: { fakeAgent: { mcpServer: server.name } },
-  });
-  if (outcome.outcome !== "selected" || outcome.optionId === "reject-once") {
-    return reply(client, sessionId, "Фейковый агент не получил разрешения на get_brief");
-  }
-  try {
-    const brief = await callMcpTool(server.url, "get_brief");
-    return await reply(client, sessionId, `Фейковый агент прочитал brief: ${brief}`);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return reply(client, sessionId, `Фейковый агент не смог вызвать get_brief: ${message}`);
-  }
+  return reply(client, sessionId, await callBrief(toolAccess(client, sessionId)));
 }
 
 async function askForeignTool(client: AgentContext, sessionId: string) {
@@ -181,6 +173,7 @@ const commands = new Map<
   ["/brief", readBrief],
   ["/permission", askForeignTool],
   ["/late", askAfterTurn],
+  ["/markdown", async (client, sessionId) => reply(client, sessionId, markdownSample)],
   [
     "/mode",
     async (client, sessionId) =>
@@ -204,6 +197,16 @@ const commands = new Map<
     },
   ],
 ]);
+
+/** Runs `/tool` or one of `commands`; echoes any other text. */
+async function respond(client: AgentContext, sessionId: string, text: string) {
+  const tool = toolCommand(text);
+  if (tool === null) {
+    const command = commands.get(text);
+    return command === undefined ? echo(client, sessionId, text) : command(client, sessionId);
+  }
+  return reply(client, sessionId, await callTool(tool, toolAccess(client, sessionId)));
+}
 
 const app = agent({ name: "interview-sensei-fake-agent" })
   .onRequest("initialize", () => ({
@@ -235,8 +238,7 @@ const app = agent({ name: "interview-sensei-fake-agent" })
     if (interview !== null) {
       return interview({ client, sessionId, server: mcpServerOf(sessionId) });
     }
-    const command = commands.get(text);
-    return command === undefined ? echo(client, sessionId, text) : command(client, sessionId);
+    return respond(client, sessionId, text);
   })
   .onNotification("session/cancel", ({ params }) => {
     cancelWaiters.get(params.sessionId)?.();

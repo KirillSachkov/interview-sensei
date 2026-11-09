@@ -1,7 +1,7 @@
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 
-import type { Database } from "../../../shared/storage/index.ts";
+import type { Database, Executor, Transaction } from "../../../shared/storage/index.ts";
 import type {
   AskedQuestion,
   Attempt,
@@ -10,7 +10,11 @@ import type {
   MockInterview,
   PastQuestion,
 } from "../domain/interview.ts";
-import type { InterviewRepository } from "../domain/ports.ts";
+import type {
+  InterviewErasure,
+  InterviewRepository,
+  InterviewTopicMerge,
+} from "../domain/ports.ts";
 import { drizzleHistoryQueries } from "./drizzle-history-queries.ts";
 import { toAttempt, toGrade, toInterview } from "./rows.ts";
 import { askedQuestions, attempts, disputes, interviews } from "./schema.ts";
@@ -150,7 +154,37 @@ function attemptQueries(database: Database) {
   } satisfies Partial<InterviewRepository>;
 }
 
-export function drizzleInterviewRepository(database: Database): InterviewRepository {
+/** The Disputes go first, then the Attempts and the asked questions: each references the next. */
+async function eraseTarget(executor: Executor, targetId: string): Promise<void> {
+  const owned = executor
+    .select({ id: interviews.id })
+    .from(interviews)
+    .where(eq(interviews.targetId, targetId));
+  await executor.delete(disputes).where(inArray(disputes.interviewId, owned));
+  await executor.delete(attempts).where(inArray(attempts.interviewId, owned));
+  await executor.delete(askedQuestions).where(inArray(askedQuestions.interviewId, owned));
+  await executor.delete(interviews).where(eq(interviews.targetId, targetId));
+}
+
+/** The questions asked in the Target's Mock interviews on the Topic `from` move to `into`. */
+async function mergeTopic(
+  executor: Executor,
+  targetId: string,
+  { from, into }: { readonly from: string; readonly into: string },
+): Promise<void> {
+  const owned = executor
+    .select({ id: interviews.id })
+    .from(interviews)
+    .where(eq(interviews.targetId, targetId));
+  await executor
+    .update(askedQuestions)
+    .set({ topicId: into })
+    .where(and(inArray(askedQuestions.interviewId, owned), eq(askedQuestions.topicId, from)));
+}
+
+export function drizzleInterviewRepository(
+  database: Database,
+): InterviewRepository & InterviewErasure<Transaction> & InterviewTopicMerge<Transaction> {
   return {
     ...interviewQueries(database),
     update: async (id, { finishRequestedAt, finishedAt, ...changes }) => {
@@ -169,5 +203,7 @@ export function drizzleInterviewRepository(database: Database): InterviewReposit
     ...attemptQueries(database),
     history: async (targetId) => history(database, targetId),
     ...drizzleHistoryQueries(database),
+    eraseTarget: async (targetId, transaction) => eraseTarget(transaction, targetId),
+    mergeTopic: async (targetId, topics, transaction) => mergeTopic(transaction, targetId, topics),
   };
 }

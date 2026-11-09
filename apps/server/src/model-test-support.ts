@@ -32,7 +32,7 @@ export async function demoApi(dataDirectory?: string, options: ServerOptions = {
     const response = await get(`/api/targets/${target.id}/questions${query}`);
     return response.json<Questions>();
   };
-  return { ...started, created, target, createDemo, get, put, questions };
+  return { ...started, headers, created, target, createDemo, get, put, questions };
 }
 
 export async function model() {
@@ -59,7 +59,11 @@ export function modelClient(features: Features, targetId?: string) {
   const origin = "http://127.0.0.1:4399";
   const sessionId = crypto.randomUUID();
   const gateway = mcpGatewayModule({
-    tools: { "service-chat": Object.values(features.modelTools), "mock-interview": [] },
+    tools: {
+      "service-chat": Object.values(features.modelTools),
+      "target-setup": [],
+      "mock-interview": [],
+    },
     origin: () => origin,
     onError: () => {},
   });

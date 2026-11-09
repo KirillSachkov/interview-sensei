@@ -44,6 +44,20 @@ describe("data directory", () => {
     expect(rows).toStrictEqual([{ text: "goroutines", author: "candidate" }]);
   });
 
+  it("rolls back the write of one slice when the write of another slice in its transaction fails", async () => {
+    const storage = await openForTest(await temporaryDirectory(), { migrations: [notesV1, tags] });
+    await storage.database.execute(sql`INSERT INTO tags.tags (name) VALUES ('go')`);
+
+    const written = storage.transaction(async (transaction) => {
+      await transaction.execute(sql`INSERT INTO notes.notes (text) VALUES ('goroutines')`);
+      await transaction.execute(sql`INSERT INTO tags.tags (name) VALUES ('go')`);
+    });
+
+    await expect(written).rejects.toThrow("Failed query: INSERT INTO tags.tags");
+    const { rows } = await storage.database.execute(sql`SELECT text FROM notes.notes`);
+    expect(rows).toStrictEqual([]);
+  });
+
   it("holds everything the storage writes", async () => {
     const parent = await temporaryDirectory();
     const storage = await openForTest(path.join(parent, "data"));

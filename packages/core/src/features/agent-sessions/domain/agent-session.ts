@@ -5,8 +5,8 @@ import type { PermissionAnswer, PermissionRequest, SessionFailure } from "./sess
  * - `idle`: the agent waits for a prompt.
  * - `working`: the agent handles a prompt; the UI shows that it works.
  * - `failed`: the agent did not start or its process exited; the session takes no prompts.
- * - `ended`: the server stopped the session's agent, at shutdown or when its work was done, such as a
- *   finished mock interview; the history stays readable.
+ * - `ended`: the Candidate ended the session, or the server stopped the session's agent, at shutdown
+ *   or when its work was done, such as a finished mock interview; the history stays readable.
  */
 export type SessionStatus = "starting" | "idle" | "working" | "failed" | "ended";
 
@@ -50,7 +50,7 @@ export type ChatEntry =
       readonly requestId: string;
       /** The agent's description of the action, such as a command; null when it sent none. */
       readonly title: string | null;
-      /** The agent's command or arguments, shortened; null when it sent no raw input. */
+      /** The agent's whole command or arguments; null when it sent no raw input. */
       readonly input: string | null;
       readonly options: PermissionRequest["options"];
       readonly answer: PermissionAnswer | null;

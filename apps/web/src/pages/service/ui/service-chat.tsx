@@ -1,9 +1,9 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { Chat } from "@/features/agent-chat";
 import { fetchSessions } from "@/shared/api";
 
-import { Chat } from "./chat";
 import { NewChatForm } from "./new-chat-form";
 
 /** The service chat: a new chat with a chosen agent, or the latest chat with its history. */

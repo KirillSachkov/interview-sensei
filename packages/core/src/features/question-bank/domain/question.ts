@@ -59,3 +59,11 @@ export function validateQuestion(content: {
     throw new Error("A quiz needs distinct options and at least one valid correct option");
   }
 }
+
+/**
+ * The key two Topic names of one Target match by: the same words, ignoring case and spaces around
+ * them. A draft names Topics, and the same name reuses the Topic.
+ */
+export function topicKey(name: string): string {
+  return name.trim().replaceAll(/\s+/gu, " ").toLowerCase();
+}

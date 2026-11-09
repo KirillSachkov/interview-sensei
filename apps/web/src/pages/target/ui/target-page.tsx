@@ -1,34 +1,31 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { TopBar } from "@/widgets/top-bar";
 import { fetchTarget } from "@/shared/api";
-import type { TargetSummary } from "@/shared/api";
+import type { TargetView } from "@/shared/api";
 import { rememberTarget } from "@/shared/lib";
 import { Canvas } from "@/shared/ui/canvas";
 import type { CanvasZone } from "@/shared/ui/canvas";
 
+import { GoalZone } from "./goal-zone";
+import type { GoalZoneProps, QuestionsView, SetupAnchor } from "./goal-zone";
 import { MockInterviews } from "./mock-interview/mock-interviews";
-import { Readiness } from "./readiness/readiness";
-import { TargetCard } from "./target-card";
+import { QuestionsPanel } from "./questions-panel";
 
 /**
  * The zones of the Target's canvas. A slice adds its widget to a zone's `content` here and leaves
  * the canvas itself unchanged.
  */
-function targetZones(target: TargetSummary): CanvasZone[] {
+function targetZones(goal: GoalZoneProps): CanvasZone[] {
+  const { target } = goal;
   return [
     {
       id: "goal",
       title: "Цель",
       width: 440,
-      content: (
-        <>
-          <TargetCard target={target} />
-          <Readiness targetId={target.id} />
-        </>
-      ),
+      content: <GoalZone zone={goal} />,
     },
     {
       id: "sessions",
@@ -41,8 +38,25 @@ function targetZones(target: TargetSummary): CanvasZone[] {
   ];
 }
 
-function TargetCanvas({ target }: { target: TargetSummary }) {
-  const zones = useMemo(() => targetZones(target), [target]);
+function TargetCanvas({ target }: { target: TargetView }) {
+  // A draft Target opens with its setup chat: the agent starts the onboarding there.
+  const [setupAnchor, setSetupAnchor] = useState<SetupAnchor>(
+    target.status === "draft" ? "target" : null,
+  );
+  const [questions, setQuestions] = useState<QuestionsView | null>(null);
+  const zones = useMemo(
+    () =>
+      targetZones({
+        target,
+        setupAnchor,
+        onSetup: setSetupAnchor,
+        onCloseSetup: () => {
+          setSetupAnchor(null);
+        },
+        onQuestions: setQuestions,
+      }),
+    [target, setupAnchor],
+  );
   useEffect(() => {
     rememberTarget(target.id);
   }, [target.id]);
@@ -51,6 +65,16 @@ function TargetCanvas({ target }: { target: TargetSummary }) {
       <TopBar target={target} />
       <main>
         <Canvas zones={zones} label="Холст цели" />
+        {questions === null ? null : (
+          <QuestionsPanel
+            key={JSON.stringify(questions.scope)}
+            targetId={target.id}
+            view={questions}
+            onClose={() => {
+              setQuestions(null);
+            }}
+          />
+        )}
       </main>
     </>
   );

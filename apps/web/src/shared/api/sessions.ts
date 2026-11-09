@@ -1,3 +1,4 @@
+import { request } from "./request";
 import { sent } from "./http";
 
 /** One line of the chat; the server folds the agent's events into these. */
@@ -21,7 +22,7 @@ export interface PermissionEntry {
   readonly type: "permission_request";
   readonly requestId: string;
   readonly title: string | null;
-  /** The agent's command or arguments, shortened; null when it sent none. */
+  /** The agent's whole command or arguments; null when it sent none. */
   readonly input: string | null;
   readonly options: readonly PermissionOption[];
   readonly answer:
@@ -57,6 +58,8 @@ export interface SessionView {
 export interface SessionSummary {
   readonly id: string;
   readonly kind: string;
+  /** The Target of the session; absent for the agent check. */
+  readonly targetId?: string | null;
   readonly agent: string;
   readonly status: SessionStatus;
   readonly createdAt: string;
@@ -104,6 +107,27 @@ export async function startServiceChat(agent: string): Promise<SessionView> {
     throw new Error("неожиданный ответ");
   }
   return body;
+}
+
+/**
+ * Opens the Target's setup chat: the running session, or a new one, which starts the onboarding
+ * of a draft Target. Throws with the server's message when the Target's agent is unavailable.
+ */
+export async function openSetupSession(targetId: string): Promise<SessionView> {
+  const body = await request(`/api/targets/${encodeURIComponent(targetId)}/setup-session`, {
+    method: "POST",
+  });
+  if (!isSessionView(body)) {
+    throw new Error("неожиданный ответ");
+  }
+  return body;
+}
+
+/** «Завершить»: ends the Target's running setup session; its draft of changes stays. */
+export async function endSetupSession(targetId: string): Promise<void> {
+  await request(`/api/targets/${encodeURIComponent(targetId)}/setup-session/end`, {
+    method: "POST",
+  });
 }
 
 /** The WebSocket address of the session's events, on the page's own host. */

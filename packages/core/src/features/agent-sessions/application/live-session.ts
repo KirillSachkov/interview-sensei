@@ -168,7 +168,7 @@ export function cancelPermissions(session: LiveSession): void {
 }
 
 /** Closes the session's MCP address; a failure goes to `onError`. */
-export async function closeMcp(session: LiveSession): Promise<void> {
+async function closeMcp(session: LiveSession): Promise<void> {
   const { mcp, onError } = session.dependencies;
   try {
     await mcp.close(session.view.id);
@@ -241,4 +241,19 @@ export async function runTurn(session: LiveSession, agent: LiveAgent, text: stri
     session.turnActive = false;
     session.onIdle();
   }
+}
+
+/** Stops the agent and marks the session as ended, once a starting agent has started. */
+export async function end(session: LiveSession): Promise<void> {
+  // Wait for a starting agent, so its process does not outlive the server.
+  await session.started;
+  const { agent } = session;
+  session.agent = null;
+  cancelPermissions(session);
+  await agent?.stop();
+  await closeMcp(session);
+  if (isLive(session.view.status)) {
+    await record(session, { type: "session_ended" });
+  }
+  await session.written;
 }

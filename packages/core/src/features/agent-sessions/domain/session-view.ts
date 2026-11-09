@@ -83,13 +83,10 @@ function withChunk(
   ];
 }
 
-/** The longest input a permission entry shows, in characters, with the ellipsis. */
-const inputLength = 200;
-
 /**
  * The agent's raw input of the tool call, so the Candidate sees what the request asks even when
- * its title says otherwise: the command when there is one, otherwise the arguments as JSON;
- * shortened to fit.
+ * its title says otherwise: the whole command when there is one, otherwise all the arguments as
+ * JSON. The chat wraps a long input and scrolls it.
  */
 function rawInputText(toolCall: Readonly<Record<string, unknown>>): string | null {
   const { rawInput } = toolCall;
@@ -98,8 +95,7 @@ function rawInputText(toolCall: Readonly<Record<string, unknown>>): string | nul
   }
   const command =
     typeof rawInput === "object" && "command" in rawInput ? rawInput.command : undefined;
-  const text = typeof command === "string" ? command : JSON.stringify(rawInput);
-  return text.length > inputLength ? `${text.slice(0, inputLength - 1)}…` : text;
+  return typeof command === "string" ? command : JSON.stringify(rawInput);
 }
 
 /** The chat entry of a permission request that waits for the Candidate. */

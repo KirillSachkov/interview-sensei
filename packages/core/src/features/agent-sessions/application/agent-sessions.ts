@@ -1,6 +1,5 @@
 import path from "node:path";
 
-import type { SessionKind } from "../../../shared/session-kinds/index.ts";
 import type { AgentSession, SessionView } from "../domain/agent-session.ts";
 import { isLive } from "../domain/agent-session.ts";
 import type { AgentLauncher } from "../domain/ports.ts";
@@ -8,13 +7,15 @@ import { replay } from "../domain/session-view.ts";
 import {
   answerPermission,
   cancelPermissions,
-  closeMcp,
+  end,
   launch,
   liveSession,
   record,
   runTurn,
 } from "./live-session.ts";
 import type { LiveSession, LiveSessionDependencies, SessionListener } from "./live-session.ts";
+import { runningFor, sessionOpener, stopNow } from "./open-session.ts";
+import type { OpenSession, StartRequest } from "./open-session.ts";
 import { drain, enqueue, hideAgentText, queuePrompt } from "./server-prompts.ts";
 import type { QueueContext, QueueOutcome } from "./server-prompts.ts";
 
@@ -32,22 +33,21 @@ export interface AgentSessionsDependencies extends LiveSessionDependencies {
  */
 type PromptOutcome = "accepted" | "busy" | "closed" | "not_found";
 
-/** What starts a session; `roleAddition` goes after the role of the kind's profile. */
-interface StartRequest {
-  kind: SessionKind;
-  agent: string;
-  targetId?: string | null;
-  roleAddition?: string;
-}
-
 export interface AgentSessions {
   /**
    * Creates the session and starts its agent in the background; the view reports progress.
    * Rejects with SessionsClosedError once close has begun.
    */
   readonly start: (request: StartRequest) => Promise<SessionView>;
+  /**
+   * The live session of the kind for the Target, or a new one that `prepare` describes; one live
+   * session per kind and Target. Rejects as `prepare` does, and with SessionsClosedError on close.
+   */
+  readonly open: OpenSession;
   /** Every session, the newest first. */
   readonly list: () => Promise<readonly AgentSession[]>;
+  /** Whether a live session of the Target, of any kind, runs on this server now. */
+  readonly running: (targetId: string) => boolean;
   readonly view: (sessionId: string) => Promise<SessionView | undefined>;
   /** Sends the Candidate's prompt to the agent; refuses it while the agent works. */
   readonly prompt: (sessionId: string, text: string) => Promise<PromptOutcome>;
@@ -69,6 +69,8 @@ export interface AgentSessions {
    * as ended. Does nothing for a session that is not live.
    */
   readonly end: (sessionId: string) => Promise<void>;
+  /** Stops the agent at once, even in a turn, and ends the session; false when it is not live. */
+  readonly stop: (sessionId: string) => Promise<boolean>;
   /**
    * Passes the Candidate's choice to the agent's permission request. `not_found` when the request
    * no longer waits or did not offer the option.
@@ -111,7 +113,7 @@ interface Context {
 /** Creates the session and starts its agent; close ends it when close began meanwhile. */
 async function createAndLaunch(
   context: Context,
-  { kind, agent, targetId, roleAddition }: StartRequest,
+  { kind, agent, targetId, roleAddition, opening }: StartRequest,
 ): Promise<SessionView> {
   const { dependencies } = context;
   const { repository, clock } = dependencies;
@@ -135,17 +137,23 @@ async function createAndLaunch(
     await record(session, { type: "session_ended" });
     throw new SessionsClosedError();
   }
-  launchLive(context, session, roleAddition);
+  launchLive(context, session, { roleAddition, opening });
   return session.view;
 }
 
-/** Hands the session to `live`, where close finds it, and starts its agent in the background. */
+/**
+ * Hands the session to `live`, where close finds it, and starts its agent in the background. The
+ * opening is the first server prompt: the agent gets it once it starts, so it speaks first.
+ */
 function launchLive(
   { dependencies, live }: Context,
   session: LiveSession,
-  roleAddition: string | undefined,
+  { roleAddition, opening }: { roleAddition: string | undefined; opening: string | undefined },
 ): void {
   const { launcher, sessionsDirectory } = dependencies;
+  if (opening !== undefined) {
+    session.queued.push({ type: "prompt", text: opening, showAgentText: false, settle: () => {} });
+  }
   live.set(session.view.id, session);
   const workingDirectory = path.join(sessionsDirectory, session.view.id);
   session.started = launch(session, { launcher, workingDirectory, roleAddition });
@@ -232,20 +240,6 @@ async function endInterrupted({ dependencies: { repository, clock } }: Context):
   );
 }
 
-async function end(session: LiveSession): Promise<void> {
-  // Wait for a starting agent, so its process does not outlive the server.
-  await session.started;
-  const { agent } = session;
-  session.agent = null;
-  cancelPermissions(session);
-  await agent?.stop();
-  await closeMcp(session);
-  if (isLive(session.view.status)) {
-    await record(session, { type: "session_ended" });
-  }
-  await session.written;
-}
-
 async function close(context: Context): Promise<void> {
   context.closing = true;
   // A session being created ends in its start, before the storage closes.
@@ -275,7 +269,12 @@ export function createAgentSessions(dependencies: AgentSessionsDependencies): Ag
   };
   return {
     start: async (request) => start(context, request),
+    open: sessionOpener({
+      live: context.live,
+      start: async (request) => start(context, request),
+    }),
     list: async () => dependencies.repository.list(),
+    running: (targetId) => runningFor(context.live, targetId),
     view: async (sessionId) => view(context, sessionId),
     prompt: async (sessionId, text) => prompt(context, sessionId, text),
     queuePrompt: async (sessionId, text, options) =>
@@ -284,6 +283,7 @@ export function createAgentSessions(dependencies: AgentSessionsDependencies): Ag
     end: async (sessionId) => {
       await enqueue(context.queue, sessionId, (settle) => ({ type: "end", settle }));
     },
+    stop: async (sessionId) => stopNow(context.live, sessionId),
     answerPermission: async (sessionId, request) => answer(context, sessionId, request),
     cancel: async (sessionId) => cancel(context, sessionId),
     subscribe: (sessionId, listener) => {

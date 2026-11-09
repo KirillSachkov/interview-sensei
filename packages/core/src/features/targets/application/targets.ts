@@ -1,20 +1,30 @@
 import { randomUUID } from "node:crypto";
 
+import type { Transaction } from "../../../shared/storage/index.ts";
 import type { Clock } from "../../../shared/time/index.ts";
-import type { TargetAgents, TargetRepository, TargetTopics } from "../domain/ports.ts";
+import type {
+  DefaultAgent,
+  TargetAgents,
+  TargetRepository,
+  TargetTopics,
+} from "../domain/ports.ts";
+import { archive, deletion, restore } from "./target-archive.ts";
 import type {
   NewTarget,
+  Preference,
   Section,
   Target,
   TargetAgent,
+  TargetUpdate,
   TargetView,
   TopicSummary,
 } from "../domain/target.ts";
 
 interface Dependencies {
-  repository: TargetRepository;
-  topics: TargetTopics;
+  repository: TargetRepository<Transaction>;
+  topics: TargetTopics<Transaction>;
   agents: TargetAgents;
+  defaults: DefaultAgent;
   clock: Clock;
 }
 
@@ -23,10 +33,20 @@ export class UnknownAgentError extends Error {
   override name = "UnknownAgentError";
 }
 
-/** The choice, or the first available agent with `chosen: false`; null when none is available. */
-async function targetAgent(agents: TargetAgents, chosen: string | null): Promise<TargetAgent> {
+/**
+ * The choice; otherwise the default agent, or the first available one, with `chosen: false`; null
+ * when none is available.
+ */
+async function targetAgent(
+  { agents, defaults }: Pick<Dependencies, "agents" | "defaults">,
+  chosen: string | null,
+): Promise<TargetAgent> {
   if (chosen !== null) {
     return { agent: chosen, chosen: true };
+  }
+  const preset = await defaults.defaultAgent();
+  if (preset !== null) {
+    return { agent: preset, chosen: false };
   }
   const offered = await agents.listAgents();
   return { agent: offered.find((entry) => entry.available)?.agent ?? null, chosen: false };
@@ -37,15 +57,16 @@ async function targetAgent(agents: TargetAgents, chosen: string | null): Promise
  * Rejects with UnknownAgentError for an agent the server does not offer; an unavailable one stays.
  */
 async function setAgent(
-  { repository, agents }: Dependencies,
+  dependencies: Dependencies,
   id: string,
   agent: string | null,
 ): Promise<TargetAgent | undefined> {
+  const { repository, agents } = dependencies;
   const offered = agent === null ? [] : await agents.listAgents();
   if (agent !== null && !offered.some((entry) => entry.agent === agent)) {
     throw new UnknownAgentError(`The server does not offer the agent ${agent}`);
   }
-  return (await repository.setAgent(id, agent)) ? targetAgent(agents, agent) : undefined;
+  return (await repository.setAgent(id, agent)) ? targetAgent(dependencies, agent) : undefined;
 }
 
 function withTopics(plan: readonly Section[], topics: readonly TopicSummary[]) {
@@ -58,17 +79,48 @@ function withTopics(plan: readonly Section[], topics: readonly TopicSummary[]) {
 async function get(
   { repository, topics }: Dependencies,
   id: string,
+  transaction?: Transaction,
 ): Promise<TargetView | undefined> {
-  const target = await repository.get(id);
+  const target = await repository.get(id, transaction);
   if (target === undefined) {
     return undefined;
   }
   const [plan, preferences, targetTopics] = await Promise.all([
-    repository.sections(id),
-    repository.preferences(id),
-    topics.topics(id),
+    repository.sections(id, transaction),
+    repository.preferences(id, transaction),
+    topics.topics(id, transaction),
   ]);
   return { ...target, sections: withTopics(plan, targetTopics), preferences };
+}
+
+/** Rejects a Section that references a Topic outside its Target. */
+function checkTopics(plan: readonly Section[], targetTopics: readonly TopicSummary[]): void {
+  if (
+    plan.some((section) =>
+      section.topicIds.some((topicId) => !targetTopics.some((topic) => topic.id === topicId)),
+    )
+  ) {
+    throw new Error("A Section must reference only Topics of its own Target");
+  }
+}
+
+/**
+ * Stores the Target's new fields, status and Interview plan; undefined for an unknown Target. Pass
+ * the transaction when other slices write in it too: every query then runs inside it.
+ */
+async function update(
+  dependencies: Dependencies,
+  {
+    id,
+    change,
+    transaction,
+  }: { id: string; change: TargetUpdate; transaction: Transaction | undefined },
+): Promise<TargetView | undefined> {
+  const { repository, topics } = dependencies;
+  const plan = change.sections.map((section) => ({ ...section, targetId: id }));
+  checkTopics(plan, await topics.topics(id, transaction));
+  const found = await repository.update(id, { ...change, sections: plan }, transaction);
+  return found ? get(dependencies, id, transaction) : undefined;
 }
 
 function targetRecord(
@@ -104,13 +156,7 @@ async function create(dependencies: Dependencies, input: NewTarget): Promise<Tar
     topicIds: section.topicIds,
   }));
   const targetTopics = await topics.topics(id);
-  if (
-    plan.some((section) =>
-      section.topicIds.some((topicId) => !targetTopics.some((topic) => topic.id === topicId)),
-    )
-  ) {
-    throw new Error("A Section must reference only Topics of its own Target");
-  }
+  checkTopics(plan, targetTopics);
   const preferences = (input.preferences ?? []).map((rule) => ({
     id: rule.id,
     text: rule.text,
@@ -130,19 +176,67 @@ async function create(dependencies: Dependencies, input: NewTarget): Promise<Tar
   };
 }
 
+/** The archive and the deletion of Targets. */
+function archiveOf(dependencies: Dependencies) {
+  const { repository } = dependencies;
+  return {
+    archived: repository.archived,
+    /** The archived Target; a string names why it cannot go to the archive. */
+    archive: async (id: string) => {
+      const outcome = await archive(repository, id);
+      return outcome === "archived" ? get(dependencies, id) : outcome;
+    },
+    /** The restored Target; a string names why it cannot come back from the archive. */
+    restore: async (id: string) => {
+      const outcome = await restore(repository, id);
+      return outcome === "restored" ? get(dependencies, id) : outcome;
+    },
+    deletion: async (id: string, typedName?: string, transaction?: Transaction) =>
+      deletion(repository, { id, typedName, transaction }),
+    /** Erases the Target in the transaction that erases its data in the other slices. */
+    eraseTarget: async (id: string, transaction: Transaction) => repository.erase(id, transaction),
+  };
+}
+
 export function createTargets(dependencies: Dependencies) {
   const { repository } = dependencies;
   return {
     create: async (input: NewTarget = {}) => create(dependencies, input),
-    get: async (id: string) => get(dependencies, id),
+    get: async (id: string, transaction?: Transaction) => get(dependencies, id, transaction),
+    update: async (id: string, change: TargetUpdate, transaction?: Transaction) =>
+      update(dependencies, { id, change, transaction }),
     list: repository.list,
+    ...archiveOf(dependencies),
     activeDemo: repository.activeDemo,
     /** The Target's agent; undefined for an unknown Target. */
     agent: async (id: string) => {
       const target = await repository.get(id);
-      return target === undefined ? undefined : targetAgent(dependencies.agents, target.agent);
+      return target === undefined ? undefined : targetAgent(dependencies, target.agent);
     },
     setAgent: async (id: string, agent: string | null) => setAgent(dependencies, id, agent),
+    /** The Target after the Section is switched on or off; a string names what is missing. */
+    setSectionEnabled: async (targetId: string, sectionId: string, enabled: boolean) => {
+      if ((await repository.get(targetId)) === undefined) {
+        return "target_not_found" as const;
+      }
+      const found = await repository.setSectionEnabled(targetId, sectionId, enabled);
+      return found ? get(dependencies, targetId) : ("section_not_found" as const);
+    },
+    /**
+     * Adds the Preferences with new ids and stores the text, examples and activity of the
+     * Target's existing ones.
+     */
+    savePreferences: async (
+      targetId: string,
+      rules: readonly Omit<Preference, "targetId" | "createdAt">[],
+      transaction?: Transaction,
+    ) => {
+      const createdAt = dependencies.clock.now().toISOString();
+      await repository.savePreferences(
+        rules.map((rule) => ({ ...rule, targetId, createdAt })),
+        transaction,
+      );
+    },
     topicIds: async (targetId: string, sectionId: string) => {
       const plan = await repository.sections(targetId);
       return plan.find((section) => section.id === sectionId)?.topicIds;
