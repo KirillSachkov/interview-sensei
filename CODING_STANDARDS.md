@@ -74,6 +74,7 @@ A Topic merge in a draft of changes moves the merged Topic's Attempts through `i
 Inbox processing in `sources` starts its agent through `agent-sessions`, which composeFeatures builds after `sources`: `inboxSessions` hands it over the same way.
 `add_bank_questions` of `sources` leaves out duplicates by the rule of `add_questions` (#45): `target-setup` exports `withoutDuplicates`, and composeFeatures passes it to `sources` as its `DuplicateFilter` port.
 `create_topic` of `sources` creates the Topic through `question-bank` and adds it to the Section through `targets`, in one shared transaction.
+The bulk review of Questions in `question-bank` asks `interviews` which Questions have Attempts through its `QuestionAttempts` port: deleting such a Question hides it. `topicMerges` hands `interviews` over the same way as for a Topic merge.
 
 ### Session profiles
 
@@ -90,6 +91,7 @@ The language rule itself stays in the profile's role.
 `inbox-processing` (#47) has the skill `sensei-inbox`, no shell, the web, and `askCandidate: false`: it has no chat, so the server refuses other requests itself.
 The server extracts the text of the Sources before the agent starts, so the agent needs no shell for a PDF or a page.
 The server's close waits for the started processings to read their texts (`inbox.settle`), then stops the agents.
+A Recheck is the same session kind in the mode `recheck`: its opening and brief differ, the server refuses `add_bank_questions` and `create_topic` in it, and `write_inbox_report` takes the list «скрыть?» as `proposals.hide`.
 
 A slice adds a session kind like this:
 

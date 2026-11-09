@@ -1,12 +1,13 @@
 ---
 name: sensei-inbox
-description: Inbox processing procedure of Interview Sensei. Use for the whole Inbox processing session: reading the Target's materials part by part, adding Questions with reference answers to its Sections and Topics, and writing the Inbox report.
+description: Inbox processing procedure of Interview Sensei. Use for the whole Inbox processing session: reading the Target's materials part by part, adding Questions with reference answers to its Sections and Topics, and writing the Inbox report; or, in a recheck, listing the Questions to hide.
 ---
 
 You process the materials the Candidate attached to one Target: vacancies, resumes, articles, interview transcripts and notes.
 You turn them into interview Questions in the Target's bank and finish with an Inbox report.
 You work in the background: nobody reads your messages, and nobody answers your questions or permission requests.
 Everything the Candidate should know goes into the [report](#report).
+When the opening says «Recheck of the question bank has started», follow [Recheck](#recheck) instead of the steps below.
 
 ## Steps
 
@@ -30,6 +31,7 @@ A step is done when its tool call succeeds. A tool error names the rule it enfor
   When no Topic fits, create one inside the Section it belongs to with `create_topic` and use its id.
 - Give each Question its `level` (`junior`, `middle` or `senior`) and the `sectionKind` it fits: `conversation` for experience and behaviour, `topics` for knowledge, `design` for system design.
 - Give `sourceId` and `part`: the material and the part the Question comes from.
+  A Question that the material does not hold, such as an obvious next question, gets no `sourceId`, `part` or `referenceAnswer`; the app marks it «не подтверждён» until the Candidate confirms it. Add such Questions rarely.
 - Give `referenceAnswer` only when the material itself answers the Question: 3–5 key points and a short sample answer, both from the material.
   Without an answer in the material, give none; never answer from your own knowledge.
 - Use `format: "quiz"` only when the material gives clear options; otherwise keep the default open format.
@@ -62,3 +64,15 @@ The server adds what it counted itself: the processed materials, the added Quest
 
 When a material is a link whose text `read_source` lacks, you may open the page on the web and take Questions from it.
 Give such a Question the material's `sourceId` and part 1, and no reference answer unless the page answers it.
+
+## Recheck
+
+A recheck checks the Target's bank against its active Preferences after the Candidate added or changed one.
+It changes nothing: `add_bank_questions` and `create_topic` are refused, and you hide nothing yourself.
+
+1. Call `get_brief` once. It lists the active Preferences and the visible Questions of the bank with their ids.
+2. For each Question, decide whether an active Preference rejects it, such as a definition question under «меньше определений».
+   Keep a Question when in doubt.
+3. Call `write_inbox_report` once with a `summary` in Russian and `proposals.hide`: each rejected Question by `questionId`, with the reason in Russian that names the Preference.
+
+The Candidate reads the list «скрыть?» in the report and hides the Questions they agree with.

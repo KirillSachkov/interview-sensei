@@ -97,6 +97,8 @@ A test runs the 2-minute wait for `finish_interview` with that timer; `/wait` in
 The fake agent also has an Inbox processor mode (`fake-agent-inbox.ts`) for the opening «Inbox processing has started.».
 It reads `get_brief` and `list_inbox`, puts one Question per part into the first Topic of the first Section of kind `topics` (creating «Из материалов» when there is none), and writes the Inbox report.
 A material whose title has `[manual]` makes it stop at «Жду команд.», so an API test drives the processing with `/tool` in the processing session's chat.
+On «Recheck of the question bank has started.» (`fake-agent-recheck.ts`) it reads `get_brief` and writes the Inbox report with every visible Question in `proposals.hide`, the first active Preference in each reason.
+A Preference with `[manual]` makes the recheck stop at «Жду команд.» the same way.
 `inbox-test-support.ts` starts a processing, finds its session and waits for the fake processor's first turn; `material-test-support.ts` makes a PDF, a DOCX and a web page on a local HTTP server, so no test needs the network.
 The server reads the texts and starts the agent in the background, so the tests wait for them with `vi.waitFor`.
 The fake agent streams a reply word by word, so a test of a long text uses words without spaces.

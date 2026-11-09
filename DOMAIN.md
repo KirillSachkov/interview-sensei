@@ -45,6 +45,9 @@ A Question from a Source refers to it and to the part of its text it came from, 
 A Question that an agent made up without a Source, in a Mock interview or in Inbox processing, is unconfirmed («не подтверждён») until the Candidate confirms it.
 A Question from a Source or one the Candidate applied through the draft of changes is confirmed.
 Through the draft of changes, a new text, a move to another Topic or the useful Question rating confirms an unconfirmed Question; hiding it, another rating or a Topic merge does not.
+Outside the draft, 👍, the useful Question rating, confirms it too.
+A Question that Inbox processing added is new («новый») until the Candidate marks the Questions of its Inbox report as seen.
+The Candidate hides, deletes, rates ⚠ or 👍 several Questions at once. Deleting a Question with Attempts hides it instead, so its history stays.
 _Avoid_: Task, when the item is not an algorithm problem.
 
 **Reference answer**:
@@ -103,14 +106,20 @@ The agent there proposes Inbox processing with a card, and only the Candidate's 
 **Inbox processing**:
 The background work on Sources of the Inbox: the server reads the text of each Source into numbered parts, then an Agent session of its own reads every part, adds Questions to the Topics of existing Sections and writes an Inbox report.
 It may create a Topic inside a Section, but never changes Sections or the Interview plan: it proposes them in the Inbox report.
-A Target has at most one Inbox processing at a time; Sources added meanwhile wait for the next one.
+A Target has at most one Inbox processing at a time, a Recheck included; Sources added meanwhile wait for the next one.
 
 **Source status**:
 Where a Source is in Inbox processing: «в Inbox» until processing starts, «разбирается» during it, «готов» after it, or «ошибка» with the reason when the Source could not be read.
 
 **Inbox report**:
-The summary of one Inbox processing: the processed Sources, the added Questions by Section and Topic, the number of duplicates the server left out, the Questions the agent doubts, and its proposals of new Sections and Preferences.
+The summary of one Inbox processing: the processed Sources, the added Questions by Section and Topic, the number of duplicates the server left out, the Questions the agent doubts, and its proposals of new Sections and Preferences; for a Recheck, the list «скрыть?».
 The server counts the Sources, Questions and duplicates; the agent writes the summary, the doubts and the proposals.
+A Target keeps every Inbox report as its history.
+
+**Recheck**:
+An Inbox processing of the Target's Questions instead of Sources, against its active Preferences, after the Candidate added or changed a Preference.
+The agent of the Target setup proposes it with a card, and only the Candidate's button starts it.
+It changes nothing itself: its Inbox report lists Questions to hide («скрыть?») with reasons, and the Candidate hides the ones they accept.
 
 **Preference**:
 A rule the Candidate gave for a Target in plain language, with rejected Questions as examples, such as "fewer definitions, more applied questions".
@@ -126,7 +135,7 @@ The Candidate can delete a Side thread for good; the hint mark on the Attempt st
 The compact context a Side thread starts from: the Target, the current Question, the Candidate's answer and Follow-ups, the selected fragment and the Candidate's question. It never contains Grades the Candidate has not opened.
 
 **Question rating**:
-The Candidate's opinion of a Question itself: useful, irrelevant, or wrong.
+The Candidate's opinion of a Question itself: useful (👍), irrelevant, or wrong (⚠), with the Candidate's optional comment for wrong.
 _Avoid_: Grade, which assesses the Candidate's answer, not the Question.
 
 **Agent session**:

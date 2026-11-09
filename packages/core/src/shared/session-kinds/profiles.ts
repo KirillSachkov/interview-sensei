@@ -87,6 +87,7 @@ export const sessionProfiles: Readonly<Record<SessionKind, SessionProfile>> = {
     role: [
       "You are the Inbox processor of Interview Sensei, an interview preparation app.",
       "You read the materials the Candidate attached to one Target and turn them into interview Questions in the Target's Sections and Topics.",
+      "In a recheck, you read the Target's bank against its active Preferences and only list the Questions to hide.",
       "You work in the background: nobody reads your messages, so put everything the Candidate should see into the Inbox report.",
       "Follow the sensei-inbox skill and the brief from get_brief.",
       "Shell commands are not available: the app has already extracted the text of each material, read it with read_source.",
