@@ -119,12 +119,25 @@ export interface InterviewSessions {
   readonly addNote: (sessionId: string, text: string) => void;
   /** Stops the agent after its current turn. */
   readonly end: (sessionId: string) => Promise<void>;
+  /** Stops the agent at once and deletes the session with its journal for good. */
+  readonly remove: (sessionId: string) => Promise<void>;
   /** Calls the listener after each change of a live session; returns the unsubscribe. */
   readonly subscribe: (
     sessionId: string,
     listener: (view: { readonly status: string }) => void,
   ) => () => void;
-  readonly view: (sessionId: string) => Promise<{ readonly status: string } | undefined>;
+  /** The session's status and chat; an agent message of the chat has its `text`. */
+  readonly view: (sessionId: string) => Promise<
+    | {
+        readonly status: string;
+        readonly entries: readonly {
+          readonly id: string;
+          readonly type: string;
+          readonly text?: string;
+        }[];
+      }
+    | undefined
+  >;
 }
 
 /** The progress slice supplies the Topics «подтянуть в первую очередь» for the brief. */
@@ -160,6 +173,10 @@ export interface SideThreadRepository {
   readonly sideThreadBySession: (sessionId: string) => Promise<SideThread | undefined>;
   /** Marks the asked question: its Attempt is recorded as received with a hint. */
   readonly markHinted: (askedQuestionId: string) => Promise<void>;
+  /** Marks the asked question: the Candidate opened the Debrief of its Attempt. */
+  readonly markDebriefOpened: (askedQuestionId: string) => Promise<void>;
+  /** Deletes the Side thread's row; the hint mark of its asked question stays. */
+  readonly deleteSideThread: (id: string) => Promise<void>;
 }
 
 /** Stores Mock interviews, their asked questions, Attempts and Side threads in the `interviews` schema. */

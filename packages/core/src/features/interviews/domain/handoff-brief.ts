@@ -1,6 +1,6 @@
 // The Handoff brief of a Side thread (#80) and the server's texts for its agent. The server builds
 // the brief from stored data, never from the agent's log.
-import type { AskedQuestion } from "./interview.ts";
+import type { AskedQuestion, Judgment } from "./interview.ts";
 import type { TargetPlan } from "./ports.ts";
 import type { SideThread } from "./side-thread.ts";
 
@@ -26,15 +26,34 @@ function answerOf(question: AskedQuestion) {
 }
 
 /**
- * The Handoff brief for `get_brief` of a Side thread: the Target, the question, the Candidate's
- * answer and Follow-ups when there are any, the selected fragment and the Candidate's question.
- * It holds no Grade, no correct quiz option and no history of the rest of the Mock interview.
+ * The Debrief of the question's Attempt for the brief, only once the Candidate opened it: the Grade
+ * after the latest Dispute, the gaps, the justification and the strong answer. Null before.
+ */
+function debriefOf(question: AskedQuestion, judgment: Judgment | null) {
+  if (!question.debriefOpened || judgment === null) {
+    return null;
+  }
+  const { grade, gaps, justification, strongAnswer } = judgment;
+  return { grade, gaps, justification, strongAnswer };
+}
+
+/**
+ * The Handoff brief for `get_brief` of a Side thread: where it opened, the Target, the question,
+ * the Candidate's answer and Follow-ups when there are any, the Debrief once the Candidate opened
+ * it, the selected fragment and the Candidate's question. It holds no correct quiz option and no
+ * history of the rest of the Mock interview. `judgment` is the Attempt's, with the Grade after the
+ * latest Dispute; null without an Attempt.
  */
 export function handoffBrief(
   thread: SideThread,
-  { plan, question }: { plan: TargetPlan; question: AskedQuestion },
+  {
+    plan,
+    question,
+    judgment,
+  }: { plan: TargetPlan; question: AskedQuestion; judgment: Judgment | null },
 ) {
   return {
+    origin: thread.origin.kind,
     target: { name: plan.name, level: plan.level },
     language: plan.language,
     question: {
@@ -49,6 +68,7 @@ export function handoffBrief(
       question: asked,
       answer,
     })),
+    debrief: debriefOf(question, judgment),
     fragment: thread.fragment,
     candidateQuestion: thread.question,
   };

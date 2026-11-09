@@ -39,6 +39,7 @@ describe("side thread", () => {
     await chat.waitFor(repliesWith(`Разбираю вопрос кандидата: «${candidateQuestion}»`));
     const brief = briefIn(await ask(chat, "/brief", "Фейковый агент прочитал brief"));
     expect(brief).toStrictEqual({
+      origin: "question",
       target: { name: api.target.name, level: api.target.level },
       language: "ru",
       question: {
@@ -51,6 +52,7 @@ describe("side thread", () => {
       },
       answer: null,
       followUps: [],
+      debrief: null,
       fragment: null,
       candidateQuestion,
     });

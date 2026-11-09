@@ -35,6 +35,7 @@ const brokenSessions: AgentSessions = {
     throw new Error("not used");
   },
   end: () => Promise.reject(new Error("not used")),
+  remove: () => Promise.reject(new Error("not used")),
   subscribe: () => () => {},
   endInterrupted: async () => {},
   close: async () => {},

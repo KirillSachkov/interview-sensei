@@ -81,6 +81,9 @@ The `side-thread` kind (#80) explains: skill `sensei-explain`, web on, shell off
 `interviews` starts it with the agent of its Mock interview and adds the Target's language (`sideThreadRole`).
 Its tools only read: `get_brief` of `interviews` with the Handoff brief, `get_target`, `search_questions` and `get_progress`.
 `get_source` joins them once the Sources slice exists.
+The server builds the Handoff brief from stored data (`handoffBrief`): its `debrief`, the Grade after the latest Dispute with gaps, justification and strong answer, comes only once `asked_questions.debrief_opened` is set.
+`GET /api/interviews/:id/attempts/:attemptId` sets it, because the browser asks for the Debrief only when the Candidate opens it; a Side thread from a Debrief sets it too.
+Deleting a Side thread stops its agent at once and deletes its AgentSession, journal and session directory with `AgentSessions.remove`; `asked_questions.hinted` stays.
 
 ### Server messages
 
@@ -223,6 +226,7 @@ A slice adds content to a zone like this:
 The slice leaves `Canvas` and the top bar (`widgets/top-bar`) unchanged.
 Zone content that only `pages/target` uses stays in that page's `ui/`, such as `ui/mock-interview/`: Steiger's `fsd/insignificant-slice` rejects a widget slice with one reference.
 React Flow turns pointer events off in the zone nodes, so the root of a zone's interactive content sets `pointer-events: auto`.
+React Flow also turns text selection off; text the Candidate selects, such as a fragment for a Side thread inside `data-discuss-scope`, sets `user-select: text`.
 A new zone is a new entry in `targetZones` and needs the owner's decision.
 An input or a scrolled list inside a widget gets the React Flow classes `nodrag`, `nopan` and `nowheel` where the canvas must not take its pointer or wheel.
 

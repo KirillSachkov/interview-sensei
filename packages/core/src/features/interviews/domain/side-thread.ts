@@ -4,12 +4,14 @@ import type { AskedQuestion, Attempt, MockInterview } from "./interview.ts";
 import { presentedQuestion } from "./interview.ts";
 
 /**
- * Where the Candidate opened the Side thread. Only the question card opens one so far; an agent
- * message and a Debrief are the other points of spec #80.
+ * Where the Candidate opened the Side thread (#80):
+ * - `question`: the card; `id` is its asked question.
+ * - `message`: an interviewer message; `id` is its entry of the chat, such as `agent-12`. The
+ *   thread discusses the question that the chat stands beside: the last asked one.
+ * - `debrief`: the Debrief of an Attempt; `id` is the Attempt.
  */
 export interface SideThreadOrigin {
-  readonly kind: "question";
-  /** The asked question of the card. */
+  readonly kind: "question" | "message" | "debrief";
   readonly id: string;
 }
 

@@ -55,6 +55,22 @@ export async function debrief(
   };
 }
 
+/**
+ * The Candidate opens the Debrief of the Attempt: its Grade goes to the Candidate, so from now on
+ * the Handoff brief of a Side thread on its question holds it too.
+ */
+export async function openDebrief(
+  dependencies: InterviewsDependencies,
+  id: string,
+  attemptId: string,
+): Promise<AttemptDebrief | undefined> {
+  const opened = await debrief(dependencies, id, attemptId);
+  if (opened !== undefined) {
+    await dependencies.repository.markDebriefOpened(opened.askedQuestionId);
+  }
+  return opened;
+}
+
 /** The Candidate's correction of the Grade of the Mock interview's Attempt, with its reason. */
 export interface DisputeRequest {
   readonly id: string;

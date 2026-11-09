@@ -79,6 +79,8 @@ export const askedQuestions = interviewsSchema.table(
       .default(sql`'[]'::jsonb`),
     /** A Side thread opened before the answer: the Attempt is recorded as received with a hint. */
     hinted: boolean("hinted").notNull().default(false),
+    /** The Candidate opened the Debrief: the Handoff brief may hold the Grade from then on. */
+    debriefOpened: boolean("debrief_opened").notNull().default(false),
   },
   (table) => [unique().on(table.interviewId, table.position)],
 );

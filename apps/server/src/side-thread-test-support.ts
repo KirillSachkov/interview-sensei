@@ -12,6 +12,7 @@ export interface SideThread {
   readonly sessionId: string;
   readonly origin: { readonly kind: string; readonly id: string };
   readonly askedQuestionId: string;
+  readonly fragment: string | null;
   readonly question: string | null;
   readonly hinted: boolean;
   readonly createdAt: string;
@@ -19,27 +20,48 @@ export interface SideThread {
 
 type Api = Awaited<ReturnType<typeof interviewApi>>;
 
-/** Posts «Обсудить отдельно» at the card, with the Candidate's question when there is one. */
+/** Where the Side thread opens: a question card, an interviewer message or a Debrief. */
+export interface Origin {
+  readonly kind: "question" | "message" | "debrief";
+  readonly id: string;
+}
+
+/** The origin of the Debrief of the card's Attempt; throws while the card has no Attempt. */
+export function debriefOrigin(card: { readonly attemptId: string | null }): Origin {
+  if (card.attemptId === null) {
+    throw new Error("The card has no Attempt yet");
+  }
+  return { kind: "debrief", id: card.attemptId };
+}
+
+/** What «Обсудить отдельно» sends: the card, or another origin, with an optional fragment and question. */
+export interface Opening {
+  readonly interviewId: string;
+  readonly cardId?: string;
+  readonly origin?: Origin;
+  readonly fragment?: string;
+  readonly question?: string;
+}
+
+/** Posts «Обсудить отдельно» at the origin, the card's question by default. */
 export async function openSideThread(
   api: Api,
-  { interviewId, cardId, question }: { interviewId: string; cardId: string; question?: string },
+  { interviewId, cardId, origin, fragment, question }: Opening,
 ) {
   return api.server.inject({
     method: "POST",
     url: `/api/interviews/${interviewId}/side-threads`,
     headers: browserHeaders(api.server),
     payload: {
-      origin: { kind: "question", id: cardId },
+      origin: origin ?? { kind: "question", id: cardId },
+      ...(fragment === undefined ? {} : { fragment }),
       ...(question === undefined ? {} : { question }),
     },
   });
 }
 
 /** Opens a Side thread at the card and follows its chat; throws when the server refuses it. */
-export async function openedSideThread(
-  api: Api,
-  request: { interviewId: string; cardId: string; question?: string },
-) {
+export async function openedSideThread(api: Api, request: Opening) {
   const response = await openSideThread(api, request);
   if (response.statusCode !== 201) {
     throw new Error(`The Side thread did not open: ${response.statusCode} ${response.body}`);

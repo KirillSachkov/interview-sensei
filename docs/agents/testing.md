@@ -94,7 +94,9 @@ On «The Candidate opened a side thread from a mock interview.» it calls `get_b
 `/tool-list` replies with the sorted names of the session's MCP tools: «MCP tools: <json>».
 `/call <name>` calls our MCP tool without arguments and replies «MCP <name>: <result or error>».
 A prompt that starts with the server's note «The Candidate discussed question N in a side thread.» first gets «Отметка: <note>», then the reply to the rest.
-`side-thread-test-support.ts` in the server opens a Side thread at a question card and follows its chat.
+`side-thread-test-support.ts` in the server opens a Side thread at a question card, an interviewer message or a Debrief and follows its chat.
+An interviewer message has the id of its chat entry, such as `agent-12`; `[last]` in the answer keeps «Ответ получен.» in the chat for it.
+`GET /api/interviews/:id/attempts/:attemptId`, `api.debrief` in the tests, records that the Candidate opened the Debrief: call it only where the test means that.
 
 ## Ports
 
@@ -113,6 +115,7 @@ The server keeps all data in `~/.interview-sensei`; the `INTERVIEW_SENSEI_DATA_D
 `pnpm dev` and `pnpm start` use the default directory; `pnpm start --data-dir <directory>` uses another one.
 `pnpm test:e2e` uses `e2e/.data`, which Git ignores; its webServer command empties it before each run.
 All e2e test files share that data directory, so only `e2e/tests/canvas.test.ts` creates Targets.
+`e2e/tests/canvas-steps.ts` holds the Candidate's steps on the canvas that its tests share.
 Its tests run in order: the first sees no Targets and opens the demo Target, the rest use it.
 Each agent session works in its own directory under `sessions/` in the data directory.
 The agents' own homes and configs live under `agents/` in the data directory, with symlinks to the Candidate's `auth.json`.

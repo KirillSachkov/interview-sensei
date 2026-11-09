@@ -85,10 +85,14 @@ It starts from a Handoff brief, not from the whole Mock interview history. A Sid
 A Side thread opened before the Candidate answers the current Question marks that Attempt as received with a hint.
 After the answer, during Follow-ups, after the end of the Mock interview and on an earlier Question it gives no hint mark.
 The interviewer never sees a Side thread: it learns only that the Candidate discussed the Question in one, at the start of its next message.
+The Candidate opens a Side thread at a question card, at an interviewer message or at a Debrief, also of a past Mock interview, and may select a fragment to discuss.
+A Side thread from an interviewer message discusses the current Question, the one the interviewer's chat stands beside.
 The Candidate can delete a Side thread for good; the hint mark on the Attempt stays.
+After a restart, Side threads stay readable and take no more messages.
 
 **Handoff brief**:
 The compact context a Side thread starts from: the Target, the current Question, the Candidate's answer and Follow-ups, the selected fragment and the Candidate's question. It never contains Grades the Candidate has not opened.
+Once the Candidate opened the Debrief of the Attempt, it also holds its Grade, gaps, justification and strong answer.
 
 **Question rating**:
 The Candidate's opinion of a Question itself: useful, irrelevant, or wrong.

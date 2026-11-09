@@ -79,6 +79,13 @@ async function journal(database: Database, sessionId: string): Promise<readonly 
     .orderBy(asc(events.id));
 }
 
+async function remove(database: Database, sessionId: string): Promise<void> {
+  await database.transaction(async (transaction) => {
+    await transaction.delete(events).where(eq(events.sessionId, sessionId));
+    await transaction.delete(sessions).where(eq(sessions.id, sessionId));
+  });
+}
+
 /** Sessions and journals in the `agent_sessions` Postgres schema. */
 export function drizzleSessionRepository(database: Database): SessionRepository {
   return {
@@ -87,5 +94,6 @@ export function drizzleSessionRepository(database: Database): SessionRepository 
     load: async (sessionId) => load(database, sessionId),
     list: async () => list(database),
     journal: async (sessionId) => journal(database, sessionId),
+    remove: async (sessionId) => remove(database, sessionId),
   };
 }

@@ -5,43 +5,68 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 
 import { SessionsClosedError } from "./composition.ts";
 import type { Features, SideThreadOutcome, SideThreadRequest } from "./composition.ts";
-import { params } from "./route-params.ts";
+import { params, uuid } from "./route-params.ts";
 
 type Dependencies = Pick<Features, "interviews">;
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+/** An interviewer message of the chat: the entry id that the session view gives it. */
+const messagePattern = /^agent-\d+$/u;
 const originKeys = new Set(["kind", "id"]);
-const requestKeys = new Set(["origin", "question"]);
+const requestKeys = new Set(["origin", "fragment", "question"]);
+
+/** `:id` of a Mock interview and `:threadId` of its Side thread. */
+const threadParams = {
+  type: "object",
+  properties: { id: uuid, threadId: uuid },
+  required: ["id", "threadId"],
+} as const;
 
 function isPlainObject(value: unknown): value is object {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** The origin `{ kind: "question", id }` of a card's asked question; undefined when invalid. */
+/** The origin: a card's asked question, an interviewer message or an Attempt's Debrief. */
 function originOf(origin: unknown): SideThreadRequest["origin"] | undefined {
   if (!isPlainObject(origin) || Object.keys(origin).some((key) => !originKeys.has(key))) {
     return undefined;
   }
+  const kind: unknown = Reflect.get(origin, "kind");
   const id: unknown = Reflect.get(origin, "id");
-  return Reflect.get(origin, "kind") === "question" &&
-    typeof id === "string" &&
-    uuidPattern.test(id)
-    ? { kind: "question", id }
+  if (typeof id !== "string") {
+    return undefined;
+  }
+  if (kind === "message") {
+    return messagePattern.test(id) ? { kind, id } : undefined;
+  }
+  return (kind === "question" || kind === "debrief") && uuidPattern.test(id)
+    ? { kind, id }
     : undefined;
 }
 
-/** The opening of the body `{ origin, question? }`; undefined when invalid. */
+/** The trimmed text of an optional field; null when absent or empty, undefined when not a text. */
+function optionalText(value: unknown): string | null | undefined {
+  if (value === undefined) {
+    return null;
+  }
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const text = value.trim();
+  return text === "" ? null : text;
+}
+
+/** The opening of the body `{ origin, fragment?, question? }`; undefined when invalid. */
 function sideThreadRequestOf(body: unknown): SideThreadRequest | undefined {
   if (!isPlainObject(body) || Object.keys(body).some((key) => !requestKeys.has(key))) {
     return undefined;
   }
   const origin = originOf(Reflect.get(body, "origin"));
-  const question: unknown = Reflect.get(body, "question");
-  if (origin === undefined || (question !== undefined && typeof question !== "string")) {
-    return undefined;
-  }
-  const text = question?.trim() ?? "";
-  return { origin, question: text === "" ? null : text };
+  const fragment = optionalText(Reflect.get(body, "fragment"));
+  const question = optionalText(Reflect.get(body, "question"));
+  return origin === undefined || fragment === undefined || question === undefined
+    ? undefined
+    : { origin, fragment, question };
 }
 
 type OpenOrClosing = SideThreadOutcome | { readonly type: "server_closing" };
@@ -70,7 +95,9 @@ function refuseOpening(reply: FastifyReply, outcome: Exclude<OpenOrClosing, { ty
       });
     }
     case "interview_not_found":
-    case "question_not_found": {
+    case "question_not_found":
+    case "message_not_found":
+    case "attempt_not_found": {
       return reply.code(404).send({ error: outcome.type });
     }
     case "agent_unavailable": {
@@ -89,12 +116,16 @@ function refuseOpening(reply: FastifyReply, outcome: Exclude<OpenOrClosing, { ty
 }
 
 /**
- * - `POST /api/interviews/:id/side-threads` `{ origin: { kind: "question", id }, question? }`:
- *   «Обсудить отдельно» at the card of the asked question `id`, with the Candidate's question.
- *   201 with the Side thread; 400 `invalid_request` or `agent_unavailable`, 404, 503
- *   `server_closing`.
+ * - `POST /api/interviews/:id/side-threads` `{ origin: { kind, id }, fragment?, question? }`:
+ *   «Обсудить отдельно» with the selected fragment and the Candidate's question. The origin is a
+ *   card (`question`, the asked question's id), an interviewer message (`message`, its chat entry
+ *   id) or a Debrief (`debrief`, the Attempt's id). 201 with the Side thread; 400
+ *   `invalid_request` or `agent_unavailable`, 404 `interview_not_found`, `question_not_found`,
+ *   `message_not_found` or `attempt_not_found`, 503 `server_closing`.
  * - `GET /api/interviews/:id/side-threads`: the Side threads in the order they were opened; the
  *   view of the Mock interview holds them too.
+ * - `DELETE /api/interviews/:id/side-threads/:threadId`: ✕ deletes the Side thread with its
+ *   AgentSession and journal for good; the hint mark stays. 204, or 404 `side_thread_not_found`.
  */
 export function registerSideThreadRoutes(server: FastifyInstance, { interviews }: Dependencies) {
   server.get<{ Params: { id: string } }>(
@@ -116,6 +147,16 @@ export function registerSideThreadRoutes(server: FastifyInstance, { interviews }
       return outcome.type === "opened"
         ? reply.code(201).send(outcome.thread)
         : refuseOpening(reply, outcome);
+    },
+  );
+  server.delete<{ Params: { id: string; threadId: string } }>(
+    "/api/interviews/:id/side-threads/:threadId",
+    { schema: { params: threadParams } },
+    async (request, reply) => {
+      const outcome = await interviews.deleteSideThread(request.params.id, request.params.threadId);
+      return outcome === "deleted"
+        ? reply.code(204).send()
+        : reply.code(404).send({ error: "side_thread_not_found" });
     },
   );
 }

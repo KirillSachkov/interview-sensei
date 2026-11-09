@@ -11,7 +11,7 @@ export function sideThreadTools({ sideThreadBrief }: Interviews): readonly Sessi
     sessionTool({
       name: "get_brief",
       description:
-        "Returns the Handoff brief of this side thread as JSON: the Target, the question with its Section and Topic, the Candidate's answer and Follow-ups when there are any, the selected fragment and the Candidate's question. It holds no Grade unless the Candidate opened the Debrief. Call it once at the start.",
+        "Returns the Handoff brief of this side thread as JSON: the Target, the question with its Section and Topic, the Candidate's answer and Follow-ups when there are any, the selected fragment and the Candidate's question. It holds the Grade, gaps, justification and strong answer only once the Candidate opened the Debrief. Call it once at the start.",
       input: z.strictObject({}),
       run: async (_input, session) => sideThreadBrief(session.sessionId),
     }),

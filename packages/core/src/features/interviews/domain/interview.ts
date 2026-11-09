@@ -93,6 +93,11 @@ export interface AskedQuestion {
    * received with a hint, even after that Side thread is deleted.
    */
   readonly hinted: boolean;
+  /**
+   * The Candidate opened the Debrief of its Attempt: from then on the Handoff brief of a Side thread
+   * on it holds the Grade, gaps, justification and strong answer.
+   */
+  readonly debriefOpened: boolean;
 }
 
 /** The judgment of one answer: from the agent, or from the quiz rule. */

@@ -12,7 +12,7 @@ import { endInterrupted, finish } from "./endings.ts";
 import type { FinishOutcome } from "./endings.ts";
 import { createInterviewer } from "./interviewer.ts";
 import type { Interviewer } from "./interviewer.ts";
-import { debrief, dispute, history, interviewSummary, targetTopicAttempts } from "./records.ts";
+import { dispute, openDebrief, history, interviewSummary, targetTopicAttempts } from "./records.ts";
 import type { AttemptDebrief, DisputeRequest, InterviewSummary } from "./records.ts";
 import { createSideThreads } from "./side-threads.ts";
 import type { SideThreads } from "./side-threads.ts";
@@ -40,7 +40,7 @@ export interface Interviews extends SideThreads {
   readonly finish: (id: string) => Promise<FinishOutcome>;
   /**
    * The Debrief of one Attempt with its Grade and the latest Dispute; undefined until the Attempt
-   * is recorded.
+   * is recorded. The Candidate opens it: Side threads on its question learn the Grade from now on.
    */
   readonly attempt: (id: string, attemptId: string) => Promise<AttemptDebrief | undefined>;
   /** Records the Candidate's correction of the Grade; the latest one applies. */
@@ -92,7 +92,7 @@ export function createInterviews(dependencies: InterviewsDependencies): Intervie
     answer: async (id, reply) => answerPresented(context, id, reply),
     answerFollowUp: async (id, reply) => answerFollowUp(context, id, reply),
     finish: async (id) => finish(context, id),
-    attempt: async (id, attemptId) => debrief(dependencies, id, attemptId),
+    attempt: async (id, attemptId) => openDebrief(dependencies, id, attemptId),
     dispute: async (request) => dispute(context, request),
     summary: async (id) => interviewSummary(dependencies, id),
     history: async (request) => history(dependencies, request),

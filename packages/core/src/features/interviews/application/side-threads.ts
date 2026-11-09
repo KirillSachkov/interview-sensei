@@ -4,30 +4,36 @@
 import { randomUUID } from "node:crypto";
 
 import { discussedInSideThread } from "../domain/agent-messages.ts";
-import type { AskedQuestion, MockInterview } from "../domain/interview.ts";
+import type { AskedQuestion, Judgment, MockInterview } from "../domain/interview.ts";
 import type { TargetPlan } from "../domain/ports.ts";
 import { handoffBrief, sideThreadOpened, sideThreadRole } from "../domain/handoff-brief.ts";
 import { givesHint } from "../domain/side-thread.ts";
 import type { SideThread, SideThreadOrigin } from "../domain/side-thread.ts";
 import { change, inBackground } from "./context.ts";
 import type { Context, InterviewsDependencies } from "./context.ts";
+import { debrief } from "./records.ts";
+import { placeOf } from "./side-thread-origins.ts";
+import type { OriginRefusal } from "./side-thread-origins.ts";
 import { InterviewToolError, planOf } from "./tool-session.ts";
 
-/** Where the Candidate opens the Side thread, and the Candidate's question, if any. */
+/** Where the Candidate opens the Side thread, the selected fragment and the question, if any. */
 export interface SideThreadRequest {
   readonly origin: SideThreadOrigin;
+  readonly fragment: string | null;
   readonly question: string | null;
 }
 
 /**
  * - `opened`: the agent starts in the background; with the Candidate's question it answers it.
- * - `question_not_found`: the Mock interview has no asked question with the origin's id.
+ * - `question_not_found`, `message_not_found`, `attempt_not_found`: the Mock interview has no
+ *   such origin, or a message comes before the first question.
  * - `agent_unavailable`: the Mock interview's agent cannot run now; `reason` says why, in Russian,
  *   when the runtime knows it.
  */
 export type SideThreadOutcome =
   | { readonly type: "opened"; readonly thread: SideThread }
-  | { readonly type: "interview_not_found" | "question_not_found" }
+  | { readonly type: "interview_not_found" }
+  | OriginRefusal
   | { readonly type: "agent_unavailable"; readonly reason: string | null };
 
 /** Why the Mock interview's agent cannot run now, or null when it can. */
@@ -48,12 +54,14 @@ interface Opening {
   readonly interview: MockInterview;
   readonly plan: TargetPlan;
   readonly question: AskedQuestion;
+  readonly fragment: string | null;
+  readonly fromDebrief: boolean;
 }
 
 async function checkOpening(
   { dependencies }: Context,
   interviewId: string,
-  { origin }: SideThreadRequest,
+  request: SideThreadRequest,
 ): Promise<Opening | Exclude<SideThreadOutcome, { type: "opened" }>> {
   const { repository, targets } = dependencies;
   const interview = await repository.get(interviewId);
@@ -61,18 +69,20 @@ async function checkOpening(
   if (interview === undefined || plan === undefined) {
     return { type: "interview_not_found" };
   }
-  const asked = await repository.asked(interview.id);
-  const question = asked.find((entry) => entry.id === origin.id);
-  if (question === undefined) {
-    return { type: "question_not_found" };
+  const place = await placeOf(dependencies, interview, request);
+  if ("type" in place) {
+    return place;
   }
-  return (await agentRefusal(dependencies, interview.agent)) ?? { interview, plan, question };
+  return (await agentRefusal(dependencies, interview.agent)) ?? { interview, plan, ...place };
 }
 
-/** Stores the Side thread and, before the Candidate's answer, the hint mark of its question. */
+/**
+ * Stores the Side thread and, before the Candidate's answer, the hint mark of its question. A
+ * Side thread from the Debrief records that the Candidate opened it.
+ */
 async function store(
   context: Context,
-  { interview, question }: Opening,
+  { interview, question, fragment, fromDebrief }: Opening,
   { sessionId, request }: { sessionId: string; request: SideThreadRequest },
 ): Promise<SideThread> {
   const { repository, clock } = context.dependencies;
@@ -86,13 +96,16 @@ async function store(
     if (hinted) {
       await repository.markHinted(question.id);
     }
+    if (fromDebrief) {
+      await repository.markDebriefOpened(question.id);
+    }
     const thread: SideThread = {
       id: randomUUID(),
       interviewId: interview.id,
       sessionId,
       origin: request.origin,
       askedQuestionId: question.id,
-      fragment: null,
+      fragment,
       question: request.question,
       hinted,
       createdAt: clock.now().toISOString(),
@@ -139,23 +152,64 @@ async function openSideThread(
   return { type: "opened", thread };
 }
 
-/** The Handoff brief of the calling Side thread as JSON, for its `get_brief`. */
-async function sideThreadBrief(context: Context, sessionId: string): Promise<string> {
-  const { repository } = context.dependencies;
+/** The judgment of the question's Attempt with the Grade after the latest Dispute; null without one. */
+async function judgmentOf(
+  dependencies: InterviewsDependencies,
+  question: AskedQuestion,
+): Promise<Judgment | null> {
+  const attempts = await dependencies.repository.attempts(question.interviewId);
+  const attempt = attempts.find((entry) => entry.askedQuestionId === question.id);
+  const judged =
+    attempt === undefined
+      ? undefined
+      : await debrief(dependencies, question.interviewId, attempt.id);
+  return judged === undefined ? null : { ...judged, grade: judged.dispute?.grade ?? judged.grade };
+}
+
+/** The Side thread of the calling session with its Mock interview and asked question. */
+async function callingThread({ dependencies: { repository } }: Context, sessionId: string) {
   const thread = await repository.sideThreadBySession(sessionId);
   const interview = thread === undefined ? undefined : await repository.get(thread.interviewId);
   if (thread === undefined || interview === undefined) {
     throw new InterviewToolError("No side thread belongs to this session.");
   }
-  const [plan, asked] = await Promise.all([
-    planOf(context, interview),
-    repository.asked(interview.id),
-  ]);
+  const asked = await repository.asked(interview.id);
   const question = asked.find((entry) => entry.id === thread.askedQuestionId);
   if (question === undefined) {
     throw new InterviewToolError("The question of this side thread no longer exists.");
   }
-  return JSON.stringify(handoffBrief(thread, { plan, question }));
+  return { thread, interview, question };
+}
+
+/** The Handoff brief of the calling Side thread as JSON, for its `get_brief`. */
+async function sideThreadBrief(context: Context, sessionId: string): Promise<string> {
+  const { thread, interview, question } = await callingThread(context, sessionId);
+  const [plan, judgment] = await Promise.all([
+    planOf(context, interview),
+    judgmentOf(context.dependencies, question),
+  ]);
+  return JSON.stringify(handoffBrief(thread, { plan, question, judgment }));
+}
+
+/**
+ * Deletes the Side thread for good: its agent stops at once, its AgentSession and journal go, and
+ * the hint mark of its question stays. `not_found` for a Side thread of another Mock interview.
+ */
+async function deleteSideThread(
+  context: Context,
+  { interviewId, threadId }: { interviewId: string; threadId: string },
+): Promise<"deleted" | "not_found"> {
+  const { repository, sessions } = context.dependencies;
+  const threads = await repository.sideThreads(interviewId);
+  const thread = threads.find((entry) => entry.id === threadId);
+  if (thread === undefined) {
+    return "not_found";
+  }
+  await change(context, interviewId, async () => {
+    await repository.deleteSideThread(thread.id);
+  });
+  await sessions.remove(thread.sessionId);
+  return "deleted";
 }
 
 /** The Side threads of Mock interviews: the Candidate's side and the `get_brief` of their agents. */
@@ -166,6 +220,8 @@ export interface SideThreads {
   readonly sideThreads: (id: string) => Promise<readonly SideThread[] | undefined>;
   /** The Handoff brief of the Side thread whose AgentSession calls, as JSON. */
   readonly sideThreadBrief: (sessionId: string) => Promise<string>;
+  /** ✕: deletes the Side thread with its AgentSession and journal; the hint mark stays. */
+  readonly deleteSideThread: (id: string, threadId: string) => Promise<"deleted" | "not_found">;
 }
 
 export function createSideThreads(context: Context): SideThreads {
@@ -175,5 +231,7 @@ export function createSideThreads(context: Context): SideThreads {
     sideThreads: async (id) =>
       (await repository.get(id)) === undefined ? undefined : repository.sideThreads(id),
     sideThreadBrief: async (sessionId) => sideThreadBrief(context, sessionId),
+    deleteSideThread: async (id, threadId) =>
+      deleteSideThread(context, { interviewId: id, threadId }),
   };
 }

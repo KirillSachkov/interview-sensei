@@ -26,6 +26,8 @@ export interface SessionRepository {
   /** Every session, the newest first. */
   readonly list: () => Promise<readonly AgentSession[]>;
   readonly journal: (sessionId: string) => Promise<readonly RecordedEvent[]>;
+  /** Deletes the session and its journal. */
+  readonly remove: (sessionId: string) => Promise<void>;
 }
 
 /** How the agent process ended without a request from the server. */

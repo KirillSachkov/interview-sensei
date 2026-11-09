@@ -22,6 +22,13 @@
       "when": 1794244225553,
       "tag": "0002_side_threads",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794245719679,
+      "tag": "0003_side_thread_debrief",
+      "breakpoints": true
     }
   ]
 }

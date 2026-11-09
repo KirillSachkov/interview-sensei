@@ -1,5 +1,5 @@
 // The Side threads of Mock interviews in the `interviews` schema, and the hint mark of an asked
-// question that a Side thread before the answer sets.
+// question that a Side thread before the answer sets, and whether the Candidate opened its Debrief.
 import { asc, eq } from "drizzle-orm";
 
 import type { Database } from "../../../shared/storage/index.ts";
@@ -46,6 +46,15 @@ export function drizzleSideThreadQueries(database: Database): SideThreadReposito
         .update(askedQuestions)
         .set({ hinted: true })
         .where(eq(askedQuestions.id, askedQuestionId));
+    },
+    markDebriefOpened: async (askedQuestionId) => {
+      await database
+        .update(askedQuestions)
+        .set({ debriefOpened: true })
+        .where(eq(askedQuestions.id, askedQuestionId));
+    },
+    deleteSideThread: async (id) => {
+      await database.delete(sideThreads).where(eq(sideThreads.id, id));
     },
   };
 }

@@ -1,3 +1,4 @@
+import { rm } from "node:fs/promises";
 import path from "node:path";
 
 import type { SessionKind } from "../../../shared/session-kinds/index.ts";
@@ -8,7 +9,7 @@ import { replay } from "../domain/session-view.ts";
 import {
   answerPermission,
   cancelPermissions,
-  closeMcp,
+  end,
   launch,
   liveSession,
   record,
@@ -69,6 +70,8 @@ export interface AgentSessions {
    * as ended. Does nothing for a session that is not live.
    */
   readonly end: (sessionId: string) => Promise<void>;
+  /** Stops the agent at once and deletes the session with its journal for good, such as a Side thread. */
+  readonly remove: (sessionId: string) => Promise<void>;
   /**
    * Passes the Candidate's choice to the agent's permission request. `not_found` when the request
    * no longer waits or did not offer the option.
@@ -216,18 +219,16 @@ async function endInterrupted({ dependencies: { repository, clock } }: Context):
   );
 }
 
-async function end(session: LiveSession): Promise<void> {
-  // Wait for a starting agent, so its process does not outlive the server.
-  await session.started;
-  const { agent } = session;
-  session.agent = null;
-  cancelPermissions(session);
-  await agent?.stop();
-  await closeMcp(session);
-  if (isLive(session.view.status)) {
-    await record(session, { type: "session_ended" });
+/** Stops the session's agent at once and deletes the session, its journal and its directory. */
+async function remove({ live, dependencies }: Context, sessionId: string): Promise<void> {
+  const session = live.get(sessionId);
+  if (session !== undefined) {
+    live.delete(sessionId);
+    await end(session);
   }
-  await session.written;
+  await dependencies.repository.remove(sessionId);
+  const directory = path.join(dependencies.sessionsDirectory, sessionId);
+  await rm(directory, { recursive: true, force: true });
 }
 
 async function close(context: Context): Promise<void> {
@@ -271,6 +272,7 @@ export function createAgentSessions(dependencies: AgentSessionsDependencies): Ag
     end: async (sessionId) => {
       await enqueue(context.queue, sessionId, (settle) => ({ type: "end", settle }));
     },
+    remove: async (sessionId) => remove(context, sessionId),
     answerPermission: async (sessionId, request) => answer(context, sessionId, request),
     cancel: async (sessionId) => cancel(context, sessionId),
     subscribe: (sessionId, listener) => {
