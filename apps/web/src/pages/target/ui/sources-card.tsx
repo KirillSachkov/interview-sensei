@@ -46,7 +46,9 @@ function InboxLine({
   const { run, unprocessed, latestReport } = inbox;
   return (
     <div className="inbox-line">
-      {run === null ? null : <p className="muted">Идёт разбор…</p>}
+      {run === null ? null : (
+        <p className="muted">{run.mode === "recheck" ? "Идёт перепроверка…" : "Идёт разбор…"}</p>
+      )}
       {run === null && unprocessed > 0 ? (
         <p className="inbox-waiting">
           <span>Не разобрано: {unprocessed}</span>
@@ -70,7 +72,7 @@ function InboxLine({
             onReport(latestReport.id);
           }}
         >
-          Отчёт о разборе
+          {latestReport.mode === "recheck" ? "Отчёт о перепроверке" : "Отчёт о разборе"}
         </button>
       )}
     </div>

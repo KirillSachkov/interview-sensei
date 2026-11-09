@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import { browserHeaders } from "./chat-test-support.ts";
 import { manualProcessing, reportOf, textOf, topicOf } from "./inbox-test-support.ts";
+import type { ReportView } from "./inbox-test-support.ts";
 import { materialQuestion } from "./material-test-support.ts";
 import { callTool, questionsOf, toolResult } from "./setup-test-support.ts";
 import type { Events } from "./setup-test-support.ts";
@@ -33,8 +34,12 @@ describe("«не подтверждён» in Inbox processing", () => {
   it("a Question made up without a Source is unconfirmed until 👍, a Question from the material is confirmed", async () => {
     const { server, target, file, events } = await manualProcessing();
     const topicId = topicOf(target, "Go");
-    const { sourceId: _sourceId, part: _part, referenceAnswer: _answer, ...made } =
-      materialQuestion({ topicId, sourceId: file.id }, "Как профилировать горутины?");
+    const {
+      sourceId: _sourceId,
+      part: _part,
+      referenceAnswer: _answer,
+      ...made
+    } = materialQuestion({ topicId, sourceId: file.id }, "Как профилировать горутины?");
     const [fromMaterial, madeUp] = await added(events, [
       materialQuestion({ topicId, sourceId: file.id }, "Как устроен планировщик Go?"),
       made,
@@ -73,36 +78,52 @@ describe("«не подтверждён» in Inbox processing", () => {
   });
 });
 
+/** A processing that added two Questions of the vacancy and wrote its report. */
+async function reportWithTwoQuestions() {
+  const { server, target, file, events } = await manualProcessing();
+  const ids = { topicId: topicOf(target, "Go"), sourceId: file.id };
+  const questionIds = await added(events, [
+    materialQuestion(ids, "Как устроен планировщик Go?"),
+    materialQuestion(ids, "Что такое GOMAXPROCS?"),
+  ]);
+  const written = await toolResult(events, "write_inbox_report", { summary: "Вакансия." });
+  return { server, target, questionIds, reportId: textOf(written, "reportId") };
+}
+
+/** «Отметить просмотренными» of the report. */
+async function markSeen(server: FastifyInstance, targetId: string, reportId: string) {
+  return server.inject({
+    method: "POST",
+    url: `/api/targets/${targetId}/inbox-reports/${reportId}/seen`,
+    headers: browserHeaders(server),
+  });
+}
+
+/** The Questions of the report's Topics, in order. */
+const reportedQuestions = (report: ReportView) =>
+  report.sections.flatMap((section) => section.topics).flatMap((topic) => topic.questions);
+
 describe("the Questions of an Inbox report", () => {
-  it("the filter «новые» shows the Questions the Candidate has not seen, and «просмотрено» clears it", async () => {
-    const { server, target, file, events } = await manualProcessing();
-    const ids = { topicId: topicOf(target, "Go"), sourceId: file.id };
-    const [first, second] = await added(events, [
-      materialQuestion(ids, "Как устроен планировщик Go?"),
-      materialQuestion(ids, "Что такое GOMAXPROCS?"),
-    ]);
-    const written = await toolResult(events, "write_inbox_report", { summary: "Вакансия." });
-    const reportId = textOf(written, "reportId");
-    const url = `/api/targets/${target.id}/inbox-reports/${reportId}`;
-    const headers = browserHeaders(server);
+  it("the filter «новые» shows the Questions the Candidate has not seen", async () => {
+    const { server, target, questionIds, reportId } = await reportWithTwoQuestions();
 
     const fresh = await reportOf(server, target.id, `${reportId}?new=true`);
-    expect(fresh.newQuestions).toBe(2);
-    expect(fresh.sections.flatMap((section) => section.topics)).toMatchObject([
-      { questions: [{ id: first, unseen: true }, { id: second, unseen: true }] },
-    ]);
 
-    const seen = await server.inject({ method: "POST", url: `${url}/seen`, headers });
+    expect(fresh.newQuestions).toBe(2);
+    expect(reportedQuestions(fresh)).toMatchObject(questionIds.map((id) => ({ id, unseen: true })));
+  });
+
+  it("«просмотрено» empties the filter «новые» and keeps every Question in the report", async () => {
+    const { server, target, questionIds, reportId } = await reportWithTwoQuestions();
+
+    const seen = await markSeen(server, target.id, reportId);
 
     expect(seen.statusCode).toBe(204);
     const afterSeen = await reportOf(server, target.id, `${reportId}?new=true`);
-    expect(afterSeen.newQuestions).toBe(0);
-    expect(afterSeen.sections).toStrictEqual([]);
+    expect(afterSeen).toMatchObject({ newQuestions: 0, sections: [] });
     const all = await reportOf(server, target.id, reportId);
     expect(all.added).toBe(2);
-    expect(all.sections.flatMap((section) => section.topics)).toMatchObject([
-      { questions: [{ id: first, unseen: false }, { id: second, unseen: false }] },
-    ]);
+    expect(reportedQuestions(all)).toMatchObject(questionIds.map((id) => ({ id, unseen: false })));
   });
 
   it("bulk-hidden Questions stay in the report as hidden, deleted ones leave it", async () => {
@@ -119,13 +140,9 @@ describe("the Questions of an Inbox report", () => {
     await review(server, target.id, { action: "delete", questionIds: [deleted] });
 
     const report = await reportOf(server, target.id, textOf(written, "reportId"));
-    expect(report.sections.flatMap((section) => section.topics)).toMatchObject([
-      {
-        questions: [
-          { id: hidden, hidden: true },
-          { id: kept, hidden: false },
-        ],
-      },
+    expect(reportedQuestions(report)).toMatchObject([
+      { id: hidden, hidden: true },
+      { id: kept, hidden: false },
     ]);
   });
 });

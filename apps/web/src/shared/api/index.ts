@@ -10,8 +10,26 @@ export {
 } from "./drafts";
 export type { DraftOperation } from "./drafts";
 export { fetchSources, maxSourceFileBytes, uploadSource } from "./sources";
-export { dismissInboxProposal, fetchInbox, fetchInboxReport, startInboxProcessing } from "./inbox";
-export type { InboxReport, InboxState, ProposalItem } from "./inbox";
+export {
+  dismissInboxProposal,
+  dismissRecheckProposal,
+  fetchInbox,
+  fetchInboxReport,
+  fetchInboxReports,
+  markReportSeen,
+  reviewQuestions,
+  startInboxProcessing,
+  startRecheck,
+} from "./inbox";
+export type {
+  HideProposal,
+  InboxReport,
+  InboxState,
+  ProposalItem,
+  ReportQuestion,
+  ReviewAction,
+  ReportSummary,
+} from "./inbox";
 export type { SourceType, SourceView } from "./sources";
 export {
   endSetupSession,

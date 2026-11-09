@@ -1,6 +1,6 @@
 // What the Candidate sees of Inbox processing: the proposal card in the setup chat, the state for
 // the card «Материалы», and the Inbox report.
-import type { InboxProposal } from "../domain/inbox.ts";
+import type { InboxProposal, InboxReport } from "../domain/inbox.ts";
 import type { InboxBankQuestion, InboxTarget } from "../domain/ports.ts";
 import { reportQuestions } from "../domain/report-questions.ts";
 import type { Source } from "../domain/source.ts";
@@ -147,6 +147,27 @@ function reportSource({ id, type, title, url, status, failure }: Source) {
   return { id, type, title, url, status, failure };
 }
 
+/** The list «скрыть?» with each Question's text, Topic and visibility; deleted ones left out. */
+function hideList(
+  hide: InboxReport["proposals"]["hide"],
+  {
+    bank,
+    topics,
+  }: {
+    bank: readonly InboxBankQuestion[];
+    topics: readonly { readonly id: string; readonly name: string }[];
+  },
+) {
+  return hide.flatMap(({ questionId, reason }) => {
+    const question = bank.find((candidate) => candidate.id === questionId);
+    if (question === undefined) {
+      return [];
+    }
+    const topic = topics.find((candidate) => candidate.id === question.topicId)?.name ?? "";
+    return [{ questionId, text: question.text, topic, reason, hidden: question.hidden }];
+  });
+}
+
 /**
  * The Target's Inbox report for the panel; null for another Target's report and unknown ones.
  * `onlyNew` is the filter «новые с последнего просмотра» of the added Questions.
@@ -168,14 +189,6 @@ export async function reportView(
   ]);
   const { id, mode, partial, createdAt, summary, duplicates, doubtful, proposals } = report;
   const added = reportQuestions(report.questionIds, bank, { onlyNew: false });
-  const toHide = proposals.hide.flatMap(({ questionId, reason }) => {
-    const question = bank.find((candidate) => candidate.id === questionId);
-    if (question === undefined) {
-      return [];
-    }
-    const topic = topics.find((candidate) => candidate.id === question.topicId)?.name ?? "";
-    return [{ questionId, text: question.text, topic, reason, hidden: question.hidden }];
-  });
   const shown = onlyNew ? reportQuestions(report.questionIds, bank, { onlyNew }) : added;
   return {
     id,
@@ -186,7 +199,7 @@ export async function reportView(
     duplicates,
     doubtful,
     proposals: { sections: proposals.sections, preferences: proposals.preferences },
-    toHide,
+    toHide: hideList(proposals.hide, { bank, topics }),
     added: added.length,
     newQuestions: added.filter((question) => question.unseen).length,
     sources: sources

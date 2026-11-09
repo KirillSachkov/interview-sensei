@@ -2,6 +2,7 @@
 import type { ToolSession } from "../../../shared/mcp/index.ts";
 import type { RunInTransaction, Transaction } from "../../../shared/storage/index.ts";
 import type { Clock } from "../../../shared/time/index.ts";
+import type { InboxRun } from "../domain/inbox.ts";
 import type {
   DuplicateFilter,
   InboxAgents,
@@ -81,4 +82,11 @@ export async function runOf(
     throw new Error("This session's Target has no running Inbox processing");
   }
   return { targetId, run };
+}
+
+/** A recheck changes nothing: it only proposes Questions to hide. */
+export function refuseInRecheck(run: InboxRun): void {
+  if (run.mode === "recheck") {
+    throw new Error("A recheck changes nothing: list the Questions to hide in write_inbox_report");
+  }
 }

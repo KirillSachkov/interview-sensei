@@ -8,6 +8,13 @@ type Dependencies = Pick<Features, "sources"> & { readonly archiveGuard: Archive
 
 const otherAgentHint = "Или выберите другого агента в меню «Агент» в верхней панели.";
 
+/** The refusals of a start that the Candidate fixes in the list. */
+const badRequests = {
+  no_sources: "Нет материалов, которые ждут разбора.",
+  no_questions: "В базе нет вопросов, которые можно перепроверить.",
+  invalid_sources: "Часть выбранных материалов уже разобрана или удалена. Обновите список.",
+} as const;
+
 /** The refusal of a start in Russian, with what the Candidate can do. */
 function refuseStart(
   reply: FastifyReply,
@@ -23,24 +30,10 @@ function refuseStart(
         message: "Цель в архиве. Верните её из архива, чтобы разобрать материалы.",
       });
     }
-    case "no_sources": {
-      return reply
-        .code(400)
-        .send({ error: outcome.type, message: "Нет материалов, которые ждут разбора." });
-    }
-    case "no_questions": {
-      return reply
-        .code(400)
-        .send({
-          error: outcome.type,
-          message: "В базе нет вопросов, которые можно перепроверить.",
-        });
-    }
+    case "no_sources":
+    case "no_questions":
     case "invalid_sources": {
-      return reply.code(400).send({
-        error: outcome.type,
-        message: "Часть выбранных материалов уже разобрана или удалена. Обновите список.",
-      });
+      return reply.code(400).send({ error: outcome.type, message: badRequests[outcome.type] });
     }
     case "processing_running": {
       return reply.code(409).send({
@@ -126,7 +119,7 @@ function registerReads(server: FastifyInstance, { sources }: Dependencies) {
     { schema: { params } },
     async (request, reply) => {
       const reports = await sources.inbox.reports(request.params.id);
-      return reports === null ? reply.code(404).send({ error: "target_not_found" }) : reports;
+      return reports ?? reply.code(404).send({ error: "target_not_found" });
     },
   );
   server.get<{ Params: { id: string } }>(
@@ -134,7 +127,7 @@ function registerReads(server: FastifyInstance, { sources }: Dependencies) {
     { schema: { params } },
     async (request, reply) => {
       const state = await sources.inbox.state(request.params.id);
-      return state === null ? reply.code(404).send({ error: "target_not_found" }) : state;
+      return state ?? reply.code(404).send({ error: "target_not_found" });
     },
   );
   server.get<{
@@ -156,7 +149,7 @@ function registerReads(server: FastifyInstance, { sources }: Dependencies) {
       const report = await sources.inbox.report(request.params.id, request.params.reportId, {
         onlyNew: request.query.new === true,
       });
-      return report === null ? reply.code(404).send({ error: "report_not_found" }) : report;
+      return report ?? reply.code(404).send({ error: "report_not_found" });
     },
   );
   server.post<{ Params: { id: string; reportId: string } }>(

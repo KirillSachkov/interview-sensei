@@ -6,6 +6,7 @@ import type { InboxState, ProposalItem, SessionView } from "@/shared/api";
 
 import { sizeText, sourceTypeNames } from "../lib/source-names";
 import { inboxQueryKey, useInbox, useInboxAfterTurn, useStartProcessing } from "../model/inbox";
+import { RecheckProposal } from "./recheck-proposal";
 
 /** One material of the card: its checkbox, title, type, size and the agent's assessment. */
 function ProposalLine({
@@ -134,8 +135,9 @@ function ProposalCard({
 
 /**
  * The card «Разбор материалов» above the setup chat's message form, after the agent's
- * `propose_inbox_processing`: the materials with checkboxes, «Запустить разбор» and «Не сейчас».
- * Only this button starts the processing; the card goes once the Candidate answers.
+ * `propose_inbox_processing`: the materials with checkboxes, «Запустить разбор» and «Не сейчас»;
+ * and the card «Перепроверка базы» after `propose_recheck`. Only these buttons start the work;
+ * a card goes once the Candidate answers.
  */
 export function InboxProposal({
   targetId,
@@ -147,7 +149,15 @@ export function InboxProposal({
   const { inbox } = useInbox(targetId);
   useInboxAfterTurn(targetId, status);
   const proposal = inbox.data?.proposal ?? null;
-  return proposal === null ? null : (
-    <ProposalCard key={proposal.id} targetId={targetId} proposal={proposal} />
+  const recheck = inbox.data?.recheckProposal ?? null;
+  return (
+    <>
+      {proposal === null ? null : (
+        <ProposalCard key={proposal.id} targetId={targetId} proposal={proposal} />
+      )}
+      {recheck === null ? null : (
+        <RecheckProposal key={recheck.id} targetId={targetId} proposal={recheck} />
+      )}
+    </>
   );
 }

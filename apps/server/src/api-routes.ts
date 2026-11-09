@@ -7,7 +7,6 @@ import type { Features } from "./composition.ts";
 import { registerInboxRoutes } from "./inbox-routes.ts";
 import { registerInterviewRoutes } from "./interview-routes.ts";
 import { registerProgressRoutes } from "./progress-routes.ts";
-import { registerQuestionReviewRoutes } from "./question-review-routes.ts";
 import { registerSourceRoutes } from "./source-routes.ts";
 import { registerTargetRoutes } from "./target-routes.ts";
 import { registerTargetSetupRoutes } from "./target-setup-routes.ts";
@@ -17,7 +16,6 @@ export function registerApi(server: FastifyInstance, features: Features) {
   server.get("/api/health", features.health);
   const guarded = { ...features, archiveGuard: archiveGuard(features.targets) };
   registerTargetRoutes(server, guarded);
-  registerQuestionReviewRoutes(server, features);
   registerTargetSetupRoutes(server, guarded);
   registerSourceRoutes(server, features);
   registerInboxRoutes(server, guarded);

@@ -84,7 +84,11 @@ export function drizzleQuestionRepository(database: Database): QuestionRepositor
     rate: async (id, rating) => {
       const rows = await database
         .update(questions)
-        .set({ rating, ratingComment: null, ...(rating === "useful" ? { unconfirmed: false } : {}) })
+        .set({
+          rating,
+          ratingComment: null,
+          ...(rating === "useful" ? { unconfirmed: false } : {}),
+        })
         .where(eq(questions.id, id))
         .returning({ id: questions.id });
       return rows.length > 0;

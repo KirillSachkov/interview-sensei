@@ -12,6 +12,7 @@ import {
   latestReportId,
   processingEvents,
   processingSession,
+  sectionOf,
   sessionEnded,
   startProcessing,
   topicOf,
@@ -59,6 +60,56 @@ async function targetWithPreference(text = preference) {
   return { server, target, setup: events };
 }
 
+/** The open recheck proposal of the Target, null without one. */
+async function recheckProposalOf(server: FastifyInstance, targetId: string) {
+  const state = await inboxOf(server, targetId);
+  return state.recheckProposal;
+}
+
+/** «Не сейчас» on the card «Перепроверка базы». */
+async function dismissRecheck(server: FastifyInstance, targetId: string) {
+  return server.inject({
+    method: "POST",
+    url: `/api/targets/${targetId}/inbox/recheck-proposal/dismiss`,
+    headers: browserHeaders(server),
+  });
+}
+
+/** The bulk action «скрыть» of the Questions, as the report panel sends it. */
+async function hideQuestions(server: FastifyInstance, targetId: string, ids: readonly string[]) {
+  return server.inject({
+    method: "POST",
+    url: `/api/targets/${targetId}/questions/review`,
+    headers: browserHeaders(server),
+    payload: { action: "hide", questionIds: ids },
+  });
+}
+
+/** The proposed recheck started by its button; resolves with its report once the agent ends. */
+async function finishedRecheck(server: FastifyInstance, targetId: string) {
+  const started = await startRecheck(server, targetId);
+  expect(started.statusCode).toBe(202);
+  const reportId = await latestReportId(server, targetId);
+  await sessionEnded(server, await processingSession(server, targetId));
+  return { reportId, report: await recheckReport(server, targetId, reportId) };
+}
+
+/** A recheck whose fake agent waits for `/tool` commands. */
+async function manualRecheck() {
+  const { server, target } = await targetWithPreference(`${preference} [manual]`);
+  const started = await startRecheck(server, target.id);
+  expect(started.statusCode).toBe(202);
+  const { events } = await processingEvents(server, target.id);
+  return { server, target, events };
+}
+
+const madeUp = (topicId: string) => ({
+  topicId,
+  text: "Что такое горутина?",
+  level: "middle",
+  sectionKind: "topics",
+});
+
 describe("the recheck of the bank", () => {
   it("propose_recheck shows the card in the setup chat, and nothing starts without the button", async () => {
     const { server, target, setup } = await targetWithPreference();
@@ -68,64 +119,60 @@ describe("the recheck of the bank", () => {
     const state = await inboxOf(server, target.id);
     expect(state.recheckProposal).toMatchObject({ reason: `Новое пожелание: «${preference}».` });
     expect(state.run).toBeNull();
-    const dismissed = await server.inject({
-      method: "POST",
-      url: `/api/targets/${target.id}/inbox/recheck-proposal/dismiss`,
-      headers: browserHeaders(server),
-    });
-    expect(dismissed.statusCode).toBe(204);
-    expect((await inboxOf(server, target.id)).recheckProposal).toBeNull();
   });
 
-  it("changes nothing itself and lists «скрыть?» with reasons, which the Candidate accepts with a bulk action", async () => {
+  it("«Не сейчас» closes the card of the recheck", async () => {
+    const { server, target, setup } = await targetWithPreference();
+    await toolResult(setup, "propose_recheck", { reason: "Новое пожелание." });
+
+    const dismissed = await dismissRecheck(server, target.id);
+
+    expect(dismissed.statusCode).toBe(204);
+    await expect(recheckProposalOf(server, target.id)).resolves.toBeNull();
+  });
+
+  it("changes nothing itself and lists «скрыть?» with reasons that name the Preference", async () => {
     const { server, target, setup } = await targetWithPreference();
     await toolResult(setup, "propose_recheck", { reason: "Новое пожелание." });
     const before = await questionsOf(server, target.id);
 
-    const started = await startRecheck(server, target.id);
+    const { report } = await finishedRecheck(server, target.id);
 
-    expect(started.statusCode).toBe(202);
-    expect((await inboxOf(server, target.id)).recheckProposal).toBeNull();
-    const reportId = await latestReportId(server, target.id);
-    await sessionEnded(server, await processingSession(server, target.id));
-    const report = await recheckReport(server, target.id, reportId);
+    await expect(recheckProposalOf(server, target.id)).resolves.toBeNull();
     expect(report.mode).toBe("recheck");
-    expect(report.toHide.map(({ text }) => text)).toStrictEqual(before.map(({ text }) => text));
     expect(
-      report.toHide.every(({ reason, hidden }) => reason.includes(preference) && !hidden),
-    ).toBe(true);
-    expect(await questionsOf(server, target.id)).toStrictEqual(before);
+      report.toHide.map(({ questionId, text, hidden }) => ({ questionId, text, hidden })),
+    ).toStrictEqual(before.map(({ id, text }) => ({ questionId: id, text, hidden: false })));
+    expect(report.toHide.filter(({ reason }) => !reason.includes(preference))).toStrictEqual([]);
+    await expect(questionsOf(server, target.id)).resolves.toStrictEqual(before);
+  });
 
-    await server.inject({
-      method: "POST",
-      url: `/api/targets/${target.id}/questions/review`,
-      headers: browserHeaders(server),
-      payload: { action: "hide", questionIds: report.toHide.map(({ questionId }) => questionId) },
-    });
+  it("the Candidate accepts the list «скрыть?» with a bulk action", async () => {
+    const { server, target } = await targetWithPreference();
+    const { reportId, report } = await finishedRecheck(server, target.id);
 
-    expect(await questionsOf(server, target.id)).toStrictEqual([]);
+    await hideQuestions(
+      server,
+      target.id,
+      report.toHide.map(({ questionId }) => questionId),
+    );
+
+    await expect(questionsOf(server, target.id)).resolves.toStrictEqual([]);
     const accepted = await recheckReport(server, target.id, reportId);
-    expect(accepted.toHide.every(({ hidden }) => hidden)).toBe(true);
+    expect(accepted.toHide.map(({ hidden }) => hidden)).toStrictEqual(
+      report.toHide.map(() => true),
+    );
   });
 
   it("the recheck agent cannot add Questions or Topics, and a processing waits until it ends", async () => {
-    const { server, target } = await targetWithPreference(`${preference} [manual]`);
-    expect((await startRecheck(server, target.id)).statusCode).toBe(202);
-    const { events } = await processingEvents(server, target.id);
+    const { server, target, events } = await manualRecheck();
     const file = await attach(server, { targetId: target.id, name: "vacancy.md", body: "Go" });
 
     const addedReply = await callTool(events, "add_bank_questions", {
-      questions: [
-        {
-          topicId: topicOf(target, "Go"),
-          text: "Что такое горутина?",
-          level: "middle",
-          sectionKind: "topics",
-        },
-      ],
+      questions: [madeUp(topicOf(target, "Go"))],
     });
     const topicReply = await callTool(events, "create_topic", {
-      sectionId: target.sections[1]?.id,
+      sectionId: sectionOf(target, "Go").id,
       name: "Планировщик",
     });
     const processing = await startProcessing(server, target.id, [file.id]);
@@ -137,9 +184,7 @@ describe("the recheck of the bank", () => {
   });
 
   it("refuses a Question of another Target in the list «скрыть?»", async () => {
-    const { server, target } = await targetWithPreference(`${preference} [manual]`);
-    await startRecheck(server, target.id);
-    const { events } = await processingEvents(server, target.id);
+    const { events } = await manualRecheck();
 
     const reply = await callTool(events, "write_inbox_report", {
       summary: "Перепроверка.",
@@ -163,14 +208,19 @@ describe("the recheck of the bank", () => {
   });
 });
 
+/** A processing of a one-part vacancy, finished; resolves with its report's id. */
+async function processedOnce(server: FastifyInstance, targetId: string) {
+  await attach(server, { targetId, name: "vacancy.txt", body: "Что такое select?" });
+  await startProcessing(server, targetId);
+  const reportId = await latestReportId(server, targetId);
+  await sessionEnded(server, await processingSession(server, targetId));
+  return reportId;
+}
+
 describe("the history of Inbox reports", () => {
   it("lists the Target's reports, the newest first, with their mode and what they added", async () => {
-    const { server, target, setup } = await targetWithPreference();
-    await attach(server, { targetId: target.id, name: "vacancy.txt", body: "Что такое select?" });
-    await startProcessing(server, target.id);
-    const processed = await latestReportId(server, target.id);
-    await sessionEnded(server, await processingSession(server, target.id));
-    await toolResult(setup, "propose_recheck", { reason: "Новое пожелание." });
+    const { server, target } = await targetWithPreference();
+    const processed = await processedOnce(server, target.id);
     await startRecheck(server, target.id);
     const rechecked = await waitForAnotherReport(server, target.id, processed);
 

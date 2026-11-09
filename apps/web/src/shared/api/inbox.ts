@@ -13,9 +13,12 @@ export interface ProposalItem {
   readonly assessment: string;
 }
 
+/** `processing` reads materials; `recheck` checks the bank against the Preferences. */
+type InboxMode = "processing" | "recheck";
+
 /**
- * The Target's Inbox processing: the open proposal of the setup chat, the running processing, the
- * latest Inbox report and how many materials wait in the Inbox.
+ * The Target's Inbox processing: the open proposals of the setup chat, the running processing or
+ * recheck, the latest Inbox report and how many materials wait in the Inbox.
  */
 export interface InboxState {
   readonly proposal: {
@@ -23,21 +26,62 @@ export interface InboxState {
     readonly createdAt: string;
     readonly items: readonly ProposalItem[];
   } | null;
-  readonly run: { readonly id: string; readonly sourceIds: readonly string[] } | null;
-  readonly latestReport: { readonly id: string; readonly createdAt: string } | null;
+  /** The card «Перепроверка базы» with the setup agent's reason. */
+  readonly recheckProposal: {
+    readonly id: string;
+    readonly createdAt: string;
+    readonly reason: string;
+  } | null;
+  readonly run: {
+    readonly id: string;
+    readonly mode: InboxMode;
+    readonly sourceIds: readonly string[];
+  } | null;
+  readonly latestReport: {
+    readonly id: string;
+    readonly mode: InboxMode;
+    readonly createdAt: string;
+  } | null;
   readonly unprocessed: number;
 }
 
 type SectionKind = "conversation" | "topics" | "design";
 
+/** A Question of the report with the marks the Candidate reviews it by. */
+export interface ReportQuestion {
+  readonly id: string;
+  readonly text: string;
+  readonly level: "junior" | "middle" | "senior";
+  readonly sectionKind: SectionKind | null;
+  readonly hidden: boolean;
+  /** «не подтверждён»: an agent made it up without a material. */
+  readonly unconfirmed: boolean;
+  /** «новый»: the Candidate has not seen it. */
+  readonly unseen: boolean;
+  readonly rating: "useful" | "irrelevant" | "wrong" | null;
+  readonly ratingComment: string | null;
+}
+
+/** A Question of the list «скрыть?» of a recheck. */
+export interface HideProposal {
+  readonly questionId: string;
+  readonly text: string;
+  readonly topic: string;
+  readonly reason: string;
+  readonly hidden: boolean;
+}
+
 /** The Inbox report as its panel shows it. */
 export interface InboxReport {
   readonly id: string;
+  readonly mode: InboxMode;
   readonly partial: boolean;
   readonly createdAt: string;
   readonly summary: string;
   readonly duplicates: number;
   readonly added: number;
+  /** How many added Questions the Candidate has not seen. */
+  readonly newQuestions: number;
   readonly sources: readonly {
     readonly id: string;
     readonly type: SourceType;
@@ -51,12 +95,7 @@ export interface InboxReport {
     readonly topics: readonly {
       readonly id: string;
       readonly name: string;
-      readonly questions: readonly {
-        readonly id: string;
-        readonly text: string;
-        readonly level: "junior" | "middle" | "senior";
-        readonly hidden: boolean;
-      }[];
+      readonly questions: readonly ReportQuestion[];
     }[];
   }[];
   readonly doubtful: readonly { readonly text: string; readonly reason: string }[];
@@ -68,6 +107,17 @@ export interface InboxReport {
     }[];
     readonly preferences: readonly { readonly text: string; readonly reason: string }[];
   };
+  readonly toHide: readonly HideProposal[];
+}
+
+/** A report of the history. */
+export interface ReportSummary {
+  readonly id: string;
+  readonly mode: InboxMode;
+  readonly partial: boolean;
+  readonly createdAt: string;
+  readonly added: number;
+  readonly toHide: number;
 }
 
 function inboxUrl(targetId: string): string {
@@ -115,12 +165,67 @@ export async function dismissInboxProposal(targetId: string): Promise<void> {
   await request(`${inboxUrl(targetId)}/proposal/dismiss`, { method: "POST" });
 }
 
-export async function fetchInboxReport(targetId: string, reportId: string): Promise<InboxReport> {
-  const body = await request(
-    `/api/targets/${encodeURIComponent(targetId)}/inbox-reports/${encodeURIComponent(reportId)}`,
-  );
+function reportUrl(targetId: string, reportId: string): string {
+  return `/api/targets/${encodeURIComponent(targetId)}/inbox-reports/${encodeURIComponent(reportId)}`;
+}
+
+/** The report; `onlyNew` keeps the added Questions the Candidate has not seen. */
+export async function fetchInboxReport(
+  targetId: string,
+  reportId: string,
+  onlyNew = false,
+): Promise<InboxReport> {
+  const body = await request(`${reportUrl(targetId, reportId)}${onlyNew ? "?new=true" : ""}`);
   if (!isInboxReport(body)) {
     throw new Error("неожиданный ответ");
   }
   return body;
+}
+
+/** «Отметить просмотренными»: the report's Questions are no longer «новый». */
+export async function markReportSeen(targetId: string, reportId: string): Promise<void> {
+  await request(`${reportUrl(targetId, reportId)}/seen`, { method: "POST" });
+}
+
+function isReportList(value: unknown): value is ReportSummary[] {
+  return (
+    Array.isArray(value) &&
+    value.every((item: unknown) => isObject(item) && typeof item.id === "string")
+  );
+}
+
+/** The history of the Target's reports, the newest first. */
+export async function fetchInboxReports(targetId: string): Promise<ReportSummary[]> {
+  const body = await request(`/api/targets/${encodeURIComponent(targetId)}/inbox-reports`);
+  if (!isReportList(body)) {
+    throw new Error("неожиданный ответ");
+  }
+  return body;
+}
+
+/** «Запустить перепроверку»; throws the server's Russian message, such as for a running one. */
+export async function startRecheck(targetId: string): Promise<void> {
+  await request(`${inboxUrl(targetId)}/recheck`, { method: "POST" });
+}
+
+/** «Не сейчас» on the card «Перепроверка базы». */
+export async function dismissRecheckProposal(targetId: string): Promise<void> {
+  await request(`${inboxUrl(targetId)}/recheck-proposal/dismiss`, { method: "POST" });
+}
+
+/** What the Candidate does with the chosen Questions. */
+export type ReviewAction = "hide" | "delete" | "warn" | "confirm";
+
+/**
+ * The bulk review of the Target's Questions: hide, delete (a Question with Attempts is hidden
+ * instead), ⚠ with the comment, 👍.
+ */
+export async function reviewQuestions(
+  targetId: string,
+  review: { action: ReviewAction; questionIds: readonly string[]; comment?: string },
+): Promise<void> {
+  await request(`/api/targets/${encodeURIComponent(targetId)}/questions/review`, {
+    method: "POST",
+    body: review,
+  });
 }

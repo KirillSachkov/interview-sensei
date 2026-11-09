@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 
-import { fetchInbox, startInboxProcessing } from "@/shared/api";
+import { fetchInbox, startInboxProcessing, startRecheck } from "@/shared/api";
 import type { SessionView } from "@/shared/api";
 
 import { refreshAppliedViews } from "./plan-views";
@@ -31,6 +31,7 @@ export function useInbox(targetId: string) {
   useEffect(() => {
     if (wasRunning.current && !running) {
       void queryClient.invalidateQueries({ queryKey: sourcesQueryKey(targetId) });
+      void queryClient.invalidateQueries({ queryKey: ["targets", targetId, "inbox-reports"] });
       void refreshAppliedViews(queryClient, targetId);
     }
     wasRunning.current = running;
@@ -51,6 +52,15 @@ export function useStartProcessing(targetId: string) {
         queryClient.invalidateQueries({ queryKey: sourcesQueryKey(targetId) }),
       ]);
     },
+  });
+}
+
+/** «Запустить перепроверку»: the server answers at once and starts the recheck in the background. */
+export function useStartRecheck(targetId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => startRecheck(targetId),
+    onSettled: async () => queryClient.invalidateQueries({ queryKey: inboxQueryKey(targetId) }),
   });
 }
 

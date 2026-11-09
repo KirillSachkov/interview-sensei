@@ -7,15 +7,10 @@ import type { InboxMode, InboxProposal, ProposalItem } from "../domain/inbox.ts"
 import { sessionTarget } from "./inbox-context.ts";
 import type { InboxContext, InboxDependencies } from "./inbox-context.ts";
 import { start, startRecheck } from "./inbox-start.ts";
-import {
-  addBankQuestions,
-  brief,
-  createTopic,
-  listInbox,
-  readSource,
-  writeReport,
-} from "./inbox-work.ts";
-import type { MaterialQuestion, ReportInput } from "./inbox-work.ts";
+import { addBankQuestions } from "./inbox-add.ts";
+import type { MaterialQuestion } from "./inbox-add.ts";
+import { brief, createTopic, listInbox, readSource, writeReport } from "./inbox-work.ts";
+import type { ReportInput } from "./inbox-work.ts";
 import { inboxState, markReportSeen, reportList, reportView } from "./inbox-views.ts";
 
 /**

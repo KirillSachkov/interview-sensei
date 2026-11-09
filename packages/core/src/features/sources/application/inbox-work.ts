@@ -1,15 +1,14 @@
 // What the agent of an Inbox processing does through its MCP tools: reads the materials part by
-// part, writes Questions straight into the bank, creates Topics inside Sections and writes the
-// Inbox report. Each acts only on the running processing of its session's Target.
+// part, creates Topics inside Sections and writes the Inbox report; inbox-add.ts writes Questions. Each acts only on the running processing of its session's Target.
 import { randomUUID } from "node:crypto";
 
 import type { ToolSession } from "../../../shared/mcp/index.ts";
 import type { Transaction } from "../../../shared/storage/index.ts";
 import { inboxBrief } from "../domain/inbox.ts";
 import type { DoubtfulQuestion, InboxReport, InboxRun, ReportProposals } from "../domain/inbox.ts";
-import type { InboxNewQuestion, InboxTarget } from "../domain/ports.ts";
+import type { InboxTarget } from "../domain/ports.ts";
 import type { Source } from "../domain/source.ts";
-import { runOf, sessionTarget } from "./inbox-context.ts";
+import { refuseInRecheck, runOf, sessionTarget } from "./inbox-context.ts";
 import type { InboxContext } from "./inbox-context.ts";
 
 /** A material of the processing as the agent sees it. */
@@ -50,13 +49,6 @@ export async function brief(context: InboxContext, session: ToolSession): Promis
   });
 }
 
-/** A recheck changes nothing: it only proposes Questions to hide. */
-function refuseInRecheck(run: InboxRun): void {
-  if (run.mode === "recheck") {
-    throw new Error("A recheck changes nothing: list the Questions to hide in write_inbox_report");
-  }
-}
-
 /** The materials of the running processing, with the number of parts of each. */
 export async function listInbox(context: InboxContext, session: ToolSession) {
   const { run } = await runOf(context, session);
@@ -83,129 +75,6 @@ export async function readSource(
     throw new Error(`The material has parts 1 to ${source.parts}`);
   }
   return { sourceId: id, part, parts: source.parts, text };
-}
-
-/** A Question of `add_bank_questions` as the agent gives it. */
-export interface MaterialQuestion {
-  readonly topicId: string;
-  readonly text: string;
-  readonly format: "open" | "quiz";
-  readonly options: readonly { readonly id: string; readonly text: string }[];
-  readonly correctOptionIds: readonly string[];
-  readonly level: "junior" | "middle" | "senior";
-  readonly sectionKind: "conversation" | "topics" | "design";
-  /** The material; without it the agent made the Question up, and it is unconfirmed. */
-  readonly sourceId?: string | undefined;
-  readonly part?: number | undefined;
-  readonly referenceAnswer?:
-    { readonly points: readonly string[]; readonly sample: string } | null | undefined;
-}
-
-/**
- * Refuses a Question whose Source is not a material of the run or whose part it lacks. A Question
- * without a Source has no part and no reference answer: the answer comes only from the material.
- */
-function checkSources(
-  questions: readonly MaterialQuestion[],
-  sources: readonly Source[],
-  run: InboxRun,
-): void {
-  for (const question of questions) {
-    if (question.sourceId === undefined) {
-      if (question.part !== undefined || (question.referenceAnswer ?? null) !== null) {
-        throw new Error("A Question without a Source has neither a part nor a reference answer");
-      }
-      continue;
-    }
-    if (question.part === undefined) {
-      throw new Error(`Give the part of the Source ${question.sourceId}`);
-    }
-    const source = sources.find((candidate) => candidate.id === question.sourceId);
-    if (source === undefined || !run.sourceIds.includes(source.id)) {
-      throw new Error(`The Source ${question.sourceId} is not a material of this processing`);
-    }
-    if (source.parts === null || question.part > source.parts) {
-      throw new Error(`The Source ${question.sourceId} has no part ${question.part}`);
-    }
-  }
-}
-
-function bankQuestion(question: MaterialQuestion, createdAt: string): InboxNewQuestion {
-  const { referenceAnswer, sourceId, part } = question;
-  const answer =
-    referenceAnswer === undefined ||
-    referenceAnswer === null ||
-    sourceId === undefined ||
-    part === undefined
-      ? null
-      : { ...referenceAnswer, origin: "material" as const, sourceId, part };
-  return {
-    id: randomUUID(),
-    topicId: question.topicId,
-    text: question.text,
-    format: question.format,
-    options: question.options,
-    correctOptionIds: question.correctOptionIds,
-    level: question.level,
-    hidden: false,
-    rating: null,
-    createdAt,
-    sourceIds: sourceId === undefined ? [] : [sourceId],
-    sourcePart: part ?? null,
-    sectionKind: question.sectionKind,
-    referenceAnswer: answer,
-    unconfirmed: sourceId === undefined,
-    unseen: true,
-  };
-}
-
-/** The new Questions without the duplicates of the Target's Questions and of each other. */
-async function filtered(
-  { dependencies }: InboxContext,
-  { targetId, questions }: { targetId: string; questions: readonly MaterialQuestion[] },
-  transaction: Transaction,
-) {
-  const existing = await dependencies.questions.questions(targetId, transaction);
-  const texts = existing.map((question) => question.text);
-  const { kept, duplicates } = dependencies.duplicates.withoutDuplicates(questions, texts);
-  const createdAt = dependencies.clock.now().toISOString();
-  return { rows: kept.map((question) => bankQuestion(question, createdAt)), duplicates };
-}
-
-async function addIn(
-  context: InboxContext,
-  { session, questions }: { session: ToolSession; questions: readonly MaterialQuestion[] },
-  transaction: Transaction,
-) {
-  const { questions: bank, inbox, repository } = context.dependencies;
-  const { targetId, run } = await runOf(context, session, transaction);
-  refuseInRecheck(run);
-  checkSources(questions, await repository.list(targetId, transaction), run);
-  const { rows, duplicates } = await filtered(context, { targetId, questions }, transaction);
-  if (rows.length > 0) {
-    await bank.addQuestions(targetId, rows, transaction);
-  }
-  const questionIds = rows.map((row) => row.id);
-  await inbox.recordAdded(run.id, { questionIds, duplicates: duplicates.length }, transaction);
-  return {
-    added: rows.map(({ id, text }) => ({ id, text })),
-    duplicates: duplicates.map((question) => question.text),
-  };
-}
-
-/**
- * Writes the Questions straight into the bank, without the draft of changes. The server leaves out
- * duplicates of the Target's Questions by the rule of the Target setup and counts them for the
- * report.
- */
-export async function addBankQuestions(
-  context: InboxContext,
-  session: ToolSession,
-  questions: readonly MaterialQuestion[],
-) {
-  return context.dependencies.transaction(async (opened) =>
-    addIn(context, { session, questions }, opened),
-  );
 }
 
 /** The plan with the Topic added to the Section, as the targets slice stores it. */
