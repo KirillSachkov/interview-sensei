@@ -20,13 +20,18 @@ function DebriefBody({ interviewId, attemptId }: { interviewId: string; attemptI
       <p>
         Оценка: <strong>{grade} из 3</strong>
         {gradedBy === "quiz" ? <span className="tag">квиз</span> : null}
+        {gradedBy === "skip" ? <span className="tag">пропущено</span> : null}
       </p>
       <h4>Пробелы</h4>
       <p>{gaps.trim() === "" ? "Нет" : gaps}</p>
       <h4>Обоснование</h4>
       <p>{justification}</p>
-      <h4>Набросок сильного ответа</h4>
-      <p>{strongAnswer}</p>
+      {strongAnswer === "" ? null : (
+        <>
+          <h4>Набросок сильного ответа</h4>
+          <p>{strongAnswer}</p>
+        </>
+      )}
     </section>
   );
 }

@@ -63,7 +63,11 @@ function LastInterview({
 }) {
   return (
     <>
-      <StartMock targetId={targetId} onStarted={onStarted} />
+      <StartMock
+        targetId={targetId}
+        difficulty={current?.difficulty ?? "as_is"}
+        onStarted={onStarted}
+      />
       {current === undefined ? (
         <p className="placeholder muted">
           Сессий пока нет. Здесь появятся мок-собеседования по цели.

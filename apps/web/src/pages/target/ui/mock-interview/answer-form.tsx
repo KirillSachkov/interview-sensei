@@ -1,8 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
-import type { KeyboardEvent, SubmitEvent } from "react";
-
-import { answerQuestion } from "@/shared/api";
+import type { KeyboardEvent, ReactNode, SubmitEvent } from "react";
 
 /** Fits the field's height to its text. */
 function grow(field: HTMLTextAreaElement): void {
@@ -18,27 +16,36 @@ function sendOnEnter(event: KeyboardEvent<HTMLTextAreaElement>): void {
   }
 }
 
-/** The free-text answer: the field grows with the text; Enter sends, Shift+Enter starts a line. */
-export function AnswerForm({ interviewId }: { interviewId: string }) {
+/**
+ * A free-text answer: the field grows with the text; Enter sends, Shift+Enter starts a line.
+ * `actions` go beside «Ответить», such as «Не знаю».
+ */
+export function AnswerForm({
+  label,
+  send,
+  actions = null,
+}: {
+  label: string;
+  send: (text: string) => Promise<void>;
+  actions?: ReactNode;
+}) {
   const [text, setText] = useState("");
-  const send = useMutation({
-    mutationFn: async (answer: string) => answerQuestion(interviewId, answer),
-  });
+  const sending = useMutation({ mutationFn: send });
   const submit = (event: SubmitEvent) => {
     event.preventDefault();
-    if (text.trim() !== "" && !send.isPending) {
-      send.mutate(text);
+    if (text.trim() !== "" && !sending.isPending) {
+      sending.mutate(text);
     }
   };
   return (
     <form className="answer-form" onSubmit={submit}>
       <textarea
         className="nodrag nopan nowheel"
-        aria-label="Ваш ответ"
-        placeholder="Ваш ответ. Enter — отправить, Shift+Enter — новая строка"
+        aria-label={label}
+        placeholder={`${label}. Enter — отправить, Shift+Enter — новая строка`}
         rows={2}
         value={text}
-        disabled={send.isPending}
+        disabled={sending.isPending}
         onChange={(event) => {
           setText(event.target.value);
           grow(event.target);
@@ -46,11 +53,16 @@ export function AnswerForm({ interviewId }: { interviewId: string }) {
         onKeyDown={sendOnEnter}
       />
       <div className="answer-actions">
-        <button type="submit" className="primary" disabled={text.trim() === "" || send.isPending}>
+        <button
+          type="submit"
+          className="primary"
+          disabled={text.trim() === "" || sending.isPending}
+        >
           Ответить
         </button>
+        {actions}
       </div>
-      {send.isError ? <p role="alert">Ответ не отправлен: {send.error.message}</p> : null}
+      {sending.isError ? <p role="alert">Ответ не отправлен: {sending.error.message}</p> : null}
     </form>
   );
 }

@@ -22,6 +22,7 @@ export function InterviewResult({ interview }: { interview: InterviewView }) {
           <li key={card.id}>
             <QuestionCard
               interviewId={interview.id}
+              targetId={interview.targetId}
               card={card}
               number={index + 1}
               canAnswer={false}
