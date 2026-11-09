@@ -7,7 +7,7 @@ import type { SetupTarget } from "./ports.ts";
  * starts the onboarding without waiting for the Candidate.
  */
 export const onboardingPrompt =
-  "Start the onboarding of this Target now: call get_brief, then ask the Candidate your first question.";
+  "Start the onboarding of this Target now: call get_brief, then ask the Candidate your first question. Write to the Candidate in Russian from the first line.";
 
 /** The Target without ids, as the agent reads it in the brief. */
 function targetText(target: SetupTarget): string {
