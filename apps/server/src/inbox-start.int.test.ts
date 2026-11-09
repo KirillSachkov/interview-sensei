@@ -18,13 +18,8 @@ import { api, appliedTarget, callTool, setupChat, toolResult } from "./setup-tes
 import { buildServer } from "./server.ts";
 import { sources } from "./source-test-support.ts";
 
-/**
- * A server that offers Claude Code, Codex and OpenCode from an empty temporary home, where Codex is
- * unavailable, and the demo Target with Codex as its agent and a vacancy in the Inbox. No agent
- * starts.
- */
-async function targetWithUnavailableAgent() {
-  const home = await temporaryDirectory();
+/** A listening server that offers Claude Code, Codex and OpenCode from the home. */
+async function serverWithRealAgents(home: string) {
   const server = await buildServer({
     clock: { now: () => new Date(fixedTime) },
     timer: { repeat: () => () => {}, after: () => () => {} },
@@ -33,6 +28,17 @@ async function targetWithUnavailableAgent() {
   });
   onTestFinished(async () => server.close());
   await server.listen({ host: "127.0.0.1", port: 0 });
+  return server;
+}
+
+/**
+ * A server that offers Claude Code, Codex and OpenCode from an empty temporary home, where Codex is
+ * unavailable, and the demo Target with Codex as its agent and a vacancy in the Inbox. No agent
+ * starts.
+ */
+async function targetWithUnavailableAgent() {
+  const home = await temporaryDirectory();
+  const server = await serverWithRealAgents(home);
   const headers = browserHeaders(server);
   const created = await server.inject({ method: "POST", url: "/api/targets/demo", headers });
   const { id } = created.json<{ id: string }>();
