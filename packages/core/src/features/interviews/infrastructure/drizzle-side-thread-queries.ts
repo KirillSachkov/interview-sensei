@@ -11,6 +11,7 @@ function toSideThread({
   originKind,
   originId,
   createdAt,
+  sequence: _sequence,
   ...row
 }: typeof sideThreads.$inferSelect): SideThread {
   return { ...row, origin: { kind: originKind, id: originId }, createdAt: createdAt.toISOString() };
@@ -31,7 +32,7 @@ export function drizzleSideThreadQueries(database: Database): SideThreadReposito
         .select()
         .from(sideThreads)
         .where(eq(sideThreads.interviewId, interviewId))
-        .orderBy(asc(sideThreads.createdAt), asc(sideThreads.id));
+        .orderBy(asc(sideThreads.sequence));
       return rows.map((row) => toSideThread(row));
     },
     sideThreadBySession: async (sessionId) => {

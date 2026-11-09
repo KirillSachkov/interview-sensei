@@ -140,4 +140,6 @@ export const sideThreads = interviewsSchema.table("side_threads", {
   question: text("question"),
   hinted: boolean("hinted").notNull(),
   createdAt: moment("created_at").notNull(),
+  /** The order the Side threads were opened in, for Side threads opened at the same moment. */
+  sequence: integer("sequence").notNull().generatedAlwaysAsIdentity(),
 });

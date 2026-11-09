@@ -29,6 +29,13 @@
       "when": 1794245719679,
       "tag": "0003_side_thread_debrief",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794247686052,
+      "tag": "0004_side_thread_order",
+      "breakpoints": true
     }
   ]
 }
