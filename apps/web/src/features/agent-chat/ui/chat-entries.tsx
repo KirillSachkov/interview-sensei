@@ -1,4 +1,7 @@
+import { useEffect, useRef } from "react";
+
 import type { ChatEntry } from "@/shared/api";
+import { AgentMarkdown } from "@/shared/ui/markdown";
 
 import { PermissionRequest } from "./permission-request";
 
@@ -30,9 +33,9 @@ function EntryLine({
     }
     case "agent_message": {
       return (
-        <p>
-          <strong>Агент:</strong> {entry.text}
-        </p>
+        <div className="agent-message">
+          <strong>Агент:</strong> <AgentMarkdown text={entry.text} />
+        </div>
       );
     }
     case "turn_interrupted": {
@@ -52,13 +55,46 @@ function EntryLine({
   }
 }
 
-/** The messages of the chat in order. */
+/** A list closer to its bottom than this, in pixels, counts as scrolled to the bottom. */
+const bottomSlack = 2;
+
+/**
+ * Keeps the list at its bottom when it gets shorter, such as when the draft of changes takes room
+ * below it, but only if it was at the bottom: a Candidate who scrolled up stays where they are.
+ * It was at the bottom when the distance to the bottom is no more than the height it lost.
+ * Returns the cleanup.
+ */
+function pinToBottom(list: HTMLElement): () => void {
+  let lastHeight = list.clientHeight;
+  const observer = new ResizeObserver(() => {
+    const lost = Math.max(lastHeight - list.clientHeight, 0);
+    lastHeight = list.clientHeight;
+    if (list.scrollHeight - list.scrollTop - list.clientHeight <= lost + bottomSlack) {
+      list.scrollTop = list.scrollHeight;
+    }
+  });
+  observer.observe(list);
+  return () => {
+    observer.disconnect();
+  };
+}
+
+/** The messages of the chat in order; a list that scrolls keeps the newest message in sight. */
 export function ChatEntries({
   entries,
   ...answering
 }: { entries: readonly ChatEntry[] } & PermissionAnswering) {
+  const list = useRef<HTMLOListElement>(null);
+  // A new message, or the newest one as it grows by chunks.
+  const newest = entries.at(-1);
+  useEffect(() => {
+    if (newest !== undefined && list.current !== null) {
+      list.current.scrollTop = list.current.scrollHeight;
+    }
+  }, [newest]);
+  useEffect(() => (list.current === null ? undefined : pinToBottom(list.current)), []);
   return (
-    <ol aria-label="Сообщения" style={{ listStyle: "none", padding: 0 }}>
+    <ol ref={list} aria-label="Сообщения" className="chat-entries">
       {entries.map((entry) => (
         <li key={entry.id}>
           <EntryLine entry={entry} answering={answering} />

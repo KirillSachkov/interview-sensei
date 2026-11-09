@@ -11,6 +11,7 @@ import {
   temporaryDirectory,
 } from "./chat-test-support.ts";
 import type { SessionView } from "./chat-test-support.ts";
+import { setupChat } from "./setup-test-support.ts";
 
 /** Posts one JSON-RPC message of the 2025-06-18 revision to the MCP address. */
 async function postMcp(url: string, message: object) {
@@ -70,6 +71,9 @@ async function chatWithMcpUrl(server: FastifyInstance) {
   return { sessionId, events, name, url };
 }
 
+const hasToolReply = (prefix: string) => (view: SessionView) =>
+  isIdle(view) && lastAgentText(view).startsWith(prefix);
+
 const isAskingPermission = (view: SessionView) =>
   permissionRequests(view).some((entry) => entry.answer === null);
 
@@ -102,19 +106,34 @@ describe("mcp and permissions", () => {
       request: {
         input: "touch interview-sensei/get_brief.txt",
         options: [
-          { optionId: "allow-once", name: "Разрешить", kind: "allow_once" },
-          { optionId: "allow-always", name: "Разрешать всегда", kind: "allow_always" },
-          { optionId: "reject-once", name: "Отклонить", kind: "reject_once" },
+          { optionId: "allow-once", name: "Allow once", kind: "allow_once" },
+          { optionId: "allow-always", name: "Always allow", kind: "allow_always" },
+          { optionId: "reject-once", name: "Reject", kind: "reject_once" },
+          { optionId: "reject-always", name: "Always reject", kind: "reject_always" },
         ],
         answer: null,
       },
     });
     events.send({ type: "permission", requestId: request?.requestId, optionId: "reject-once" });
 
-    const answered = await events.waitFor(hasAnswered("Фейковый агент получил ответ: «Отклонить»"));
+    const answered = await events.waitFor(hasAnswered("Фейковый агент получил ответ: «Reject»"));
     expect(permissionRequests(answered)).toMatchObject([
       { answer: { outcome: "selected", optionId: "reject-once" } },
     ]);
+  });
+
+  it("passes a foreign tool's permission request of a Target setup session to the Candidate", async () => {
+    const { server } = await startServer(await temporaryDirectory());
+    // The setup profile has `askCandidate`: the setup chat shows the requests for shell and web.
+    const { events } = await setupChat(server);
+
+    events.send({ type: "prompt", text: "/permission" });
+
+    const asking = await events.waitFor(isAskingPermission);
+    const [request] = permissionRequests(asking);
+    expect(request).toMatchObject({ input: "touch interview-sensei/get_brief.txt", answer: null });
+    events.send({ type: "permission", requestId: request?.requestId, optionId: "allow-once" });
+    await events.waitFor(hasAnswered("Фейковый агент получил ответ: «Allow once»"));
   });
 
   it("answers a waiting permission request with cancelled when the Candidate stops the turn", async () => {
@@ -198,5 +217,28 @@ describe("mcp and permissions", () => {
 
     await expect(mcpStatus(gone.url)).resolves.toBe(404);
     await expect(toolList(kept.url)).resolves.toMatchObject(serviceChatTools);
+  });
+});
+
+describe("the fake agent's /tool", () => {
+  it("lets the fake agent call a tool of its session by the command /tool without asking the Candidate", async () => {
+    const { server } = await startServer(await temporaryDirectory());
+    const { events } = await readyChat(server);
+
+    events.send({ type: "prompt", text: "/tool get_brief {}" });
+
+    const answered = await events.waitFor(hasToolReply("Результат get_brief: "));
+    expect(lastAgentText(answered)).toContain("Interview Sensei service chat");
+    expect(events.views.flatMap((view) => permissionRequests(view))).toStrictEqual([]);
+  });
+
+  it("tells a tool error from a result in the fake agent's reply to /tool", async () => {
+    const { server } = await startServer(await temporaryDirectory());
+    const { events } = await readyChat(server);
+
+    events.send({ type: "prompt", text: "/tool get_target {}" });
+
+    const answered = await events.waitFor(hasToolReply("Ошибка get_target: "));
+    expect(lastAgentText(answered)).toContain("get_target");
   });
 });

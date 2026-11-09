@@ -2,6 +2,24 @@ export { fetchAgents } from "./agents";
 export type { AgentAvailability } from "./agents";
 export { fetchHealth } from "./health";
 export {
+  applyDraft,
+  discardDraft,
+  DraftProblemsError,
+  fetchDraft,
+  removeDraftChange,
+} from "./drafts";
+export type { DraftOperation } from "./drafts";
+export { fetchSources, maxSourceFileBytes, uploadSource } from "./sources";
+export type { SourceType, SourceView } from "./sources";
+export {
+  endSetupSession,
+  fetchSessions,
+  isSessionView,
+  openSetupSession,
+  sessionEventsUrl,
+  startServiceChat,
+} from "./sessions";
+export {
   answerFollowUp,
   answerQuestion,
   fetchDebrief,
@@ -13,13 +31,7 @@ export {
   interviewMessage,
   startInterview,
 } from "./interviews";
-export type {
-  AttemptDebrief,
-  Difficulty,
-  InterviewView,
-  PlanSection,
-  QuestionCard,
-} from "./interviews";
+export type { AttemptDebrief, Difficulty, InterviewView, QuestionCard } from "./interviews";
 export { disputeGrade, fetchHistory, fetchInterviewSummary, fetchProgress } from "./progress";
 export type {
   HistoryFilter,
@@ -30,15 +42,18 @@ export type {
   TopicProgress,
   TopicStatus,
 } from "./progress";
-export { fetchQuestionMarks, rateQuestion } from "./questions";
-export type { QuestionRating } from "./questions";
-export { fetchSessions, isSessionView, sessionEventsUrl, startServiceChat } from "./sessions";
+export { fetchQuestionMarks } from "./questions";
 export type { ChatEntry, PermissionEntry, SessionView } from "./sessions";
 export {
   chooseTargetAgent,
+  createTarget,
   fetchTarget,
   fetchTargetAgent,
   fetchTargets,
   openDemoTarget,
 } from "./targets";
-export type { TargetAgent, TargetSummary } from "./targets";
+export type { PlanSection, TargetAgent, TargetSummary, TargetView } from "./targets";
+export { fetchQuestions, hideQuestion, rateQuestion, setSectionEnabled } from "./plan";
+export type { Question, QuestionRating, QuestionScope } from "./plan";
+export { chooseDefaultAgent, fetchSettings } from "./settings";
+export { archiveTarget, deleteTarget, fetchArchivedTargets, restoreTarget } from "./target-archive";

@@ -3,8 +3,9 @@ import path from "node:path";
 
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
-import type { PgliteDatabase } from "drizzle-orm/pglite";
+import type { PgliteDatabase, PgliteQueryResultHKT } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
+import type { PgDatabase } from "drizzle-orm/pg-core";
 
 import type { Clock, Timer } from "../time/index.ts";
 import { lockDataDirectory } from "./data-directory-lock.ts";
@@ -12,6 +13,29 @@ import { scheduleDumps } from "./database-dumps.ts";
 
 /** The application database. Each slice queries only the tables of its own Postgres schema. */
 export type Database = PgliteDatabase;
+
+/**
+ * An open transaction of the application database. Several slices write in one transaction: the
+ * server opens it with `Storage.transaction` and passes it to their write ports.
+ */
+export type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
+
+/** Runs queries either on the database or inside an open transaction. */
+export type Executor = PgDatabase<PgliteQueryResultHKT>;
+
+/** Runs the work in one transaction: it commits when the work resolves and rolls back when it rejects. */
+export type RunInTransaction = <Result>(
+  work: (transaction: Transaction) => Promise<Result>,
+) => Promise<Result>;
+
+/**
+ * The transaction a repository joins, or the database when the caller opened none. Inside a
+ * transaction every query must use it: PGlite runs one transaction at a time, so a query on the
+ * database waits until the transaction ends.
+ */
+export function executorOf(database: Database, transaction: Transaction | undefined): Executor {
+  return transaction ?? database;
+}
 
 /**
  * The migrations of one slice: drizzle-kit output in `folder`, applied in the Postgres `schema`
@@ -37,6 +61,8 @@ export interface StorageOptions {
  */
 export interface Storage {
   readonly database: Database;
+  /** Opens a transaction that the write ports of several slices share. */
+  readonly transaction: RunInTransaction;
   readonly close: () => Promise<void>;
 }
 
@@ -96,8 +122,10 @@ export async function openStorage(options: StorageOptions): Promise<Storage> {
     }
   };
   let closing: Promise<void> | undefined = undefined;
+  const database = drizzle({ client });
   return {
-    database: drizzle({ client }),
+    database,
+    transaction: async (work) => database.transaction(work),
     // Both the server's shutdown and its entry point may close the storage; it closes once.
     close: async () => {
       closing ??= shutDown();

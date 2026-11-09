@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navigate, useNavigate } from "@tanstack/react-router";
 
+import { NewTargetButton } from "@/features/new-target";
 import { TopBar } from "@/widgets/top-bar";
 import { fetchTargets, openDemoTarget } from "@/shared/api";
 import type { TargetSummary } from "@/shared/api";
@@ -50,12 +51,13 @@ function EmptyState() {
         <section className="island empty-state" aria-labelledby="empty-title">
           <h1 id="empty-title">Целей пока нет</h1>
           <p>
-            Цель — это направление подготовки: вакансия, уровень и план собеседования. Откройте
-            демо-цель, чтобы посмотреть, как устроен холст.
+            Цель — это направление подготовки: вакансия, уровень и план собеседования. Создайте цель
+            вместе с агентом или откройте демо-цель, чтобы посмотреть, как устроен холст.
           </p>
+          <NewTargetButton big />
           <button
             type="button"
-            className="primary big"
+            className="ghost big"
             disabled={open.isPending}
             onClick={() => {
               open.mutate();

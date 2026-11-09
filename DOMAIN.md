@@ -13,6 +13,17 @@ A new Target starts as a draft, and the agent asks the first question in its Tar
 A Target stores the selected agent for its new Agent sessions. A Mock interview keeps its own agent, and its Side threads use that agent.
 The Candidate can archive a Target, restore it, or delete an archived Target for good with all its data.
 
+**Onboarding**:
+The start of the Target setup session of a new draft Target. The agent speaks first: it asks for the position, the level, the vacancy, the resume and the Candidate's experience.
+Then it builds the Target's name, level, Sections and Topics in the draft of changes. The first application with a name, a level and an enabled Section makes the Target active.
+
+**Draft of changes**:
+The changes of a Target that the agent of its Target setup session has recorded and the Candidate has not applied yet. The Target stays unchanged until then.
+The Candidate sees the draft as a list in the chat and applies it as a whole, by a button or by agreeing in words; the agent applies it only after that agreement.
+A Target has one draft of changes. It outlives the Agent session and a restart, so a Target is never changed halfway.
+The draft holds one Interview plan: a new plan replaces the earlier one and keeps its Topic renames.
+_Avoid_: Draft, alone: a new Target is a draft too.
+
 **Interview plan**:
 The ordered list of Sections that a full Mock interview for a Target goes through.
 The agent proposes it from the Target's Sources and research; the Candidate changes it in conversation.
@@ -26,6 +37,7 @@ The product defines Section kinds; the Candidate and the agent compose Sections 
 
 **Topic**:
 An area of knowledge within a Target that its Sections check.
+A Topic merged into another one hands over its Questions and Attempts, so its progress counts there.
 
 **Question**:
 An interview question with its source and Topic.

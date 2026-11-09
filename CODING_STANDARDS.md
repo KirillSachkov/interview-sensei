@@ -48,7 +48,8 @@ The slice's `index.ts` exports the factory, its migrations, its MCP tools and th
 It also exports the constants, errors and dependency types that the server needs, such as `SessionsClosedError`.
 It does not export application or infrastructure parts.
 
-`apps/server/src/composition.ts` is the only server file that imports core features; `server-composes-features-in-one-module` checks it.
+`apps/server/src/composition.ts` and its parts `composition-<part>.ts` are the only server files that import core features; `server-composes-features-in-one-module` checks it.
+A part keeps `composition.ts` within the lint limits on lines and imports; only `composition.ts` imports a part.
 `composeFeatures` opens the storage and calls each factory once.
 Routes take composed services and their types from `composition.ts`.
 Shared subpaths, such as `time`, `storage` and `session-kinds`, stay open to every server file.
@@ -68,6 +69,8 @@ The gateway reads a tool set when a session starts, after `composeFeatures` has 
 So a tool set may use services built after the gateway, such as `interviews`: `sessionTools` reads them in a getter, and `bind` hands them over.
 `progress` counts the Attempts of `interviews`, and the brief of `interviews` reads `progress` back.
 `composeInterviews` gives `interviews` a function that calls `progress`, which exists by the first call.
+A Topic merge in a draft of changes moves the merged Topic's Attempts through `interviews` in the same transaction, so Topic status counts them under the Topic that stays.
+`topicMerges` gives `target-setup` this port the same way: `interviews` exists by the first application of a draft.
 
 ### Session profiles
 
@@ -77,6 +80,9 @@ Profiles live in `sessionProfiles` in `shared/session-kinds/profiles.ts`, beside
 `mcp-gateway` serves the profile's `instructions` at MCP `initialize`.
 A session may add text to the role when it starts: `roleAddition` of `AgentSessions.start` goes after the profile's role.
 The mock interview adds the Target's tone and language this way (`interviewerRole` in `interviews`).
+One text for the agent is in Russian: `onboardingPrompt` in `target-setup/domain/brief.ts`, the first prompt of a draft Target's setup session.
+It stands for the Candidate's first message, because an agent writes its first line in the prompt's language, even before it loads the skill.
+The language rule itself stays in the profile's role.
 
 A slice adds a session kind like this:
 
@@ -129,10 +135,11 @@ It names the session's MCP server `interview-sensei-<random hex>`, so a server n
 A tool lives in the `application/` of the slice that owns its data: define it there with `sessionTool` from `src/shared/mcp` and export it from the slice's `index.ts`.
 Content that differs by session kind lives in that slice's `domain/`.
 `get_brief` is the template: the tool is in `mcp-gateway/application/get-brief.ts`, and the brief of each kind is in `briefFor` in `mcp-gateway/domain/brief.ts`.
-A kind whose brief needs a slice's data gets its own `get_brief` from that slice instead: `interviews` gives the one of `mock-interview`.
+A kind whose brief needs a slice's data gets its own `get_brief` from that slice instead: `target-setup` builds the brief of the Target setup from the Target, and `interviews` gives the one of `mock-interview`.
 A tool refuses a call by throwing an `Error` whose English message names the rule, such as «The last question already has its Attempt»; the agent gets it as the tool's error.
 `sessionTools` in `apps/server/src/composition.ts` lists the tools of each session kind; add the new tool there.
 A tool acts only on the session it receives. Write its name in snake_case and its description in English.
+API tests call a tool as the agent does: the fake agent's prompt `/tool <name> <json>` calls it on the session's MCP address with these arguments ([testing](docs/agents/testing.md#test-levels)).
 
 The server allows calls of our MCP tools without asking the Candidate; `automaticAnswer` in `agent-runtime/domain/permissions.ts` decides.
 It reads only the structural marker that the agent's adapter sets, never `title` or other text.
@@ -197,20 +204,38 @@ Generate migrations with `db:generate`; never write or edit them by hand. Pretti
 The slice exports its `SliceMigrations` from `index.ts`, and `sliceMigrations` in `apps/server/src/composition.ts` lists it.
 A slice queries only its own schema.
 
+A change that spans slices writes in one shared transaction, such as applying a draft of changes (#48).
+`Storage.transaction` in `shared/storage` opens it; `composeFeatures` passes it to the slice that runs the change, `target-setup` for the draft.
+That slice reaches the other slices only through its domain ports, as [references between slices](#references-between-slices) say; slices still never import each other.
+A write port takes the open transaction as its last parameter, and so does each read the change makes.
+The domain port declares it as a type parameter `Transaction`, so `domain/` stays free of storage code; `application/` and `infrastructure/` use `Transaction` from `shared/storage`.
+The repository runs its queries on `executorOf(database, transaction)`: on the transaction when it gets one, on the database otherwise.
+Inside the transaction every query of the change uses it, reads included: PGlite runs one transaction at a time, so a query on the database would wait for the transaction and never finish.
+Any rejection rolls back the writes of every slice; `shared-transaction.int.test.ts` in `apps/server` checks it.
+
+Deleting a Target for good erases its data in every slice in one such transaction (#51).
+Each slice that keeps data of a Target gives its service `eraseTarget(targetId, transaction)`.
+`targetData` in `composeFeatures` lists these slices; a new slice with Target data joins the list.
+`deleteTarget` in `apps/server/src/target-deletion.ts` runs the erasure; files are not in the transaction.
+So a slice with files of a Target also gives `eraseTargetFiles(targetId)`, which runs after the commit, as `sources` does.
+The agents of the Target's live sessions stop before the transaction: their journal writes would wait for it.
+`target-deletion.int.test.ts` counts the rows with the Target's `target_id` in every schema, so a new slice is checked too.
+
 ### Canvas zones
 
 The web app opens on the canvas of one Target, `pages/target`, built on React Flow (`@xyflow/react`).
 `Canvas` in `shared/ui/canvas` is the frame: it places zones from left to right, moves and scales the view.
 A zone is one React Flow node that groups its widgets; the widgets are plain React inside it, stacked from top to bottom.
+React Flow turns pointer events off in a node that is neither selectable nor draggable, so `Canvas` gives each zone node `pointerEvents: "all"`; its widgets take clicks without their own `pointer-events`.
 `targetZones` in `pages/target/ui/target-page.tsx` lists the zones «Цель» and «Сессии» and the content of each.
 A slice adds content to a zone like this:
 
-1. Write its widget in `widgets/<name>/` and export it from the slice's `index.ts`.
+1. Write its widget in `widgets/<name>/` and export it from the slice's `index.ts`. A widget that only `pages/target` uses stays in `pages/target/ui`, as `TargetCard`, the plan, the setup chat and `ui/mock-interview/` do: Steiger's `fsd/insignificant-slice` refuses a widget slice with one user.
 2. Add the widget to the zone's `content` in `targetZones`.
 
 The slice leaves `Canvas` and the top bar (`widgets/top-bar`) unchanged.
-Zone content that only `pages/target` uses stays in that page's `ui/`, such as `ui/mock-interview/`: Steiger's `fsd/insignificant-slice` rejects a widget slice with one reference.
-React Flow turns pointer events off in the zone nodes, so the root of a zone's interactive content sets `pointer-events: auto`.
+The owner approved one exception in #45: the top bar gets «Новая цель» and «Настройки».
+Spec #45 also puts «Меню цели» there, with «В архив», and the item «Архив» in the Target switcher.
 A new zone is a new entry in `targetZones` and needs the owner's decision.
 An input or a scrolled list inside a widget gets the React Flow classes `nodrag`, `nopan` and `nowheel` where the canvas must not take its pointer or wheel.
 
@@ -231,7 +256,7 @@ User-facing text is in Russian.
 | `shared-is-technical`                       | dependency-cruiser | `src/shared/` does not depend on feature slices.                        |
 | `no-circular`                               | dependency-cruiser | No import cycles, type-only imports included. In web and e2e, oxlint `import/no-cycle` reports value-import cycles. |
 | `server-uses-core-exports`                  | dependency-cruiser | The server imports core by package subpath, never by a path into `packages/core/src`. |
-| `server-composes-features-in-one-module`    | dependency-cruiser | Only `apps/server/src/composition.ts` imports core features; other server files take services from it. |
+| `server-composes-features-in-one-module`    | dependency-cruiser | Only `apps/server/src/composition.ts` and its parts `composition-<part>.ts` import core features; other server files take services from it. |
 | `not-to-unresolvable`                       | dependency-cruiser | Every import resolves, including core subpath exports.                  |
 | `tsPreCompilationDeps` (option)             | dependency-cruiser | An option, not a rule: the rules above count type-only imports as dependencies. |
 | `interview-sensei/require-disable-reason`   | oxlint             | Every disable directive gives a reason after `--`.                      |

@@ -19,6 +19,12 @@
   --color-off: #adb5bd;
   --color-warn: #f08c00;
   --color-danger: #c92a2a;
+  /* The dimmed page behind a dialog. */
+  --color-backdrop: rgb(0 0 0 / 20%);
+  /* The colour bar of a Section by its Section kind. */
+  --color-kind-conversation: #2f9e44;
+  --color-kind-topics: #6965db;
+  --color-kind-design: #e8590c;
   --shadow-island: 0 2px 8px rgb(0 0 0 / 8%), 0 0 0 1px rgb(0 0 0 / 5%);
 
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
@@ -38,6 +44,8 @@
   --space-5: 24px;
   --space-6: 32px;
 
+  /* Inline code in text. */
+  --radius-inline: 4px;
   --radius-control: 10px;
   --radius-card: 12px;
   --radius-island: 14px;

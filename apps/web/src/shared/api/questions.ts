@@ -1,7 +1,6 @@
 // The Question bank of a Target: the Candidate's rating of a Question and whether it is confirmed.
 
-/** 👍 useful, 👎 irrelevant, ⚠ wrong. */
-export type QuestionRating = "useful" | "irrelevant" | "wrong";
+import type { QuestionRating } from "./plan";
 
 /** What a question card shows of the Question itself. */
 export interface QuestionMarks {
@@ -34,16 +33,4 @@ export async function fetchQuestionMarks(targetId: string): Promise<QuestionMark
     throw new Error("неожиданный ответ");
   }
   return body;
-}
-
-/** Sets the Candidate's rating of the Question; null removes it. */
-export async function rateQuestion(questionId: string, rating: QuestionRating | null) {
-  const response = await fetch(`/api/questions/${encodeURIComponent(questionId)}/rating`, {
-    method: "PUT",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ rating }),
-  });
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
 }

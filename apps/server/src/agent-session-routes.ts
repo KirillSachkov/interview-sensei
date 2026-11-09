@@ -1,4 +1,3 @@
-import { sessionKinds } from "@interview-sensei/core/session-kinds";
 import type { SessionKind } from "@interview-sensei/core/session-kinds";
 import type { FastifyInstance } from "fastify";
 import type { WebSocket } from "ws";
@@ -134,7 +133,10 @@ async function serveEvents(
   }
 }
 
-const serverClosingMessage = "Сервер завершает работу и не начинает новые чаты.";
+export const serverClosingMessage = "Сервер завершает работу и не начинает новые чаты.";
+
+/** The session kinds that start without a Target; a Target's kinds start through its own routes. */
+const kindsWithoutTarget = ["service-chat"] as const satisfies readonly SessionKind[];
 
 /** The started session, or null when the server shuts down and starts no new session. */
 async function startOrRefuse(
@@ -157,7 +159,10 @@ function registerStartRoute(
 ) {
   const body = {
     type: "object",
-    properties: { kind: { type: "string", enum: sessionKinds }, agent: { type: "string" } },
+    properties: {
+      kind: { type: "string", enum: kindsWithoutTarget },
+      agent: { type: "string" },
+    },
     required: ["kind", "agent"],
   } as const;
   server.post<{ Body: { kind: SessionKind; agent: string } }>(
@@ -181,8 +186,8 @@ function registerStartRoute(
 /**
  * The HTTP and WebSocket API of agents and AgentSessions:
  * - `GET /api/agents`: the agents and whether each is available, with the reason when not.
- * - `POST /api/sessions` `{ kind, agent }`: creates a session and starts its agent; 503 with
- *   `{ error: "server_closing", message }` once the server shuts down.
+ * - `POST /api/sessions` `{ kind, agent }`: creates a session of a kind without a Target and starts
+ *   its agent; 503 with `{ error: "server_closing", message }` once the server shuts down.
  * - `GET /api/sessions`: every session, the newest first; `GET /api/sessions/:id`: its view.
  * - WebSocket `/api/sessions/:id/events`: sends `{ type: "session", session }` at once and after
  *   each change; takes `{ type: "prompt", text }`, `{ type: "cancel" }` and

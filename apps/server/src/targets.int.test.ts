@@ -29,12 +29,15 @@ describe("target HTTP API", () => {
     const directory = await temporaryDirectory();
     const api = await demoApi(directory);
     const question = first(await api.questions());
-    await api.put(`/api/questions/${question.id}/rating`, { rating: "wrong" });
-    await api.put(`/api/questions/${question.id}/hidden`, { hidden: true });
+    await Promise.all([
+      api.put(`/api/questions/${question.id}/rating`, { rating: "wrong" }),
+      api.put(`/api/questions/${question.id}/hidden`, { hidden: true }),
+    ]);
+    const before = await api.get(`/api/targets/${api.target.id}`);
     await api.stop();
     const restarted = await demoApi(directory);
     const questions = await restarted.questions("?hidden=true");
-    expect(restarted.target).toStrictEqual(api.target);
+    expect(restarted.target).toStrictEqual(before.json());
     expect(questions).toStrictEqual([{ ...question, rating: "wrong", hidden: true }]);
   });
 
