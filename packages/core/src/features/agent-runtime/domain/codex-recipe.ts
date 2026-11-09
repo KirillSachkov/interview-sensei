@@ -54,5 +54,6 @@ export function codexRecipe({
       ...skill.files,
     ],
     symlinks: [{ path: child(codexHome, "auth.json"), target: host.codexAuth.path }],
+    syncedDirectories: [skill.directory],
   };
 }

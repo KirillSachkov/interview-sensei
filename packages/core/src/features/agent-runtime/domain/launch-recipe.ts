@@ -4,42 +4,11 @@
 // directories are only linked to, for the login. Recipes know profiles, never session kinds.
 import { claudeRecipe } from "./claude-recipe.ts";
 import { codexRecipe } from "./codex-recipe.ts";
+import { fakeRecipe } from "./fake-recipe.ts";
 import { opencodeRecipe } from "./opencode-recipe.ts";
-import { agentsSkillsRoot } from "./recipe.ts";
 import type { LaunchRecipe, LaunchRequest } from "./recipe.ts";
 
 export type { LaunchProfile, LaunchRecipe, LaunchRequest, SkillSource } from "./recipe.ts";
-
-/**
- * The fake agent takes the role and the skill as Codex does and the bans in `_meta`, so tests see
- * what each profile asks for.
- */
-function fakeRecipe({
-  host,
-  profile,
-  dataDirectory,
-  sessionDirectory,
-}: LaunchRequest): LaunchRecipe {
-  const skill = agentsSkillsRoot(dataDirectory, "fake", profile.skill);
-  return {
-    command: host.nodeExecutable,
-    args: [host.fakeAgentScript],
-    env: {},
-    sessionMeta: {
-      fakeAgent: {
-        disallowedTools: [...(profile.shell ? [] : ["shell"]), ...(profile.web ? [] : ["web"])],
-      },
-    },
-    systemPrompt: profile.role,
-    additionalDirectories: [skill.root],
-    mode: null,
-    cwd: sessionDirectory,
-    dataDirectory,
-    directories: [...skill.directories, sessionDirectory],
-    files: skill.files,
-    symlinks: [],
-  };
-}
 
 /** Turns the agent and the session's profile into the isolated start of the agent; pure. */
 export function launchRecipe(request: LaunchRequest): LaunchRecipe {

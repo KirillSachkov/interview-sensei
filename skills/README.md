@@ -6,6 +6,8 @@
 | --- | --- |
 | [`sensei-check`](sensei-check/SKILL.md) | `service-chat`, в UI — «Проверка агента» |
 
-Перед каждым запуском сервер копирует skill вида в каталог данных в формат агента: plugin для Claude Code, `.agents/skills` для Codex, каталог skills для OpenCode. Тексты skills — на английском.
+`pnpm build` копирует этот каталог в `apps/web/dist/skills`, рядом с веб-сборкой; оттуда их берёт команда `interview-sensei`.
+
+Перед каждым запуском сервер копирует skill вида в каталог данных в формат агента: plugin для Claude Code, `.agents/skills` для Codex, каталог skills для OpenCode. Копия совпадает с исходником: удалённые файлы skill исчезают и из неё. Тексты skills — на английском.
 
 Это не skills разработки репозитория: они лежат в `.agents/skills`.

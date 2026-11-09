@@ -50,6 +50,7 @@ async function setup(loginContent = "token") {
     directories: [home],
     files: [],
     symlinks: [],
+    syncedDirectories: [],
     ...parts,
   });
   return { dataDirectory, home, login, recipe };

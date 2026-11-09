@@ -11,7 +11,7 @@ import {
 import { targetsModule, targetsMigrations, getTarget } from "@interview-sensei/core/targets";
 
 import { agentRuntimeModule } from "@interview-sensei/core/agent-runtime";
-import type { UserEnvironment } from "@interview-sensei/core/agent-runtime";
+import type { AgentRuntime, UserEnvironment } from "@interview-sensei/core/agent-runtime";
 import {
   agentSessionsMigrations,
   agentSessionsModule,
@@ -29,6 +29,7 @@ import type { FastifyBaseLogger } from "fastify";
 
 export type { AgentRuntime, UserEnvironment } from "@interview-sensei/core/agent-runtime";
 export { SessionsClosedError } from "@interview-sensei/core/agent-sessions";
+export { UnknownAgentError } from "@interview-sensei/core/targets";
 export type { AgentSessions, SessionView } from "@interview-sensei/core/agent-sessions";
 export { mcpRoute } from "@interview-sensei/core/mcp-gateway";
 export type { McpGateway } from "@interview-sensei/core/mcp-gateway";
@@ -91,13 +92,6 @@ export async function composeFeatures({
       log.error({ err: error }, "The periodic database dump failed");
     },
   });
-  const questionBank = questionBankModule({ database: storage.database });
-  const targets = targetsModule({ database: storage.database, clock, topics: questionBank });
-  const modelTools = {
-    getTarget: getTarget(targets),
-    searchQuestions: searchQuestions(questionBank, targets),
-  };
-  const createDemo = demoCreator({ targets, questionBank, clock });
   const { runtime, mcp, sessions } = composeAgents(storage, {
     timer,
     dataDirectory,
@@ -108,6 +102,12 @@ export async function composeFeatures({
     log,
     clock,
   });
+  const { questionBank, targets } = composeTargets(storage, clock, runtime);
+  const modelTools = {
+    getTarget: getTarget(targets),
+    searchQuestions: searchQuestions(questionBank, targets),
+  };
+  const createDemo = demoCreator({ targets, questionBank, clock });
   return {
     storage,
     runtime,
@@ -119,6 +119,18 @@ export async function composeFeatures({
     modelTools,
     health: healthModule({ clock }),
   };
+}
+
+/** Targets and their Questions; a Target's agent is one of the agents that `runtime` offers. */
+function composeTargets(storage: Storage, clock: Clock, runtime: AgentRuntime) {
+  const questionBank = questionBankModule({ database: storage.database });
+  const targets = targetsModule({
+    database: storage.database,
+    clock,
+    topics: questionBank,
+    agents: runtime,
+  });
+  return { questionBank, targets };
 }
 
 interface DemoDependencies {

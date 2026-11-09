@@ -1,8 +1,9 @@
 import type { FastifyInstance } from "fastify";
 
+import { UnknownAgentError } from "./composition.ts";
 import type { Features } from "./composition.ts";
 
-type Dependencies = Pick<Features, "targets" | "questionBank" | "createDemo" | "runtime">;
+type Dependencies = Pick<Features, "targets" | "questionBank" | "createDemo">;
 const params = {
   type: "object",
   properties: { id: { type: "string", format: "uuid" } },
@@ -44,57 +45,35 @@ function registerQuestionWrites(server: FastifyInstance, { questionBank }: Depen
 }
 
 /**
- * The Target's agent as the page shows it: the Candidate's choice, or the default agent with
- * `chosen: false`. The default is the first available agent; null when none is available.
- */
-async function targetAgent({ runtime }: Dependencies, chosen: string | null) {
-  if (chosen !== null) {
-    return { agent: chosen, chosen: true };
-  }
-  const agents = await runtime.listAgents();
-  return { agent: agents.find((entry) => entry.available)?.agent ?? null, chosen: false };
-}
-
-/** The agent from the body: null, or one of the agents the server offers, available or not. */
-async function requestedAgent({ runtime }: Dependencies, body: unknown) {
-  const agent = field(body, "agent");
-  if (agent === null) {
-    return { agent };
-  }
-  const offered = await runtime.listAgents();
-  return typeof agent === "string" && offered.some((entry) => entry.agent === agent)
-    ? { agent }
-    : undefined;
-}
-
-/**
- * - `GET /api/targets/:id/agent`: the Target's agent, see targetAgent.
+ * - `GET /api/targets/:id/agent`: the Target's agent, see `Targets.agent`.
  * - `PUT /api/targets/:id/agent` with `{ agent }`: stores the choice; null clears it.
  */
-function registerTargetAgent(server: FastifyInstance, dependencies: Dependencies) {
-  const { targets } = dependencies;
+function registerTargetAgent(server: FastifyInstance, { targets }: Dependencies) {
   server.get<{ Params: { id: string } }>(
     "/api/targets/:id/agent",
     { schema: { params } },
-    async (request, reply) => {
-      const target = await targets.get(request.params.id);
-      return target === undefined
-        ? reply.code(404).send({ error: "target_not_found" })
-        : targetAgent(dependencies, target.agent);
-    },
+    async (request, reply) =>
+      (await targets.agent(request.params.id)) ??
+      reply.code(404).send({ error: "target_not_found" }),
   );
   server.put<{ Params: { id: string }; Body: unknown }>(
     "/api/targets/:id/agent",
     { schema: { params } },
     async (request, reply) => {
-      const requested = await requestedAgent(dependencies, request.body);
-      if (requested === undefined) {
+      const agent = field(request.body, "agent");
+      if (agent !== null && typeof agent !== "string") {
         return reply.code(400).send({ error: "unknown_agent" });
       }
-      const found = await targets.setAgent(request.params.id, requested.agent);
-      return found
-        ? targetAgent(dependencies, requested.agent)
-        : reply.code(404).send({ error: "target_not_found" });
+      const saved = await targets.setAgent(request.params.id, agent).catch((error: unknown) => {
+        if (error instanceof UnknownAgentError) {
+          return "unknown_agent" as const;
+        }
+        throw error;
+      });
+      if (saved === "unknown_agent") {
+        return reply.code(400).send({ error: saved });
+      }
+      return saved ?? reply.code(404).send({ error: "target_not_found" });
     },
   );
 }

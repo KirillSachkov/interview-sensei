@@ -29,6 +29,7 @@ function writeLocations(launch: LaunchRecipe): string[] {
     ...launch.directories,
     ...launch.files.map((file) => file.path),
     ...launch.symlinks.map((symlink) => symlink.path),
+    ...launch.syncedDirectories,
     ...homes,
   ];
 }
@@ -75,6 +76,7 @@ describe("launch recipe", () => {
         { path: `${plugin}/skills/probe-skill/references/notes.md`, content: notesText },
       ],
       symlinks: [],
+      syncedDirectories: [`${plugin}/skills/probe-skill`],
     });
   });
 
@@ -118,6 +120,7 @@ describe("launch recipe", () => {
         { path: `${skills}/.agents/skills/probe-skill/references/notes.md`, content: notesText },
       ],
       symlinks: [{ path: `${codexHome}/auth.json`, target: host.codexAuth.path }],
+      syncedDirectories: [`${skills}/.agents/skills/probe-skill`],
     });
   });
 
@@ -158,6 +161,7 @@ describe("launch recipe", () => {
         { path: `${skills}/probe-skill/references/notes.md`, content: notesText },
       ],
       symlinks: [{ path: `${root}/data/opencode/auth.json`, target: host.opencodeAuth.path }],
+      syncedDirectories: [`${skills}/probe-skill`],
     });
     expect(JSON.parse(String(config))).toStrictEqual({
       autoupdate: false,
@@ -204,13 +208,14 @@ describe("launch recipe", () => {
         { path: `${skills}/.agents/skills/probe-skill/references/notes.md`, content: notesText },
       ],
       symlinks: [],
+      syncedDirectories: [`${skills}/.agents/skills/probe-skill`],
     });
   });
 
   it.each(agentKinds)("writes only inside the data directory for %s", (agent) => {
-    const outside = writeLocations(recipe(agent)).filter(
-      (location) => !isInside(dataDirectory, location),
-    );
+    const launch = recipe(agent);
+    const outside = writeLocations(launch).filter((location) => !isInside(dataDirectory, location));
+    expect(launch.dataDirectory).toBe(dataDirectory);
     expect(outside).toStrictEqual([]);
   });
 
@@ -247,22 +252,6 @@ describe("opencode recipe with the Candidate's model", () => {
       permission: { edit: "ask", bash: "ask", webfetch: "ask", external_directory: "ask" },
     });
   });
-});
-
-describe("launch recipe paths", () => {
-  it.each(agentKinds)(
-    "keeps every directory, file and link of %s in its data directory",
-    (agent) => {
-      const launch = recipe(agent);
-      const prepared = [
-        ...launch.directories,
-        ...launch.files.map((file) => file.path),
-        ...launch.symlinks.map((symlink) => symlink.path),
-      ];
-      expect(launch.dataDirectory).toBe(dataDirectory);
-      expect(prepared.filter((location) => !isInside(dataDirectory, location))).toStrictEqual([]);
-    },
-  );
 });
 
 describe("agent environment", () => {

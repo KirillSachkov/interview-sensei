@@ -28,3 +28,16 @@ export function TopBar({ target }: { target: TargetSummary | null }) {
     </header>
   );
 }
+
+/** The bar of «Проверка агента»: only the way back to the canvas. */
+export function BackToCanvasBar() {
+  return (
+    <header className="top-bar">
+      <nav className="island top-island" aria-label="Навигация">
+        <Link to="/" className="button ghost">
+          ← К холсту
+        </Link>
+      </nav>
+    </header>
+  );
+}

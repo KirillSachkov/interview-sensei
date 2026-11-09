@@ -18,3 +18,14 @@ export interface TargetRepository {
 export interface TargetTopics {
   readonly topics: (targetId: string) => Promise<readonly TopicSummary[]>;
 }
+
+/** An agent the server offers; it may be unavailable on this machine now. */
+interface OfferedAgent {
+  readonly agent: string;
+  readonly available: boolean;
+}
+
+/** The agent-runtime slice supplies the agents the server offers, in the order of preference. */
+export interface TargetAgents {
+  readonly listAgents: () => Promise<readonly OfferedAgent[]>;
+}

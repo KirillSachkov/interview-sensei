@@ -11,7 +11,7 @@ import { loopbackOrigin, registerMcpRoute } from "./mcp.ts";
 import { registerTargetRoutes } from "./target-routes.ts";
 import { registerWebApp } from "./web-app.ts";
 
-/** The repository's `skills/`: Node runs the server from the repository checkout. */
+/** The repository's `skills/` for `pnpm dev` and tests; the launch command passes the built ones. */
 const appSkillsDirectory = path.join(import.meta.dirname, "..", "..", "..", "skills");
 
 /** `info` logs every request; `warn` keeps only problems. */
@@ -34,8 +34,8 @@ export interface ServerDependencies extends Pick<
    */
   userEnvironment?: UserEnvironment;
   /**
-   * The application's skills that the agents get, one per session kind; the repository's
-   * `skills/` by default.
+   * The application's skills that the agents get, one per session kind: those of the built app
+   * for the launch command, the repository's `skills/` by default.
    */
   skillsDirectory?: string;
   /** The built web app to serve beside `/api`; `pnpm dev` serves the web app from Vite instead. */

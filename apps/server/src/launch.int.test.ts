@@ -1,5 +1,5 @@
 import { once } from "node:events";
-import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { connect } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -10,6 +10,7 @@ import { startProcess } from "./process-under-test.ts";
 
 const launchScript = path.join(import.meta.dirname, "launch.ts");
 const indexHtml = "<!doctype html><title>Interview Sensei</title>";
+const skillText = "---\nname: sensei-check\ndescription: The built app's skill.\n---\n";
 
 async function temporaryDirectory(): Promise<string> {
   const directory = await mkdtemp(path.join(tmpdir(), "interview-sensei-launch-"));
@@ -19,14 +20,21 @@ async function temporaryDirectory(): Promise<string> {
   return directory;
 }
 
+/** The parts of a built app: the web build and the skills beside it. */
+interface BuiltApp {
+  readonly webDirectory: string;
+  readonly skillsDirectory: string;
+}
+
 /** Runs the `interview-sensei` command on a free port without the system browser. */
-async function startLaunch(webDirectory: string, dataDirectory?: string) {
+async function startLaunch(app: BuiltApp, dataDirectory?: string) {
   return startProcess(launchScript, {
     args: ["--no-browser"],
     env: {
       INTERVIEW_SENSEI_DATA_DIR: dataDirectory ?? (await temporaryDirectory()),
       INTERVIEW_SENSEI_FAKE_AGENT: "1",
-      INTERVIEW_SENSEI_WEB_DIR: webDirectory,
+      INTERVIEW_SENSEI_WEB_DIR: app.webDirectory,
+      INTERVIEW_SENSEI_SKILLS_DIR: app.skillsDirectory,
       SERVER_PORT: "0",
     },
   });
@@ -95,10 +103,15 @@ async function waitUntilIdle(socket: WebSocket): Promise<void> {
   await idle.promise;
 }
 
-async function builtWebApp(): Promise<string> {
-  const webDirectory = await temporaryDirectory();
+async function builtApp(): Promise<BuiltApp> {
+  const root = await temporaryDirectory();
+  const webDirectory = path.join(root, "web");
+  const skillsDirectory = path.join(root, "skills");
+  await mkdir(webDirectory);
   await writeFile(path.join(webDirectory, "index.html"), indexHtml);
-  return webDirectory;
+  await mkdir(path.join(skillsDirectory, "sensei-check"), { recursive: true });
+  await writeFile(path.join(skillsDirectory, "sensei-check", "SKILL.md"), skillText);
+  return { webDirectory, skillsDirectory };
 }
 
 /**
@@ -115,7 +128,7 @@ async function openLiveChat(url: string): Promise<string> {
 describe("interview-sensei command", () => {
   it("exits with code 1 and asks for pnpm build when the web app is not built", async () => {
     const webDirectory = path.join(await temporaryDirectory(), "dist");
-    const launch = await startLaunch(webDirectory);
+    const launch = await startLaunch({ ...(await builtApp()), webDirectory });
 
     const { code, stderr } = await launch.exit();
 
@@ -124,8 +137,31 @@ describe("interview-sensei command", () => {
     expect(stderr).toContain("Выполните pnpm build");
   });
 
+  it("exits with code 1 and asks for pnpm build when the built app has no skills", async () => {
+    const skillsDirectory = path.join(await temporaryDirectory(), "skills");
+    const launch = await startLaunch({ ...(await builtApp()), skillsDirectory });
+
+    const { code, stderr } = await launch.exit();
+
+    expect(code).toBe(1);
+    expect(stderr).toContain(`Skills приложения не собраны: нет ${skillsDirectory}`);
+    expect(stderr).toContain("Выполните pnpm build");
+  });
+
+  it("gives the agent the skills beside the web build", async () => {
+    const dataDirectory = path.join(await temporaryDirectory(), "data");
+    const launch = await startLaunch(await builtApp(), dataDirectory);
+
+    await openLiveChat(await appUrl(launch));
+
+    const copy = path.join(dataDirectory, "agents", "fake", "skills", "sensei-check");
+    await expect(
+      readFile(path.join(copy, ".agents", "skills", "sensei-check", "SKILL.md"), "utf8"),
+    ).resolves.toBe(skillText);
+  });
+
   it("prints only the URL of the served web app on stdout", async () => {
-    const launch = await startLaunch(await builtWebApp());
+    const launch = await startLaunch(await builtApp());
 
     const [line] = await launch.output(/Interview Sensei: http:\/\/127\.0\.0\.1:\d+\/\n/u);
 
@@ -138,9 +174,9 @@ describe("interview-sensei command", () => {
   });
 
   it("ends live sessions and releases the data directory on SIGTERM with open browser connections", async () => {
-    const webDirectory = await builtWebApp();
+    const app = await builtApp();
     const dataDirectory = path.join(await temporaryDirectory(), "data");
-    const launch = await startLaunch(webDirectory, dataDirectory);
+    const launch = await startLaunch(app, dataDirectory);
     const sessionId = await openLiveChat(await appUrl(launch));
 
     const { code } = await launch.stop();
@@ -153,7 +189,7 @@ describe("interview-sensei command", () => {
       "database.dump.tar.gz",
       "sessions",
     ]);
-    const restarted = await appUrl(await startLaunch(webDirectory, dataDirectory));
+    const restarted = await appUrl(await startLaunch(app, dataDirectory));
     const view = await fetch(new URL(`api/sessions/${sessionId}`, restarted));
     await expect(view.json()).resolves.toMatchObject({ status: "ended" });
   });

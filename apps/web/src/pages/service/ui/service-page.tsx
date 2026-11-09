@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 
 import { fetchHealth } from "@/shared/api";
+import { BackToCanvasBar } from "@/widgets/top-bar";
 
 import { ServiceChat } from "./service-chat";
 
@@ -12,13 +12,7 @@ import { ServiceChat } from "./service-chat";
 export function ServicePage() {
   return (
     <>
-      <header className="top-bar">
-        <nav className="island top-island" aria-label="Навигация">
-          <Link to="/" className="button ghost">
-            ← К холсту
-          </Link>
-        </nav>
-      </header>
+      <BackToCanvasBar />
       <main className="page">
         <h1>Проверка агента</h1>
         <ServerStatus />

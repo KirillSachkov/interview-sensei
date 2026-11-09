@@ -1,4 +1,14 @@
-import { chmod, lstat, mkdir, readlink, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import {
+  chmod,
+  lstat,
+  mkdir,
+  readdir,
+  readlink,
+  realpath,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import path from "node:path";
 
 import type { LaunchRecipe } from "../domain/launch-recipe.ts";
@@ -54,7 +64,9 @@ async function checkParents(dataDirectory: string, location: string): Promise<vo
 async function checkRecipe(recipe: LaunchRecipe): Promise<void> {
   const locations = [
     // A directory is checked as the parent of a name inside it, so it may not be a link either.
-    ...recipe.directories.map((directory) => path.join(directory, "_")),
+    ...[...recipe.directories, ...recipe.syncedDirectories].map((directory) =>
+      path.join(directory, "_"),
+    ),
     ...recipe.files.map((file) => file.path),
     ...recipe.symlinks.map((link) => link.path),
   ];
@@ -100,8 +112,27 @@ async function linkUserFile({
 }
 
 /**
- * Creates the directories, files and links of the recipe. It refuses a recipe whose paths lie
- * outside the data directory or go through a link inside it.
+ * Removes from `directory` every entry that `kept` does not name; a link is removed itself, never
+ * followed. Entries of the current recipe stay, so a session already running keeps its copy.
+ */
+async function removeOthers(directory: string, kept: ReadonlySet<string>): Promise<void> {
+  const entries = await readdir(directory, { withFileTypes: true });
+  await Promise.all(
+    entries.map(async (entry) => {
+      const location = path.join(directory, entry.name);
+      if (!kept.has(location)) {
+        await rm(location, { recursive: true, force: true });
+      } else if (entry.isDirectory()) {
+        await removeOthers(location, kept);
+      }
+    }),
+  );
+}
+
+/**
+ * Creates the directories, files and links of the recipe, then removes whatever else lies in its
+ * synced directories. It refuses a recipe whose paths lie outside the data directory or go
+ * through a link inside it.
  */
 export async function prepareRecipe(recipe: LaunchRecipe): Promise<void> {
   await checkRecipe(recipe);
@@ -111,4 +142,12 @@ export async function prepareRecipe(recipe: LaunchRecipe): Promise<void> {
   }
   await Promise.all(recipe.files.map(async (file) => writeOwnFile(file)));
   await Promise.all(recipe.symlinks.map(async (link) => linkUserFile(link)));
+  const kept = new Set(
+    [...recipe.directories, ...recipe.files.map((file) => file.path)].map((location) =>
+      path.resolve(location),
+    ),
+  );
+  await Promise.all(
+    recipe.syncedDirectories.map(async (directory) => removeOthers(path.resolve(directory), kept)),
+  );
 }

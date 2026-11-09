@@ -25,8 +25,8 @@ function instructionsFor(kind: string): string | null {
 
 /**
  * Gives each AgentSession its own MCP address with the tool set and the instructions of its kind,
- * served over streamable HTTP. A session of an unknown kind gets no tools and no instructions. The HTTP server routes `mcpRoute`
- * to `endpoint(token)`.
+ * served over streamable HTTP. A session of an unknown kind gets no tools and no instructions. The
+ * HTTP server routes `mcpRoute` to `endpoint(token)`.
  */
 export function mcpGatewayModule({
   tools,

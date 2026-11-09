@@ -70,6 +70,11 @@ export interface LaunchRecipe {
   readonly files: readonly PreparedFile[];
   /** Links to the Candidate's login files; a copy would go stale when the agent refreshes it. */
   readonly symlinks: readonly PreparedSymlink[];
+  /**
+   * Directories that hold only the recipe's copy, such as the skill's: the start removes every
+   * other file and directory in them, so the copy equals its source.
+   */
+  readonly syncedDirectories: readonly string[];
 }
 
 export interface LaunchRequest {
@@ -100,22 +105,23 @@ function parent(location: string): string {
 
 /**
  * The files of the skill under `directory`, and the directories they need, parents first. The
- * copy is rewritten at each start, so a changed skill reaches the next session.
+ * copy is rewritten at each start and `directory` is synced, so the next session gets the skill
+ * as it is now.
  */
 export function skillCopy(
   directory: string,
   skill: SkillSource,
-): { directories: string[]; files: PreparedFile[] } {
+): { directory: string; directories: string[]; files: PreparedFile[] } {
   const files = skill.files.map((file) => ({
     path: child(directory, ...file.path.split("/")),
     content: file.content,
   }));
   const directories = [...new Set([directory, ...files.map((file) => parent(file.path))])];
-  return { directories: directories.toSorted(), files };
+  return { directory, directories: directories.toSorted(), files };
 }
 
 /** Our skills' namespace: the Claude Code plugin name and the OpenCode agent name. */
-export const ourName = "interview-sensei";
+export const applicationName = "interview-sensei";
 
 /**
  * A directory whose `.agents/skills` holds only the profile's skill; Codex and the fake agent

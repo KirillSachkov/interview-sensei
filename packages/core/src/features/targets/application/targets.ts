@@ -1,13 +1,51 @@
 import { randomUUID } from "node:crypto";
 
 import type { Clock } from "../../../shared/time/index.ts";
-import type { TargetRepository, TargetTopics } from "../domain/ports.ts";
-import type { NewTarget, Section, Target, TargetView, TopicSummary } from "../domain/target.ts";
+import type { TargetAgents, TargetRepository, TargetTopics } from "../domain/ports.ts";
+import type {
+  NewTarget,
+  Section,
+  Target,
+  TargetAgent,
+  TargetView,
+  TopicSummary,
+} from "../domain/target.ts";
 
 interface Dependencies {
   repository: TargetRepository;
   topics: TargetTopics;
+  agents: TargetAgents;
   clock: Clock;
+}
+
+/** The agent is not one of the agents the server offers. */
+export class UnknownAgentError extends Error {
+  override name = "UnknownAgentError";
+}
+
+/** The choice, or the first available agent with `chosen: false`; null when none is available. */
+async function targetAgent(agents: TargetAgents, chosen: string | null): Promise<TargetAgent> {
+  if (chosen !== null) {
+    return { agent: chosen, chosen: true };
+  }
+  const offered = await agents.listAgents();
+  return { agent: offered.find((entry) => entry.available)?.agent ?? null, chosen: false };
+}
+
+/**
+ * Stores the Candidate's choice, or null for the default agent; undefined for an unknown Target.
+ * Rejects with UnknownAgentError for an agent the server does not offer; an unavailable one stays.
+ */
+async function setAgent(
+  { repository, agents }: Dependencies,
+  id: string,
+  agent: string | null,
+): Promise<TargetAgent | undefined> {
+  const offered = agent === null ? [] : await agents.listAgents();
+  if (agent !== null && !offered.some((entry) => entry.agent === agent)) {
+    throw new UnknownAgentError(`The server does not offer the agent ${agent}`);
+  }
+  return (await repository.setAgent(id, agent)) ? targetAgent(agents, agent) : undefined;
 }
 
 function withTopics(plan: readonly Section[], topics: readonly TopicSummary[]) {
@@ -99,8 +137,12 @@ export function createTargets(dependencies: Dependencies) {
     get: async (id: string) => get(dependencies, id),
     list: repository.list,
     activeDemo: repository.activeDemo,
-    /** Stores the agent the Candidate chose for the Target, or null for the default agent. */
-    setAgent: repository.setAgent,
+    /** The Target's agent; undefined for an unknown Target. */
+    agent: async (id: string) => {
+      const target = await repository.get(id);
+      return target === undefined ? undefined : targetAgent(dependencies.agents, target.agent);
+    },
+    setAgent: async (id: string, agent: string | null) => setAgent(dependencies, id, agent),
     topicIds: async (targetId: string, sectionId: string) => {
       const plan = await repository.sections(targetId);
       return plan.find((section) => section.id === sectionId)?.topicIds;

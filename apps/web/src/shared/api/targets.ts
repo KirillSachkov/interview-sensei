@@ -45,7 +45,12 @@ async function readJson(response: Response): Promise<unknown> {
   return response.json();
 }
 
-function expect<Value>(body: unknown, check: (value: unknown) => value is Value): Value {
+function isTargetList(value: unknown): value is TargetSummary[] {
+  return Array.isArray(value) && value.every((item: unknown) => isTargetSummary(item));
+}
+
+/** The body when it has the expected shape; otherwise an error. */
+function checked<Value>(body: unknown, check: (value: unknown) => value is Value): Value {
   if (!check(body)) {
     throw new Error("неожиданный ответ");
   }
@@ -54,11 +59,7 @@ function expect<Value>(body: unknown, check: (value: unknown) => value is Value)
 
 /** Every Target that is not archived, the oldest first. */
 export async function fetchTargets(): Promise<TargetSummary[]> {
-  const body = await readJson(await fetch("/api/targets"));
-  if (!Array.isArray(body) || !body.every((item: unknown) => isTargetSummary(item))) {
-    throw new Error("неожиданный ответ");
-  }
-  return body;
+  return checked(await readJson(await fetch("/api/targets")), isTargetList);
 }
 
 /** The Target, or null when the address names no Target. */
@@ -68,18 +69,18 @@ export async function fetchTarget(id: string): Promise<TargetSummary | null> {
   if (response.status === 400 || response.status === 404) {
     return null;
   }
-  return expect(await readJson(response), isTargetSummary);
+  return checked(await readJson(response), isTargetSummary);
 }
 
 /** Creates the demo Target, or returns it when it exists. */
 export async function openDemoTarget(): Promise<TargetSummary> {
   const response = await fetch("/api/targets/demo", { method: "POST" });
-  return expect(await readJson(response), isTargetSummary);
+  return checked(await readJson(response), isTargetSummary);
 }
 
 export async function fetchTargetAgent(targetId: string): Promise<TargetAgent> {
   const response = await fetch(`/api/targets/${encodeURIComponent(targetId)}/agent`);
-  return expect(await readJson(response), isTargetAgent);
+  return checked(await readJson(response), isTargetAgent);
 }
 
 /** Stores the Candidate's choice; null returns the Target to the default agent. */
@@ -92,5 +93,5 @@ export async function chooseTargetAgent(
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ agent }),
   });
-  return expect(await readJson(response), isTargetAgent);
+  return checked(await readJson(response), isTargetAgent);
 }

@@ -1,6 +1,6 @@
 // «Проверка агента» (the `service-chat` kind) through the server's HTTP and WebSocket API: the
 // fake agent reports the role, skills and bans its profile gave it (seam 2 of #42).
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -31,6 +31,19 @@ async function replyTo(server: Awaited<ReturnType<typeof startServer>>["server"]
 function copiedSkill(dataDirectory: string, name: string): string {
   const root = path.join(dataDirectory, "agents", "fake", "skills", name);
   return path.join(root, ".agents", "skills", name, "SKILL.md");
+}
+
+/** Writes the files of the sensei-check skill into `skillsDirectory`; returns the skill's directory. */
+async function writeSkill(skillsDirectory: string, files: Record<string, string>) {
+  const skill = path.join(skillsDirectory, "sensei-check");
+  for (const [name, content] of Object.entries(files)) {
+    const file = path.join(skill, ...name.split("/"));
+    // oxlint-disable-next-line eslint/no-await-in-loop -- a file may need the directory of the last
+    await mkdir(path.dirname(file), { recursive: true });
+    // oxlint-disable-next-line eslint/no-await-in-loop -- the files of a test skill are few
+    await writeFile(file, content);
+  }
+  return skill;
 }
 
 describe("agent check", () => {
@@ -83,5 +96,24 @@ describe("agent check", () => {
     await expect(readFile(copiedSkill(dataDirectory, "sensei-check"), "utf8")).resolves.toBe(
       "---\nname: sensei-check\ndescription: Second.\n---\n",
     );
+  });
+
+  it("removes from the copy the files that the skill no longer has", async () => {
+    const dataDirectory = await temporaryDirectory();
+    const skillsDirectory = await temporaryDirectory();
+    const skill = await writeSkill(skillsDirectory, {
+      "SKILL.md": "---\nname: sensei-check\n---\n",
+      "notes.md": "Old notes.\n",
+      "references/old.md": "Old reference.\n",
+    });
+    const { server } = await startServer(dataDirectory, { skillsDirectory });
+    await replyTo(server, "/skills");
+
+    await rm(path.join(skill, "notes.md"));
+    await rm(path.join(skill, "references"), { recursive: true });
+    await replyTo(server, "/skills");
+
+    const copy = path.dirname(copiedSkill(dataDirectory, "sensei-check"));
+    await expect(readdir(copy, { recursive: true })).resolves.toStrictEqual(["SKILL.md"]);
   });
 });

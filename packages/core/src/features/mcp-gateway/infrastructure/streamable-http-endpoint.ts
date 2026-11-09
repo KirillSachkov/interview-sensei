@@ -31,9 +31,9 @@ function mcpServer(
 }
 
 /**
- * Serves the tools and the instructions to one session over stateless streamable HTTP. It answers both the 2025 MCP
- * revisions that agents speak now and the 2026-07-28 revision. Only loopback hosts and origins
- * pass, so a web page cannot reach the address through DNS rebinding.
+ * Serves the tools and the instructions to one session over stateless streamable HTTP. It answers
+ * both the 2025 MCP revisions that agents speak now and the 2026-07-28 revision. Only loopback
+ * hosts and origins pass, so a web page cannot reach the address through DNS rebinding.
  */
 export function streamableHttpEndpoint(
   tools: readonly SessionTool[],

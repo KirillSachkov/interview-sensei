@@ -1,6 +1,7 @@
 // OpenCode as `opencode acp` from PATH: its own XDG directories, and the role, the skill and the
 // bans in OPENCODE_CONFIG_CONTENT; OpenCode reads no `_meta` and has no ACP system prompt.
-import { child, ourName, required, skillCopy } from "./recipe.ts";
+import { child, applicationName, required, skillCopy } from "./recipe.ts";
+import type { AgentHost } from "./agent.ts";
 import type { LaunchProfile, LaunchRecipe, LaunchRequest } from "./recipe.ts";
 
 /** OpenCode has no permission modes; its config asks the Candidate before changes. */
@@ -37,6 +38,16 @@ function opencodeHomes(root: string) {
   };
 }
 
+/** The whole config of the session: the Candidate's model, our limits, the skill and the agent. */
+function opencodeConfigContent(host: AgentHost, profile: LaunchProfile, skillsPath: string) {
+  return JSON.stringify({
+    ...host.opencodeModel,
+    ...opencodeConfig,
+    skills: { paths: [skillsPath] },
+    agent: { [applicationName]: opencodeAgent(profile) },
+  });
+}
+
 export function opencodeRecipe({
   host,
   profile,
@@ -46,12 +57,6 @@ export function opencodeRecipe({
   const root = child(dataDirectory, "agents", "opencode");
   const skillsPath = child(root, "skills", profile.skill.name);
   const skill = skillCopy(child(skillsPath, profile.skill.name), profile.skill);
-  const config = {
-    ...host.opencodeModel,
-    ...opencodeConfig,
-    skills: { paths: [skillsPath] },
-    agent: { [ourName]: opencodeAgent(profile) },
-  };
   const homes = opencodeHomes(root);
   const ownData = child(homes.XDG_DATA_HOME, "opencode");
   return {
@@ -62,14 +67,14 @@ export function opencodeRecipe({
       OPENCODE_DISABLE_CLAUDE_CODE: "1",
       OPENCODE_DISABLE_EXTERNAL_SKILLS: "1",
       OPENCODE_DISABLE_PROJECT_CONFIG: "1",
-      OPENCODE_CONFIG_CONTENT: JSON.stringify(config),
+      OPENCODE_CONFIG_CONTENT: opencodeConfigContent(host, profile, skillsPath),
     },
     sessionMeta: null,
     // OpenCode has no ACP system prompt; its own agent carries the role.
     systemPrompt: null,
     additionalDirectories: [],
     // OpenCode offers its primary agents as modes.
-    mode: ourName,
+    mode: applicationName,
     cwd: sessionDirectory,
     dataDirectory,
     directories: [
@@ -85,5 +90,6 @@ export function opencodeRecipe({
     symlinks: host.opencodeAuth.exists
       ? [{ path: child(ownData, "auth.json"), target: host.opencodeAuth.path }]
       : [],
+    syncedDirectories: [skill.directory],
   };
 }

@@ -1,4 +1,6 @@
-/** The kinds of AgentSession. The skeleton has one: the service chat, «Проверка агента» in the UI. */
+/**
+ * The kinds of AgentSession. The skeleton has one: the service chat, «Проверка агента» in the UI.
+ */
 export const sessionKinds = ["service-chat"] as const;
 export type SessionKind = (typeof sessionKinds)[number];
 

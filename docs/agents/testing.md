@@ -8,7 +8,8 @@ Run every command from the repository root after `pnpm install --frozen-lockfile
 - `pnpm check`: Prettier, oxlint with type checking, dependency-cruiser, Steiger and knip.
 - `pnpm test`: the Vitest projects `unit` and `integration` of every workspace.
 - `pnpm test:unit` or `pnpm test:integration`: one Vitest project.
-- `pnpm build`: the web app into `apps/web/dist`; the server runs from its sources and needs no build.
+- `pnpm build`: the built app into `apps/web/dist`: the web app in `web/` and a copy of `skills/` in `skills/`.
+  The server runs from its sources and needs no build.
 - `pnpm test:e2e`: `pnpm build`, then Playwright in Chromium against the `interview-sensei` command that it starts itself.
   Only the root script builds first; `pnpm --filter @interview-sensei/e2e test:e2e` tests the existing `apps/web/dist`.
 - `pnpm verify`: `pnpm check`, `pnpm test`, `pnpm test:e2e` and `python3 scripts/check.py` in order.
@@ -84,10 +85,11 @@ To check the built app by hand, run `pnpm build`, then the same variables with `
 
 ## Launch command
 
-`interview-sensei` (`apps/server/src/launch.ts`) serves `apps/web/dist` beside `/api` and prints the URL.
+`interview-sensei` (`apps/server/src/launch.ts`) serves `apps/web/dist/web` beside `/api` and prints the URL.
+Its agents get the skills from `apps/web/dist/skills`; `pnpm dev` and in-process tests read the repository's `skills/`.
 It logs only warnings and errors, so the URL line stays visible; `pnpm dev` logs every request.
-Without a built web app, it exits with code 1 and asks for `pnpm build`.
-`INTERVIEW_SENSEI_WEB_DIR` replaces `apps/web/dist` in tests.
+Without the built web app or skills, it exits with code 1 and asks for `pnpm build`.
+`INTERVIEW_SENSEI_WEB_DIR` and `INTERVIEW_SENSEI_SKILLS_DIR` replace these directories in tests.
 It opens the URL with `open` on macOS, `rundll32 url.dll,FileProtocolHandler` on Windows and `xdg-open` elsewhere.
 Tests and CI turn the browser off with `--no-browser` or `INTERVIEW_SENSEI_NO_BROWSER=1`.
 

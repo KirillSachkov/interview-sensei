@@ -1,1 +1,1 @@
-export { TopBar } from "./ui/top-bar";
+export { BackToCanvasBar, TopBar } from "./ui/top-bar";

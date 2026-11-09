@@ -34,6 +34,7 @@ A slice reads only its own schema and validates references through a domain port
 For example, `targets` stores ordered Topic ids on a Section.
 Its `TargetTopics` port lists the Target's Topics; the service rejects a Topic outside that Target before saving the Section.
 `composeFeatures` supplies `question-bank` as that port.
+`targets` accepts only an agent that its `TargetAgents` port offers; `composeFeatures` supplies `agent-runtime` as that port.
 In the opposite direction, `search_questions` resolves a Section's Topic ids through its `SectionTopics` port, scoped to the session's Target.
 Within a slice, use database constraints for relationships: `question-bank` ties each Question to a Topic of the same Target.
 
@@ -76,7 +77,7 @@ A slice adds a session kind like this:
 3. Add its skill as `skills/<name>/SKILL.md` in English, with `name` equal to the directory and a `description`. Name the skill in the profile.
 4. Leave the recipes in `agent-runtime/domain/*-recipe.ts` unchanged; they translate any profile.
 
-At each start the runtime reads the skill from `skills/` and the recipe copies it into the data directory, so a changed skill reaches the next session:
+At each start the runtime reads the skill from `skills/`, or from its copy in the built app, and the recipe copies it into the data directory, so the next session gets the skill as it is now:
 
 | Agent | Role | Skill | Shell and web off |
 | --- | --- | --- | --- |
@@ -149,8 +150,9 @@ The recipe drops `OPENCODE_CONFIG`, so it ignores a model that the Candidate cho
 The agent gets the Candidate's env without `OPENCODE_CONFIG`, `OPENCODE_CONFIG_DIR`, `CODEX_HOME` and `INTERVIEW_SENSEI_*`; the recipe's variables go over it.
 `agentEnvironment` in `launch-recipe.ts` filters it. `CLAUDE_CONFIG_DIR` passes unchanged.
 API keys stay: the Candidate chose them. With `ANTHROPIC_API_KEY` set, Claude Code bills the API instead of the subscription.
-Launch recipes in `agent-runtime/domain/launch-recipe.ts` put every directory, file and link into the data directory; their unit tests check it.
-`prepareRecipe` refuses a recipe path outside the data directory or through a link inside it, and never removes a directory.
+Launch recipes in `agent-runtime/domain/*-recipe.ts` put every directory, file and link into the data directory; their unit tests check it.
+`prepareRecipe` refuses a recipe path outside the data directory or through a link inside it.
+It removes files and directories only inside the recipe's `syncedDirectories`, the skill copy, so the copy equals its source.
 A slice that stores data owns a Postgres schema named after it, with its Drizzle tables and drizzle-kit migrations in `infrastructure/`.
 The slice keeps its tables in `infrastructure/schema.ts` and its drizzle-kit config in `infrastructure/drizzle.config.ts`, with the output in `infrastructure/migrations/`.
 Generate migrations with `db:generate`; never write or edit them by hand. Prettier ignores them.
@@ -203,7 +205,8 @@ User-facing text is in Russian.
 
 The clock lives in `packages/core/src/shared/time`; only `system-clock.ts` reads the real time.
 Node runs server sources directly by type stripping: use only erasable syntax and `.ts` import extensions.
-So the server has no build step; `pnpm build` builds only the web app, and the server serves it from `apps/web/dist`.
+So the server has no build step. `pnpm build` builds the web app into `apps/web/dist/web` and copies `skills/` to `apps/web/dist/skills`.
+The `interview-sensei` command serves the first and gives the agents the second.
 Dependency versions are exact. `pnpm-workspace.yaml` holds the supply-chain settings: release age, trust policy and allowed install scripts.
 Add a trust exclusion or install script only with a comment that gives the reason.
 

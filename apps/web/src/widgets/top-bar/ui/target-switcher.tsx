@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 
+import { targetTitle } from "@/entities/target";
 import { fetchTargets } from "@/shared/api";
 import type { TargetSummary } from "@/shared/api";
 
@@ -28,9 +29,4 @@ export function TargetSwitcher({ target }: { target: TargetSummary }) {
       }
     </Menu>
   );
-}
-
-/** A draft Target may have no name yet. */
-function targetTitle(target: TargetSummary): string {
-  return target.name === "" ? "Цель без названия" : target.name;
 }

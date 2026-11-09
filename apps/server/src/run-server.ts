@@ -12,6 +12,8 @@ import type { LogLevel } from "./server.ts";
 interface RunOptions {
   /** The built web app to serve; see ServerDependencies. */
   webDirectory?: string;
+  /** The application's skills; see ServerDependencies. */
+  skillsDirectory?: string;
   /** Called with the URL to open the app at once the server listens. */
   onListening?: (url: string) => void;
   /** The lowest level of the JSON logs on standard output; `info` logs every request. */
@@ -58,6 +60,7 @@ function loopbackHost(env: NodeJS.ProcessEnv): string {
 
 async function start({
   webDirectory,
+  skillsDirectory,
   onListening,
   logLevel = "info",
   allowedOrigins = [],
@@ -78,6 +81,7 @@ async function start({
     userEnvironment: { home: homedir(), env: process.env },
     allowedOrigins,
     ...(webDirectory === undefined ? {} : { webDirectory }),
+    ...(skillsDirectory === undefined ? {} : { skillsDirectory }),
   });
   for (const signal of ["SIGINT", "SIGTERM"] as const) {
     process.once(signal, () => {

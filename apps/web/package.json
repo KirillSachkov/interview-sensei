@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node -e \"const fs = require('node:fs'); fs.rmSync('dist/skills', { recursive: true, force: true }); fs.cpSync('../../skills', 'dist/skills', { recursive: true });\"",
     "lint": "oxlint",
     "boundaries": "steiger ./src"
   },
