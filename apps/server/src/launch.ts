@@ -6,25 +6,39 @@ import path from "node:path";
 import { openBrowser, opensBrowser } from "./browser.ts";
 import { runServer } from "./run-server.ts";
 
-// The output of `pnpm build` in apps/web; Node runs this file from the repository checkout. Tests
-// pass another built web app in INTERVIEW_SENSEI_WEB_DIR.
-const webDirectory =
-  process.env.INTERVIEW_SENSEI_WEB_DIR ?? path.join(import.meta.dirname, "..", "..", "web", "dist");
+// The built app, the output of `pnpm build` in apps/web: the web build and the application's
+// skills beside it. Node runs this file from the repository checkout. Tests pass other parts in
+// INTERVIEW_SENSEI_WEB_DIR and INTERVIEW_SENSEI_SKILLS_DIR.
+const builtApp = path.join(import.meta.dirname, "..", "..", "web", "dist");
+const webDirectory = process.env.INTERVIEW_SENSEI_WEB_DIR ?? path.join(builtApp, "web");
+const skillsDirectory = process.env.INTERVIEW_SENSEI_SKILLS_DIR ?? path.join(builtApp, "skills");
 
-/** The web app is built when its index.html exists. */
-async function isBuilt(): Promise<boolean> {
+async function exists(file: string): Promise<boolean> {
   try {
-    await access(path.join(webDirectory, "index.html"));
+    await access(file);
     return true;
   } catch {
     return false;
   }
 }
 
-if (await isBuilt()) {
+/** What `pnpm build` has not built yet; null when the app is built. */
+async function missingPart(): Promise<string | null> {
+  if (!(await exists(path.join(webDirectory, "index.html")))) {
+    return `Веб-приложение не собрано: нет ${webDirectory}.`;
+  }
+  if (!(await exists(skillsDirectory))) {
+    return `Skills приложения не собраны: нет ${skillsDirectory}.`;
+  }
+  return null;
+}
+
+const missing = await missingPart();
+if (missing === null) {
   const shouldOpenBrowser = opensBrowser({ args: process.argv.slice(2), env: process.env });
   await runServer({
     webDirectory,
+    skillsDirectory,
     // Request logs would bury the URL line; the terminal keeps only warnings and errors.
     logLevel: "warn",
     onListening: (url) => {
@@ -35,8 +49,6 @@ if (await isBuilt()) {
     },
   });
 } else {
-  process.stderr.write(
-    `Веб-приложение не собрано: нет ${webDirectory}. Выполните pnpm build в корне репозитория.\n`,
-  );
+  process.stderr.write(`${missing} Выполните pnpm build в корне репозитория.\n`);
   process.exitCode = 1;
 }

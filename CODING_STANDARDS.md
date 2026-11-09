@@ -13,7 +13,7 @@ The stack is TypeScript on Node 24 in a pnpm workspace; NestJS is not used.
 | `apps/web`      | React, Vite, TanStack Router and Query, Feature-Sliced Design.                |
 | `packages/core` | Feature slices in `src/features/<feature>/` and technical code in `src/shared/`. |
 | `e2e`           | Playwright tests against the built app that `interview-sensei` serves.        |
-| `skills/`       | Skills the application gives the Candidate's agent; not a workspace.          |
+| `skills/`       | Skills the application gives the Candidate's agent, one per session kind; not a workspace. |
 
 Shared settings live in `config/`: TypeScript, oxlint with the project plugin, and the dependency-cruiser base.
 
@@ -34,6 +34,7 @@ A slice reads only its own schema and validates references through a domain port
 For example, `targets` stores ordered Topic ids on a Section.
 Its `TargetTopics` port lists the Target's Topics; the service rejects a Topic outside that Target before saving the Section.
 `composeFeatures` supplies `question-bank` as that port.
+`targets` accepts only an agent that its `TargetAgents` port offers; `composeFeatures` supplies `agent-runtime` as that port.
 In the opposite direction, `search_questions` resolves a Section's Topic ids through its `SectionTopics` port, scoped to the session's Target.
 Within a slice, use database constraints for relationships: `question-bank` ties each Question to a Topic of the same Target.
 
@@ -60,9 +61,44 @@ A new slice plugs in like this:
 2. Add one call of the factory to `composeFeatures` in `composition.ts`.
 3. Add its migrations to `sliceMigrations` there, when it stores data.
 4. Add its MCP tools to its session kinds in `sessionTools` there.
-5. For a new session kind, add it to `sessionKinds` in `shared/session-kinds`.
-   Then add its launch recipe to `RuntimeSessionKind` in `agent-runtime` and its entry to `sessionTools`.
-   Both fail to compile until they have them.
+5. For a new session kind, follow [session profiles](#session-profiles).
+
+### Session profiles
+
+Each session kind has a profile (#42): the agent's role, one skill, whether shell and web are allowed, and the `instructions` of its MCP server.
+Profiles live in `sessionProfiles` in `shared/session-kinds/profiles.ts`, beside `sessionKinds`. Write their texts in English.
+`agent-runtime` builds the launch recipe from the profile; recipes never name a session kind.
+`mcp-gateway` serves the profile's `instructions` at MCP `initialize`.
+
+A slice adds a session kind like this:
+
+1. Add the kind to `sessionKinds` in `shared/session-kinds/kinds.ts`.
+2. Add its profile to `sessionProfiles` and its tool set to `sessionTools` in `composition.ts`; both fail to compile until they have the entry.
+3. Add its skill as `skills/<name>/SKILL.md` in English, with `name` equal to the directory and a `description`. Name the skill in the profile.
+4. Leave the recipes in `agent-runtime/domain/*-recipe.ts` unchanged; they translate any profile.
+
+At each start the runtime reads the skill from `skills/`, or from its copy in the built app, and the recipe copies it into the data directory, so the next session gets the skill as it is now:
+
+| Agent | Role | Skill | Shell and web off |
+| --- | --- | --- | --- |
+| Claude Code | ACP `systemPrompt`, `append` | local plugin `interview-sensei` in `agents/claude/skills/<skill>`; `skills` lists only `interview-sensei:<skill>` | `disallowedTools`: `Bash`; `WebFetch`, `WebSearch` |
+| Codex | ACP `systemPrompt`, `append`, with the note that `apply_patch` asks the Candidate | `.agents/skills` of the ACP `additionalDirectories` entry `agents/codex/skills/<skill>`; with shell off, its `SKILL.md` also in the `systemPrompt` | `CODEX_CONFIG`: `features.shell_tool = false`; `web_search = "disabled"` |
+| OpenCode 1.x | `prompt` of its own primary agent `interview-sensei` in `agent`, selected as the session's mode | `skills.paths` with `agents/opencode/skills/<skill>`; `OPENCODE_DISABLE_EXTERNAL_SKILLS` | that agent's `permission`: `bash`; `webfetch`, `websearch` = `deny` |
+| OpenCode 2.x | `system` of the same agent in `agents`, also `default_agent`, selected as the session's mode | `skills` with the same path; `policies`: `skill.use` only for `<skill>`; `OPENCODE_DISABLE_EXTERNAL_SKILLS` as a backup | that agent's `permissions`: `shell`; `webfetch`, `websearch` = `deny` |
+| fake | ACP `systemPrompt`, `append` | as Codex, in `agents/fake/skills/<skill>` | `_meta.fakeAgent.disallowedTools` |
+
+Codex 0.165 reads a skill file only through shell, so a profile without shell gets the skill's `SKILL.md` in the role.
+Its read-only sandbox makes the model refuse writes, though `apply_patch` asks the Candidate first; the role tells it so.
+Its `config.toml` sets `features.apps` and `features.plugins` to `false`: the Candidate's ChatGPT apps and plugins bring their own tools and skills.
+The OpenCode recipe writes the config keys of the installed version.
+`inspectAgentHost` runs only `opencode --version`: 1.x prints `1.18.30`, 2.x prints `opencode v2.2.6`.
+After 5 seconds on the injected `Timer` it kills the process with SIGKILL and stops reading, so the version is unknown.
+`opencodeConfigSchema` picks 2.x for a major version of 2 or more, and 1.x for any other answer or none: 2.x still reads the 1.x keys, but older 1.x releases do not read the 2.x keys.
+2.2.6 reads `~/.agents/skills` despite `OPENCODE_DISABLE_EXTERNAL_SKILLS`, so its `policies` deny every skill except the profile's.
+The launcher sets the mode with `session/set_mode` when `session/new` lists it in `modes`.
+Otherwise it sets the config option of category `mode`: OpenCode 1.17 and later offer their agents only there.
+An agent without the ACP capability for the recipe's `systemPrompt` or `additionalDirectories` does not start, and neither does one that does not offer the recipe's mode either way.
+A profile that allows shell or web gets no ban for it. The permission modes stay as [storage](#storage) and #17 set them.
 
 ### Local requests
 
@@ -114,18 +150,32 @@ It never writes into the Candidate's agent directories, such as `~/.claude`, `~/
 Claude Code is the exception, approved by the owner in #24.
 It keeps the Candidate's config directory, `CLAUDE_CONFIG_DIR` or `~/.claude`, because it ties the Keychain login to it.
 So Claude Code writes its own state there; the recipe isolates it with `settingSources: []` and `persistSession: false`.
-It reads one thing more there: the OpenCode recipe takes `model`, `small_model` and their `provider` entries from the Candidate's global OpenCode config.
-`opencodeModelSettings` in `agent-runtime/domain/opencode-settings.ts` picks them; other keys, such as `mcp`, `permission` or `instructions`, never reach the agent.
+It reads one thing more there: the OpenCode recipe takes the Candidate's model from the global OpenCode config.
+It takes `model`, as `provider/model` or as the 2.x reference `{ providerID, model, variant }`, and `small_model`.
+It takes their provider entries from both `provider` (1.x) and `providers` (2.x).
+The recipe passes these keys as they are; OpenCode 2.x migrates the 1.x ones itself.
+The 2.x small model in `agents.title.model` stays out with the rest of `agents`.
+`opencodeModelSettings` in `agent-runtime/domain/opencode-settings.ts` picks them; other keys, such as `mcp`, `permission`, `agents` or `instructions`, never reach the agent.
 The server never logs or journals that config.
 The model comes from `config.json`, `opencode.json` and `opencode.jsonc` in `$XDG_CONFIG_HOME/opencode` or `~/.config/opencode`.
-The recipe passes the copied `provider` entries in `OPENCODE_CONFIG_CONTENT`, which has no file location.
+The recipe passes the copied provider entries in `OPENCODE_CONFIG_CONTENT`, which has no file location.
 So a relative `{file:...}` in such an entry may not resolve; `~/` and absolute paths do.
 The recipe drops `OPENCODE_CONFIG`, so it ignores a model that the Candidate chose only in that file.
-The agent gets the Candidate's env without `OPENCODE_CONFIG`, `OPENCODE_CONFIG_DIR`, `CODEX_HOME` and `INTERVIEW_SENSEI_*`; the recipe's variables go over it.
+OpenCode 2.x keeps provider keys in the `credential` table of its `opencode.db` and ignores `auth.json` in a new database.
+So the server also reads that table, in `$XDG_DATA_HOME/opencode` or `~/.local/share/opencode`, or the file that `OPENCODE_DB` names there.
+It reads the table only at the start of an OpenCode 2.x session, never to list the agents.
+It opens the database `immutable` and read-only, so it creates no `-shm` or `-wal` file; a key still in OpenCode's write-ahead log appears after a checkpoint.
+`opencodeKeys` takes the key of the credential OpenCode would use, only for the providers of the Candidate's `model` and `small_model`.
+Without either, every provider gets its key, because OpenCode may then pick any of them.
+An OAuth credential gives no key, because a copied refresh token could rotate.
+An unreadable database gives no keys and a warning in the server log with its path and SQLite's reason, never its content.
+The 2.x recipe passes each key in its own variable `INTERVIEW_SENSEI_OPENCODE_KEY_<n>` and names it in `env` of the provider's `providers` entry; the config text holds no key.
+The agent gets the Candidate's env without `OPENCODE_CONFIG`, `OPENCODE_CONFIG_DIR`, `OPENCODE_DB`, `CODEX_HOME` and `INTERVIEW_SENSEI_*`; the recipe's variables go over it.
 `agentEnvironment` in `launch-recipe.ts` filters it. `CLAUDE_CONFIG_DIR` passes unchanged.
 API keys stay: the Candidate chose them. With `ANTHROPIC_API_KEY` set, Claude Code bills the API instead of the subscription.
-Launch recipes in `agent-runtime/domain/launch-recipe.ts` put every directory, file and link into the data directory; their unit tests check it.
-`prepareRecipe` refuses a recipe path outside the data directory or through a link inside it, and never removes a directory.
+Launch recipes in `agent-runtime/domain/*-recipe.ts` put every directory, file and link into the data directory; their unit tests check it.
+`prepareRecipe` refuses a recipe path outside the data directory or through a link inside it.
+It removes files and directories only inside the recipe's `syncedDirectories`, the skill copy, so the copy equals its source.
 A slice that stores data owns a Postgres schema named after it, with its Drizzle tables and drizzle-kit migrations in `infrastructure/`.
 The slice keeps its tables in `infrastructure/schema.ts` and its drizzle-kit config in `infrastructure/drizzle.config.ts`, with the output in `infrastructure/migrations/`.
 Generate migrations with `db:generate`; never write or edit them by hand. Prettier ignores them.
@@ -133,6 +183,26 @@ Generate migrations with `db:generate`; never write or edit them by hand. Pretti
 `schema.ts` exports its `pgSchema`: drizzle-kit reads only exported objects and would otherwise drop the schema.
 The slice exports its `SliceMigrations` from `index.ts`, and `sliceMigrations` in `apps/server/src/composition.ts` lists it.
 A slice queries only its own schema.
+
+### Canvas zones
+
+The web app opens on the canvas of one Target, `pages/target`, built on React Flow (`@xyflow/react`).
+`Canvas` in `shared/ui/canvas` is the frame: it places zones from left to right, moves and scales the view.
+A zone is one React Flow node that groups its widgets; the widgets are plain React inside it, stacked from top to bottom.
+`targetZones` in `pages/target/ui/target-page.tsx` lists the zones «Цель» and «Сессии» and the content of each.
+A slice adds content to a zone like this:
+
+1. Write its widget in `widgets/<name>/` and export it from the slice's `index.ts`.
+2. Add the widget to the zone's `content` in `targetZones`.
+
+The slice leaves `Canvas` and the top bar (`widgets/top-bar`) unchanged.
+A new zone is a new entry in `targetZones` and needs the owner's decision.
+An input or a scrolled list inside a widget gets the React Flow classes `nodrag`, `nopan` and `nowheel` where the canvas must not take its pointer or wheel.
+
+Styles follow the «чистый» style of the UI prototype (#3), light theme, large for a 2K monitor.
+Colors, fonts, font sizes and radii come only from the CSS variables in `apps/web/src/app/styles/tokens.css`, so a dark theme only redefines them.
+Spacing uses the `--space-*` variables where a step fits.
+User-facing text is in Russian.
 
 ### Mechanical rules
 
@@ -158,7 +228,8 @@ A slice queries only its own schema.
 
 The clock lives in `packages/core/src/shared/time`; only `system-clock.ts` reads the real time.
 Node runs server sources directly by type stripping: use only erasable syntax and `.ts` import extensions.
-So the server has no build step; `pnpm build` builds only the web app, and the server serves it from `apps/web/dist`.
+So the server has no build step. `pnpm build` builds the web app into `apps/web/dist/web` and copies `skills/` to `apps/web/dist/skills`.
+The `interview-sensei` command serves the first and gives the agents the second.
 Dependency versions are exact. `pnpm-workspace.yaml` holds the supply-chain settings: release age, trust policy and allowed install scripts.
 Add a trust exclusion or install script only with a comment that gives the reason.
 

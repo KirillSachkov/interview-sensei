@@ -10,33 +10,53 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AgentCheckRouteImport } from './routes/agent-check'
+import { Route as TargetsTargetIdRouteImport } from './routes/targets.$targetId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AgentCheckRoute = AgentCheckRouteImport.update({
+  id: '/agent-check',
+  path: '/agent-check',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TargetsTargetIdRoute = TargetsTargetIdRouteImport.update({
+  id: '/targets/$targetId',
+  path: '/targets/$targetId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/agent-check': typeof AgentCheckRoute
+  '/targets/$targetId': typeof TargetsTargetIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/agent-check': typeof AgentCheckRoute
+  '/targets/$targetId': typeof TargetsTargetIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/agent-check': typeof AgentCheckRoute
+  '/targets/$targetId': typeof TargetsTargetIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/agent-check' | '/targets/$targetId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/agent-check' | '/targets/$targetId'
+  id: '__root__' | '/' | '/agent-check' | '/targets/$targetId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AgentCheckRoute: typeof AgentCheckRoute
+  TargetsTargetIdRoute: typeof TargetsTargetIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +68,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/agent-check': {
+      id: '/agent-check'
+      path: '/agent-check'
+      fullPath: '/agent-check'
+      preLoaderRoute: typeof AgentCheckRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/targets/$targetId': {
+      id: '/targets/$targetId'
+      path: '/targets/$targetId'
+      fullPath: '/targets/$targetId'
+      preLoaderRoute: typeof TargetsTargetIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AgentCheckRoute: AgentCheckRoute,
+  TargetsTargetIdRoute: TargetsTargetIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

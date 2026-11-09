@@ -34,10 +34,17 @@ export interface AgentHost {
   readonly codexAdapter: string | null;
   /** `opencode` found in PATH, or null. */
   readonly opencodeBinary: string | null;
+  /** What `opencode --version` printed, or null when it failed; see `opencodeConfigSchema`. */
+  readonly opencodeVersion: string | null;
   /** The Candidate's Codex login: `auth.json` in `$CODEX_HOME` or `~/.codex`. */
   readonly codexAuth: UserFile;
-  /** The Candidate's OpenCode provider keys: `opencode/auth.json` in `$XDG_DATA_HOME`. */
+  /** The Candidate's OpenCode 1.x provider keys: `opencode/auth.json` in `$XDG_DATA_HOME`. */
   readonly opencodeAuth: UserFile;
+  /**
+   * The database of the Candidate's OpenCode 2.x with its provider keys, or null for an in-memory
+   * one. The runtime reads it only to start an OpenCode 2.x session; see `opencodeKeys`.
+   */
+  readonly opencodeDatabase: string | null;
   /** The model the Candidate chose for OpenCode; see `opencodeModelSettings`. */
   readonly opencodeModel: OpencodeModelSettings;
 }

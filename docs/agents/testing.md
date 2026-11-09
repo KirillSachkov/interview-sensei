@@ -8,7 +8,8 @@ Run every command from the repository root after `pnpm install --frozen-lockfile
 - `pnpm check`: Prettier, oxlint with type checking, dependency-cruiser, Steiger and knip.
 - `pnpm test`: the Vitest projects `unit` and `integration` of every workspace.
 - `pnpm test:unit` or `pnpm test:integration`: one Vitest project.
-- `pnpm build`: the web app into `apps/web/dist`; the server runs from its sources and needs no build.
+- `pnpm build`: the built app into `apps/web/dist`: the web app in `web/` and a copy of `skills/` in `skills/`.
+  The server runs from its sources and needs no build.
 - `pnpm test:e2e`: `pnpm build`, then Playwright in Chromium against the `interview-sensei` command that it starts itself.
   Only the root script builds first; `pnpm --filter @interview-sensei/e2e test:e2e` tests the existing `apps/web/dist`.
 - `pnpm verify`: `pnpm check`, `pnpm test`, `pnpm test:e2e` and `python3 scripts/check.py` in order.
@@ -41,7 +42,10 @@ Without it the server offers Claude Code, Codex and OpenCode from `userEnvironme
 [Storage](../../CODING_STANDARDS.md#storage) in the coding standards owns what the agents get from that environment.
 The fake agent gets an empty environment plus its recipe's variables.
 Tests that check the real agents' availability pass a temporary directory as `userEnvironment.home` and PATH, and start no real agent.
-Launch recipes are pure: unit tests give them made-up paths, and nothing touches the disk.
+For the OpenCode version they put a stub `opencode` script into that PATH; it answers only `--version`.
+For the OpenCode 2.x keys they create a made-up `opencode.db` with `node:sqlite` in that home.
+A stub that hangs stands for a stuck OpenCode: the test runs the timeout task of the injected `Timer` by hand.
+Launch recipes are pure: unit tests give them made-up paths, profiles and skills, and nothing touches the disk.
 Unit tests give `opencodeModelSettings` made-up texts; a missing or invalid file gives no model.
 The fake agent streams a reply in chunks; the prompt `/wait` waits for a cancel, `/fail` answers with a JSON-RPC error, and `/crash` exits with code 1.
 `/brief` calls `get_brief` on the session's MCP address after a permission request that the server allows by itself.
@@ -49,6 +53,9 @@ The fake agent streams a reply in chunks; the prompt `/wait` waits for a cancel,
 `/late` asks permission after its turn ends and sends the outcome it gets, which is `cancelled`.
 A new fake session starts in the mode `candidate-mode`, which stands for the Candidate's own mode; `/mode` replies with the current mode and `/meta` with the `_meta` of `session/new`.
 `/env` replies with the names of the fake agent's environment variables.
+`/system` replies with the role from the ACP `systemPrompt` of `session/new`, `/skills` with the skills in `.agents/skills` of its `additionalDirectories`, and `/tools` with the bans from `_meta.fakeAgent.disallowedTools`.
+`INTERVIEW_SENSEI_FAKE_AGENT_MODE=no-session-capabilities` makes it take neither a system prompt nor additional directories.
+`INTERVIEW_SENSEI_FAKE_AGENT_MODE=mode-config-option` makes it offer its modes only as the config option `mode`, as OpenCode 2.x does.
 In-process API tests listen on a free loopback port: the agent reaches the session's MCP address over real HTTP.
 They send the page's `Host` and `Origin` from `browserHeaders` in `chat-test-support.ts`: the server refuses others.
 `INTERVIEW_SENSEI_FAKE_AGENT_MODE=silent` makes it a hung agent; `ignore-sigterm` makes it ignore SIGTERM.
@@ -67,6 +74,8 @@ Give each worktree its own ports when several run at once.
 The server keeps all data in `~/.interview-sensei`; the `INTERVIEW_SENSEI_DATA_DIR` variable overrides it.
 `pnpm dev` and `pnpm start` use the default directory.
 `pnpm test:e2e` uses `e2e/.data`, which Git ignores; its webServer command empties it before each run.
+All e2e test files share that data directory, so only `e2e/tests/canvas.test.ts` creates Targets.
+Its tests run in order: the first sees no Targets and opens the demo Target, the rest use it.
 Each agent session works in its own directory under `sessions/` in the data directory.
 The agents' own homes and configs live under `agents/` in the data directory, with symlinks to the Candidate's `auth.json`.
 Claude Code is the exception (#24): it keeps the Candidate's config directory and writes its own state there.
@@ -80,10 +89,11 @@ To check the built app by hand, run `pnpm build`, then the same variables with `
 
 ## Launch command
 
-`interview-sensei` (`apps/server/src/launch.ts`) serves `apps/web/dist` beside `/api` and prints the URL.
+`interview-sensei` (`apps/server/src/launch.ts`) serves `apps/web/dist/web` beside `/api` and prints the URL.
+Its agents get the skills from `apps/web/dist/skills`; `pnpm dev` and in-process tests read the repository's `skills/`.
 It logs only warnings and errors, so the URL line stays visible; `pnpm dev` logs every request.
-Without a built web app, it exits with code 1 and asks for `pnpm build`.
-`INTERVIEW_SENSEI_WEB_DIR` replaces `apps/web/dist` in tests.
+Without the built web app or skills, it exits with code 1 and asks for `pnpm build`.
+`INTERVIEW_SENSEI_WEB_DIR` and `INTERVIEW_SENSEI_SKILLS_DIR` replace these directories in tests.
 It opens the URL with `open` on macOS, `rundll32 url.dll,FileProtocolHandler` on Windows and `xdg-open` elsewhere.
 Tests and CI turn the browser off with `--no-browser` or `INTERVIEW_SENSEI_NO_BROWSER=1`.
 

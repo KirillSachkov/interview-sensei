@@ -23,14 +23,15 @@ export async function temporaryDirectory(): Promise<string> {
 /**
  * Builds the server with the fake agent on the data directory and listens on a free port of the
  * host, `127.0.0.1` by default: the agent reaches the session's MCP address over real HTTP.
- * `allowedOrigins` goes to buildServer. `stop` closes it early.
+ * `allowedOrigins` and `skillsDirectory` go to buildServer. `stop` closes it early.
  */
 export async function startServer(
   dataDirectory: string,
   {
     host = "127.0.0.1",
     allowedOrigins = [],
-  }: { host?: string; allowedOrigins?: readonly string[] } = {},
+    skillsDirectory,
+  }: { host?: string; allowedOrigins?: readonly string[]; skillsDirectory?: string } = {},
 ) {
   const server = await buildServer({
     clock: { now: () => new Date(fixedTime) },
@@ -39,6 +40,7 @@ export async function startServer(
     dataDirectory,
     fakeAgent: true,
     allowedOrigins,
+    ...(skillsDirectory === undefined ? {} : { skillsDirectory }),
   });
   let closed: Promise<void> | null = null;
   const stop = async () => {

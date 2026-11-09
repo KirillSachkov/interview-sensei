@@ -1,20 +1,44 @@
 // What the OpenCode recipe takes from the Candidate's own global config (#24): only the chosen
 // models and the provider entries they need. The rest of that config stays out of the isolation.
+// The config may use the keys of OpenCode 1.x (`provider`) or 2.x (`providers`, `model` as a
+// reference); both pass as they are, and OpenCode 2.x reads both.
+
+/** A model as OpenCode 2.x may give it: `{ providerID, model, variant? }`. */
+interface ModelReference {
+  readonly providerID: string;
+  readonly model: string;
+  readonly variant?: string;
+}
 
 /**
  * The Candidate's choice of model from the global OpenCode config, and the provider entries those
  * models need; nothing else of that config.
  */
 export interface OpencodeModelSettings {
-  readonly model?: string;
+  readonly model?: string | ModelReference;
   readonly small_model?: string;
+  /** The entries of the 1.x key. */
   readonly provider?: Readonly<Record<string, unknown>>;
+  /** The entries of the 2.x key. */
+  readonly providers?: Readonly<Record<string, unknown>>;
 }
 
 type JsonObject = Record<string, unknown>;
 
 function isObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isModel(value: unknown): value is string | ModelReference {
+  if (typeof value === "string") {
+    return true;
+  }
+  return (
+    isObject(value) &&
+    typeof value.providerID === "string" &&
+    typeof value.model === "string" &&
+    (value.variant === undefined || typeof value.variant === "string")
+  );
 }
 
 /** The index after the string that starts at `index`. */
@@ -94,38 +118,49 @@ function mergeDeep(base: JsonObject, over: JsonObject): JsonObject {
 /** The keys this module reads from each file; a later file overrides an earlier one. */
 function pick(texts: readonly (string | null)[]): JsonObject {
   return texts.reduce<JsonObject>((merged, text) => {
-    const { model, small_model: smallModel, provider } = parseConfig(text);
-    return mergeDeep(merged, {
-      ...(typeof model === "string" ? { model } : {}),
+    const { model, small_model: smallModel, provider, providers } = parseConfig(text);
+    const next = mergeDeep(merged, {
       ...(typeof smallModel === "string" ? { small_model: smallModel } : {}),
       ...(isObject(provider) ? { provider } : {}),
+      ...(isObject(providers) ? { providers } : {}),
     });
+    // A later model replaces the earlier one whole: a string and a reference do not merge.
+    return isModel(model) ? { ...next, model } : next;
   }, {});
 }
 
-/** The provider part of `provider/model`, or null for a value without one. */
+/** The provider of `provider/model` or of a 2.x reference, or null for a value without one. */
 function providerOf(model: unknown): string | null {
-  return typeof model === "string" && model.includes("/") ? (model.split("/")[0] ?? null) : null;
+  if (typeof model === "string") {
+    return model.includes("/") ? (model.split("/")[0] ?? null) : null;
+  }
+  return isModel(model) && typeof model !== "string" ? model.providerID : null;
+}
+
+/** The entries of the providers, from one provider key of the config. */
+function entriesOf(defined: unknown, ids: readonly string[]): Record<string, unknown> | null {
+  const entries: JsonObject = isObject(defined) ? defined : {};
+  const found = ids.filter((id) => isObject(entries[id]));
+  return found.length === 0 ? null : Object.fromEntries(found.map((id) => [id, entries[id]]));
 }
 
 /**
  * The Candidate's model choice from the texts of the global OpenCode config files, in OpenCode's
  * order (`config.json`, `opencode.json`, `opencode.jsonc`); null for a missing file. It takes
- * only `model`, `small_model` and the `provider` entries of their providers: a model the Candidate
- * defined in the config works only with its entry. MCP servers, permissions, instructions, agents,
- * plugins and the rest stay out. An unreadable file adds nothing.
+ * only `model`, `small_model` and the entries of their providers in `provider` (1.x) and
+ * `providers` (2.x): a model the Candidate defined in the config works only with its entry. MCP
+ * servers, permissions, instructions, agents, plugins and the rest stay out. An unreadable file
+ * adds nothing.
  */
 export function opencodeModelSettings(texts: readonly (string | null)[]): OpencodeModelSettings {
-  const { model, small_model: smallModel, provider: providers = {} } = pick(texts);
-  const defined = isObject(providers) ? providers : {};
-  const provider = Object.fromEntries(
-    [providerOf(model), providerOf(smallModel)]
-      .filter((id): id is string => id !== null && isObject(defined[id]))
-      .map((id) => [id, defined[id]]),
-  );
+  const { model, small_model: smallModel, provider, providers } = pick(texts);
+  const ids = [providerOf(model), providerOf(smallModel)].filter((id): id is string => id !== null);
+  const legacy = entriesOf(provider, ids);
+  const native = entriesOf(providers, ids);
   return {
-    ...(typeof model === "string" ? { model } : {}),
+    ...(isModel(model) ? { model } : {}),
     ...(typeof smallModel === "string" ? { small_model: smallModel } : {}),
-    ...(Object.keys(provider).length === 0 ? {} : { provider }),
+    ...(legacy === null ? {} : { provider: legacy }),
+    ...(native === null ? {} : { providers: native }),
   };
 }

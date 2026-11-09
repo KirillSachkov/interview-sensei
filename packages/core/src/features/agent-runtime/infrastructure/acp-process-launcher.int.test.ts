@@ -58,13 +58,25 @@ function manualTimer() {
 /** A timer that never runs a task: these tests do not time out. */
 const idleTimer: Timer = { repeat: () => () => {}, after: () => () => {} };
 
+/** A profile with a made-up role and skill that forbids shell and web. */
+const profile = {
+  role: "You are the probe role.",
+  skill: {
+    name: "probe-skill",
+    files: [{ path: "SKILL.md", content: "---\nname: probe-skill\ndescription: Probes.\n---\n" }],
+  },
+  shell: false,
+  web: false,
+};
+
 /** The fake agent's recipe in a fresh temporary data directory. */
 async function fakeRecipe(): Promise<LaunchRecipe> {
   const dataDirectory = await temporaryDirectory();
   return launchRecipe({
     agent: "fake",
-    sessionKind: "service-chat",
-    host: await inspectAgentHost({ home: dataDirectory, env: {} })(),
+    profile,
+    host: await inspectAgentHost({ home: dataDirectory, env: {} }, idleTimer)(),
+    opencodeKeys: [],
     dataDirectory,
     sessionDirectory: path.join(dataDirectory, "sessions", "1"),
   });
@@ -161,17 +173,18 @@ describe("acp launcher", () => {
     await expect(stopped).resolves.toBeUndefined();
   });
 
-  it("sets the recipe's permission mode right after session/new instead of the Candidate's", async () => {
-    const { launched, updates } = launch({ ...(await fakeRecipe()), mode: "default" }, idleTimer);
+  // The fake agent lists its modes in `modes`, or as the config option `mode` like OpenCode 2.x.
+  it.each([{}, { INTERVIEW_SENSEI_FAKE_AGENT_MODE: "mode-config-option" }])(
+    "sets only an offered mode of the recipe right after session/new, with the agent's env %j",
+    async (env) => {
+      const recipe = { ...(await fakeRecipe()), env };
+      const { launched, updates } = launch({ ...recipe, mode: "default" }, idleTimer);
+      await expect(replyTo(await launched, updates, "/mode")).resolves.toBe("Режим: default");
 
-    await expect(replyTo(await launched, updates, "/mode")).resolves.toBe("Режим: default");
-  });
-
-  it("refuses to start an agent that does not offer the recipe's permission mode", async () => {
-    const { launched } = launch({ ...(await fakeRecipe()), mode: "bypass-everything" }, idleTimer);
-
-    await expect(launched).rejects.toThrow(/does not offer the permission mode bypass-everything/u);
-  });
+      const refused = launch({ ...recipe, mode: "bypass-everything" }, idleTimer).launched;
+      await expect(refused).rejects.toThrow(/does not offer the mode bypass-everything/u);
+    },
+  );
 
   it("passes the recipe's _meta to session/new", async () => {
     const sessionMeta = { claudeCode: { options: { settingSources: [] } } };
@@ -252,5 +265,34 @@ describe("acp launcher", () => {
     ]) {
       expect(names).not.toContain(name);
     }
+  });
+});
+
+describe("acp launcher with a session profile", () => {
+  it("gives the agent the recipe's role as an appended ACP system prompt", async () => {
+    const { launched, updates } = launch(await fakeRecipe(), idleTimer);
+
+    await expect(replyTo(await launched, updates, "/system")).resolves.toBe(
+      "Роль (append): You are the probe role.",
+    );
+  });
+
+  it("gives the agent the skill it copied into an additional directory", async () => {
+    const { launched, updates } = launch(await fakeRecipe(), idleTimer);
+
+    await expect(replyTo(await launched, updates, "/skills")).resolves.toBe(
+      'Skills: ["probe-skill"]',
+    );
+  });
+
+  it.each([
+    { field: "a system prompt", changes: {} },
+    { field: "additional directories", changes: { systemPrompt: null } },
+  ])("refuses to start an agent that cannot take $field", async ({ field, changes }) => {
+    const recipe = await fakeRecipe();
+    const env = { INTERVIEW_SENSEI_FAKE_AGENT_MODE: "no-session-capabilities" };
+    const { launched } = launch({ ...recipe, ...changes, env }, idleTimer);
+
+    await expect(launched).rejects.toThrow(`The agent does not accept ${field}`);
   });
 });

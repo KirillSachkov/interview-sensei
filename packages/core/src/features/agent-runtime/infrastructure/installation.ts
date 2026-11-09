@@ -3,8 +3,11 @@ import { access, readFile, stat } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 
+import type { Timer } from "../../../shared/time/index.ts";
 import type { AgentHost } from "../domain/agent.ts";
 import { opencodeModelSettings } from "../domain/opencode-settings.ts";
+import { opencodeDatabasePath } from "./opencode-credentials.ts";
+import { opencodeVersion } from "./opencode-version.ts";
 
 const require = createRequire(import.meta.url);
 
@@ -74,25 +77,36 @@ async function textOrNull(file: string): Promise<string | null> {
 const opencodeConfigFiles = ["config.json", "opencode.json", "opencode.jsonc"];
 
 /**
- * Finds the adapters, OpenCode and the Candidate's logins. It only reads: the Candidate's agent
- * directories are never written.
+ * Finds the adapters, OpenCode with its version and the Candidate's logins. It only reads: the
+ * Candidate's agent directories are never written. The timer bounds `opencode --version`.
  */
-export function inspectAgentHost({ home, env }: UserEnvironment): () => Promise<AgentHost> {
+export function inspectAgentHost(
+  { home, env }: UserEnvironment,
+  timer: Timer,
+): () => Promise<AgentHost> {
   const codexHome = env.CODEX_HOME ?? path.join(home, ".codex");
-  const dataHome = env.XDG_DATA_HOME ?? path.join(home, ".local", "share");
+  const opencodeData = path.join(
+    env.XDG_DATA_HOME ?? path.join(home, ".local", "share"),
+    "opencode",
+  );
   const configHome = env.XDG_CONFIG_HOME ?? path.join(home, ".config");
-  return async () => ({
-    nodeExecutable: process.execPath,
-    fakeAgentScript: path.join(import.meta.dirname, "fake-agent.ts"),
-    claudeAdapter: adapterScript("@agentclientprotocol/claude-agent-acp", "dist/index.js"),
-    codexAdapter: adapterScript("@agentclientprotocol/codex-acp", "dist/index.js"),
-    opencodeBinary: await findInPath("opencode", env.PATH),
-    codexAuth: await userFile(path.join(codexHome, "auth.json")),
-    opencodeAuth: await userFile(path.join(dataHome, "opencode", "auth.json")),
-    opencodeModel: opencodeModelSettings(
-      await Promise.all(
-        opencodeConfigFiles.map((name) => textOrNull(path.join(configHome, "opencode", name))),
+  return async () => {
+    const opencodeBinary = await findInPath("opencode", env.PATH);
+    return {
+      nodeExecutable: process.execPath,
+      fakeAgentScript: path.join(import.meta.dirname, "fake-agent.ts"),
+      claudeAdapter: adapterScript("@agentclientprotocol/claude-agent-acp", "dist/index.js"),
+      codexAdapter: adapterScript("@agentclientprotocol/codex-acp", "dist/index.js"),
+      opencodeBinary,
+      opencodeVersion: await opencodeVersion(opencodeBinary, { env, timer }),
+      codexAuth: await userFile(path.join(codexHome, "auth.json")),
+      opencodeAuth: await userFile(path.join(opencodeData, "auth.json")),
+      opencodeDatabase: opencodeDatabasePath(opencodeData, env),
+      opencodeModel: opencodeModelSettings(
+        await Promise.all(
+          opencodeConfigFiles.map((name) => textOrNull(path.join(configHome, "opencode", name))),
+        ),
       ),
-    ),
-  });
+    };
+  };
 }

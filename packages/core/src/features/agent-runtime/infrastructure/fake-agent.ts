@@ -16,19 +16,33 @@
 //   `candidate-mode`, which stands for the mode in the Candidate's own settings.
 // - `/meta` replies with the `_meta` of `session/new` as JSON: «_meta: <json>».
 // - `/env` replies with the sorted names of its environment variables as JSON: «env: <json>».
+// - `/system`, `/skills` and `/tools` reply with the role, skills and bans of the session's
+//   profile; see `fake-agent-profile.ts`.
 // - Any other text gets the reply «Фейковый агент получил: «<text>»» in several chunks.
 //
 // The variable INTERVIEW_SENSEI_FAKE_AGENT_MODE stands for broken agents in launcher tests:
 // - `silent` never answers and ignores SIGTERM, like a hung agent.
 // - `ignore-sigterm` works but ignores SIGTERM, so only SIGKILL stops it.
+// - `no-session-capabilities` takes neither a system prompt nor additional directories.
+// - `mode-config-option` offers its modes only as the config option `mode`; see
+//   `fake-agent-modes.ts`.
 import { randomUUID } from "node:crypto";
 import { Readable, Writable } from "node:stream";
 import { setTimeout as delay } from "node:timers/promises";
 
-import { agent, ndJsonStream, PROTOCOL_VERSION, RequestError } from "@agentclientprotocol/sdk";
-import type { AgentContext, McpServer, PermissionOption } from "@agentclientprotocol/sdk";
+// The unstable entry reads the ACP `systemPrompt` of `session/new`, as the adapters do.
+import {
+  agent,
+  ndJsonStream,
+  PROTOCOL_VERSION,
+  RequestError,
+} from "@agentclientprotocol/sdk/unstable";
+import type { AgentContext, McpServer, PermissionOption } from "@agentclientprotocol/sdk/unstable";
 
 import { callMcpTool } from "./fake-agent-mcp.ts";
+import { fakeAgentModes } from "./fake-agent-modes.ts";
+import { profileReply, profileSettings, sessionCapabilities } from "./fake-agent-profile.ts";
+import type { ProfileSettings } from "./fake-agent-profile.ts";
 
 // A short pause between chunks lets a person see the reply grow; the fake agent stands for an
 // external program and has no injected Timer.
@@ -37,15 +51,11 @@ const chunkPauseMs = 40;
 /** The MCP servers each session got in `session/new`. */
 const sessionMcpServers = new Map<string, McpServer[]>();
 
-/** The `_meta` each session got in `session/new`, and its current permission mode. */
-const sessionSettings = new Map<string, { meta: unknown; mode: string }>();
+/** What each session got in `session/new`. */
+const sessionSettings = new Map<string, ProfileSettings>();
 
-/** The permission modes of a session; the first is the Candidate's own, as an adapter reads it. */
-const availableModes = [
-  { id: "candidate-mode", name: "Режим кандидата" },
-  { id: "default", name: "Default" },
-  { id: "read-only", name: "Read only" },
-];
+const agentMode = process.env.INTERVIEW_SENSEI_FAKE_AGENT_MODE;
+const modes = fakeAgentModes(agentMode);
 
 /** The options of every permission request, like those of a real adapter. */
 const permissionOptions: PermissionOption[] = [
@@ -216,7 +226,7 @@ const commands = new Map<
   [
     "/mode",
     async (client, sessionId) =>
-      reply(client, sessionId, `Режим: ${sessionSettings.get(sessionId)?.mode ?? "нет"}`),
+      reply(client, sessionId, `Режим: ${modes.current(sessionId) ?? "нет"}`),
   ],
   [
     "/meta",
@@ -240,27 +250,29 @@ const commands = new Map<
 const app = agent({ name: "interview-sensei-fake-agent" })
   .onRequest("initialize", () => ({
     protocolVersion: PROTOCOL_VERSION,
-    agentCapabilities: { mcpCapabilities: { http: true, sse: false } },
+    agentCapabilities: {
+      mcpCapabilities: { http: true, sse: false },
+      ...sessionCapabilities(agentMode),
+    },
     authMethods: [],
   }))
   .onRequest("session/new", ({ params }) => {
     const sessionId = randomUUID();
     sessionMcpServers.set(sessionId, params.mcpServers);
-    const mode = availableModes[0]?.id ?? "";
-    // oxlint-disable-next-line eslint/no-underscore-dangle -- `_meta` is the ACP field's name
-    sessionSettings.set(sessionId, { meta: params._meta ?? null, mode });
-    return { sessionId, modes: { currentModeId: mode, availableModes } };
+    sessionSettings.set(sessionId, profileSettings(params));
+    return { sessionId, ...modes.start(sessionId) };
   })
-  .onRequest("session/set_mode", ({ params: { sessionId, modeId } }) => {
-    const settings = sessionSettings.get(sessionId);
-    if (settings === undefined || !availableModes.some((mode) => mode.id === modeId)) {
-      throw RequestError.invalidParams({ modeId });
-    }
-    settings.mode = modeId;
+  .onRequest("session/set_mode", ({ params }) => {
+    modes.set(params);
     return {};
   })
+  .onRequest("session/set_config_option", ({ params }) => ({ configOptions: modes.set(params) }))
   .onRequest("session/prompt", async ({ params: { sessionId, prompt }, client }) => {
     const text = prompt.map((block) => (block.type === "text" ? block.text : "")).join("");
+    const profile = profileReply(text, sessionSettings.get(sessionId));
+    if (profile !== null) {
+      return reply(client, sessionId, await profile);
+    }
     const command = commands.get(text);
     return command === undefined ? echo(client, sessionId, text) : command(client, sessionId);
   })
@@ -269,12 +281,11 @@ const app = agent({ name: "interview-sensei-fake-agent" })
     cancelWaiters.delete(params.sessionId);
   });
 
-const mode = process.env.INTERVIEW_SENSEI_FAKE_AGENT_MODE;
-if (mode === "silent" || mode === "ignore-sigterm") {
+if (agentMode === "silent" || agentMode === "ignore-sigterm") {
   process.on("SIGTERM", () => {});
   // Keeps the process alive after its input ends, so only SIGKILL stops it.
   setInterval(() => {}, 60_000);
 }
-if (mode !== "silent") {
+if (agentMode !== "silent") {
   app.connect(ndJsonStream(Writable.toWeb(process.stdout), Readable.toWeb(process.stdin)));
 }

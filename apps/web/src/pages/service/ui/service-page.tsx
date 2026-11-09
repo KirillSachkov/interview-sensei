@@ -1,17 +1,24 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { fetchHealth } from "@/shared/api";
+import { BackToCanvasBar } from "@/widgets/top-bar";
 
 import { ServiceChat } from "./service-chat";
 
-/** The service screen of the skeleton: server status and the service chat with an agent. */
+/**
+ * «Проверка агента»: server status and the service chat, where the Candidate checks that an agent
+ * starts and answers. The top bar leads here; the link goes back to the canvas.
+ */
 export function ServicePage() {
   return (
-    <main>
-      <h1>Interview Sensei</h1>
-      <ServerStatus />
-      <ServiceChat />
-    </main>
+    <>
+      <BackToCanvasBar />
+      <main className="page">
+        <h1>Проверка агента</h1>
+        <ServerStatus />
+        <ServiceChat />
+      </main>
+    </>
   );
 }
 

@@ -5,7 +5,7 @@ import type { SubmitEvent } from "react";
 import { fetchAgents, fetchSessions, startServiceChat } from "@/shared/api";
 import type { AgentAvailability } from "@/shared/api";
 
-import { agentName } from "./agent-names";
+import { agentName } from "@/entities/agent";
 
 /** Chooses an available agent and starts a new service chat with it. */
 export function NewChatForm({ onStarted }: { onStarted: (sessionId: string) => void }) {

@@ -11,7 +11,7 @@ import {
 import { targetsModule, targetsMigrations, getTarget } from "@interview-sensei/core/targets";
 
 import { agentRuntimeModule } from "@interview-sensei/core/agent-runtime";
-import type { UserEnvironment } from "@interview-sensei/core/agent-runtime";
+import type { AgentRuntime, UserEnvironment } from "@interview-sensei/core/agent-runtime";
 import {
   agentSessionsMigrations,
   agentSessionsModule,
@@ -29,6 +29,7 @@ import type { FastifyBaseLogger } from "fastify";
 
 export type { AgentRuntime, UserEnvironment } from "@interview-sensei/core/agent-runtime";
 export { SessionsClosedError } from "@interview-sensei/core/agent-sessions";
+export { UnknownAgentError } from "@interview-sensei/core/targets";
 export type { AgentSessions, SessionView } from "@interview-sensei/core/agent-sessions";
 export { mcpRoute } from "@interview-sensei/core/mcp-gateway";
 export type { McpGateway } from "@interview-sensei/core/mcp-gateway";
@@ -56,6 +57,8 @@ export interface FeatureDependencies {
   timer: Timer;
   /** The data directory this server owns; see resolveDataDirectory. */
   dataDirectory: string;
+  /** The application's skills for the agents; see ServerDependencies. */
+  skillsDirectory: string;
   /** Offers only the fake ACP agent; see ServerDependencies. */
   fakeAgent: boolean;
   /** The Candidate's home and env; see ServerDependencies. */
@@ -74,6 +77,7 @@ export async function composeFeatures({
   clock,
   timer,
   dataDirectory,
+  skillsDirectory,
   fakeAgent,
   userEnvironment,
   origin,
@@ -88,22 +92,22 @@ export async function composeFeatures({
       log.error({ err: error }, "The periodic database dump failed");
     },
   });
-  const questionBank = questionBankModule({ database: storage.database });
-  const targets = targetsModule({ database: storage.database, clock, topics: questionBank });
-  const modelTools = {
-    getTarget: getTarget(targets),
-    searchQuestions: searchQuestions(questionBank, targets),
-  };
-  const createDemo = demoCreator({ targets, questionBank, clock });
   const { runtime, mcp, sessions } = composeAgents(storage, {
     timer,
     dataDirectory,
+    skillsDirectory,
     fakeAgent,
     userEnvironment,
     origin,
     log,
     clock,
   });
+  const { questionBank, targets } = composeTargets(storage, clock, runtime);
+  const modelTools = {
+    getTarget: getTarget(targets),
+    searchQuestions: searchQuestions(questionBank, targets),
+  };
+  const createDemo = demoCreator({ targets, questionBank, clock });
   return {
     storage,
     runtime,
@@ -115,6 +119,18 @@ export async function composeFeatures({
     modelTools,
     health: healthModule({ clock }),
   };
+}
+
+/** Targets and their Questions; a Target's agent is one of the agents that `runtime` offers. */
+function composeTargets(storage: Storage, clock: Clock, runtime: AgentRuntime) {
+  const questionBank = questionBankModule({ database: storage.database });
+  const targets = targetsModule({
+    database: storage.database,
+    clock,
+    topics: questionBank,
+    agents: runtime,
+  });
+  return { questionBank, targets };
 }
 
 interface DemoDependencies {
@@ -219,9 +235,27 @@ function demoCreator(dependencies: DemoDependencies) {
 
 function composeAgents(
   storage: Storage,
-  { timer, dataDirectory, fakeAgent, userEnvironment, origin, log, clock }: FeatureDependencies,
+  {
+    timer,
+    dataDirectory,
+    skillsDirectory,
+    fakeAgent,
+    userEnvironment,
+    origin,
+    log,
+    clock,
+  }: FeatureDependencies,
 ) {
-  const runtime = agentRuntimeModule({ timer, dataDirectory, fakeAgent, userEnvironment });
+  const runtime = agentRuntimeModule({
+    timer,
+    dataDirectory,
+    skillsDirectory,
+    fakeAgent,
+    userEnvironment,
+    onWarning: (message) => {
+      log.warn(message);
+    },
+  });
   const mcp = mcpGatewayModule({
     tools: sessionTools,
     origin,

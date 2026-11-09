@@ -1,3 +1,5 @@
+import path from "node:path";
+
 import { fastify } from "fastify";
 import type { FastifyInstance } from "fastify";
 
@@ -8,6 +10,11 @@ import { prepare } from "./lifecycle.ts";
 import { loopbackOrigin, registerMcpRoute } from "./mcp.ts";
 import { registerTargetRoutes } from "./target-routes.ts";
 import { registerWebApp } from "./web-app.ts";
+
+/**
+ * The repository's `skills/` for `pnpm dev` and tests; the launch command passes the built ones.
+ */
+const appSkillsDirectory = path.join(import.meta.dirname, "..", "..", "..", "skills");
 
 /** `info` logs every request; `warn` keeps only problems. */
 export type LogLevel = "info" | "warn";
@@ -28,6 +35,11 @@ export interface ServerDependencies extends Pick<
    * their logins. Without it the server offers no real agent.
    */
   userEnvironment?: UserEnvironment;
+  /**
+   * The application's skills that the agents get, one per session kind: those of the built app
+   * for the launch command, the repository's `skills/` by default.
+   */
+  skillsDirectory?: string;
   /** The built web app to serve beside `/api`; `pnpm dev` serves the web app from Vite instead. */
   webDirectory?: string;
   /**
@@ -50,6 +62,7 @@ export async function buildServer({
   logLevel,
   fakeAgent = false,
   userEnvironment,
+  skillsDirectory = appSkillsDirectory,
   webDirectory,
   allowedOrigins = [],
 }: ServerDependencies): Promise<FastifyInstance> {
@@ -63,6 +76,7 @@ export async function buildServer({
     clock,
     timer,
     dataDirectory,
+    skillsDirectory,
     fakeAgent,
     userEnvironment,
     origin: () => loopbackOrigin(server),

@@ -1,38 +1,23 @@
-// Seam 2 of #17: the launch recipe of each agent and session kind as a pure function. The recipes
-// follow the isolation section of the spec (#15); the paths are made up, nothing touches the disk.
+// Seam 2 of #17 and seam 1 of #42: the launch recipe of each agent and session profile as a pure
+// function. The recipes follow the isolation section of #15 and the profile translation of #42;
+// the paths, the role and the skill are made up, nothing touches the disk.
 // The tests sit at the slice root: domain-is-pure keeps even test imports out of domain/.
-import path from "node:path";
-
 import { describe, expect, it } from "vitest";
 
-import type { AgentHost } from "./domain/agent.ts";
 import { agentKinds } from "./domain/agent.ts";
-import { agentEnvironment, launchRecipe } from "./domain/launch-recipe.ts";
+import { agentEnvironment } from "./domain/launch-recipe.ts";
 import type { LaunchRecipe } from "./domain/launch-recipe.ts";
-
-const dataDirectory = "/home/candidate/.interview-sensei";
-const sessionDirectory = `${dataDirectory}/sessions/0b5c`;
-
-const host: AgentHost = {
-  nodeExecutable: "/usr/local/bin/node",
-  fakeAgentScript: "/app/fake-agent.ts",
-  claudeAdapter: "/app/node_modules/claude-agent-acp/dist/index.js",
-  codexAdapter: "/app/node_modules/codex-acp/dist/index.js",
-  opencodeBinary: "/opt/homebrew/bin/opencode",
-  codexAuth: { path: "/home/candidate/.codex/auth.json", exists: true },
-  opencodeAuth: { path: "/home/candidate/.local/share/opencode/auth.json", exists: true },
-  opencodeModel: {},
-};
-
-function recipe(agent: (typeof agentKinds)[number], changes: Partial<AgentHost> = {}) {
-  return launchRecipe({
-    agent,
-    sessionKind: "service-chat",
-    host: { ...host, ...changes },
-    dataDirectory,
-    sessionDirectory,
-  });
-}
+import {
+  dataDirectory,
+  host,
+  isInside,
+  lockedProfile,
+  notesText,
+  opencodeVersions,
+  recipe,
+  sessionDirectory,
+  skillText,
+} from "./launch-recipe-test-support.ts";
 
 /** Every place the agent's start writes to: its `cwd`, prepared files and the homes in its env. */
 function writeLocations(launch: LaunchRecipe): string[] {
@@ -41,20 +26,18 @@ function writeLocations(launch: LaunchRecipe): string[] {
     .map(([, value]) => value);
   return [
     launch.cwd,
+    ...launch.additionalDirectories,
     ...launch.directories,
     ...launch.files.map((file) => file.path),
     ...launch.symlinks.map((symlink) => symlink.path),
+    ...launch.syncedDirectories,
     ...homes,
   ];
 }
 
-function isInside(directory: string, location: string): boolean {
-  const relative = path.relative(directory, location);
-  return relative !== "" && !relative.startsWith("..") && !path.isAbsolute(relative);
-}
-
 describe("launch recipe", () => {
   it("starts Claude Code through its adapter, isolated by SDK options, in the default mode", () => {
+    const plugin = `${dataDirectory}/agents/claude/skills/probe-skill`;
     expect(recipe("claude")).toStrictEqual({
       command: host.nodeExecutable,
       args: [host.claudeAdapter],
@@ -69,18 +52,32 @@ describe("launch recipe", () => {
           options: {
             settingSources: [],
             strictMcpConfig: true,
-            skills: [],
+            plugins: [{ type: "local", path: plugin }],
+            skills: ["interview-sensei:probe-skill"],
+            disallowedTools: ["Bash", "WebFetch", "WebSearch"],
             allowDangerouslySkipPermissions: false,
             persistSession: false,
           },
         },
       },
+      systemPrompt: lockedProfile.role,
+      additionalDirectories: [],
       mode: "default",
       cwd: sessionDirectory,
       dataDirectory,
-      directories: [sessionDirectory],
-      files: [],
+      directories: [
+        `${plugin}/.claude-plugin`,
+        `${plugin}/skills/probe-skill`,
+        `${plugin}/skills/probe-skill/references`,
+        sessionDirectory,
+      ],
+      files: [
+        { path: `${plugin}/.claude-plugin/plugin.json`, content: '{"name":"interview-sensei"}\n' },
+        { path: `${plugin}/skills/probe-skill/SKILL.md`, content: skillText },
+        { path: `${plugin}/skills/probe-skill/references/notes.md`, content: notesText },
+      ],
       symlinks: [],
+      syncedDirectories: [`${plugin}/skills/probe-skill`],
     });
   });
 
@@ -92,61 +89,91 @@ describe("launch recipe", () => {
   it("starts Codex with its own homes in the data directory and the login linked in", () => {
     const codexHome = `${dataDirectory}/agents/codex/codex-home`;
     const home = `${dataDirectory}/agents/codex/home`;
-    expect(recipe("codex")).toStrictEqual({
+    const skills = `${dataDirectory}/agents/codex/skills/probe-skill`;
+    // session-profile-recipe.test.ts checks the system prompt.
+    const { systemPrompt, ...launch } = recipe("codex");
+    expect(systemPrompt?.startsWith(lockedProfile.role)).toBe(true);
+    expect(launch).toStrictEqual({
       command: host.nodeExecutable,
       args: [host.codexAdapter],
-      env: { CODEX_HOME: codexHome, HOME: home, INITIAL_AGENT_MODE: "read-only" },
+      env: {
+        CODEX_HOME: codexHome,
+        HOME: home,
+        INITIAL_AGENT_MODE: "read-only",
+        CODEX_CONFIG: '{"features":{"shell_tool":false},"web_search":"disabled"}',
+      },
       sessionMeta: null,
+      additionalDirectories: [skills],
       mode: "read-only",
       cwd: sessionDirectory,
       dataDirectory,
-      directories: [codexHome, home, sessionDirectory],
+      directories: [
+        codexHome,
+        home,
+        `${skills}/.agents/skills/probe-skill`,
+        `${skills}/.agents/skills/probe-skill/references`,
+        sessionDirectory,
+      ],
       files: [
         {
           path: `${codexHome}/config.toml`,
-          content: "project_doc_max_bytes = 0\n\n[skills.bundled]\nenabled = false\n",
+          content:
+            "project_doc_max_bytes = 0\n\n[features]\napps = false\nplugins = false\n\n" +
+            "[skills.bundled]\nenabled = false\n",
         },
+        { path: `${skills}/.agents/skills/probe-skill/SKILL.md`, content: skillText },
+        { path: `${skills}/.agents/skills/probe-skill/references/notes.md`, content: notesText },
       ],
       symlinks: [{ path: `${codexHome}/auth.json`, target: host.codexAuth.path }],
+      syncedDirectories: [`${skills}/.agents/skills/probe-skill`],
     });
   });
 
-  it("starts OpenCode from PATH with its own XDG directories and limits from its config", () => {
-    const root = `${dataDirectory}/agents/opencode`;
-    const { env, ...launch } = recipe("opencode");
-    const { OPENCODE_CONFIG_CONTENT: config, ...homesAndFlags } = env;
-    expect({ ...launch, env: homesAndFlags }).toStrictEqual({
-      command: host.opencodeBinary,
-      args: ["acp"],
-      env: {
-        XDG_CONFIG_HOME: `${root}/config`,
-        XDG_DATA_HOME: `${root}/data`,
-        XDG_STATE_HOME: `${root}/state`,
-        XDG_CACHE_HOME: `${root}/cache`,
-        OPENCODE_DISABLE_CLAUDE_CODE: "1",
-        OPENCODE_DISABLE_EXTERNAL_SKILLS: "1",
-        OPENCODE_DISABLE_PROJECT_CONFIG: "1",
-      },
-      sessionMeta: null,
-      mode: null,
-      cwd: sessionDirectory,
-      dataDirectory,
-      directories: [
-        `${root}/config`,
-        `${root}/data/opencode`,
-        `${root}/state`,
-        `${root}/cache`,
-        sessionDirectory,
-      ],
-      files: [],
-      symlinks: [{ path: `${root}/data/opencode/auth.json`, target: host.opencodeAuth.path }],
-    });
-    expect(JSON.parse(String(config))).toStrictEqual({
-      autoupdate: false,
-      share: "disabled",
-      permission: { edit: "ask", bash: "ask", webfetch: "ask", external_directory: "ask" },
-    });
-  });
+  it.each(Object.entries(opencodeVersions))(
+    "starts OpenCode %s from PATH with its own XDG directories and its own config",
+    (_schema, opencodeVersion) => {
+      const root = `${dataDirectory}/agents/opencode`;
+      const skills = `${root}/skills/probe-skill`;
+      const { env, ...launch } = recipe("opencode", { opencodeVersion });
+      const { OPENCODE_CONFIG_CONTENT: config, ...homesAndFlags } = env;
+      expect(config).toBeTypeOf("string");
+      expect({ ...launch, env: homesAndFlags }).toStrictEqual({
+        command: host.opencodeBinary,
+        args: ["acp"],
+        env: {
+          XDG_CONFIG_HOME: `${root}/config`,
+          XDG_DATA_HOME: `${root}/data`,
+          XDG_STATE_HOME: `${root}/state`,
+          XDG_CACHE_HOME: `${root}/cache`,
+          OPENCODE_DISABLE_CLAUDE_CODE: "1",
+          // 2.2.6 no longer reads this flag; it stays in case a 2.x release reads it again.
+          OPENCODE_DISABLE_EXTERNAL_SKILLS: "1",
+          OPENCODE_DISABLE_PROJECT_CONFIG: "1",
+        },
+        sessionMeta: null,
+        systemPrompt: null,
+        additionalDirectories: [],
+        mode: "interview-sensei",
+        cwd: sessionDirectory,
+        dataDirectory,
+        directories: [
+          `${root}/config`,
+          `${root}/data/opencode`,
+          `${root}/state`,
+          `${root}/cache`,
+          `${skills}/probe-skill`,
+          `${skills}/probe-skill/references`,
+          sessionDirectory,
+        ],
+        files: [
+          { path: `${skills}/probe-skill/SKILL.md`, content: skillText },
+          { path: `${skills}/probe-skill/references/notes.md`, content: notesText },
+        ],
+        symlinks: [{ path: `${root}/data/opencode/auth.json`, target: host.opencodeAuth.path }],
+        syncedDirectories: [`${skills}/probe-skill`],
+      });
+    },
+  );
 
   it("links no OpenCode login that the Candidate does not have", () => {
     const launch = recipe("opencode", {
@@ -155,30 +182,41 @@ describe("launch recipe", () => {
     expect(launch.symlinks).toStrictEqual([]);
   });
 
-  it("starts the fake agent with Node.js and nothing to prepare but its session directory", () => {
+  it("starts the fake agent with Node.js, the role, the skill and the bans in ACP fields", () => {
+    const skills = `${dataDirectory}/agents/fake/skills/probe-skill`;
     expect(recipe("fake")).toStrictEqual({
       command: host.nodeExecutable,
       args: [host.fakeAgentScript],
       env: {},
-      sessionMeta: null,
+      sessionMeta: { fakeAgent: { disallowedTools: ["shell", "web"] } },
+      systemPrompt: lockedProfile.role,
+      additionalDirectories: [skills],
       mode: null,
       cwd: sessionDirectory,
       dataDirectory,
-      directories: [sessionDirectory],
-      files: [],
+      directories: [
+        `${skills}/.agents/skills/probe-skill`,
+        `${skills}/.agents/skills/probe-skill/references`,
+        sessionDirectory,
+      ],
+      files: [
+        { path: `${skills}/.agents/skills/probe-skill/SKILL.md`, content: skillText },
+        { path: `${skills}/.agents/skills/probe-skill/references/notes.md`, content: notesText },
+      ],
       symlinks: [],
+      syncedDirectories: [`${skills}/.agents/skills/probe-skill`],
     });
   });
 
   it.each(agentKinds)("writes only inside the data directory for %s", (agent) => {
-    const outside = writeLocations(recipe(agent)).filter(
-      (location) => !isInside(dataDirectory, location),
-    );
+    const launch = recipe(agent);
+    const outside = writeLocations(launch).filter((location) => !isInside(dataDirectory, location));
+    expect(launch.dataDirectory).toBe(dataDirectory);
     expect(outside).toStrictEqual([]);
   });
 
   it.each(agentKinds)("never asks %s to skip permissions", (agent) => {
-    const launch = JSON.stringify(recipe(agent));
+    const launch = JSON.stringify(recipe(agent, { opencodeVersion: opencodeVersions.v1 }));
     expect(launch).not.toMatch(/bypassPermissions|agent-full-access|"allow"/u);
     expect(launch).not.toContain('"allowDangerouslySkipPermissions":true');
   });
@@ -197,37 +235,6 @@ describe("launch recipe", () => {
   });
 });
 
-describe("opencode recipe with the Candidate's model", () => {
-  it("puts the Candidate's model into the agent's config under the recipe's own settings", () => {
-    const deepseek = { models: { "deepseek-flash": { name: "DeepSeek Flash" } } };
-    const opencodeModel = { model: "deepseek/deepseek-flash", provider: { deepseek } };
-    const config = recipe("opencode", { opencodeModel }).env.OPENCODE_CONFIG_CONTENT;
-    expect(JSON.parse(String(config))).toStrictEqual({
-      model: "deepseek/deepseek-flash",
-      provider: { deepseek },
-      autoupdate: false,
-      share: "disabled",
-      permission: { edit: "ask", bash: "ask", webfetch: "ask", external_directory: "ask" },
-    });
-  });
-});
-
-describe("launch recipe paths", () => {
-  it.each(agentKinds)(
-    "keeps every directory, file and link of %s in its data directory",
-    (agent) => {
-      const launch = recipe(agent);
-      const prepared = [
-        ...launch.directories,
-        ...launch.files.map((file) => file.path),
-        ...launch.symlinks.map((symlink) => symlink.path),
-      ];
-      expect(launch.dataDirectory).toBe(dataDirectory);
-      expect(prepared.filter((location) => !isInside(dataDirectory, location))).toStrictEqual([]);
-    },
-  );
-});
-
 describe("agent environment", () => {
   const candidate = {
     PATH: "/usr/bin",
@@ -236,6 +243,7 @@ describe("agent environment", () => {
     OPENAI_API_KEY: "sk-candidate",
     OPENCODE_CONFIG: "/home/candidate/opencode.json",
     OPENCODE_CONFIG_DIR: "/home/candidate/.opencode",
+    OPENCODE_DB: "/home/candidate/opencode.db",
     CLAUDE_CONFIG_DIR: "/home/candidate/.claude-work",
     CODEX_HOME: "/home/candidate/.codex",
     INTERVIEW_SENSEI_DATA_DIR: "/home/candidate/.interview-sensei",

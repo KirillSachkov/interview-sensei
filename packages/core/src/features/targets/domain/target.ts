@@ -51,3 +51,10 @@ export interface NewTarget {
   readonly sections?: readonly Omit<Section, "targetId">[];
   readonly preferences?: readonly Omit<Preference, "targetId" | "createdAt">[];
 }
+
+/** The Target's agent: the Candidate's choice, or the default agent when `chosen` is false. */
+export interface TargetAgent {
+  /** Null when the Target has no choice and no agent is available. */
+  readonly agent: string | null;
+  readonly chosen: boolean;
+}

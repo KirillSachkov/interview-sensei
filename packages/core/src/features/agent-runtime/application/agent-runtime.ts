@@ -1,8 +1,12 @@
-import { isSessionKind } from "../../../shared/session-kinds/index.ts";
+import { isSessionKind, sessionProfiles } from "../../../shared/session-kinds/index.ts";
+import type { SessionProfile } from "../../../shared/session-kinds/index.ts";
 import type { AgentAvailability, AgentHost, AgentKind } from "../domain/agent.ts";
 import { agentAvailability, isAgentKind } from "../domain/agent.ts";
 import { launchRecipe } from "../domain/launch-recipe.ts";
-import type { RuntimeSessionKind } from "../domain/launch-recipe.ts";
+import { opencodeKeys } from "../domain/opencode-credentials.ts";
+import type { OpencodeCredentialRow, OpencodeKey } from "../domain/opencode-credentials.ts";
+import { opencodeConfigSchema } from "../domain/opencode-recipe.ts";
+import type { LaunchProfile, SkillSource } from "../domain/launch-recipe.ts";
 import { automaticAnswer } from "../domain/permissions.ts";
 import type {
   AcpLauncher,
@@ -20,8 +24,12 @@ export interface AgentRuntimeDependencies {
    * new login shows after a page reload.
    */
   readonly inspectHost: () => Promise<AgentHost>;
+  /** Reads the `credential` table of the Candidate's OpenCode 2.x database; none when it cannot. */
+  readonly readOpencodeCredentials: (database: string) => Promise<readonly OpencodeCredentialRow[]>;
   /** The data directory: the agents' own homes and configs live in it. */
   readonly dataDirectory: string;
+  /** Reads a skill of the application by its directory name, at each start. */
+  readonly readSkill: (name: string) => Promise<SkillSource>;
   readonly launch: AcpLauncher;
 }
 
@@ -110,15 +118,20 @@ function forgettingTurns(agent: LiveAgent, endTurn: () => void): LiveAgent {
   };
 }
 
-/**
- * The session kind of a launch recipe; throws for a kind without one. It compiles only while
- * every kind in `shared/session-kinds` is a RuntimeSessionKind: a new kind needs its recipe first.
- */
-function recipeKind(kind: string): RuntimeSessionKind {
+/** The profile of the session kind; throws for an unknown kind. */
+function profileOf(kind: string): SessionProfile {
   if (!isSessionKind(kind)) {
-    throw new Error(`The session kind ${kind} has no launch recipe`);
+    throw new Error(`The session kind ${kind} has no profile`);
   }
-  return kind;
+  return sessionProfiles[kind];
+}
+
+/** The profile as the recipes take it, with the skill's files read now. */
+async function launchProfile(
+  { role, skill, shell, web }: SessionProfile,
+  readSkill: AgentRuntimeDependencies["readSkill"],
+): Promise<LaunchProfile> {
+  return { role, skill: await readSkill(skill), shell, web };
 }
 
 /** The agent's availability on this machine now; throws the reason when it is unavailable. */
@@ -137,17 +150,38 @@ async function availableHost(
   return { agent, host };
 }
 
+/**
+ * The Candidate's keys for an OpenCode 2.x session, read only now, so listing the agents never
+ * touches the secrets. Other agents and 1.x, which reads the linked `auth.json`, get none.
+ */
+async function sessionKeys(
+  agent: AgentKind,
+  host: AgentHost,
+  read: AgentRuntimeDependencies["readOpencodeCredentials"],
+): Promise<readonly OpencodeKey[]> {
+  if (
+    agent !== "opencode" ||
+    host.opencodeDatabase === null ||
+    opencodeConfigSchema(host.opencodeVersion) !== "2.x"
+  ) {
+    return [];
+  }
+  return opencodeKeys(await read(host.opencodeDatabase), host.opencodeModel);
+}
+
 export function createAgentRuntime(dependencies: AgentRuntimeDependencies): AgentRuntime {
-  const { agents, inspectHost, dataDirectory, launch } = dependencies;
+  const { agents, inspectHost, readOpencodeCredentials, dataDirectory, readSkill, launch } =
+    dependencies;
   return {
     listAgents: async () => agentAvailability(agents, await inspectHost()),
     start: async ({ agent: requested, kind, workingDirectory, ...request }) => {
-      const sessionKind = recipeKind(kind);
+      const sessionProfile = profileOf(kind);
       const { agent, host } = await availableHost(dependencies, requested);
       const recipe = launchRecipe({
         agent,
-        sessionKind,
+        profile: await launchProfile(sessionProfile, readSkill),
         host,
+        opencodeKeys: await sessionKeys(agent, host, readOpencodeCredentials),
         dataDirectory,
         sessionDirectory: workingDirectory,
       });
