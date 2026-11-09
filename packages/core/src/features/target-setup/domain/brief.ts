@@ -4,10 +4,11 @@ import type { SetupTarget } from "./ports.ts";
 
 /**
  * The application's first prompt to the agent of a draft Target: the agent speaks first and
- * starts the onboarding without waiting for the Candidate.
+ * starts the onboarding without waiting for the Candidate. It is in Russian, as the Candidate
+ * would write it; «Session profiles» in CODING_STANDARDS.md gives the reason.
  */
 export const onboardingPrompt =
-  "Start the onboarding of this Target now: call get_brief, then ask the Candidate your first question. Write to the Candidate in Russian from the first line.";
+  "Начни настройку новой цели: вызови get_brief и задай мне первый вопрос.";
 
 /** The Target without ids, as the agent reads it in the brief. */
 function targetText(target: SetupTarget): string {

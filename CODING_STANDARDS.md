@@ -80,6 +80,9 @@ Profiles live in `sessionProfiles` in `shared/session-kinds/profiles.ts`, beside
 `mcp-gateway` serves the profile's `instructions` at MCP `initialize`.
 A session may add text to the role when it starts: `roleAddition` of `AgentSessions.start` goes after the profile's role.
 The mock interview adds the Target's tone and language this way (`interviewerRole` in `interviews`).
+One text for the agent is in Russian: `onboardingPrompt` in `target-setup/domain/brief.ts`, the first prompt of a draft Target's setup session.
+It stands for the Candidate's first message, because an agent writes its first line in the prompt's language, even before it loads the skill.
+The language rule itself stays in the profile's role.
 
 A slice adds a session kind like this:
 

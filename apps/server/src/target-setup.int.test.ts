@@ -141,7 +141,7 @@ describe("new Target and onboarding", () => {
 
     expect(session).toMatchObject({ kind: "target-setup", targetId: created.id, agent: "fake" });
     expect(messages(first).map((entry) => entry.type)).toStrictEqual(["agent_message"]);
-    expect(lastAgentText(first)).toContain("onboarding");
+    expect(lastAgentText(first)).toContain("Начни настройку новой цели");
     await expect(callTool(events, "get_brief")).resolves.toMatch(
       /^Результат get_brief: .*Mode: onboarding/su,
     );
