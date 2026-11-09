@@ -85,6 +85,7 @@ It stands for the Candidate's first message, because an agent writes its first l
 The language rule itself stays in the profile's role.
 The `side-thread` kind (#80) explains: skill `sensei-explain`, web on, shell off, and `askCandidate: true`, because the Side thread has a chat.
 `interviews` starts it with the agent of its Mock interview and adds the Target's language (`sideThreadRole`).
+Its first server prompt, `sideThreadOpened` in `handoff-brief.ts`, repeats the ban on describing plans and tools: in the live check OpenCode began that turn with an English line about loading the skill, though the role and the skill forbid it.
 Its tools only read: `get_brief` of `interviews` with the Handoff brief, `get_target`, `search_questions`, `list_sources` and `get_source` of `sources` and `get_progress`.
 The server builds the Handoff brief from stored data (`handoffBrief`): its `debrief`, the Grade after the latest Dispute with gaps, justification and strong answer, comes only once `asked_questions.debrief_opened` is set.
 `POST /api/interviews/:id/attempts/:attemptId/debrief-opened` sets it: the browser sends it when the Candidate opens the Debrief, before it reads the Debrief; a Side thread from a Debrief sets it too.
