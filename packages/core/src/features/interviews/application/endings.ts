@@ -1,10 +1,13 @@
-// How a Mock interview ends without the agent's summary (#54): the server finishes it itself when
-// the agent does not call finish_interview in time, and marks it «прерван» when its agent fails or
-// the server stopped while it ran. Its Attempts stay either way.
+// How a Mock interview ends: the agent's finish_interview after the Candidate pressed «Завершить»,
+// or without the agent's summary (#54): the server finishes it itself when the agent does not call
+// finish_interview in time, and marks it «прерван» when its agent fails or the server stopped while
+// it ran. Its Attempts stay either way. A finished one closes its Side threads that wait (#80).
 import { candidateFinished } from "../domain/agent-messages.ts";
 import type { MockInterview } from "../domain/interview.ts";
 import { change, inBackground, tellAndShowAgentText } from "./context.ts";
 import type { Context } from "./context.ts";
+import { closeIdleSideThreads } from "./side-threads.ts";
+import { assertRunning, InterviewToolError, interviewOf } from "./tool-session.ts";
 
 /** How long the server waits for `finish_interview` after the Candidate presses «Завершить». */
 const finishWaitMs = 2 * 60 * 1000;
@@ -35,9 +38,40 @@ function awaitFinish(context: Context, { id, sessionId }: MockInterview): void {
   timer.after(finishWaitMs, () => {
     inBackground(context, async () => {
       if (await end(context, id, "finished")) {
-        await sessions.end(sessionId);
+        await Promise.all([sessions.end(sessionId), closeIdleSideThreads(context, id)]);
       }
     });
+  });
+}
+
+/**
+ * `finish_interview`: the agent records its summary once the Candidate pressed «Завершить». The
+ * agent's session ends after this turn; Side threads that wait close at once.
+ */
+export async function finishByAgent(
+  context: Context,
+  sessionId: string,
+  { summary, nextStep }: { summary: string; nextStep: string },
+) {
+  const found = await interviewOf(context, sessionId);
+  const { repository, sessions, clock } = context.dependencies;
+  return change(context, found.id, async () => {
+    const interview = await interviewOf(context, sessionId);
+    assertRunning(interview);
+    if (interview.finishRequestedAt === null) {
+      throw new InterviewToolError(
+        "Only the Candidate ends the mock interview: keep asking questions until the message that the Candidate finished.",
+      );
+    }
+    await repository.update(interview.id, {
+      status: "finished",
+      finishedAt: clock.now().toISOString(),
+      summary,
+      nextStep,
+    });
+    inBackground(context, async () => sessions.end(sessionId));
+    inBackground(context, async () => closeIdleSideThreads(context, interview.id));
+    return "The mock interview is finished. End your turn.";
   });
 }
 

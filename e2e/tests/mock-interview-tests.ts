@@ -18,7 +18,7 @@ export async function startMock(sessions: Locator) {
 }
 
 /** Answers the card's question; Enter sends the answer. */
-async function answer(card: Locator, text: string) {
+export async function answer(card: Locator, text: string) {
   const field = card.getByRole("textbox", { name: "Ваш ответ" });
   await field.fill(text);
   await field.press("Enter");
@@ -26,7 +26,7 @@ async function answer(card: Locator, text: string) {
 }
 
 /** Opens the card's Debrief and checks its Grade. */
-async function openDebrief(card: Locator, grade: string) {
+export async function openDebrief(card: Locator, grade: string) {
   await card.getByRole("button", { name: "Посмотреть разбор" }).click();
   await expect(card.getByRole("region", { name: "Разбор" })).toContainText(`Оценка: ${grade}`);
 }

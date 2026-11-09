@@ -112,6 +112,49 @@ describe("several side threads", () => {
   });
 });
 
+/** Waits until the Side thread's agent is in a `/wait` turn, which goes on until it is stopped. */
+async function keepWorking({ chat }: Awaited<ReturnType<typeof openedSideThread>>) {
+  await chat.waitFor(isIdle);
+  chat.send({ type: "prompt", text: "/wait" });
+  await chat.waitFor(isWorkingOn("/wait"));
+}
+
+/** Archives the Target as the Candidate does with «В архив». */
+async function archiveTarget(api: Api) {
+  return api.server.inject({
+    method: "POST",
+    url: `/api/targets/${api.target.id}/archive`,
+    headers: browserHeaders(api.server),
+  });
+}
+
+/** The status of the Side thread's AgentSession as the API gives it. */
+async function sessionStatus(api: Api, thread: SideThread) {
+  const response = await api.get(`/api/sessions/${thread.sessionId}`);
+  return response.json<{ status: string }>().status;
+}
+
+describe("side threads when the mock interview finishes", () => {
+  it("closes a side thread whose agent waits for a message, and a working one goes on", async () => {
+    const api = await interviewApi();
+    const { run, card } = await firstQuestion(api);
+    const opening = { interviewId: run.interview.id, cardId: card.id };
+    const [waiting, working] = await Promise.all([
+      openedSideThread(api, opening),
+      openedSideThread(api, opening),
+    ]);
+    await Promise.all([waiting.chat.waitFor(isIdle), keepWorking(working)]);
+
+    await answerFirst(api, run);
+
+    await api.finish(run.interview.id);
+
+    await run.events.waitFor(isFinished);
+    await waiting.chat.waitFor((view) => view.status === "ended");
+    await expect(sessionStatus(api, working.thread)).resolves.toBe("working");
+  });
+});
+
 /** A finished Mock interview whose first question has its Attempt. */
 async function endedWithAttempt(api: Api) {
   const run = await api.answered(["Опыт и резюме"], "Ответ [grade:2]");
@@ -168,6 +211,22 @@ describe("side threads of past sessions", () => {
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({ error: "target_archived" });
     await expect(listed(api, api.interviewId)).resolves.toStrictEqual([]);
+  });
+
+  it("archives the Target while a side thread's agent works: the side thread stops and stays readable", async () => {
+    const api = await demoWithMock();
+    const opened = await openedSideThread(api, {
+      interviewId: api.interviewId,
+      origin: debriefOrigin(api.graded),
+    });
+    await keepWorking(opened);
+
+    const response = await archiveTarget(api);
+
+    expect(response.statusCode).toBe(200);
+    await opened.chat.waitFor((view) => view.status === "ended");
+    await expect(listed(api, api.interviewId)).resolves.toStrictEqual([opened.thread]);
+    await expect(sessionStatus(api, opened.thread)).resolves.toBe("ended");
   });
 
   it("keeps side threads readable after a restart, and they take no more messages", async () => {

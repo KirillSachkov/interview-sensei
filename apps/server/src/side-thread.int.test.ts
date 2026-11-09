@@ -131,7 +131,7 @@ describe("side thread agent", () => {
 
     // `/tool-list` lists the tools of the session's MCP server.
     await expect(ask(chat, "/tool-list", "MCP tools:")).resolves.toBe(
-      'MCP tools: ["get_brief","get_progress","get_source","get_target","search_questions"]',
+      'MCP tools: ["get_brief","get_progress","get_source","get_target","list_sources","search_questions"]',
     );
     // `/tool <name> <json>` calls the tool after the permission that the server allows.
     await expect(ask(chat, "/tool record_attempt {}", "Ошибка record_attempt:")).resolves.toMatch(
@@ -142,18 +142,21 @@ describe("side thread agent", () => {
 });
 
 describe("side thread materials", () => {
-  it("reads a material of the Target with get_source", async () => {
+  it("finds a material of the Target with list_sources and reads it with get_source", async () => {
     const api = await interviewApi();
     await upload(api.server, { targetId: api.target.id, name: "vacancy.txt", body: "Go" });
     const [source] = await sources(api.server, api.target.id);
     const { chat } = await threadAtFirstQuestion(api);
 
+    const listed = await ask(chat, "/tool list_sources {}", "Результат list_sources:");
     const reply = await ask(
       chat,
       `/tool get_source {"id":"${source?.id}"}`,
       "Результат get_source:",
     );
 
+    const list: unknown = JSON.parse(listed.slice("Результат list_sources: ".length));
+    expect(list).toMatchObject([{ id: source?.id, title: "vacancy.txt" }]);
     const read: unknown = JSON.parse(reply.slice("Результат get_source: ".length));
     expect(read).toMatchObject({ id: source?.id, title: "vacancy.txt", path: source?.path });
   });

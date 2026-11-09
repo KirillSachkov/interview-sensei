@@ -31,6 +31,11 @@ export interface QuestionCard {
   readonly attemptId: string | null;
   /** A Side thread opened before the answer: the Attempt is received with a hint. */
   readonly hinted: boolean;
+  /**
+   * How many interviewer chat entries came before the question; null for a question from before
+   * Side threads, which counts from the chat's start.
+   */
+  readonly chatPosition: number | null;
 }
 
 interface FollowUp {

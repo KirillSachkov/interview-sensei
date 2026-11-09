@@ -83,7 +83,14 @@ export function InterviewArea({
       onEnded();
     }
   }, [running, onEnded]);
-  const chat = <InterviewerChat interviewId={view.id} sessionId={view.sessionId} />;
+  const [first] = view.questions;
+  const chat = (
+    <InterviewerChat
+      interviewId={view.id}
+      sessionId={view.sessionId}
+      discussFrom={first === undefined ? null : (first.chatPosition ?? 0)}
+    />
+  );
   const last = view.questions.length - 1;
   return (
     <section className="mock" aria-label="Мок-собеседование">

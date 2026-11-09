@@ -25,6 +25,11 @@ interface QuestionCard {
   readonly attemptId: string | null;
   /** A Side thread opened before the answer: the Attempt is received with a hint. */
   readonly hinted: boolean;
+  /**
+   * How many interviewer chat entries came before the question; an interviewer message from that
+   * place on opens a Side thread. Null for a question from before Side threads: from the start.
+   */
+  readonly chatPosition: number | null;
 }
 
 /** A Mock interview as the browser shows it; Grades come only with the Debrief of an Attempt. */
@@ -54,6 +59,7 @@ function card(question: AskedQuestion, attempts: readonly Attempt[]): QuestionCa
     followUps: question.followUps,
     attemptId: attempt?.id ?? null,
     hinted: question.hinted,
+    chatPosition: question.chatPosition,
   };
 }
 

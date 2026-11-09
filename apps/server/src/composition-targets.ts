@@ -18,6 +18,7 @@ import {
 import { appSettingsMigrations, appSettingsModule } from "@interview-sensei/core/app-settings";
 import {
   getSource,
+  listSources,
   sourceTools,
   sourcesMigrations,
   sourcesModule,
@@ -87,6 +88,7 @@ export function targetTools({ targets, questionBank, targetSetup, sources }: Tar
   };
   return {
     ...reading,
+    listSources: listSources(sources),
     getSource: getSource(sources),
     setup: [
       setupBrief(targetSetup),

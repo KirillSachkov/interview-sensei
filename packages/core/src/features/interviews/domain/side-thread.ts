@@ -7,7 +7,7 @@ import { presentedQuestion } from "./interview.ts";
  * Where the Candidate opened the Side thread (#80):
  * - `question`: the card; `id` is its asked question.
  * - `message`: an interviewer message; `id` is its entry of the chat, such as `agent-12`. The
- *   thread discusses the question that the chat stands beside: the last asked one.
+ *   thread discusses the question that was shown when the message came (`questionAtMessage`).
  * - `debrief`: the Debrief of an Attempt; `id` is the Attempt.
  */
 export interface SideThreadOrigin {
@@ -50,4 +50,16 @@ export function givesHint(
     presented?.id === askedQuestionId &&
     presented.answer === null
   );
+}
+
+/**
+ * The question shown when the interviewer's chat message at the index came: the last one shown
+ * before it; undefined for a message from before the first question. A question from before Side
+ * threads has no chat position and counts as shown at the chat's start.
+ */
+export function questionAtMessage<Question extends Pick<AskedQuestion, "chatPosition">>(
+  asked: readonly Question[],
+  index: number,
+): Question | undefined {
+  return asked.findLast((question) => (question.chatPosition ?? 0) <= index);
 }

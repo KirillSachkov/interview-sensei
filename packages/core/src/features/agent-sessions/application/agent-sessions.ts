@@ -23,7 +23,7 @@ import {
   queuePrompt,
 } from "./server-prompts.ts";
 import type { PromptOutcome, QueueContext, QueueOutcome } from "./server-prompts.ts";
-import { runningFor, sessionOpener, stopNow } from "./open-session.ts";
+import { runningFor, sessionOpener, stopAll, stopNow } from "./open-session.ts";
 import type { OpenSession, StartRequest } from "./open-session.ts";
 
 export interface AgentSessionsDependencies extends LiveSessionDependencies {
@@ -45,8 +45,10 @@ export interface AgentSessions {
   readonly open: OpenSession;
   /** Every session, the newest first. */
   readonly list: () => Promise<readonly AgentSession[]>;
-  /** Whether a live session of the Target, of any kind, runs on this server now. */
-  readonly running: (targetId: string) => boolean;
+  /** Whether a live session of the Target, of any kind but `except`, runs on this server now. */
+  readonly running: (targetId: string, except?: StartRequest["kind"]) => boolean;
+  /** Stops at once, even in a turn, and ends every live session of the kind for the Target. */
+  readonly stopAll: (targetId: string, kind: StartRequest["kind"]) => Promise<void>;
   readonly view: (sessionId: string) => Promise<SessionView | undefined>;
   /** Sends the Candidate's prompt to the agent; refuses it while the agent works. */
   readonly prompt: (sessionId: string, text: string) => Promise<PromptOutcome>;
@@ -263,12 +265,10 @@ export function createAgentSessions(dependencies: AgentSessionsDependencies): Ag
   };
   return {
     start: async (request) => start(context, request),
-    open: sessionOpener({
-      live: context.live,
-      start: async (request) => start(context, request),
-    }),
+    open: sessionOpener({ live, start: async (request) => start(context, request) }),
     list: async () => dependencies.repository.list(),
-    running: (targetId) => runningFor(context.live, targetId),
+    running: (targetId, except) => runningFor(context.live, targetId, except),
+    stopAll: async (targetId, kind) => stopAll(context.live, targetId, kind),
     view: async (sessionId) => view(context, sessionId),
     prompt: async (sessionId, text) => candidatePrompt(context.queue, sessionId, text),
     queuePrompt: async (sessionId, text, options) =>

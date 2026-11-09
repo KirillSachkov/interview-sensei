@@ -1,6 +1,7 @@
 // Where a Side thread opens (#80): the asked question it discusses and its fragment, from the
 // origin that «Обсудить отдельно» names: a question card, an interviewer message or a Debrief.
 import type { AskedQuestion, MockInterview } from "../domain/interview.ts";
+import { questionAtMessage } from "../domain/side-thread.ts";
 import type { SideThreadOrigin } from "../domain/side-thread.ts";
 import type { InterviewsDependencies } from "./context.ts";
 
@@ -29,14 +30,6 @@ async function interviewerMessage(
   const index = entries.findIndex((line) => line.id === id && line.type === "agent_message");
   const text = entries[index]?.text;
   return text === undefined ? undefined : { text, index };
-}
-
-/**
- * The question shown when the chat message at the index came: the last one shown before it. A
- * question from before Side threads has no chat position and counts as shown before any message.
- */
-function questionAtMessage(asked: readonly AskedQuestion[], index: number) {
-  return asked.findLast((question) => (question.chatPosition ?? 0) <= index);
 }
 
 /** The Debrief's place: the asked question of the Attempt. */

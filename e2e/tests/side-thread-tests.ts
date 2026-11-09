@@ -1,14 +1,17 @@
 // The Side thread tests of spec #80 with their helpers. canvas.test.ts declares them after the
 // mock interview tests: they start mocks on the demo Target in the same serial order.
 import { expect, test } from "@playwright/test";
-import type { Locator } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 import { zones } from "./canvas-support.ts";
-import { finishMock, startMock } from "./mock-interview-tests.ts";
+import { answer, finishMock, openDebrief, startMock } from "./mock-interview-tests.ts";
 
-/** Opens a Side thread at the card with the Candidate's question. */
+/**
+ * Opens a Side thread at the card with the Candidate's question. The card's own button comes last:
+ * an open Debrief inside the card has one too.
+ */
 async function discussSeparately(card: Locator, question: string) {
-  await card.getByRole("button", { name: "Обсудить отдельно" }).click();
+  await card.getByRole("button", { name: "Обсудить отдельно" }).last().click();
   const form = card.getByRole("form", { name: "Обсудить отдельно" });
   await form.getByRole("textbox", { name: "Ваш вопрос" }).fill(question);
   await form.getByRole("button", { name: "Открыть ветку" }).click();
@@ -39,35 +42,59 @@ async function expectThreadBeside(card: Locator, thread: Locator, question: stri
   await expect(card).toContainText("с подсказкой");
 }
 
-/** Declares the Side thread tests in the calling test file, in its order. */
-export function sideThreadTests() {
-  // Ticket #81: «Обсудить отдельно» opens a Side thread to the right of the question card.
+/** The interviewer's greeting before the first question has no «Обсудить отдельно». */
+async function expectGreetingWithoutDiscuss(sessions: Locator) {
+  const interviewer = sessions.getByRole("complementary", { name: "Интервьюер" });
+  const greeting = interviewer
+    .getByRole("listitem")
+    .filter({ hasText: "Начинаем мок-собеседование." });
+  await expect(greeting).toBeVisible();
+  await expect(greeting.getByRole("button", { name: "Обсудить отдельно" })).toHaveCount(0);
+}
+
+/** Sends `/brief` in the Side thread: the fake agent replies with the Handoff brief as JSON. */
+async function askForBrief(thread: Locator) {
+  await thread.getByRole("textbox", { name: "Сообщение в ветку" }).fill("/brief");
+  await thread.getByRole("button", { name: "Отправить" }).click();
+  await expect(thread).toContainText("Фейковый агент прочитал brief");
+}
+
+/** Opens the canvas and starts a mock; the first question card and the Side thread beside it. */
+async function startedMock(page: Page) {
+  const { sessions } = zones(page);
+  await page.goto("/");
+  await startMock(sessions);
+  return {
+    sessions,
+    first: sessions.getByRole("article", { name: "Вопрос 1" }),
+    thread: sessions.getByRole("complementary", { name: "Ветка к вопросу 1" }),
+  };
+}
+
+// Ticket #81: «Обсудить отдельно» opens a Side thread to the right of the question card.
+// A Side thread discusses a question: the greeting before the first one opens none.
+function discussTest() {
   test("the Candidate discusses a question in a side thread beside it, and the question gets the hint mark", async ({
     page,
   }) => {
-    await page.goto("/");
-    const { sessions } = zones(page);
-    await startMock(sessions);
-    const first = sessions.getByRole("article", { name: "Вопрос 1" });
+    const { sessions, first, thread } = await startedMock(page);
     const question = "Что значит «вклад»?";
 
     await discussSeparately(first, question);
 
-    const thread = sessions.getByRole("complementary", { name: "Ветка к вопросу 1" });
     await expectThreadBeside(first, thread, question);
+    await expectGreetingWithoutDiscuss(sessions);
     await writeInThread(thread, "А пример?");
     await finishMock(sessions);
   });
+}
 
-  // Ticket #82: ✕ deletes a Side thread for good after a confirmation; the hint mark stays.
+// Ticket #82: ✕ deletes a Side thread for good after a confirmation; the hint mark stays.
+function deleteTest() {
   test("the Candidate deletes a side thread after confirming, and the question keeps the hint mark", async ({
     page,
   }) => {
-    const { sessions } = zones(page);
-    const first = sessions.getByRole("article", { name: "Вопрос 1" });
-    const thread = sessions.getByRole("complementary", { name: "Ветка к вопросу 1" });
-    await page.goto("/");
-    await startMock(sessions);
+    const { sessions, first, thread } = await startedMock(page);
     await discussSeparately(first, "Что значит «вклад»?");
     await expect(thread).toContainText("Разбираю вопрос кандидата");
 
@@ -76,4 +103,29 @@ export function sideThreadTests() {
     await expect(first).toContainText("с подсказкой");
     await finishMock(sessions);
   });
+}
+
+// The browser records that the Candidate opened the Debrief, so a Side thread at the question
+// gets the Grade.
+function debriefTest() {
+  test("a side thread at the question gets the Grade once the Candidate opened the Debrief", async ({
+    page,
+  }) => {
+    const { sessions, first, thread } = await startedMock(page);
+    await answer(first, "Ответ [grade:3] [last]");
+    await openDebrief(first, "3");
+
+    await discussSeparately(first, "Почему такая оценка?");
+    await askForBrief(thread);
+
+    await expect(thread).toContainText('"grade":3');
+    await finishMock(sessions);
+  });
+}
+
+/** Declares the Side thread tests in the calling test file, in its order. */
+export function sideThreadTests() {
+  discussTest();
+  deleteTest();
+  debriefTest();
 }

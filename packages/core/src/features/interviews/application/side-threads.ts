@@ -213,6 +213,25 @@ async function deleteSideThread(
   return "deleted";
 }
 
+/**
+ * Closes the Side threads of a finished Mock interview whose agent waits for a message; a thread
+ * whose agent works or starts goes on. A closed thread stays readable.
+ */
+export async function closeIdleSideThreads(
+  { dependencies: { repository, sessions } }: Context,
+  interviewId: string,
+): Promise<void> {
+  const threads = await repository.sideThreads(interviewId);
+  await Promise.all(
+    threads.map(async ({ sessionId }) => {
+      const view = await sessions.view(sessionId);
+      if (view?.status === "idle") {
+        await sessions.end(sessionId);
+      }
+    }),
+  );
+}
+
 /** The Side threads of Mock interviews: the Candidate's side and the `get_brief` of their agents. */
 export interface SideThreads {
   /** «Обсудить отдельно»: opens a Side thread with the Mock interview's agent. */

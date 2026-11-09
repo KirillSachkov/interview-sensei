@@ -8,7 +8,7 @@ import type { FollowUpOutcome } from "./follow-ups.ts";
 import type { Context, InterviewListener, InterviewsDependencies } from "./context.ts";
 import { start } from "./start-interview.ts";
 import type { StartOutcome, StartRequest } from "./start-interview.ts";
-import { endInterrupted, finish } from "./endings.ts";
+import { endInterrupted, finish, finishByAgent } from "./endings.ts";
 import type { FinishOutcome } from "./endings.ts";
 import { createInterviewer } from "./interviewer.ts";
 import type { Interviewer } from "./interviewer.ts";
@@ -109,7 +109,10 @@ export function createInterviews(dependencies: InterviewsDependencies): Intervie
     topicAttempts: async (targetId) => targetTopicAttempts(dependencies, targetId),
     endInterrupted: async () => endInterrupted(context),
     subscribe: (id, listener) => subscribe(context, id, listener),
-    interviewer: createInterviewer(context),
+    interviewer: {
+      ...createInterviewer(context),
+      finish: async (sessionId, result) => finishByAgent(context, sessionId, result),
+    },
     ...createSideThreads(context),
   };
 }

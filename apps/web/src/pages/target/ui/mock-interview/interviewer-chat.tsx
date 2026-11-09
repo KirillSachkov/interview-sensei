@@ -5,10 +5,18 @@ import { AgentLine, CandidateLine, ChatForm } from "./chat-parts";
 import { DiscussSeparately } from "./discuss-separately";
 
 /**
- * A line of the interviewer chat; tool calls never reach it. An interviewer message has
- * «Обсудить отдельно».
+ * A line of the interviewer chat; tool calls never reach it. An interviewer message after the
+ * first question has «Обсудить отдельно»: a Side thread discusses a question.
  */
-function Line({ entry, interviewId }: { entry: ChatEntry; interviewId: string }) {
+function Line({
+  entry,
+  interviewId,
+  discussable,
+}: {
+  entry: ChatEntry;
+  interviewId: string;
+  discussable: boolean;
+}) {
   switch (entry.type) {
     case "candidate_message": {
       return <CandidateLine text={entry.text} />;
@@ -17,7 +25,12 @@ function Line({ entry, interviewId }: { entry: ChatEntry; interviewId: string })
       return (
         <div className="chat-message" data-discuss-scope="">
           <AgentLine text={entry.text} />
-          <DiscussSeparately interviewId={interviewId} origin={{ kind: "message", id: entry.id }} />
+          {discussable ? (
+            <DiscussSeparately
+              interviewId={interviewId}
+              origin={{ kind: "message", id: entry.id }}
+            />
+          ) : null}
         </div>
       );
     }
@@ -34,13 +47,19 @@ function Line({ entry, interviewId }: { entry: ChatEntry; interviewId: string })
   }
 }
 
-/** The «Интервьюер» column beside the current question: a chat with the interviewer. */
+/**
+ * The «Интервьюер» column beside the current question: a chat with the interviewer. Its messages
+ * from the chat entry `discussFrom` on, where the first question came, open Side threads; none
+ * before the first question.
+ */
 export function InterviewerChat({
   interviewId,
   sessionId,
+  discussFrom,
 }: {
   interviewId: string;
   sessionId: string;
+  discussFrom: number | null;
 }) {
   const { view, notice, lost, prompt } = useSessionEvents(sessionId);
   const status = lost === null ? (view?.status ?? null) : null;
@@ -48,9 +67,13 @@ export function InterviewerChat({
     <aside className="interviewer" aria-label="Интервьюер">
       <h4>Интервьюер</h4>
       <ol className="interviewer-lines nowheel" aria-label="Сообщения интервьюера">
-        {(view?.entries ?? []).map((entry) => (
+        {(view?.entries ?? []).map((entry, index) => (
           <li key={entry.id}>
-            <Line entry={entry} interviewId={interviewId} />
+            <Line
+              entry={entry}
+              interviewId={interviewId}
+              discussable={discussFrom !== null && index >= discussFrom}
+            />
           </li>
         ))}
       </ol>
