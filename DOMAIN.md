@@ -21,6 +21,7 @@ Then it builds the Target's name, level, Sections and Topics in the draft of cha
 The changes of a Target that the agent of its Target setup session has recorded and the Candidate has not applied yet. The Target stays unchanged until then.
 The Candidate sees the draft as a list in the chat and applies it as a whole, by a button or by agreeing in words; the agent applies it only after that agreement.
 A Target has one draft of changes. It outlives the Agent session and a restart, so a Target is never changed halfway.
+The draft holds one Interview plan: a new plan replaces the earlier one and keeps its Topic renames.
 _Avoid_: Draft, alone: a new Target is a draft too.
 
 **Interview plan**:
@@ -36,6 +37,7 @@ The product defines Section kinds; the Candidate and the agent compose Sections 
 
 **Topic**:
 An area of knowledge within a Target that its Sections check.
+A Topic merged into another one hands over its Questions and Attempts, so its progress counts there.
 
 **Question**:
 An interview question with its source and Topic.
