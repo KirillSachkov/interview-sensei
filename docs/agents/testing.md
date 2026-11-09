@@ -91,6 +91,18 @@ Tests and CI turn the browser off with `--no-browser` or `INTERVIEW_SENSEI_NO_BR
 
 `harness-check` (`.github/workflows/check.yml`) runs the structural checker and the whitespace check.
 `app-check`, `app-test` and `app-e2e` (`.github/workflows/app.yml`) run `pnpm check`, `pnpm test` and `pnpm test:e2e`.
+`deps-audit` and `secrets-scan` (`.github/workflows/security.yml`) check dependencies and Git history.
+
+- `deps-audit` runs `pnpm audit --audit-level high` on `pnpm-lock.yaml` without an install.
+  High and critical advisories fail it; low and moderate ones only appear in the log.
+  The owner chose this threshold in #30.
+- `secrets-scan` runs gitleaks on every commit reachable from the checked-out commit.
+  On a pull request, that commit is the merge with `main`.
+  The workflow pins the gitleaks version and its archive checksum.
+  `.gitleaksignore` lists the findings that are not secrets, one fingerprint per line with a reason above it.
+  A change to that list needs the owner's review.
+  Run the same scan locally with `gitleaks git --log-opts="--full-history HEAD" --redact`.
+
 Repository protection settings are not implied by these jobs.
 
 ## Appropriate evidence
