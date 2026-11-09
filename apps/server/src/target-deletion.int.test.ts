@@ -1,6 +1,9 @@
 // Spec #45, seam 1, ticket #51: deleting a Target for good. A draft Target goes at once; an
 // archived one goes when the Candidate types its name. The deletion erases the Target's data in
 // every slice in one transaction.
+import { access } from "node:fs/promises";
+import path from "node:path";
+
 import { openStorage } from "@interview-sensei/core/storage";
 import type { FastifyInstance } from "fastify";
 import { describe, expect, it } from "vitest";
@@ -16,6 +19,7 @@ import {
 } from "./chat-test-support.ts";
 import type { SessionView } from "./chat-test-support.ts";
 import { demoApi, model } from "./model-test-support.ts";
+import { upload } from "./source-test-support.ts";
 import { deleteTarget } from "./target-deletion.ts";
 
 const demoName = "Middle backend-разработчик на TypeScript";
@@ -66,9 +70,23 @@ async function targetRows(dataDirectory: string, targetId: string) {
   }
 }
 
-/** The demo Target with a draft change of its setup agent; the agent then crashes. */
+/** The Target's rows in every slice, and whether its files are in the data directory. */
+async function targetData(dataDirectory: string, targetId: string) {
+  const rows = await targetRows(dataDirectory, targetId);
+  const files = await access(path.join(dataDirectory, "targets", targetId)).then(
+    () => true,
+    () => false,
+  );
+  return { rows, files };
+}
+
+/**
+ * The demo Target with a material file and a draft change of its setup agent; the agent then
+ * crashes, so no session of the Target runs.
+ */
 async function demoWithData(dataDirectory: string) {
   const api = await demoApi(dataDirectory);
+  await upload(api.server, { targetId: api.target.id, name: "vacancy.txt", body: "Go" });
   const opened = await request(api.server, {
     method: "POST",
     url: `/api/targets/${api.target.id}/setup-session`,
@@ -94,14 +112,18 @@ async function archivedDemo() {
 describe("deleting an archived Target", () => {
   it("erases the Target's data in every slice when the Candidate types its name", async () => {
     const { dataDirectory, targetId } = await archivedDemo();
-    await expect(targetRows(dataDirectory, targetId)).resolves.toStrictEqual({
-      "agent_sessions.sessions": 1,
-      "question_bank.questions": 30,
-      "question_bank.topics": 5,
-      "target_setup.changes": 1,
-      "targets.preferences": 0,
-      "targets.sections": 3,
-      "targets.targets": 1,
+    await expect(targetData(dataDirectory, targetId)).resolves.toStrictEqual({
+      files: true,
+      rows: {
+        "agent_sessions.sessions": 1,
+        "question_bank.questions": 30,
+        "question_bank.topics": 5,
+        "sources.sources": 1,
+        "target_setup.changes": 1,
+        "targets.preferences": 0,
+        "targets.sections": 3,
+        "targets.targets": 1,
+      },
     });
     const { server, stop } = await startServer(dataDirectory);
 
@@ -112,11 +134,10 @@ describe("deleting an archived Target", () => {
     });
 
     expect(response.statusCode).toBe(204);
-    const archived = await request(server, { method: "GET", url: "/api/targets/archived" });
-    expect(archived.json()).toStrictEqual([]);
     await stop();
-    const rows = await targetRows(dataDirectory, targetId);
+    const { rows, files } = await targetData(dataDirectory, targetId);
     expect(Object.values(rows).every((count) => count === 0)).toBe(true);
+    expect(files).toBe(false);
   });
 
   it("keeps the Target when the typed name differs from its name", async () => {

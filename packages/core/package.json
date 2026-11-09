@@ -14,7 +14,8 @@
     "./targets": "./src/features/targets/index.ts",
     "./question-bank": "./src/features/question-bank/index.ts",
     "./target-setup": "./src/features/target-setup/index.ts",
-    "./app-settings": "./src/features/app-settings/index.ts"
+    "./app-settings": "./src/features/app-settings/index.ts",
+    "./sources": "./src/features/sources/index.ts"
   },
   "scripts": {
     "lint": "oxlint",

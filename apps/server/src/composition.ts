@@ -18,6 +18,7 @@ import {
   updateTarget,
 } from "@interview-sensei/core/target-setup";
 import { appSettingsMigrations, appSettingsModule } from "@interview-sensei/core/app-settings";
+import { sourceTools, sourcesMigrations, sourcesModule } from "@interview-sensei/core/sources";
 
 import { agentRuntimeModule } from "@interview-sensei/core/agent-runtime";
 import type { AgentRuntime, UserEnvironment } from "@interview-sensei/core/agent-runtime";
@@ -28,11 +29,13 @@ import {
 import { healthModule } from "@interview-sensei/core/health";
 import { getBrief, mcpGatewayModule } from "@interview-sensei/core/mcp-gateway";
 import { openStorage } from "@interview-sensei/core/storage";
-import type { SliceMigrations, Storage } from "@interview-sensei/core/storage";
-import type { Clock, Timer } from "@interview-sensei/core/time";
+import type { SliceMigrations, Storage, StorageOptions } from "@interview-sensei/core/storage";
 import type { Targets } from "@interview-sensei/core/targets";
 import type { QuestionBank } from "@interview-sensei/core/question-bank";
 
+// The time ports through the storage's options: one import fewer (`import/max-dependencies`).
+type Clock = StorageOptions["clock"];
+type Timer = StorageOptions["timer"];
 export type { AgentRuntime, UserEnvironment } from "@interview-sensei/core/agent-runtime";
 export { SessionsClosedError } from "@interview-sensei/core/agent-sessions";
 export { UnknownAgentError } from "@interview-sensei/core/targets";
@@ -50,20 +53,15 @@ const sliceMigrations: readonly SliceMigrations[] = [
   targetsMigrations,
   targetSetupMigrations,
   appSettingsMigrations,
+  sourcesMigrations,
 ];
 
-/** The MCP tool set of each session kind, as the gateway takes it. */
-type SessionToolSets = Parameters<typeof mcpGatewayModule>[0]["tools"];
-
+type Slices = ReturnType<typeof composeTargets> & { sources: ReturnType<typeof sourcesModule> };
 /**
  * The MCP tool set of each session kind. A slice exports its tools from its index.ts; add them to
  * the kinds that need them. It compiles only while every session kind has an entry.
  */
-function sessionTools({
-  targets,
-  questionBank,
-  targetSetup,
-}: ReturnType<typeof composeTargets>): SessionToolSets {
+function sessionTools({ targets, questionBank, targetSetup, sources }: Slices) {
   return {
     "service-chat": [getBrief],
     "target-setup": [
@@ -73,6 +71,7 @@ function sessionTools({
       updateTarget(targetSetup),
       setInterviewPlan(targetSetup),
       applyChanges(targetSetup),
+      ...sourceTools(sources),
     ],
   };
 }
@@ -115,23 +114,24 @@ export async function composeFeatures(dependencies: FeatureDependencies) {
     onWarning: (message) => log.warn(message),
   });
   const slices = composeTargets(storage, clock, runtime);
-  const tools = sessionTools(slices);
-  const { mcp, sessions } = composeSessions(storage, { ...dependencies, runtime, tools });
   const { targets, questionBank } = slices;
+  const sources = sourcesModule({ database: storage.database, dataDirectory, clock, targets });
+  const tools = sessionTools({ ...slices, sources });
+  const { mcp, sessions } = composeSessions(storage, { ...dependencies, runtime, tools });
   const modelTools = {
     getTarget: getTarget(targets),
     searchQuestions: searchQuestions(questionBank, targets),
   };
-  const createDemo = demoCreator({ targets, questionBank, clock });
   return {
     storage,
     runtime,
     mcp,
     sessions,
     ...slices,
+    sources,
     /** Every slice that keeps data of a Target: deleting the Target erases it in each of them. */
-    targetData: [slices.questionBank, slices.targetSetup, sessions, targets],
-    createDemo,
+    targetData: [questionBank, slices.targetSetup, sources, sessions, targets],
+    createDemo: demoCreator({ targets, questionBank, clock }),
     modelTools,
     health: healthModule({ clock }),
   };
@@ -274,7 +274,7 @@ function composeSessions(
     log,
   }: Pick<FeatureDependencies, "clock" | "dataDirectory" | "origin" | "log"> & {
     runtime: AgentRuntime;
-    tools: SessionToolSets;
+    tools: ReturnType<typeof sessionTools>;
   },
 ) {
   const mcp = mcpGatewayModule({

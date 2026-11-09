@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 
 import { UnknownAgentError } from "./composition.ts";
 import type { Features } from "./composition.ts";
+import { registerSettingsRoutes } from "./settings-routes.ts";
 import { registerTargetArchiveRoutes } from "./target-archive-routes.ts";
 
 type Dependencies = Pick<Features, "targets" | "questionBank" | "createDemo">;
@@ -117,8 +118,15 @@ function registerSections(server: FastifyInstance, { targets }: Dependencies) {
 /**
  * - `GET /api/targets/:id/agent`: the Target's agent, see `Targets.agent`.
  * - `PUT /api/targets/:id/agent` with `{ agent }`: stores the choice; null clears it.
+ * - The default agent of «Настройки»: see registerSettingsRoutes.
  */
-function registerTargetAgent(server: FastifyInstance, { targets }: Dependencies) {
+function registerTargetAgent(
+  server: FastifyInstance,
+  dependencies: Dependencies & Parameters<typeof registerSettingsRoutes>[1],
+) {
+  const { targets } = dependencies;
+  // The default agent of «Настройки» is the agent of every Target without its own.
+  registerSettingsRoutes(server, dependencies);
   server.get<{ Params: { id: string } }>(
     "/api/targets/:id/agent",
     { schema: { params } },
@@ -150,7 +158,9 @@ function registerTargetAgent(server: FastifyInstance, { targets }: Dependencies)
 
 export function registerTargetRoutes(
   server: FastifyInstance,
-  dependencies: Dependencies & Parameters<typeof registerTargetArchiveRoutes>[1],
+  dependencies: Dependencies &
+    Parameters<typeof registerTargetArchiveRoutes>[1] &
+    Parameters<typeof registerSettingsRoutes>[1],
 ) {
   const { targets, createDemo } = dependencies;
   server.post("/api/targets/demo", async (_request, reply) => {

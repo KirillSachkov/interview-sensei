@@ -8,6 +8,8 @@ import type { Features } from "./composition.ts";
  */
 interface TargetData {
   readonly eraseTarget: (targetId: string, transaction: Transaction) => Promise<void>;
+  /** Removes the Target's files once the transaction has committed: files are not in it. */
+  readonly eraseTargetFiles?: (targetId: string) => Promise<void>;
 }
 
 type Dependencies = Pick<Features, "targets" | "sessions" | "storage"> & {
@@ -17,7 +19,7 @@ type Dependencies = Pick<Features, "targets" | "sessions" | "storage"> & {
 /**
  * Erases the Target's data in every slice of `targetData` in one transaction, once the Target may
  * be deleted with the typed name. The agents of its live sessions stop first: their journals
- * write outside this transaction.
+ * write outside this transaction. The files of the Target go after the commit.
  */
 export async function deleteTarget(
   { targets, sessions, storage, targetData }: Dependencies,
@@ -29,7 +31,7 @@ export async function deleteTarget(
     return allowed;
   }
   await sessions.endTarget(id);
-  return storage.transaction(async (transaction) => {
+  const erased = await storage.transaction(async (transaction) => {
     const checked = await targets.deletion(id, name, transaction);
     if (checked !== "deletable") {
       return checked;
@@ -42,4 +44,8 @@ export async function deleteTarget(
     /* oxlint-enable eslint/no-await-in-loop */
     return "deleted" as const;
   });
+  if (erased === "deleted") {
+    await Promise.all(targetData.map(async (slice) => slice.eraseTargetFiles?.(id)));
+  }
+  return erased;
 }

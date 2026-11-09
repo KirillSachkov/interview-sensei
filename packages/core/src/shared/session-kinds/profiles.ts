@@ -49,6 +49,7 @@ export const sessionProfiles: Readonly<Record<SessionKind, SessionProfile>> = {
       "Interview Sensei tools for this Target setup session; they act only on the session's Target.",
       "Call get_brief first: it tells the mode of the session and the Target's current state.",
       "Record changes with update_target and set_interview_plan; call apply_changes only after the Candidate agrees.",
+      "Read the Target's materials with list_sources and get_source; add links and notes from the Candidate's text with add_sources.",
     ].join(" "),
   },
 };
