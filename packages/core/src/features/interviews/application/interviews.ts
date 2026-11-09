@@ -1,13 +1,16 @@
-import { candidateAnswered, candidateFinished } from "../domain/agent-messages.ts";
 import type { HistoryFilter, HistoryPage, TopicAttempt } from "../domain/history.ts";
-import type { AskedQuestion, Grade, MockInterview } from "../domain/interview.ts";
-import { presentedQuestion } from "../domain/interview.ts";
+import type { Grade } from "../domain/interview.ts";
 import type { InterviewView } from "../domain/interview-view.ts";
-import { change, createContext, tellInterviewer, viewOf } from "./context.ts";
+import { answerPresented } from "./candidate-answer.ts";
+import type { AnswerOutcome, CandidateReply } from "./candidate-answer.ts";
+import { createContext, viewOf } from "./context.ts";
+import { answerFollowUp } from "./follow-ups.ts";
+import type { FollowUpOutcome } from "./follow-ups.ts";
 import type { Context, InterviewListener, InterviewsDependencies } from "./context.ts";
 import { start } from "./start-interview.ts";
 import type { StartOutcome, StartRequest } from "./start-interview.ts";
-import { awaitFinish, endInterrupted } from "./endings.ts";
+import { endInterrupted, finish } from "./endings.ts";
+import type { FinishOutcome } from "./endings.ts";
 import { createInterviewer } from "./interviewer.ts";
 import type { Interviewer } from "./interviewer.ts";
 import { debrief, dispute, history, interviewSummary, targetTopicAttempts } from "./records.ts";
@@ -16,24 +19,22 @@ import type { AttemptDebrief, InterviewSummary } from "./records.ts";
 /** How many of a Target's newest Mock interviews the canvas shows. */
 const latestCount = 5;
 
-/**
- * - `no_question`: no question waits for an answer.
- * - `already_answered`: the presented question has the Candidate's answer.
- * - `not_open`: the presented question is a quiz; its answer is a choice of options.
- */
-type AnswerOutcome =
-  "accepted" | "not_found" | "not_running" | "no_question" | "already_answered" | "not_open";
-
-type FinishOutcome = "accepted" | "not_found" | "not_running";
-
 export interface Interviews {
   /** Starts a Mock interview with the Target's agent as the interviewer. */
   readonly start: (request: StartRequest) => Promise<StartOutcome>;
   readonly view: (id: string) => Promise<InterviewView | undefined>;
   /** The Target's newest Mock interviews, the newest first. */
   readonly latest: (targetId: string) => Promise<readonly InterviewView[]>;
-  /** Records the Candidate's free-text answer to the presented question and tells the agent. */
-  readonly answer: (id: string, answer: { readonly text: string }) => Promise<AnswerOutcome>;
+  /**
+   * Records the Candidate's answer to the presented question and tells the agent: free text, the
+   * chosen quiz options or «Не знаю». The app grades a quiz and «Не знаю» itself.
+   */
+  readonly answer: (id: string, reply: CandidateReply) => Promise<AnswerOutcome>;
+  /** Records the Candidate's answer to the agent's last Follow-up and tells the agent. */
+  readonly answerFollowUp: (
+    id: string,
+    reply: { readonly text: string },
+  ) => Promise<FollowUpOutcome>;
   /** The Candidate presses «Завершить»: the agent gets the message and calls finish_interview. */
   readonly finish: (id: string) => Promise<FinishOutcome>;
   /**
@@ -66,77 +67,6 @@ export interface Interviews {
   readonly interviewer: Interviewer;
 }
 
-/** Why the Mock interview takes no answer now, or null when it takes one. */
-function notAnswerable(interview: MockInterview | undefined): "not_found" | "not_running" | null {
-  if (interview === undefined) {
-    return "not_found";
-  }
-  return interview.status !== "running" || interview.finishRequestedAt !== null
-    ? "not_running"
-    : null;
-}
-
-/** The presented question that takes a free-text answer now, or why there is none. */
-async function openQuestion(
-  { repository }: InterviewsDependencies,
-  interview: MockInterview,
-): Promise<AskedQuestion | Exclude<AnswerOutcome, "accepted">> {
-  const [asked, attempts] = await Promise.all([
-    repository.asked(interview.id),
-    repository.attempts(interview.id),
-  ]);
-  const presented = presentedQuestion(asked, attempts);
-  if (presented === undefined) {
-    return "no_question";
-  }
-  if (presented.answer !== null) {
-    return "already_answered";
-  }
-  return presented.format === "open" ? presented : "not_open";
-}
-
-async function answer(context: Context, id: string, { text }: { text: string }) {
-  const { repository, clock } = context.dependencies;
-  return change(context, id, async (): Promise<AnswerOutcome> => {
-    const interview = await repository.get(id);
-    const refusal = notAnswerable(interview);
-    if (refusal !== null || interview === undefined) {
-      return refusal ?? "not_found";
-    }
-    const question = await openQuestion(context.dependencies, interview);
-    if (typeof question === "string") {
-      return question;
-    }
-    await repository.answer(question.id, {
-      text,
-      optionIds: [],
-      skipped: false,
-      answeredAt: clock.now().toISOString(),
-    });
-    tellInterviewer(context, interview.sessionId, candidateAnswered(text));
-    return "accepted";
-  });
-}
-
-async function finish(context: Context, id: string) {
-  const { repository, clock } = context.dependencies;
-  return change(context, id, async (): Promise<FinishOutcome> => {
-    const interview = await repository.get(id);
-    if (interview === undefined) {
-      return "not_found";
-    }
-    if (interview.status !== "running") {
-      return "not_running";
-    }
-    if (interview.finishRequestedAt === null) {
-      await repository.update(id, { finishRequestedAt: clock.now().toISOString() });
-      tellInterviewer(context, interview.sessionId, candidateFinished);
-      awaitFinish(context, interview);
-    }
-    return "accepted";
-  });
-}
-
 function subscribe(context: Context, id: string, listener: InterviewListener) {
   const listeners = context.listeners.get(id) ?? new Set();
   context.listeners.set(id, listeners);
@@ -163,7 +93,8 @@ export function createInterviews(dependencies: InterviewsDependencies): Intervie
       const interviews = await repository.latest(targetId, latestCount);
       return Promise.all(interviews.map(async (interview) => viewOf(dependencies, interview)));
     },
-    answer: async (id, request) => answer(context, id, request),
+    answer: async (id, reply) => answerPresented(context, id, reply),
+    answerFollowUp: async (id, reply) => answerFollowUp(context, id, reply),
     finish: async (id) => finish(context, id),
     attempt: async (id, attemptId) => debrief(dependencies, id, attemptId),
     dispute: async (request) => dispute(context, request),

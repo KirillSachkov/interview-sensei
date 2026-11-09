@@ -3,12 +3,14 @@
 // let the server finish each one itself by running its 2-minute wait on the manual Timer.
 import { describe, expect, it } from "vitest";
 
+import { fixedTime } from "./chat-test-support.ts";
 import { cardAt, hasQuestions, interviewApi, isGraded } from "./interview-test-support.ts";
 import type { Interview } from "./interview-test-support.ts";
 import { dispute } from "./progress-test-support.ts";
-import { manualClock, manualTimer } from "./time-test-support.ts";
+import { manualTime, minutes } from "./interview-flow-test-support.ts";
 
-const finishWaitMs = 2 * 60 * 1000;
+const finishWaitMs = minutes(2);
+const dayMs = minutes(24 * 60);
 
 const isFinished = (view: Interview) => view.status === "finished";
 
@@ -27,20 +29,19 @@ interface HistoryPage {
   readonly pageSize: number;
 }
 
-/** The start of the Mock interview of the day, from 1. */
-const dayStart = (day: number) => `2026-02-${String(day).padStart(2, "0")}T10:00:00.000Z`;
+/** The start of the Mock interview of the day, from 1: that many days after fixedTime. */
+const dayStart = (day: number) => new Date(Date.parse(fixedTime) + day * dayMs).toISOString();
 
 /** A server whose Clock and Timer the test moves, with the demo Target. */
 async function historyApi() {
-  const time = manualTimer();
-  const clock = manualClock();
-  const api = await interviewApi({ clock: clock.clock, timer: time.timer });
-  /** A Mock interview on the Sections that starts on the day and that the server finishes itself. */
-  const finishedOn = async (day: number, names: readonly string[]) => {
-    clock.set(dayStart(day));
+  const time = manualTime();
+  const api = await interviewApi({ clock: time.clock, timer: time.timer });
+  /** A Mock interview on the Sections that starts a day later and that the server finishes itself. */
+  const finishedOn = async (names: readonly string[]) => {
+    time.pass(dayMs);
     const { interview, events } = await api.started(names);
     await api.finish(interview.id);
-    await time.run(finishWaitMs);
+    await time.fire(finishWaitMs);
     await events.waitFor(isFinished);
     return interview.id;
   };
@@ -48,7 +49,7 @@ async function historyApi() {
     const response = await api.get(`/api/targets/${api.target.id}/interviews/history${query}`);
     return response.json<HistoryPage>();
   };
-  return { ...api, time, clock, finishedOn, history };
+  return { ...api, time, finishedOn, history };
 }
 
 type Api = Awaited<ReturnType<typeof historyApi>>;
@@ -58,7 +59,7 @@ async function interviewsOnDays(api: Api, count: number, names: (day: number) =>
   const ids: string[] = [];
   for (let day = 1; day <= count; day += 1) {
     // oxlint-disable-next-line eslint/no-await-in-loop -- a Target runs one Mock interview at a time
-    ids.push(await api.finishedOn(day, names(day)));
+    ids.push(await api.finishedOn(names(day)));
   }
   return ids;
 }

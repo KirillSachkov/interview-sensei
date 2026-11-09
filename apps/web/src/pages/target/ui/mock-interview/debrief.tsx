@@ -21,6 +21,7 @@ function GradeLine({ debrief }: { debrief: AttemptDebrief }) {
           </>
         )}
         {gradedBy === "quiz" ? <span className="tag">квиз</span> : null}
+        {gradedBy === "skip" ? <span className="tag">пропущено</span> : null}
       </p>
       {dispute === null ? null : (
         <p>
@@ -75,8 +76,12 @@ function DebriefBody({ interviewId, attemptId }: { interviewId: string; attemptI
       <p>{gaps.trim() === "" ? "Нет" : gaps}</p>
       <h4>Обоснование</h4>
       <p>{justification}</p>
-      <h4>Набросок сильного ответа</h4>
-      <p>{strongAnswer}</p>
+      {strongAnswer === "" ? null : (
+        <>
+          <h4>Набросок сильного ответа</h4>
+          <p>{strongAnswer}</p>
+        </>
+      )}
       <Dispute interviewId={interviewId} attemptId={attemptId} />
     </section>
   );

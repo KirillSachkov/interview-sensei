@@ -1,8 +1,9 @@
 // How a Mock interview ends without the agent's summary (#54): the server finishes it itself when
 // the agent does not call finish_interview in time, and marks it «прерван» when its agent fails or
 // the server stopped while it ran. Its Attempts stay either way.
+import { candidateFinished } from "../domain/agent-messages.ts";
 import type { MockInterview } from "../domain/interview.ts";
-import { change, inBackground } from "./context.ts";
+import { change, inBackground, tellInterviewer } from "./context.ts";
 import type { Context } from "./context.ts";
 
 /** How long the server waits for `finish_interview` after the Candidate presses «Завершить». */
@@ -29,7 +30,7 @@ async function end(
  * Finishes the Mock interview without the agent's summary unless the agent finishes it within
  * the wait; the summary Debrief then shows only the Topic status changes.
  */
-export function awaitFinish(context: Context, { id, sessionId }: MockInterview): void {
+function awaitFinish(context: Context, { id, sessionId }: MockInterview): void {
   const { timer, sessions } = context.dependencies;
   timer.after(finishWaitMs, () => {
     inBackground(context, async () => {
@@ -37,6 +38,31 @@ export function awaitFinish(context: Context, { id, sessionId }: MockInterview):
         await sessions.end(sessionId);
       }
     });
+  });
+}
+
+export type FinishOutcome = "accepted" | "not_found" | "not_running";
+
+/**
+ * The Candidate presses «Завершить»: the agent gets the message and calls finish_interview, or the
+ * server finishes the Mock interview itself after the wait.
+ */
+export async function finish(context: Context, id: string) {
+  const { repository, clock } = context.dependencies;
+  return change(context, id, async (): Promise<FinishOutcome> => {
+    const interview = await repository.get(id);
+    if (interview === undefined) {
+      return "not_found";
+    }
+    if (interview.status !== "running") {
+      return "not_running";
+    }
+    if (interview.finishRequestedAt === null) {
+      await repository.update(id, { finishRequestedAt: clock.now().toISOString() });
+      tellInterviewer(context, interview.sessionId, candidateFinished);
+      awaitFinish(context, interview);
+    }
+    return "accepted";
   });
 }
 

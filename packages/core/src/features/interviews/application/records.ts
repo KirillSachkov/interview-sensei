@@ -92,7 +92,7 @@ export async function history(
   dependencies: InterviewsDependencies,
   { targetId, page, filter }: { targetId: string; page: number; filter: HistoryFilter },
 ): Promise<HistoryPage> {
-  const found = await dependencies.repository.history(targetId, filter, {
+  const found = await dependencies.repository.historyPage(targetId, filter, {
     offset: (page - 1) * pageSize,
     limit: pageSize,
   });

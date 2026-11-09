@@ -4,8 +4,10 @@ import type {
   AskedQuestion,
   Attempt,
   CandidateAnswer,
+  FollowUp,
   InterviewStatus,
   MockInterview,
+  PastQuestion,
 } from "./interview.ts";
 
 /** One Section of the Target's Interview plan, with its Topics. */
@@ -63,12 +65,32 @@ export interface BankQuestion {
   readonly rating: "useful" | "irrelevant" | "wrong" | null;
 }
 
+/** A Question the agent made up when no candidate fitted: open, with no Source, unconfirmed. */
+export interface NewBankQuestion {
+  readonly id: string;
+  readonly targetId: string;
+  readonly topicId: string;
+  readonly text: string;
+  readonly format: "open";
+  readonly options: readonly [];
+  readonly correctOptionIds: readonly [];
+  readonly level: BankQuestion["level"];
+  readonly sourceIds: readonly [];
+  readonly unconfirmed: true;
+  readonly hidden: false;
+  readonly rating: null;
+  /** ISO 8601. */
+  readonly createdAt: string;
+}
+
 /** The question-bank slice supplies the Target's Questions that are not hidden. */
 export interface InterviewQuestions {
   readonly search: (
     targetId: string,
     filter: { readonly topicIds: readonly string[] },
   ) => Promise<readonly BankQuestion[]>;
+  /** Adds the Question to the Target's bank. */
+  readonly add: (question: NewBankQuestion) => Promise<void>;
 }
 
 /** The agent-sessions slice runs the interviewer's AgentSession. */
@@ -105,7 +127,7 @@ export interface HistoryRepository {
   /** Every running Mock interview of every Target. */
   readonly allRunning: () => Promise<readonly MockInterview[]>;
   /** One page of the Target's Mock interviews, the newest first, and how many match. */
-  readonly history: (
+  readonly historyPage: (
     targetId: string,
     filter: HistoryFilter,
     page: { readonly offset: number; readonly limit: number },
@@ -125,12 +147,15 @@ export interface InterviewRepository extends HistoryRepository {
   readonly get: (id: string) => Promise<MockInterview | undefined>;
   readonly bySession: (sessionId: string) => Promise<MockInterview | undefined>;
   readonly running: (targetId: string) => Promise<MockInterview | undefined>;
+  /** Every Question asked in the Target's Mock interviews, in the order of showing. */
+  readonly history: (targetId: string) => Promise<readonly PastQuestion[]>;
   /** The Target's newest Mock interviews first. */
   readonly latest: (targetId: string, limit: number) => Promise<readonly MockInterview[]>;
   readonly update: (
     id: string,
     changes: {
       readonly status?: InterviewStatus;
+      readonly currentSectionId?: string;
       readonly finishRequestedAt?: string;
       readonly finishedAt?: string;
       readonly summary?: string;
@@ -141,6 +166,8 @@ export interface InterviewRepository extends HistoryRepository {
   readonly asked: (interviewId: string) => Promise<readonly AskedQuestion[]>;
   readonly ask: (question: AskedQuestion) => Promise<void>;
   readonly answer: (askedQuestionId: string, answer: CandidateAnswer) => Promise<void>;
+  /** Replaces the Follow-ups of the asked question. */
+  readonly followUps: (askedQuestionId: string, followUps: readonly FollowUp[]) => Promise<void>;
   readonly attempts: (interviewId: string) => Promise<readonly Attempt[]>;
   /** `exists` when the asked question already has its Attempt; nothing is stored then. */
   readonly record: (attempt: Attempt) => Promise<"recorded" | "exists">;

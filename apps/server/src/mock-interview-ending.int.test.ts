@@ -13,10 +13,10 @@ import {
   saysWhenIdle,
 } from "./interview-test-support.ts";
 import type { Interview } from "./interview-test-support.ts";
-import { manualTimer } from "./time-test-support.ts";
+import { manualTime, minutes } from "./interview-flow-test-support.ts";
 
 /** How long the server waits for `finish_interview` after «Завершить». */
-const finishWaitMs = 2 * 60 * 1000;
+const finishWaitMs = minutes(2);
 
 const isEnded = (status: string) => (view: Interview) => view.status === status;
 
@@ -81,14 +81,14 @@ describe("mock interview ending", () => {
   });
 
   it("finishes the mock itself 2 minutes after «Завершить» when the agent does not call finish_interview", async () => {
-    const time = manualTimer();
+    const time = manualTime();
     const api = await interviewApi({ timer: time.timer });
     const { interview, events, chat } = await secondQuestionShown(api, "Ответ [grade:2]");
     await keepBusy(chat);
     await api.finish(interview.id);
     await expect(storedView(api, interview.id)).resolves.toMatchObject({ status: "running" });
 
-    await time.run(finishWaitMs);
+    await time.fire(finishWaitMs);
 
     await events.waitFor(isEnded("finished"));
     await expect(summaryOf(api, interview.id)).resolves.toMatchObject({

@@ -35,11 +35,34 @@ async function progressOf(api: Api): Promise<unknown> {
 
 const isFinished = (view: Interview) => view.status === "finished";
 
+/** The Topic status of the demo Topic «Опыт разработки». */
+async function experienceStatus(api: Api): Promise<string | undefined> {
+  const response = await api.get(`/api/targets/${api.target.id}/progress`);
+  const progress = response.json<{ topics: { name: string; status: string }[] }>();
+  return progress.topics.find((topic) => topic.name === experience)?.status;
+}
+
+/**
+ * A strong answer, then a weak answer to the Deeper question that goes deeper from it; resolves
+ * with the Deeper question's graded card.
+ */
+async function weakDeeperAnswer(api: Api) {
+  const run = await api.answered(["Опыт и резюме"], "Ответ [grade:3] [deeper]");
+  const deeper = cardAt(await run.events.waitFor(hasQuestions(2)), 1);
+  await api.answer(run.interview.id, "Ответ [grade:1]");
+  const graded = cardAt(await run.events.waitFor(isGraded(1)), 1);
+  return { ...run, deeper, graded };
+}
+
 /** Finishes the Mock interview with the agent's summary, then starts the next one. */
-async function nextInterview(api: Api, { interview, events }: Awaited<ReturnType<Api["started"]>>) {
+async function nextInterview(
+  api: Api,
+  { interview, events }: Awaited<ReturnType<Api["started"]>>,
+  names: readonly string[] = ["Проектирование"],
+) {
   await api.finish(interview.id);
   await events.waitFor(isFinished);
-  const next = await api.started(["Проектирование"]);
+  const next = await api.started(names);
   await next.events.waitFor(hasQuestions(1));
   await next.chat.waitFor(hasSpoken);
   return next;
@@ -98,6 +121,24 @@ describe("progress and disputes", () => {
     });
   });
 
+  it("changes the Topic status at once with a Dispute; the latest Dispute applies", async () => {
+    const api = await interviewApi();
+    const { interview, deeper, graded } = await weakDeeperAnswer(api);
+    const before = await experienceStatus(api);
+
+    await dispute(api, { interviewId: interview.id, card: graded, payload: { grade: 3, reason } });
+    const corrected = await experienceStatus(api);
+    await dispute(api, {
+      interviewId: interview.id,
+      card: graded,
+      payload: { grade: 1, reason: "Всё-таки слабо." },
+    });
+
+    expect(deeper.parentAttemptId).not.toBeNull();
+    expect({ before, corrected }).toStrictEqual({ before: "shaky", corrected: "confident" });
+    await expect(experienceStatus(api)).resolves.toBe("shaky");
+  });
+
   it.each([
     ["without a reason", { grade: 3, reason: "  " }, "empty_reason"],
     ["with a Grade out of the scale", { grade: 4, reason }, "invalid_grade"],
@@ -132,6 +173,25 @@ describe("progress and disputes", () => {
       weakTopics: [{ name: experience, status: "shaky" }, {}, {}],
       gradeCorrections: [{ question: run.graded.text, agentGrade: 1, correctedGrade: 3, reason }],
     });
+  });
+
+  it("leaves a question out of the next Mock interviews once a Dispute corrects its Grade to 3", async () => {
+    const api = await interviewApi();
+    const run = await gradedAnswer(api, "Ответ [grade:1]");
+    await dispute(api, {
+      interviewId: run.interview.id,
+      card: run.graded,
+      payload: { grade: 3, reason },
+    });
+
+    const next = await nextInterview(api, run, ["Опыт и резюме"]);
+
+    const found = await callTool(next.chat, "next_question_candidates");
+    const shown = cardAt(await next.events.waitFor(hasQuestions(1)), 0);
+    expect(found).toHaveProperty(["candidates", 0, "id"]);
+    expect([shown.questionId, JSON.stringify(found)].join(" ")).not.toContain(
+      run.graded.questionId,
+    );
   });
 
   it("gives the agent the Target's progress with get_progress", async () => {

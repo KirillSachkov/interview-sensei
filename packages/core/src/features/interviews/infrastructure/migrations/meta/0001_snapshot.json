@@ -101,12 +101,8 @@
           "tableFrom": "asked_questions",
           "tableTo": "interviews",
           "schemaTo": "interviews",
-          "columnsFrom": [
-            "interview_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["interview_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -116,10 +112,7 @@
         "asked_questions_interview_id_position_unique": {
           "name": "asked_questions_interview_id_position_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "interview_id",
-            "position"
-          ]
+          "columns": ["interview_id", "position"]
         }
       },
       "policies": {},
@@ -199,12 +192,8 @@
           "tableFrom": "attempts",
           "tableTo": "interviews",
           "schemaTo": "interviews",
-          "columnsFrom": [
-            "interview_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["interview_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -213,12 +202,8 @@
           "tableFrom": "attempts",
           "tableTo": "asked_questions",
           "schemaTo": "interviews",
-          "columnsFrom": [
-            "asked_question_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["asked_question_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -228,9 +213,7 @@
         "attempts_asked_question_id_unique": {
           "name": "attempts_asked_question_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "asked_question_id"
-          ]
+          "columns": ["asked_question_id"]
         }
       },
       "policies": {},
@@ -302,12 +285,8 @@
           "tableFrom": "disputes",
           "tableTo": "interviews",
           "schemaTo": "interviews",
-          "columnsFrom": [
-            "interview_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["interview_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -316,12 +295,8 @@
           "tableFrom": "disputes",
           "tableTo": "attempts",
           "schemaTo": "interviews",
-          "columnsFrom": [
-            "attempt_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["attempt_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -445,9 +420,7 @@
         "interviews_session_id_unique": {
           "name": "interviews_session_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "session_id"
-          ]
+          "columns": ["session_id"]
         }
       },
       "policies": {},

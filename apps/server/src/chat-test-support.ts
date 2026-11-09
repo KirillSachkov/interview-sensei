@@ -4,8 +4,8 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import type { FastifyInstance } from "fastify";
 import type { Clock, Timer } from "@interview-sensei/core/time";
+import type { FastifyInstance } from "fastify";
 import { expect, onTestFinished } from "vitest";
 
 import { buildServer } from "./server.ts";
@@ -22,31 +22,37 @@ export async function temporaryDirectory(): Promise<string> {
 }
 
 export interface ServerOptions {
-  host?: string;
-  allowedOrigins?: readonly string[];
-  skillsDirectory?: string;
-  /** The fixed time `fixedTime` by default. */
-  clock?: Clock;
-  timer?: Timer;
+  readonly host?: string;
+  readonly allowedOrigins?: readonly string[];
+  readonly skillsDirectory?: string;
+  readonly clock?: Clock;
+  readonly timer?: Timer;
 }
 
 /**
  * Builds the server with the fake agent on the data directory and listens on a free port of the
  * host, `127.0.0.1` by default: the agent reaches the session's MCP address over real HTTP.
- * `allowedOrigins`, `skillsDirectory`, `clock` and `timer` go to buildServer. `stop` closes it early.
+ * `allowedOrigins` and `skillsDirectory` go to buildServer. `stop` closes it early.
+ * Without `clock` the time stands at fixedTime; without `timer` no task ever runs.
  */
 export async function startServer(
   dataDirectory: string,
-  { host = "127.0.0.1", allowedOrigins = [], ...options }: ServerOptions = {},
+  {
+    host = "127.0.0.1",
+    allowedOrigins = [],
+    skillsDirectory,
+    clock = { now: () => new Date(fixedTime) },
+    // Dumps and agent timeouts are not under test here; the timer never runs a task.
+    timer = { repeat: () => () => {}, after: () => () => {} },
+  }: ServerOptions = {},
 ) {
   const server = await buildServer({
-    clock: options.clock ?? { now: () => new Date(fixedTime) },
-    // Dumps and agent timeouts are not under test here; by default the timer never runs a task.
-    timer: options.timer ?? { repeat: () => () => {}, after: () => () => {} },
+    clock,
+    timer,
     dataDirectory,
     fakeAgent: true,
     allowedOrigins,
-    ...(options.skillsDirectory === undefined ? {} : { skillsDirectory: options.skillsDirectory }),
+    ...(skillsDirectory === undefined ? {} : { skillsDirectory }),
   });
   let closed: Promise<void> | null = null;
   const stop = async () => {

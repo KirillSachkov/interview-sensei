@@ -21,9 +21,20 @@ export interface QuestionCard {
   readonly parentAttemptId: string | null;
   readonly presentedAt: string;
   readonly answer: CandidateAnswer | null;
+  /** The interviewer's clarifications of the answer; the last one may wait for its answer. */
+  readonly followUps: readonly FollowUp[];
   /** Set once the interviewer recorded the Attempt: the Debrief is ready. */
   readonly attemptId: string | null;
 }
+
+interface FollowUp {
+  readonly question: string;
+  readonly answer: string | null;
+  readonly askedAt: string;
+}
+
+/** How the Candidate shifts the level of the questions: «легче», «как есть», «сложнее». */
+export type Difficulty = "easier" | "as_is" | "harder";
 
 export interface InterviewView {
   readonly id: string;
@@ -34,7 +45,14 @@ export interface InterviewView {
   readonly status: "running" | "finished" | "interrupted";
   readonly sectionIds: readonly string[];
   readonly currentSectionId: string | null;
+  /** Null without a limit. */
+  readonly limitMinutes: number | null;
+  readonly difficulty: Difficulty;
   readonly startedAt: string;
+  /** When the limit ends; null without a limit. */
+  readonly endsAt: string | null;
+  /** Past the limit the interview goes on until the Candidate finishes it. */
+  readonly overtime: boolean;
   readonly finishRequestedAt: string | null;
   readonly finishedAt: string | null;
   readonly summary: string | null;
@@ -46,7 +64,8 @@ export interface InterviewView {
 export interface AttemptDebrief {
   readonly id: string;
   readonly grade: number;
-  readonly gradedBy: "agent" | "quiz";
+  /** `skip` for «Не знаю». */
+  readonly gradedBy: "agent" | "quiz" | "skip";
   readonly gaps: string;
   readonly justification: string;
   readonly strongAnswer: string;
@@ -145,19 +164,37 @@ export async function fetchPlanSections(targetId: string): Promise<PlanSection[]
   return sections;
 }
 
-/** Starts a Mock interview on the Sections; the error says in Russian why it did not start. */
+/** What the Candidate chose in «Начать мок». */
+export interface StartSettings {
+  readonly sectionIds: readonly string[];
+  readonly limitMinutes: number | null;
+  readonly difficulty: Difficulty;
+}
+
+/** Starts a Mock interview; the error says in Russian why it did not start. */
 export async function startInterview(
   targetId: string,
-  sectionIds: readonly string[],
+  settings: StartSettings,
 ): Promise<InterviewView> {
   return checked(
-    await postJson(`/api/targets/${path(targetId)}/interviews`, { sectionIds }),
+    await postJson(`/api/targets/${path(targetId)}/interviews`, settings),
     isInterviewView,
   );
 }
 
-export async function answerQuestion(interviewId: string, text: string): Promise<void> {
-  await sent(await postJson(`/api/interviews/${path(interviewId)}/answer`, { text }));
+/** The answer to the presented question: free text, the chosen quiz options or «Не знаю». */
+type CandidateReply =
+  | { readonly text: string }
+  | { readonly optionIds: readonly string[] }
+  | { readonly skipped: true };
+
+export async function answerQuestion(interviewId: string, reply: CandidateReply): Promise<void> {
+  await sent(await postJson(`/api/interviews/${path(interviewId)}/answer`, reply));
+}
+
+/** The answer to the interviewer's last Follow-up. */
+export async function answerFollowUp(interviewId: string, text: string): Promise<void> {
+  await sent(await postJson(`/api/interviews/${path(interviewId)}/follow-up`, { text }));
 }
 
 export async function finishInterview(interviewId: string): Promise<void> {

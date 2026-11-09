@@ -78,6 +78,7 @@ export function MockInterviews({ targetId }: { targetId: string }) {
       ) : (
         <StartMock
           targetId={targetId}
+          difficulty={current?.difficulty ?? "as_is"}
           onStarted={(interview) => {
             shown.reset();
             started(interview);

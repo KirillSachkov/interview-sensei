@@ -78,7 +78,7 @@ export function drizzleHistoryQueries(database: Database): HistoryRepository {
       const rows = await database.select().from(interviews).where(eq(interviews.status, "running"));
       return rows.map((row) => toInterview(row));
     },
-    history: async (targetId, filter, { offset, limit }) => {
+    historyPage: async (targetId, filter, { offset, limit }) => {
       const condition = historyCondition(targetId, filter);
       const [rows, total] = await Promise.all([
         database

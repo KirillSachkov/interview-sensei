@@ -5,69 +5,29 @@
 //   the Grade of the marker `[grade:N]` in the answer, 2 without one. With the marker `[twice]` it
 //   calls `record_attempt` once more and replies «Повторная запись: <tool result>». Then the next
 //   question.
+// - «The Candidate answered your Follow-up.»: «Уточнение получено.», then the same as an answer.
+// - `[followup]` in an answer: `ask_follow_up` instead of `record_attempt`; a refused one gives
+//   «Follow-up отклонён: <tool result>» and the Attempt.
+// - `[section]`: `set_current_section` with the brief's next Section before the next question.
+// - A quiz result or «Не знаю»: «Квиз оценён: N.» or «Вопрос пропущен.», then the next question.
+// - «Five minutes of the time limit are left.»: «Осталось 5 минут: веду интервью к концу.».
 // - «The Candidate finished the mock interview.»: `finish_interview`, then «Итог записан.».
-// The next question: the first open candidate of `next_question_candidates`, or the first one;
-// `present_question` with it, then the hint «Подсказка до ответа: …» in the same turn, which the
-// app keeps out of the chat. Without candidates it replies «Вопросов больше нет.».
+// The next question comes from fake-agent-interviewer-questions.ts: `[quiz]`, `[deeper]` and `[new]`
+// choose a quiz, a Deeper question or a made-up one; then the hint «Подсказка до ответа: …» in the
+// same turn, which the app keeps out of the chat.
 // A failed step ends the turn with «Фейковый интервьюер сломался: <error>».
 import { randomUUID } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
 
 import type { AgentContext } from "@agentclientprotocol/sdk/unstable";
 
+import { moveToNextSection, presentNext } from "./fake-agent-interviewer-questions.ts";
+import type { InterviewerActions } from "./fake-agent-interviewer-questions.ts";
 import { callMcpTool } from "./fake-agent-mcp.ts";
 import { askPermission } from "./fake-agent-permission.ts";
 
 // The pause between chunks, as in the fake agent's other replies.
 const chunkPauseMs = 40;
-
-/** What one interviewer turn can do: call a tool of the session's MCP server and send text. */
-interface InterviewerActions {
-  /** Calls the tool with the arguments; resolves with its text, an error text included. */
-  readonly call: (name: string, input: object) => Promise<string>;
-  /** Sends text in chunks without ending the turn. */
-  readonly say: (text: string) => Promise<void>;
-}
-
-/** The hint the fake interviewer sends right after it shows a question. */
-const hintAfterQuestion = "Подсказка до ответа: вспомните про пример из практики.";
-
-interface Candidate {
-  readonly id: string;
-  readonly format: string;
-}
-
-function candidatesOf(text: string): readonly Candidate[] {
-  const parsed: unknown = JSON.parse(text);
-  if (
-    typeof parsed !== "object" ||
-    parsed === null ||
-    !("candidates" in parsed) ||
-    !Array.isArray(parsed.candidates)
-  ) {
-    throw new Error(`Unexpected candidates: ${text}`);
-  }
-  return parsed.candidates.filter(
-    (candidate: unknown): candidate is Candidate =>
-      typeof candidate === "object" &&
-      candidate !== null &&
-      "id" in candidate &&
-      typeof candidate.id === "string" &&
-      "format" in candidate &&
-      typeof candidate.format === "string",
-  );
-}
-
-async function presentNext(actions: InterviewerActions): Promise<void> {
-  const candidates = candidatesOf(await actions.call("next_question_candidates", {}));
-  const next = candidates.find((candidate) => candidate.format === "open") ?? candidates[0];
-  if (next === undefined) {
-    await actions.say("Вопросов больше нет.");
-    return;
-  }
-  await actions.call("present_question", { questionId: next.id });
-  await actions.say(hintAfterQuestion);
-}
 
 async function start(actions: InterviewerActions): Promise<void> {
   await actions.say("Начинаем мок-собеседование.");
@@ -82,15 +42,50 @@ const judgment = (grade: number) => ({
   strongAnswer: "Фейковый интервьюер: определение, ограничения и пример из практики.",
 });
 
-async function judge(actions: InterviewerActions, text: string): Promise<void> {
+/** Asks the fake Follow-up; true when the app showed it, so the turn ends. */
+async function followUp(actions: InterviewerActions): Promise<boolean> {
+  const result = await actions.call("ask_follow_up", {
+    question: "Фейковый Follow-up: приведите пример.",
+  });
+  if (result.startsWith("The Follow-up is shown")) {
+    return true;
+  }
+  await actions.say(`Follow-up отклонён: ${result}`);
+  return false;
+}
+
+/** Judges the answer after the note, unless the marker `[followup]` asks a Follow-up first. */
+async function judge(actions: InterviewerActions, text: string, note: string): Promise<void> {
   const grade = Number(/\[grade:(?<grade>[0-3])\]/u.exec(text)?.groups?.grade ?? "2");
-  await actions.say("Ответ получен.");
-  await actions.call("record_attempt", judgment(grade));
+  await actions.say(note);
+  if (text.includes("[followup]") && (await followUp(actions))) {
+    return;
+  }
+  const recorded = await actions.call("record_attempt", judgment(grade));
   if (text.includes("[twice]")) {
     await actions.say(`Повторная запись: ${await actions.call("record_attempt", judgment(grade))}`);
   }
+  if (text.includes("[section]")) {
+    await moveToNextSection(actions);
+  }
+  await presentNext(actions, {
+    format: text.includes("[quiz]") ? "quiz" : "open",
+    parentAttemptId: text.includes("[deeper]") ? attemptIn(recorded) : undefined,
+    madeUp: text.includes("[new]"),
+  });
+}
+
+/** The Attempt id in the result of record_attempt. */
+const attemptIn = (result: string) =>
+  /The Attempt (?<id>[0-9a-f-]{36}) is recorded/u.exec(result)?.groups?.id;
+
+/** The app recorded the Attempt of a quiz or «Не знаю»: a short note, then the next question. */
+async function noteAndGoOn(actions: InterviewerActions, note: string): Promise<void> {
+  await actions.say(note);
   await presentNext(actions);
 }
+
+const gradeIn = (text: string) => /Grade (?<grade>[0-3]) of 3/u.exec(text)?.groups?.grade ?? "?";
 
 async function finish(actions: InterviewerActions): Promise<void> {
   await actions.call("finish_interview", {
@@ -141,10 +136,11 @@ async function say({ client, sessionId }: InterviewerSession, text: string): Pro
 }
 
 /** Runs the turn's steps; a failure becomes the turn's last text. */
-function turnOf(steps: (actions: InterviewerActions) => Promise<void>) {
+function turnOf(steps: Steps) {
   return async (session: InterviewerSession) => {
     try {
       await steps({
+        sessionId: session.sessionId,
         call: async (name, input) => callTool(session, name, input),
         say: async (text) => say(session, text),
       });
@@ -156,16 +152,36 @@ function turnOf(steps: (actions: InterviewerActions) => Promise<void>) {
   };
 }
 
+type Steps = (actions: InterviewerActions) => Promise<void>;
+
+/** The steps for each template message, by its first sentence; each gets the whole message. */
+const turns: readonly (readonly [string, (text: string) => Steps])[] = [
+  ["The mock interview has started.", () => start],
+  [
+    "The Candidate answered the presented question.",
+    (text) => async (actions) => judge(actions, text, "Ответ получен."),
+  ],
+  [
+    "The Candidate answered your Follow-up.",
+    (text) => async (actions) => judge(actions, text, "Уточнение получено."),
+  ],
+  [
+    "The Candidate answered the presented quiz.",
+    (text) => async (actions) => noteAndGoOn(actions, `Квиз оценён: ${gradeIn(text)}.`),
+  ],
+  [
+    "The Candidate skipped the presented question",
+    () => async (actions) => noteAndGoOn(actions, "Вопрос пропущен."),
+  ],
+  [
+    "Five minutes of the time limit are left.",
+    () => async (actions) => actions.say("Осталось 5 минут: веду интервью к концу."),
+  ],
+  ["The Candidate finished the mock interview.", () => finish],
+];
+
 /** The interviewer's turn for a template message, or null for another prompt. */
 export function interviewerTurn(text: string) {
-  if (text.startsWith("The mock interview has started.")) {
-    return turnOf(start);
-  }
-  if (text.startsWith("The Candidate answered the presented question.")) {
-    return turnOf(async (actions) => judge(actions, text));
-  }
-  if (text.startsWith("The Candidate finished the mock interview.")) {
-    return turnOf(finish);
-  }
-  return null;
+  const found = turns.find(([sentence]) => text.startsWith(sentence));
+  return found === undefined ? null : turnOf(found[1](text));
 }

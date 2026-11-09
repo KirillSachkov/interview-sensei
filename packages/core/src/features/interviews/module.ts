@@ -15,7 +15,7 @@ export interface InterviewsModuleDependencies {
   /** The server's database, migrated with interviewsMigrations. */
   readonly database: Database;
   readonly clock: Clock;
-  /** Waits for `finish_interview` after «Завершить». */
+  /** Runs the reminder before the time limit, the end of the limit and the wait for `finish_interview`. */
   readonly timer: Timer;
   /** The Topics to work on first for the brief: the progress module. */
   readonly progress: InterviewProgress;

@@ -7,6 +7,8 @@ import type { InterviewView } from "@/shared/api";
 import { useInterviewEvents } from "../../model/use-interview-events";
 import { InterviewerChat } from "./interviewer-chat";
 import { QuestionCard } from "./question-card";
+import { SectionStrip } from "./section-strip";
+import { TimeLeft } from "./time-left";
 
 function Header({ view }: { view: InterviewView }) {
   const finish = useMutation({ mutationFn: async () => finishInterview(view.id) });
@@ -17,6 +19,8 @@ function Header({ view }: { view: InterviewView }) {
       <span className="muted" aria-live="polite">
         {finishing ? "Интервьюер подводит итог…" : "идёт"}
       </span>
+      {view.endsAt === null ? null : <TimeLeft endsAt={view.endsAt} />}
+      <SectionStrip view={view} />
       <button
         type="button"
         disabled={finishing || finish.isPending}
@@ -70,6 +74,7 @@ export function InterviewArea({
               {index === last ? chat : <div />}
               <QuestionCard
                 interviewId={view.id}
+                targetId={view.targetId}
                 card={card}
                 number={index + 1}
                 canAnswer={running && view.finishRequestedAt === null}

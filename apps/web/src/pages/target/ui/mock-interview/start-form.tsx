@@ -3,7 +3,9 @@ import { useState } from "react";
 import type { SubmitEvent } from "react";
 
 import { fetchPlanSections, startInterview } from "@/shared/api";
-import type { InterviewView, PlanSection } from "@/shared/api";
+import type { Difficulty, InterviewView, PlanSection } from "@/shared/api";
+
+import { useStartSettings } from "./start-settings";
 
 /** The Sections the Candidate checked; all enabled ones at first. */
 function useChosenSections(sections: readonly PlanSection[]) {
@@ -53,25 +55,31 @@ function SectionChoices({
   );
 }
 
-/** The dialog «Начать мок»: the Sections to train. */
+/** The dialog «Начать мок»: the Sections to train, the time limit and the difficulty. */
 function StartDialog({
   targetId,
   sections,
+  difficulty: lastDifficulty,
   onStarted,
   onCancel,
 }: {
   targetId: string;
   sections: readonly PlanSection[];
+  difficulty: Difficulty;
   onStarted: (interview: InterviewView) => void;
   onCancel: () => void;
 }) {
   const { chosen, toggle } = useChosenSections(sections);
+  const settings = useStartSettings(lastDifficulty);
   const start = useMutation({
     mutationFn: async () =>
-      startInterview(
-        targetId,
-        sections.filter((section) => chosen.has(section.id)).map((section) => section.id),
-      ),
+      startInterview(targetId, {
+        sectionIds: sections
+          .filter((section) => chosen.has(section.id))
+          .map((section) => section.id),
+        limitMinutes: settings.limitMinutes,
+        difficulty: settings.difficulty,
+      }),
     onSuccess: onStarted,
   });
   const submit = (event: SubmitEvent) => {
@@ -82,6 +90,7 @@ function StartDialog({
     <dialog open className="card start-dialog" aria-label="Начать мок">
       <form onSubmit={submit}>
         <SectionChoices sections={sections} chosen={chosen} onToggle={toggle} />
+        {settings.fields}
         <div className="dialog-actions">
           <button type="submit" className="primary" disabled={chosen.size === 0 || start.isPending}>
             Начать
@@ -126,12 +135,17 @@ function StartButton({
   );
 }
 
-/** «Начать мок» and its dialog; the button explains why it is off without enabled Sections. */
+/**
+ * «Начать мок» and its dialog; the button explains why it is off without enabled Sections. The
+ * dialog starts with the difficulty the Target keeps.
+ */
 export function StartMock({
   targetId,
+  difficulty,
   onStarted,
 }: {
   targetId: string;
+  difficulty: Difficulty;
   onStarted: (interview: InterviewView) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -156,6 +170,7 @@ export function StartMock({
         <StartDialog
           targetId={targetId}
           sections={plan}
+          difficulty={difficulty}
           onStarted={(interview) => {
             setOpen(false);
             onStarted(interview);

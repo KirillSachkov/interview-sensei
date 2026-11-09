@@ -1,4 +1,5 @@
 import type { GradeCorrection } from "./history.ts";
+import { candidateLevel } from "./candidates.ts";
 import type { MockInterview } from "./interview.ts";
 import type { TargetPlan } from "./ports.ts";
 
@@ -36,6 +37,7 @@ export function interviewBrief(interview: MockInterview, target: TargetPlan, pas
     mockInterview: {
       limitMinutes: interview.limitMinutes,
       difficulty: interview.difficulty,
+      questionLevel: candidateLevel(target.level, interview.difficulty),
       currentSectionId: interview.currentSectionId,
     },
     sections: selected.map((section) => ({

@@ -18,7 +18,7 @@ export interface InterviewsDependencies {
   readonly questions: InterviewQuestions;
   readonly sessions: InterviewSessions;
   readonly clock: Clock;
-  /** Waits for `finish_interview` after «Завершить». */
+  /** Runs the reminder before the time limit, the end of the limit and the wait for `finish_interview`. */
   readonly timer: Timer;
   /** The Topics to work on first, for the brief. */
   readonly progress: InterviewProgress;
@@ -42,14 +42,14 @@ export function createContext(dependencies: InterviewsDependencies): Context {
 }
 
 export async function viewOf(
-  { repository }: InterviewsDependencies,
+  { repository, clock }: InterviewsDependencies,
   interview: MockInterview,
 ): Promise<InterviewView> {
   const [asked, attempts] = await Promise.all([
     repository.asked(interview.id),
     repository.attempts(interview.id),
   ]);
-  return interviewView(interview, asked, attempts);
+  return interviewView(interview, { asked, attempts, now: clock.now().toISOString() });
 }
 
 /** Tells the listeners of the Mock interview its new view. */

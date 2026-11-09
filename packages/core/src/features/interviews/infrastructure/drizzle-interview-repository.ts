@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 
 import type { Database } from "../../../shared/storage/index.ts";
@@ -6,12 +6,14 @@ import type {
   AskedQuestion,
   Attempt,
   CandidateAnswer,
+  FollowUp,
   Grade,
   MockInterview,
+  PastQuestion,
 } from "../domain/interview.ts";
 import type { InterviewRepository } from "../domain/ports.ts";
 import { drizzleHistoryQueries } from "./drizzle-history-queries.ts";
-import { askedQuestions, attempts, interviews } from "./schema.ts";
+import { askedQuestions, attempts, disputes, interviews } from "./schema.ts";
 
 const iso = (date: Date | null) => date?.toISOString() ?? null;
 const date = (moment: string | undefined) => (moment === undefined ? undefined : new Date(moment));
@@ -104,7 +106,47 @@ function askedQueries(database: Database) {
         .set({ answer })
         .where(eq(askedQuestions.id, askedQuestionId));
     },
+    followUps: async (askedQuestionId: string, followUps: readonly FollowUp[]) => {
+      await database
+        .update(askedQuestions)
+        .set({ followUps })
+        .where(eq(askedQuestions.id, askedQuestionId));
+    },
   } satisfies Partial<InterviewRepository>;
+}
+
+/** The Grade that applies to the Attempt: its latest Dispute's, or the recorded one. */
+const correctedGrade = sql<number | null>`coalesce((
+  select ${disputes.grade} from ${disputes} where ${disputes.attemptId} = ${attempts.id}
+  order by ${disputes.disputedAt} desc, ${disputes.sequence} desc limit 1
+), ${attempts.grade})`;
+
+/** Every Question asked in a Target's Mock interviews, with the corrected Grade of its Attempt. */
+async function history(database: Database, targetId: string): Promise<readonly PastQuestion[]> {
+  const rows = await database
+    .select({
+      interviewId: askedQuestions.interviewId,
+      questionId: askedQuestions.questionId,
+      topicId: askedQuestions.topicId,
+      presentedAt: askedQuestions.presentedAt,
+      grade: correctedGrade,
+    })
+    .from(askedQuestions)
+    .innerJoin(interviews, eq(askedQuestions.interviewId, interviews.id))
+    .leftJoin(attempts, eq(attempts.askedQuestionId, askedQuestions.id))
+    .where(eq(interviews.targetId, targetId))
+    .orderBy(
+      asc(askedQuestions.presentedAt),
+      asc(interviews.startedAt),
+      asc(askedQuestions.position),
+    );
+  return rows.map(({ interviewId, questionId, topicId, presentedAt, grade }) => ({
+    interviewId,
+    questionId,
+    topicId,
+    presentedAt: presentedAt.toISOString(),
+    grade: grade === null ? null : toGrade(grade),
+  }));
 }
 
 /** The Attempts; one per asked question. */
@@ -146,6 +188,7 @@ export function drizzleInterviewRepository(database: Database): InterviewReposit
     },
     ...askedQueries(database),
     ...attemptQueries(database),
+    history: async (targetId) => history(database, targetId),
     ...drizzleHistoryQueries(database),
   };
 }

@@ -3,6 +3,7 @@ import type { WebSocket } from "ws";
 
 import { SessionsClosedError } from "./composition.ts";
 import type { Features, InterviewView, StartRequest } from "./composition.ts";
+import { onlyField, replyOf, startRequestOf } from "./interview-requests.ts";
 
 type Dependencies = Pick<Features, "interviews" | "targets">;
 
@@ -13,23 +14,6 @@ const attemptParams = {
   properties: { id: uuid, attemptId: uuid },
   required: ["id", "attemptId"],
 } as const;
-
-const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
-
-/** The body's only field; body checks keep JSON types strict, without Fastify's coercion. */
-function onlyField(body: unknown, key: string): unknown {
-  return typeof body === "object" && body !== null && Object.keys(body).length === 1 && key in body
-    ? Reflect.get(body, key)
-    : undefined;
-}
-
-function sectionIdsOf(body: unknown): string[] | undefined {
-  const sectionIds = onlyField(body, "sectionIds");
-  return Array.isArray(sectionIds) &&
-    sectionIds.every((id: unknown) => typeof id === "string" && uuidPattern.test(id))
-    ? sectionIds.filter((id: unknown) => typeof id === "string")
-    : undefined;
-}
 
 const otherAgentHint = "Или выберите другого агента в меню «Агент» в верхней панели.";
 
@@ -95,11 +79,11 @@ function registerStart(server: FastifyInstance, { interviews }: Dependencies) {
     "/api/targets/:id/interviews",
     { schema: { params } },
     async (request, reply) => {
-      const sectionIds = sectionIdsOf(request.body);
-      if (sectionIds === undefined) {
+      const start = startRequestOf(request.params.id, request.body);
+      if (start === undefined) {
         return reply.code(400).send({ error: "invalid_request" });
       }
-      const outcome = await startOrClosing(interviews, { targetId: request.params.id, sectionIds });
+      const outcome = await startOrClosing(interviews, start);
       return outcome.type === "started"
         ? reply.code(201).send(outcome.interview)
         : refuseStart(reply, outcome);
@@ -112,24 +96,69 @@ const answerRefusals = {
   no_question: "Интервьюер ещё не показал вопрос.",
   already_answered: "Ответ на этот вопрос уже записан.",
   not_open: "Этот вопрос — квиз: ответ на него — выбор вариантов.",
+  not_quiz: "На этот вопрос отвечают текстом.",
 } as const;
 
-function registerCandidateActions(server: FastifyInstance, { interviews }: Dependencies) {
+const followUpRefusals = {
+  not_running: answerRefusals.not_running,
+  no_follow_up: "Интервьюер не задал уточняющий вопрос.",
+} as const;
+
+const invalidOptions = {
+  error: "invalid_options",
+  message: "Выберите один или несколько вариантов ответа.",
+} as const;
+
+/** The reply to an answer the Mock interview did not take. */
+function refuseAnswer(
+  reply: FastifyReply,
+  outcome: Exclude<Awaited<ReturnType<Features["interviews"]["answer"]>>, "accepted">,
+) {
+  if (outcome === "not_found") {
+    return reply.code(404).send({ error: "interview_not_found" });
+  }
+  return outcome === "invalid_options"
+    ? reply.code(400).send(invalidOptions)
+    : reply.code(409).send({ error: outcome, message: answerRefusals[outcome] });
+}
+
+/** `POST /api/interviews/:id/answer`: the Candidate's answer to the presented question. */
+function registerAnswer(server: FastifyInstance, { interviews }: Dependencies) {
   server.post<{ Params: { id: string }; Body: unknown }>(
     "/api/interviews/:id/answer",
+    { schema: { params } },
+    async (request, reply) => {
+      const answer = replyOf(request.body);
+      if (answer === undefined || answer === "empty_answer") {
+        return reply.code(400).send({ error: "empty_answer", message: "Напишите ответ." });
+      }
+      if (answer === "invalid_options") {
+        return reply.code(400).send(invalidOptions);
+      }
+      const outcome = await interviews.answer(request.params.id, answer);
+      return outcome === "accepted" ? reply.code(204).send() : refuseAnswer(reply, outcome);
+    },
+  );
+}
+
+function registerCandidateActions(server: FastifyInstance, dependencies: Dependencies) {
+  const { interviews } = dependencies;
+  registerAnswer(server, dependencies);
+  server.post<{ Params: { id: string }; Body: unknown }>(
+    "/api/interviews/:id/follow-up",
     { schema: { params } },
     async (request, reply) => {
       const text = onlyField(request.body, "text");
       if (typeof text !== "string" || text.trim() === "") {
         return reply.code(400).send({ error: "empty_answer", message: "Напишите ответ." });
       }
-      const outcome = await interviews.answer(request.params.id, { text });
+      const outcome = await interviews.answerFollowUp(request.params.id, { text });
       if (outcome === "accepted") {
         return reply.code(204).send();
       }
       return outcome === "not_found"
         ? reply.code(404).send({ error: "interview_not_found" })
-        : reply.code(409).send({ error: outcome, message: answerRefusals[outcome] });
+        : reply.code(409).send({ error: outcome, message: followUpRefusals[outcome] });
     },
   );
   server.post<{ Params: { id: string } }>(
@@ -199,13 +228,16 @@ function registerReads(server: FastifyInstance, dependencies: Dependencies) {
 /**
  * The HTTP and WebSocket API of Mock interviews. The interviewer chat goes through the AgentSession
  * of the Mock interview, `sessionId` of its view, on `/api/sessions/:id/events`.
- * - `POST /api/targets/:id/interviews` `{ sectionIds }`: starts a Mock interview with the Target's
- *   agent. 400 `invalid_sections` or `agent_unavailable`, 409 `interview_running`, 503
+ * - `POST /api/targets/:id/interviews` `{ sectionIds, limitMinutes?, difficulty? }`: starts a Mock
+ *   interview with the Target's agent; the limit is null, 30 or 60, the difficulty `easier`,
+ *   `as_is` or `harder`, by default the one of the Target's last Mock interview. 400 `invalid_sections` or `agent_unavailable`, 409 `interview_running`, 503
  *   `server_closing`, each with a Russian `message`.
  * - `GET /api/targets/:id/interviews`: the Target's five newest Mock interviews, the newest first.
  * - `GET /api/interviews/:id`: the view. It never holds a Grade.
- * - `POST /api/interviews/:id/answer` `{ text }`: the Candidate's answer to the presented question;
- *   204, or 409 with the reason and a Russian `message`.
+ * - `POST /api/interviews/:id/answer` `{ text }`, `{ optionIds }` or `{ skipped: true }` for
+ *   «Не знаю»: the Candidate's answer to the presented question; 204, or 400 or 409 with the reason
+ *   and a Russian `message`.
+ * - `POST /api/interviews/:id/follow-up` `{ text }`: the answer to the agent's last Follow-up.
  * - `POST /api/interviews/:id/finish`: «Завершить»; 202, then the agent writes its summary.
  * - `GET /api/interviews/:id/attempts/:attemptId`: the Debrief of an Attempt with its Grade.
  * - WebSocket `/api/interviews/:id/events`: `{ type: "interview", interview }` at once and after

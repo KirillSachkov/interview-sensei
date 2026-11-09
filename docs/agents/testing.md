@@ -68,12 +68,19 @@ Right after that it sends «Подсказка до ответа: …» in the s
 On «The Candidate answered the presented question.» it replies «Ответ получен.» and calls `record_attempt`.
 The Grade comes from the marker `[grade:N]` in the Candidate's answer, 2 without one; then it shows the next question.
 The marker `[twice]` makes it call `record_attempt` once more and reply «Повторная запись: <tool result>».
+Markers in the Candidate's answer steer it: `[followup]` makes it call `ask_follow_up` instead of `record_attempt`, and a refused Follow-up gives «Follow-up отклонён: <tool result>», then the Attempt.
+`[quiz]` makes the next question the first quiz candidate, and `[deeper]` makes it a Deeper question in the same Topic with the recorded Attempt as its parent.
+`[new]` makes it show a made-up question in the last Topic, and `[section]` calls `set_current_section` with the brief's next Section first.
+On «The Candidate answered your Follow-up.» it replies «Уточнение получено.» and reads the same markers in that answer.
+On a quiz result it replies «Квиз оценён: N.», on «Не знаю» «Вопрос пропущен.», then it shows the next question without `record_attempt`.
+On «Five minutes of the time limit are left.» it replies «Осталось 5 минут: веду интервью к концу.».
 On «The Candidate finished the mock interview.» it calls `finish_interview` and replies «Итог записан.».
 A failed step ends the turn with «Фейковый интервьюер сломался: <error>».
 Other prompts in a mock interview's chat, such as `/system` or `/tools`, get the replies above.
 `interview-test-support.ts` in the server starts a mock interview on the demo Target and follows its socket and its chat.
-`time-test-support.ts` gives a Clock and a Timer that a test moves by hand; `startServer` takes them as `clock` and `timer`.
-A test runs the 2-minute wait for `finish_interview` with the Timer; `/wait` in the interviewer chat keeps the message that the Candidate finished from the agent.
+`interview-flow-test-support.ts` adds `manualTime()`: a clock the test moves and a `Timer` whose tasks run only when the test fires them by delay, such as the reminder 25 minutes into a 30-minute limit.
+`startServer` takes this clock and timer as options.
+A test runs the 2-minute wait for `finish_interview` with that timer; `/wait` in the interviewer chat keeps the message that the Candidate finished from the agent.
 `/crash` in the interviewer chat makes the mock interview «прерван».
 
 ## Ports

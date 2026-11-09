@@ -10,7 +10,8 @@ export interface TopicAttempt {
   readonly interviewId: string;
   readonly grade: 0 | 1 | 2 | 3;
   readonly hinted: boolean;
-  readonly gradedBy: "agent" | "quiz";
+  /** `skip`: the Candidate pressed «Не знаю». */
+  readonly gradedBy: "agent" | "quiz" | "skip";
   /** The Attempt answers a Deeper question. */
   readonly deeper: boolean;
   /** ISO 8601. */
