@@ -4,17 +4,22 @@ import { once } from "node:events";
 
 import { onTestFinished } from "vitest";
 
-/**
- * Runs `node <script> <args>` with the extra environment variables and collects its output. The
- * process is killed when the test finishes, unless it has exited.
- */
-export function startProcess(
-  script: string,
-  { args = [], env }: { args?: readonly string[]; env: NodeJS.ProcessEnv },
+/** The test's environment with the extra variables; an undefined variable is removed. */
+function childEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  return Object.fromEntries(
+    Object.entries({ ...process.env, ...env }).filter(([, value]) => value !== undefined),
+  );
+}
+
+/** Spawns the command and kills it when the test finishes, unless it has exited. */
+function spawnUntilTestEnds(
+  command: string,
+  { args = [], env, cwd }: { args?: readonly string[]; env: NodeJS.ProcessEnv; cwd?: string },
 ) {
-  const child = spawn(process.execPath, [script, ...args], {
-    env: { ...process.env, ...env },
+  const child = spawn(command, args, {
+    env: childEnvironment(env),
     stdio: ["ignore", "pipe", "pipe"],
+    ...(cwd === undefined ? {} : { cwd }),
   });
   const exited = once(child, "exit");
   onTestFinished(async () => {
@@ -23,6 +28,19 @@ export function startProcess(
       await exited;
     }
   });
+  return { child, exited };
+}
+
+/**
+ * Runs the command with the extra environment variables and collects its output. An undefined
+ * variable is removed from the environment. The process is killed when the test finishes,
+ * unless it has exited.
+ */
+export function startCommand(
+  command: string,
+  options: { args?: readonly string[]; env: NodeJS.ProcessEnv; cwd?: string },
+) {
+  const { child, exited } = spawnUntilTestEnds(command, options);
   let stdout = "";
   let stderr = "";
   child.stdout.on("data", (chunk: Buffer) => {
@@ -57,4 +75,12 @@ export function startProcess(
       return { code: child.exitCode, stdout, stderr };
     },
   };
+}
+
+/** Runs `node <script> <args>`; see startCommand. */
+export function startProcess(
+  script: string,
+  { args = [], env }: { args?: readonly string[]; env: NodeJS.ProcessEnv },
+) {
+  return startCommand(process.execPath, { args: [script, ...args], env });
 }

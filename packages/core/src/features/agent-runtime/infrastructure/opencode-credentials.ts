@@ -2,7 +2,6 @@
 // beside the database: a plain read-only SQLite open would create `-shm` and `-wal` files there.
 import { stat } from "node:fs/promises";
 import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
 import { pathToFileURL } from "node:url";
 
 import type { OpencodeCredentialRow } from "../domain/opencode-credentials.ts";
@@ -37,7 +36,10 @@ function reason(error: unknown): string {
 }
 
 /** The rows of the `credential` table; throws when SQLite cannot read them. */
-function credentialRows(database: string): OpencodeCredentialRow[] {
+async function credentialRows(database: string): Promise<OpencodeCredentialRow[]> {
+  // Loaded only here: Node 22 warns that node:sqlite is experimental as soon as it loads, and the
+  // warning would show on every start of the `interview-sensei` command.
+  const { DatabaseSync } = await import("node:sqlite");
   const url = pathToFileURL(database);
   // `immutable` takes no lock and reads only the database file, so it leaves no -shm or -wal.
   url.searchParams.set("immutable", "1");
@@ -79,7 +81,7 @@ export async function readOpencodeCredentials(
     return [];
   }
   try {
-    return credentialRows(database);
+    return await credentialRows(database);
   } catch (error) {
     onWarning(
       `OpenCode 2.x provider keys are unavailable: cannot read ${database} (${reason(error)})`,

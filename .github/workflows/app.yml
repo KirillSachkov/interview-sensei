@@ -50,3 +50,23 @@ jobs:
             e2e/playwright-report/
             e2e/test-results/
           if-no-files-found: ignore
+
+  # The npm package as the Candidate installs it, on the oldest Node it supports, the newest Node 22
+  # and the Node of the repository. npm downloads the dependencies of the packed file.
+  app-package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["22.15.0", "22", "24"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      # The build needs the repository's Node 24; the package test then runs on the matrix Node.
+      - run: pnpm build
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+      - run: node --version && npx --no-install vitest run --project package
+        working-directory: apps/server

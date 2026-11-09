@@ -20,6 +20,10 @@
         "@agentclientprotocol/codex-acp",
       ],
     },
+    "apps/server": {
+      // `pnpm build` runs the package build as a program.
+      "entry": ["scripts/*.ts"],
+    },
     "apps/web": {
       // Steiger has no knip plugin; `pnpm boundaries` loads this config.
       "entry": ["steiger.config.ts"],

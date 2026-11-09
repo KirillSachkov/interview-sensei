@@ -1,0 +1,44 @@
+# Publishes the npm package `interview-sensei` when a tag `v<version>` reaches GitHub. The tag must
+# match the version in apps/server/package.json. npm authenticates the job by trusted publishing
+# (OIDC) and attaches provenance; the repository keeps no npm token. The owner decides each release:
+# only the owner pushes a release tag.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Repository settings can require the owner's approval for this environment.
+    environment: npm
+    permissions:
+      contents: read
+      # The OIDC token for trusted publishing and provenance.
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - name: Check that the tag matches the package version
+        run: |
+          version="$(node -p "require('./apps/server/package.json').version")"
+          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "The tag ${GITHUB_REF_NAME} does not match the version ${version} in apps/server/package.json." >&2
+            exit 1
+          fi
+      - run: pnpm check
+      - run: pnpm test
+      # Builds the web app and the package, then installs the packed file and starts it.
+      - run: pnpm test:package
+      # Trusted publishing needs npm 11.5.1 or newer; Node 24 brings it.
+      - run: npm publish --provenance --access public
+        working-directory: apps/server/dist/package
