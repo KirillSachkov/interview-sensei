@@ -106,6 +106,7 @@ The server reads the texts and starts the agent in the background, so the tests 
 After a turn without the Inbox report the server waits 2 minutes on its `Timer`, then closes the processing: the default timer of `startServer` never runs it, so `/tool` keeps driving a `[manual]` agent, and a test of that close passes `manualTime()` and fires the wait.
 A test of a restart stops the server and starts another one on the same data directory, as the Mock interview tests do.
 The fake agent streams a reply word by word, so a test of a long text uses words without spaces.
+
 The fake agent has a side thread mode for Side threads (`fake-agent-side-thread.ts`).
 On «The Candidate opened a side thread from a mock interview.» it calls `get_brief` and replies «Разбираю вопрос кандидата: «<candidateQuestion>»».
 A failed step there ends the turn with «Фейковый агент ветки сломался: <error>».

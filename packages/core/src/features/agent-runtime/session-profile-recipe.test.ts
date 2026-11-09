@@ -225,6 +225,13 @@ describe("web without permission requests in the launch recipe", () => {
       '"permissions":[{"action":"shell","resource":"*","effect":"deny"},{"action":"webfetch","resource":"*","effect":"allow"},{"action":"websearch","resource":"*","effect":"allow"}]',
     );
   });
+
+  it("keeps the Side thread's web behind the Candidate's answer: it has a chat", () => {
+    const { role, shell, web, askCandidate } = sessionProfiles["side-thread"];
+    const profile = { ...lockedProfile, role, shell, web, askCandidate };
+    expect(claudeMeta(profile)).toContain('"allowedTools":[]');
+    expect(permissions(profile)).toContain(`"permissions":[${deny("shell")}]`);
+  });
 });
 
 /** The mock interview's profile as the runtime passes it to a recipe, with a made-up skill text. */
