@@ -7,6 +7,7 @@ import { mcpGatewayModule } from "@interview-sensei/core/mcp-gateway";
 import type { Storage, StorageOptions } from "@interview-sensei/core/storage";
 
 export type { AgentRuntime, UserEnvironment } from "@interview-sensei/core/agent-runtime";
+export { opencodeLoginModule } from "@interview-sensei/core/agent-runtime";
 export {
   agentSessionsMigrations,
   SessionsClosedError,

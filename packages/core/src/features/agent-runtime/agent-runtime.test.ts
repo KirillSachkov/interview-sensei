@@ -4,8 +4,13 @@ import { describe, expect, it } from "vitest";
 
 import { sessionProfiles } from "../../shared/session-kinds/index.ts";
 import { createAgentRuntime } from "./application/agent-runtime.ts";
-import type { AgentHost } from "./domain/agent.ts";
-import type { LaunchRecipe, SkillSource } from "./domain/launch-recipe.ts";
+import {
+  candidateAnswer,
+  host,
+  ourServer,
+  runtimeOffering,
+  skillReader,
+} from "./agent-runtime-test-support.ts";
 import type {
   AgentUpdate,
   PermissionAnswer,
@@ -13,14 +18,11 @@ import type {
   SessionRequest,
 } from "./domain/ports.ts";
 
-const ourServer = "interview-sensei-1a2b3c4d";
-
 const options: PermissionOption[] = [
   { optionId: "allow-once", name: "Разрешить", kind: "allow_once" },
   { optionId: "reject-once", name: "Отклонить", kind: "reject_once" },
 ];
 
-const candidateAnswer: PermissionAnswer = { outcome: "selected", optionId: "reject-once" };
 const automaticAllow: PermissionAnswer = { outcome: "selected", optionId: "allow-once" };
 
 /** Our MCP tool call as the fake agent announces it. */
@@ -33,30 +35,6 @@ const ourToolCall: AgentUpdate = {
   _meta: { fakeAgent: { mcpServer: ourServer } },
 };
 
-/** A machine with every agent installed and no Codex login. */
-const host: AgentHost = {
-  nodeExecutable: "node",
-  fakeAgentScript: "fake-agent.ts",
-  claudeAdapter: "claude-agent-acp.js",
-  codexAdapter: "codex-acp.js",
-  opencodeBinary: null,
-  opencodeVersion: null,
-  codexAuth: { path: "/home/candidate/.codex/auth.json", exists: false },
-  opencodeAuth: { path: "/home/candidate/.local/share/opencode/auth.json", exists: false },
-  opencodeDatabase: null,
-  opencodeModel: {},
-};
-
-/** A skill reader that makes up the skill's one file and keeps the names it was asked for. */
-function skillReader() {
-  const read: string[] = [];
-  const readSkill = (name: string): Promise<SkillSource> => {
-    read.push(name);
-    return Promise.resolve({ name, files: [{ path: "SKILL.md", content: `# ${name}\n` }] });
-  };
-  return { read, readSkill };
-}
-
 /** Starts the fake agent through an in-memory launcher and returns the agent's side of ACP. */
 async function startAgent() {
   const launched = Promise.withResolvers<SessionRequest>();
@@ -65,6 +43,7 @@ async function startAgent() {
     agents: ["fake"],
     inspectHost: () => Promise.resolve(host),
     readOpencodeCredentials: () => Promise.resolve([]),
+    onWarning: () => {},
     dataDirectory: "/home/candidate/.interview-sensei",
     readSkill: skillReader().readSkill,
     launch: (_recipe, session) => {
@@ -138,62 +117,6 @@ describe("agent runtime permission gate", () => {
   });
 });
 
-/** A runtime offering the agents; `recipes` collects what it hands the launcher. */
-function runtimeOffering(
-  agents: Parameters<typeof createAgentRuntime>[0]["agents"],
-  machine: AgentHost = host,
-) {
-  const recipes: LaunchRecipe[] = [];
-  const { read, readSkill } = skillReader();
-  /** The databases the runtime read the OpenCode 2.x credentials from. */
-  const databases: string[] = [];
-  const runtime = createAgentRuntime({
-    agents,
-    inspectHost: () => Promise.resolve(machine),
-    readOpencodeCredentials: (database) => {
-      databases.push(database);
-      return Promise.resolve([
-        {
-          id: "cred_1",
-          integration: "deepseek",
-          value: '{"type":"key","key":"sk-deepseek"}',
-          active: null,
-          created: 1,
-        },
-        {
-          id: "cred_2",
-          integration: "minimax",
-          value: '{"type":"key","key":"sk-minimax"}',
-          active: null,
-          created: 1,
-        },
-      ]);
-    },
-    dataDirectory: "/home/candidate/.interview-sensei",
-    readSkill,
-    launch: (recipe) => {
-      recipes.push(recipe);
-      return Promise.resolve({
-        acpSessionId: "acp-1",
-        prompt: () => Promise.resolve({ type: "ended", stopReason: "end_turn" }),
-        cancel: async () => {},
-        stop: async () => {},
-      });
-    },
-  });
-  const start = async (agent: string) =>
-    runtime.start({
-      agent,
-      kind: "service-chat",
-      workingDirectory: "/home/candidate/.interview-sensei/sessions/1",
-      mcpServer: { name: ourServer, url: "http://127.0.0.1:1/mcp" },
-      onUpdate: () => {},
-      onExit: () => {},
-      onPermission: () => Promise.resolve(candidateAnswer),
-    });
-  return { runtime, start, recipes, read, databases };
-}
-
 describe("agent runtime start", () => {
   it("lists the offered agents with the reason of each unavailable one", async () => {
     const { runtime } = runtimeOffering(["claude", "codex", "opencode"]);
@@ -255,45 +178,5 @@ describe("agent runtime start", () => {
       }),
     ).rejects.toThrow(/no profile/u);
     expect(recipes).toStrictEqual([]);
-  });
-});
-
-describe("agent runtime with the Candidate's OpenCode 2.x keys", () => {
-  const database = "/home/candidate/.local/share/opencode/opencode.db";
-  const opencode: AgentHost = {
-    ...host,
-    opencodeBinary: "/opt/homebrew/bin/opencode",
-    opencodeVersion: "opencode v2.2.6",
-    opencodeDatabase: database,
-    opencodeModel: { model: "deepseek/deepseek-flash" },
-  };
-
-  it("never reads the OpenCode database to list the agents", async () => {
-    const { runtime, databases } = runtimeOffering(["opencode"], opencode);
-
-    await runtime.listAgents();
-
-    expect(databases).toStrictEqual([]);
-  });
-
-  it("reads it at the start of an OpenCode 2.x session and passes the keys of its models only", async () => {
-    const { start, recipes, databases } = runtimeOffering(["opencode"], opencode);
-
-    await start("opencode");
-
-    expect(databases).toStrictEqual([database]);
-    expect(recipes[0]?.env).toMatchObject({ INTERVIEW_SENSEI_OPENCODE_KEY_1: "sk-deepseek" });
-    expect(JSON.stringify(recipes[0]?.env)).not.toContain("sk-minimax");
-  });
-
-  it("never reads it for OpenCode 1.x, which reads the linked auth.json", async () => {
-    const { start, databases } = runtimeOffering(["opencode"], {
-      ...opencode,
-      opencodeVersion: "1.18.30",
-    });
-
-    await start("opencode");
-
-    expect(databases).toStrictEqual([]);
   });
 });

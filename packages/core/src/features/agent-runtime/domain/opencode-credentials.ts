@@ -20,20 +20,24 @@ export interface OpencodeKey {
   readonly key: string;
 }
 
-/** The API key of the credential JSON, or null for another kind or a broken value. */
-function apiKey(value: string): string | null {
+/** What the session can use of a credential: an API key, an OAuth login or neither. */
+type CredentialLogin = { readonly type: "key"; readonly key: string } | { readonly type: "oauth" };
+
+/** The login of the credential JSON, or null for another kind or a broken value. */
+function credentialLogin(value: string): CredentialLogin | null {
   try {
     const parsed: unknown = JSON.parse(value);
-    if (
-      typeof parsed !== "object" ||
-      parsed === null ||
-      !("type" in parsed) ||
-      !("key" in parsed)
-    ) {
+    if (typeof parsed !== "object" || parsed === null || !("type" in parsed)) {
       return null;
     }
-    return parsed.type === "key" && typeof parsed.key === "string" && parsed.key !== ""
-      ? parsed.key
+    if (parsed.type === "oauth") {
+      return { type: "oauth" };
+    }
+    return parsed.type === "key" &&
+      "key" in parsed &&
+      typeof parsed.key === "string" &&
+      parsed.key !== ""
+      ? { type: "key", key: parsed.key }
       : null;
   } catch {
     return null;
@@ -74,6 +78,21 @@ function sessionProviders({ model, small_model }: OpencodeModelSettings): Set<st
   );
 }
 
+/** The credential OpenCode would use for each provider the session uses. */
+function chosenCredentials(
+  rows: readonly OpencodeCredentialRow[],
+  model: OpencodeModelSettings,
+): Map<string, OpencodeCredentialRow> {
+  const used = sessionProviders(model);
+  const chosen = new Map<string, OpencodeCredentialRow>();
+  for (const row of rows.toSorted(compareCredentials)) {
+    if (row.integration !== null && (used === null || used.has(row.integration))) {
+      chosen.set(row.integration, row);
+    }
+  }
+  return chosen;
+}
+
 /**
  * The API key of each provider the session uses, for the credential OpenCode would use: the
  * active one, otherwise the newest. Without a chosen model every provider gets its key. A
@@ -84,15 +103,25 @@ export function opencodeKeys(
   rows: readonly OpencodeCredentialRow[],
   model: OpencodeModelSettings,
 ): OpencodeKey[] {
-  const used = sessionProviders(model);
-  const chosen = new Map<string, OpencodeCredentialRow>();
-  for (const row of rows.toSorted(compareCredentials)) {
-    if (row.integration !== null && (used === null || used.has(row.integration))) {
-      chosen.set(row.integration, row);
-    }
-  }
-  return [...chosen].flatMap(([provider, row]) => {
-    const key = apiKey(row.value);
-    return key === null ? [] : [{ provider, key }];
+  return [...chosenCredentials(rows, model)].flatMap(([provider, row]) => {
+    const login = credentialLogin(row.value);
+    return login?.type === "key" ? [{ provider, key: login.key }] : [];
   });
+}
+
+/**
+ * The providers the session uses whose credential OpenCode would use is a subscription (OAuth)
+ * login and that the application's own OpenCode has no login for. The session gets no key from a
+ * subscription login (#69); it needs the application's own login, `interview-sensei login
+ * opencode`, or an API key.
+ */
+export function opencodeLoginsToRepeat(
+  rows: readonly OpencodeCredentialRow[],
+  ownRows: readonly OpencodeCredentialRow[],
+  model: OpencodeModelSettings,
+): string[] {
+  const own = new Set(ownRows.map((row) => row.integration));
+  return [...chosenCredentials(rows, model)].flatMap(([provider, row]) =>
+    credentialLogin(row.value)?.type === "oauth" && !own.has(provider) ? [provider] : [],
+  );
 }

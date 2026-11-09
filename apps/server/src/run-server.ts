@@ -36,6 +36,18 @@ interface RunOptions {
   dataDirectory?: string;
 }
 
+/**
+ * The data directory of the command: the one the Candidate named, resolved against the working
+ * directory, or INTERVIEW_SENSEI_DATA_DIR or `~/.interview-sensei`.
+ */
+export function chosenDataDirectory(named: string | undefined): string {
+  return resolveDataDirectory({
+    env: named === undefined ? process.env : { [dataDirectoryVariable]: named },
+    home: homedir(),
+    workingDirectory: process.cwd(),
+  });
+}
+
 function isPortInUse(error: unknown): boolean {
   return error instanceof Error && "code" in error && error.code === "EADDRINUSE";
 }
@@ -118,11 +130,7 @@ async function start({
   const server = await buildServer({
     clock: systemClock,
     timer: systemTimer,
-    dataDirectory: resolveDataDirectory({
-      env: dataDirectory === undefined ? process.env : { [dataDirectoryVariable]: dataDirectory },
-      home: homedir(),
-      workingDirectory: process.cwd(),
-    }),
+    dataDirectory: chosenDataDirectory(dataDirectory),
     logLevel,
     // Tests and manual checks without a subscription; the Candidate's agents need no variable.
     fakeAgent: process.env.INTERVIEW_SENSEI_FAKE_AGENT === "1",
