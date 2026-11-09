@@ -198,6 +198,7 @@ OpenCode keeps the login in its database there, and every session shares that da
 Sessions refresh it one at a time: OpenCode locks the refresh in `$XDG_STATE_HOME/opencode/locks`, which they share too.
 2.x gets its own data home, `agents/opencode/data-2`, without the link to `auth.json`; 1.x keeps `data` and the link.
 Otherwise 2.x, migrating a database that 1.x left in `data`, would import the Candidate's `auth.json`, refresh token and all.
+A 2.x database that earlier sessions left in `data` stays as it is, which the owner chose in #69: no session refreshes a token in it any more.
 The command refuses OpenCode 1.x: 1.x would write the login through the link to the Candidate's `auth.json`.
 At the start of a 2.x session the server also reads the credentials of that database, in the same way.
 `opencodeLoginsToRepeat` names the session's providers with a subscription login of the Candidate and no login of the application; the runtime warns of each in the server log.
