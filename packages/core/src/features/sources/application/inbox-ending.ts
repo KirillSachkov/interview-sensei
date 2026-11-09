@@ -7,6 +7,7 @@ import { randomUUID } from "node:crypto";
 import type { Transaction } from "../../../shared/storage/index.ts";
 import { partialReport } from "../domain/inbox.ts";
 import type { InboxReport, InboxRun, RunEnding } from "../domain/inbox.ts";
+import { watchSession } from "./agent-watch.ts";
 import { inBackground } from "./inbox-context.ts";
 import type { InboxContext } from "./inbox-context.ts";
 
@@ -90,56 +91,20 @@ export async function stop(context: InboxContext, targetId: string): Promise<Sto
 }
 
 /**
- * How long the server waits after the agent's turn ends without the report. A test's API drives a
- * `[manual]` fake agent with further prompts in this time; a real agent gets no prompt after the
- * opening one, as the processing has no chat.
- */
-const idleWaitMs = 2 * 60 * 1000;
-
-const noWait = () => {};
-
-/**
  * Closes the run with a partial report once its agent fails: its process exited or did not start.
- * When the agent's turn ends without the report and the agent stays idle for `idleWaitMs`, it closes
- * the run the same way and ends the session. The agent's report finishes the run first, so a close
- * after it finds no running run and does nothing.
+ * When the agent's turn ends without the report and the agent stays idle, it closes the run the
+ * same way after the wait of `watchSession` and ends the session. The agent's report finishes the
+ * run first, so a close after it finds no running run and does nothing.
  */
 export function watchAgent(context: InboxContext, run: InboxRun, sessionId: string): void {
-  const { sessions, timer } = context.dependencies;
-  let cancelWait = noWait;
-  const close = (reason: RunEnding) => {
+  const { sessions } = context.dependencies;
+  watchSession(context.dependencies, sessionId, (ending) => {
     inBackground(context, async () => {
-      const report = await closeRun(context, run, reason);
-      if (report !== null && reason === "agent_finished") {
+      const report = await closeRun(context, run, ending);
+      if (report !== null && ending === "agent_finished") {
         await sessions.end(sessionId);
       }
     });
-  };
-  const waitWhileIdle = () => {
-    cancelWait();
-    cancelWait = timer.after(idleWaitMs, () => {
-      unsubscribe();
-      close("agent_finished");
-    });
-  };
-  const unsubscribe = sessions.subscribe(sessionId, (view) => {
-    if (view.status === "failed") {
-      cancelWait();
-      unsubscribe();
-      close("agent_failed");
-    } else if (view.status === "idle") {
-      waitWhileIdle();
-    } else {
-      cancelWait();
-    }
-  });
-  // The agent may have failed before the subscription.
-  inBackground(context, async () => {
-    const view = await sessions.view(sessionId);
-    if (view?.status === "failed") {
-      cancelWait();
-      close("agent_failed");
-    }
   });
 }
 
