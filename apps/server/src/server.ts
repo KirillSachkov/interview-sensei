@@ -8,6 +8,7 @@ import { composeFeatures, mcpRoute } from "./composition.ts";
 import type { FeatureDependencies, Features, UserEnvironment } from "./composition.ts";
 import { prepare } from "./lifecycle.ts";
 import { loopbackOrigin, registerMcpRoute } from "./mcp.ts";
+import { registerSourceRoutes } from "./source-routes.ts";
 import { registerTargetRoutes } from "./target-routes.ts";
 import { registerTargetSetupRoutes } from "./target-setup-routes.ts";
 import { registerWebApp } from "./web-app.ts";
@@ -55,6 +56,7 @@ function registerApi(server: FastifyInstance, features: Features) {
   server.get("/api/health", features.health);
   registerTargetRoutes(server, features);
   registerTargetSetupRoutes(server, features);
+  registerSourceRoutes(server, features);
   registerAgentSessionRoutes(server, {
     runtime: features.runtime,
     sessions: features.sessions,
