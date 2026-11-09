@@ -98,3 +98,44 @@ export async function questionsOf(
   const response = await api(server).get(`/api/targets/${id}/questions${query}`);
   return response.json<Questions>();
 }
+
+export const setupPlan = {
+  sections: [
+    { name: "Опыт", kind: "conversation", topics: [] },
+    {
+      name: "Go",
+      kind: "topics",
+      gradingCriteria: "Модель памяти",
+      topics: ["Горутины", "Каналы"],
+    },
+    { name: "Проектирование", kind: "design", topics: ["Kafka"] },
+  ],
+};
+
+export const setupQuestions = [
+  { topic: "Горутины", text: "Что такое горутина?" },
+  { topic: "Каналы", text: "Чем буферизованный канал отличается от небуферизованного?" },
+  { topic: "Kafka", text: "Как Kafka хранит смещения?" },
+];
+
+/** An active Target with the plan and its Questions, applied by «Применить». */
+export async function appliedTarget(server: FastifyInstance) {
+  const { target, events } = await setupChat(server);
+  await callTool(events, "update_target", { name: "Go-разработчик", level: "middle" });
+  await callTool(events, "set_interview_plan", setupPlan);
+  await callTool(events, "add_questions", { questions: setupQuestions });
+  const response = await applyDraft(server, target.id);
+  expect(response.statusCode).toBe(200);
+  return { target: response.json<TargetView>(), events };
+}
+
+/** Records the agent's tool call and applies the draft by «Применить». */
+export async function applied(
+  { server, events, targetId }: { server: FastifyInstance; events: Events; targetId: string },
+  [tool, args]: [string, object],
+): Promise<TargetView> {
+  await expect(callTool(events, tool, args)).resolves.toMatch(/^Результат /u);
+  const response = await applyDraft(server, targetId);
+  expect(response.statusCode).toBe(200);
+  return response.json<TargetView>();
+}
