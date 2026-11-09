@@ -81,12 +81,19 @@ export interface TopicAttempt {
   readonly recordedAt: string;
 }
 
+/**
+ * The Attempts that progress counts. The Attempts of the running Mock interview count only once it
+ * is finished or «прерван»: otherwise the Readiness would reveal their Grades before the Candidate
+ * opens the Debrief.
+ */
 export function topicAttempts(
   records: readonly AttemptRecord[],
   disputes: readonly Dispute[],
+  runningInterviewId: string | undefined,
 ): readonly TopicAttempt[] {
   const latest = latestDisputes(disputes);
-  return records.map(({ attempt, question }) => ({
+  const ended = records.filter(({ attempt }) => attempt.interviewId !== runningInterviewId);
+  return ended.map(({ attempt, question }) => ({
     topicId: question.topicId,
     interviewId: attempt.interviewId,
     grade: correctedGrade(attempt, latest),

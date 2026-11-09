@@ -75,7 +75,8 @@ function registerHistory(server: FastifyInstance, { interviews, targets }: Depen
 /**
  * Progress, Disputes and the session history:
  * - `GET /api/targets/:id/progress`: the Topic status of each Topic of the plan, the Readiness
- *   counts over the enabled Sections and the Topics «подтянуть в первую очередь».
+ *   counts over the enabled Sections and the Topics «подтянуть в первую очередь». The running Mock
+ *   interview's Attempts count only once it ends.
  * - `GET /api/interviews/:id/summary`: the summary Debrief of a Mock interview: the agent's summary
  *   and next step, null without them, the answered and unanswered questions and the Topic status
  *   changes.

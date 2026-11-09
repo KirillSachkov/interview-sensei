@@ -1,5 +1,5 @@
 // Progress of a Target (#9): the Topic status of each Topic and the Readiness, computed from the
-// Attempts of every Mock interview. Nothing here is stored; the server passes the Attempts in.
+// Attempts of every ended Mock interview. Nothing here is stored; the server passes the Attempts in.
 
 /** How well the Candidate knows a Topic: «не начато», «шатко» or «уверенно». */
 export type TopicStatus = "not_started" | "shaky" | "confident";

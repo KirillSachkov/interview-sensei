@@ -244,8 +244,12 @@ describe("mock interview chat", () => {
     await expect(ask(chat, "/tools", "Запреты:")).resolves.toBe('Запреты: ["shell","web"]');
     await expect(ask(chat, "/skills", "Skills:")).resolves.toBe('Skills: ["sensei-interview"]');
     const role = await ask(chat, "/system", "Роль");
-    expect(role).toContain("You are the interviewer of Interview Sensei");
-    expect(role).toContain("The interview tone is neutral");
-    expect(role).toContain('the language with the code "ru"');
+    const missing = [
+      "You are the interviewer of Interview Sensei",
+      "The interview tone is neutral",
+      'the language with the code "ru"',
+      "Never describe your plan, steps, tools or skill in the chat",
+    ].filter((fragment) => !role.includes(fragment));
+    expect(missing).toStrictEqual([]);
   });
 });

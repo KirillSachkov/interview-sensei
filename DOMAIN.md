@@ -61,7 +61,7 @@ A new correction replaces the previous one: the latest correction applies.
 
 **Topic status**:
 How well the Candidate knows a Topic within a Target: not started, shaky or confident.
-Topic status follows from recent Attempts and is never set by hand. Confident needs recent Attempts without hints and at least one confident Deeper question.
+Topic status follows from recent Attempts of ended Mock interviews and is never set by hand: a running Mock interview's Attempts count once it ends. Confident needs recent Attempts without hints and at least one confident Deeper question.
 
 **Readiness**:
 The share of Topics with the confident Topic status in the enabled Sections of a Target.

@@ -6,8 +6,9 @@ export interface ProgressPlans {
 }
 
 /**
- * The interviews slice supplies the Attempts of every Mock interview of the Target, from the
- * earliest to the latest, each with its Grade after the latest Dispute.
+ * The interviews slice supplies the Attempts of every ended Mock interview of the Target, from the
+ * earliest to the latest, each with its Grade after the latest Dispute. The running Mock
+ * interview's Attempts count only once it ends, so progress reveals no Grade before the Debrief.
  */
 export interface ProgressAttempts {
   readonly topicAttempts: (targetId: string) => Promise<readonly TopicAttempt[]>;

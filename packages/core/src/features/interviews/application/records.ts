@@ -122,16 +122,17 @@ export async function interviewSummary(
   };
 }
 
-/** The Attempts of the Target's Mock interviews as progress counts them. */
+/** The Attempts of the Target's ended Mock interviews as progress counts them. */
 export async function targetTopicAttempts(
   { repository }: InterviewsDependencies,
   targetId: string,
 ): Promise<readonly TopicAttempt[]> {
-  const [records, disputes] = await Promise.all([
+  const [records, disputes, running] = await Promise.all([
     repository.targetAttempts(targetId),
     repository.targetDisputes(targetId),
+    repository.running(targetId),
   ]);
-  return topicAttempts(records, disputes);
+  return topicAttempts(records, disputes, running?.id);
 }
 
 /** The brief's part about the Target's earlier Mock interviews and progress. */

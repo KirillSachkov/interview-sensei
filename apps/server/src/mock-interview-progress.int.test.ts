@@ -35,6 +35,12 @@ async function progressOf(api: Api): Promise<unknown> {
 
 const isFinished = (view: Interview) => view.status === "finished";
 
+/** The Candidate presses «Завершить»; resolves once the agent has finished the Mock interview. */
+async function finished(api: Api, { interview, events }: Run) {
+  await api.finish(interview.id);
+  await events.waitFor(isFinished);
+}
+
 /** The Topic status of the demo Topic «Опыт разработки». */
 async function experienceStatus(api: Api): Promise<string | undefined> {
   const response = await api.get(`/api/targets/${api.target.id}/progress`);
@@ -43,14 +49,15 @@ async function experienceStatus(api: Api): Promise<string | undefined> {
 }
 
 /**
- * A strong answer, then a weak answer to the Deeper question that goes deeper from it; resolves
- * with the Deeper question's graded card.
+ * A strong answer, then a weak answer to the Deeper question that goes deeper from it, then
+ * «Завершить»; resolves with the Deeper question's graded card.
  */
 async function weakDeeperAnswer(api: Api) {
   const run = await api.answered(["Опыт и резюме"], "Ответ [grade:3] [deeper]");
   const deeper = cardAt(await run.events.waitFor(hasQuestions(2)), 1);
   await api.answer(run.interview.id, "Ответ [grade:1]");
   const graded = cardAt(await run.events.waitFor(isGraded(1)), 1);
+  await finished(api, run);
   return { ...run, deeper, graded };
 }
 
@@ -68,13 +75,8 @@ async function answerLast(api: Api, { interview, events, chat }: Run, text = "О
  * Finishes the Mock interview with the agent's summary, then starts the next one and answers its
  * first question with `[last]`.
  */
-async function nextInterview(
-  api: Api,
-  { interview, events }: Run,
-  names: readonly string[] = ["Проектирование"],
-) {
-  await api.finish(interview.id);
-  await events.waitFor(isFinished);
+async function nextInterview(api: Api, run: Run, names: readonly string[] = ["Проектирование"]) {
+  await finished(api, run);
   const next = await api.started(names);
   await next.events.waitFor(hasQuestions(1));
   await answerLast(api, next);
@@ -97,10 +99,23 @@ describe("progress and disputes", () => {
     });
   });
 
-  it("makes a Topic shaky after its first Attempt", async () => {
+  it("keeps the progress unchanged while the Mock interview runs, so it reveals no Grade", async () => {
     const api = await interviewApi();
+    const before = await progressOf(api);
 
-    await gradedAnswer(api, "Ответ [grade:3]");
+    const run = await api.started(["Опыт и резюме"]);
+    await run.events.waitFor(hasQuestions(1));
+    await answerLast(api, run, "Ответ [grade:3] [last]");
+
+    await expect(progressOf(api)).resolves.toStrictEqual(before);
+    await expect(callTool(run.chat, "get_progress")).resolves.toStrictEqual(before);
+  });
+
+  it("makes a Topic shaky after its first Attempt once the Candidate finishes the Mock interview", async () => {
+    const api = await interviewApi();
+    const run = await gradedAnswer(api, "Ответ [grade:3]");
+
+    await finished(api, run);
 
     await expect(progressOf(api)).resolves.toMatchObject({
       readiness: { confident: 0, shaky: 1, notStarted: 4, total: 5 },
@@ -134,7 +149,7 @@ describe("progress and disputes", () => {
     });
   });
 
-  it("changes the Topic status at once with a Dispute; the latest Dispute applies", async () => {
+  it("changes the Topic status at once with a Dispute after the Mock interview; the latest Dispute applies", async () => {
     const api = await interviewApi();
     const { interview, deeper, graded } = await weakDeeperAnswer(api);
     const before = await experienceStatus(api);
@@ -207,13 +222,12 @@ describe("progress and disputes", () => {
     );
   });
 
-  it("gives the agent the Target's progress with get_progress", async () => {
+  it("gives the agent the progress of the ended Mock interviews with get_progress", async () => {
     const api = await interviewApi();
-    const run = await api.started(["Опыт и резюме"]);
-    await run.events.waitFor(hasQuestions(1));
-    await answerLast(api, run, "Ответ [grade:2] [last]");
+    const run = await gradedAnswer(api, "Ответ [grade:2]");
+    const next = await nextInterview(api, run, ["TypeScript и Node.js"]);
 
-    const progress = await callTool(run.chat, "get_progress");
+    const progress = await callTool(next.chat, "get_progress");
 
     expect(progress).toMatchObject({
       readiness: { confident: 0, shaky: 1, notStarted: 4, total: 5 },
