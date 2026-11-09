@@ -5,6 +5,7 @@
 | Skill | Вид сессии |
 | --- | --- |
 | [`sensei-check`](sensei-check/SKILL.md) | `service-chat`, в UI — «Проверка агента» |
+| [`sensei-interview`](sensei-interview/SKILL.md) | `mock-interview`, в UI — мок-собеседование в зоне «Сессии» |
 
 `pnpm build` копирует этот каталог в `apps/web/dist/skills`, рядом с веб-сборкой; оттуда их берёт команда `interview-sensei`. Тот же каталог входит в npm-пакет `interview-sensei`.
 

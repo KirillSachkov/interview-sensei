@@ -30,10 +30,25 @@ export interface LiveSession {
   /** The last journal write; writes run one after another and never reject. */
   written: Promise<void>;
   readonly listeners: Set<SessionListener>;
+  /** The server's prompts and the end that wait for the agent, the first one first. */
+  readonly queued: QueuedItem[];
   readonly dependencies: LiveSessionDependencies;
   /** Called after the write that ends or fails the session: nothing changes it any more. */
   readonly onFinished: () => void;
+  /** Called when the agent starts and after each turn: the queue may go on. */
+  readonly onIdle: () => void;
 }
+
+/** What waits in the queue for the agent; `settle` reports how it went. */
+export type QueuedItem =
+  | {
+      readonly type: "prompt";
+      readonly text: string;
+      /** Shows the agent's hidden text again from this prompt on. */
+      readonly showAgentText: boolean;
+      readonly settle: (outcome: "accepted" | "closed") => void;
+    }
+  | { readonly type: "end"; readonly settle: (outcome: "accepted" | "closed") => void };
 
 interface PendingPermission {
   readonly optionIds: readonly string[];
@@ -43,7 +58,7 @@ interface PendingPermission {
 export function liveSession(
   session: AgentSession,
   dependencies: LiveSessionDependencies,
-  onFinished: () => void,
+  { onFinished, onIdle }: { onFinished: () => void; onIdle: () => void },
 ): LiveSession {
   return {
     view: emptyView(session),
@@ -53,8 +68,10 @@ export function liveSession(
     started: Promise.resolve(),
     written: Promise.resolve(),
     listeners: new Set(),
+    queued: [],
     dependencies,
     onFinished,
+    onIdle,
   };
 }
 
@@ -72,6 +89,10 @@ async function write(session: LiveSession, event: SessionEvent): Promise<void> {
     listener(session.view);
   }
   if (!isLive(session.view.status)) {
+    // Nothing queued reaches an agent that is gone.
+    for (const item of session.queued.splice(0)) {
+      item.settle("closed");
+    }
     session.onFinished();
   }
 }
@@ -159,13 +180,18 @@ export async function closeMcp(session: LiveSession): Promise<void> {
 /** Starts the session's agent and records whether it started. */
 export async function launch(
   session: LiveSession,
-  { launcher, workingDirectory }: { launcher: AgentLauncher; workingDirectory: string },
+  {
+    launcher,
+    workingDirectory,
+    roleAddition,
+  }: { launcher: AgentLauncher; workingDirectory: string; roleAddition: string | undefined },
 ): Promise<void> {
   try {
     const { id: sessionId, kind, agent: agentKind, targetId } = session.view;
     const agent = await launcher.start({
       agent: agentKind,
       kind,
+      ...(roleAddition === undefined ? {} : { roleAddition }),
       workingDirectory,
       mcpServer: session.dependencies.mcp.open({
         sessionId,
@@ -186,6 +212,7 @@ export async function launch(
     });
     session.agent = agent;
     await record(session, { type: "session_started", acpSessionId: agent.acpSessionId });
+    session.onIdle();
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     await record(session, {
@@ -212,5 +239,6 @@ export async function runTurn(session: LiveSession, agent: LiveAgent, text: stri
     // A request the agent left open at the end of the turn no longer waits for the Candidate.
     cancelPermissions(session);
     session.turnActive = false;
+    session.onIdle();
   }
 }

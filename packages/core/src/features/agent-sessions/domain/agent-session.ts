@@ -5,7 +5,8 @@ import type { PermissionAnswer, PermissionRequest, SessionFailure } from "./sess
  * - `idle`: the agent waits for a prompt.
  * - `working`: the agent handles a prompt; the UI shows that it works.
  * - `failed`: the agent did not start or its process exited; the session takes no prompts.
- * - `ended`: the server stopped while the session was live; the history stays readable.
+ * - `ended`: the server stopped the session's agent, at shutdown or when its work was done, such as a
+ *   finished mock interview; the history stays readable.
  */
 export type SessionStatus = "starting" | "idle" | "working" | "failed" | "ended";
 
@@ -59,4 +60,10 @@ export type ChatEntry =
 export interface SessionView extends AgentSession {
   readonly entries: readonly ChatEntry[];
   readonly failure: SessionFailure | null;
+  /**
+   * Where the agent's next text chunk goes: `continues` the last agent message when the message ids
+   * allow, starts a `new` one after a prompt or the end of a turn, or stays out of the chat while
+   * `hidden`, over turns, until the server shows the text again or the session ends.
+   */
+  readonly agentText: "continues" | "new" | "hidden";
 }

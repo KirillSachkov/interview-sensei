@@ -49,8 +49,8 @@ function toolText(result: unknown): string {
     .join("");
 }
 
-/** Initializes an MCP session at the address and calls the tool without arguments. */
-export async function callMcpTool(url: string, name: string): Promise<string> {
+/** Initializes an MCP session at the address and calls the tool with the arguments. */
+export async function callMcpTool(url: string, name: string, input: object = {}): Promise<string> {
   resultOf(
     await post(url, {
       id: nextId++,
@@ -64,7 +64,7 @@ export async function callMcpTool(url: string, name: string): Promise<string> {
   );
   await post(url, { method: "notifications/initialized" });
   const result = resultOf(
-    await post(url, { id: nextId++, method: "tools/call", params: { name, arguments: {} } }),
+    await post(url, { id: nextId++, method: "tools/call", params: { name, arguments: input } }),
   );
   return toolText(result);
 }

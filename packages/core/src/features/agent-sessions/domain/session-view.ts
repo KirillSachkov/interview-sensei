@@ -6,7 +6,7 @@ import type { AgentUpdate, RecordedEvent, SessionEvent } from "./session-event.t
 
 /** The view of a session before its first journal entry. */
 export function emptyView(session: AgentSession): SessionView {
-  return { ...session, entries: [], failure: null };
+  return { ...session, entries: [], failure: null, agentText: "new" };
 }
 
 /** The status after the event, the same rule for the live session and for the stored one. */
@@ -27,6 +27,8 @@ export function statusAfter(status: SessionStatus, event: SessionEvent): Session
       return isLive(status) ? "ended" : status;
     }
     case "agent_update":
+    case "agent_text_hidden":
+    case "agent_text_shown":
     case "permission_requested":
     case "permission_answered": {
       return status;
@@ -57,16 +59,22 @@ function messageChunk(update: AgentUpdate): { text: string; messageId: string | 
 }
 
 /**
- * Appends a text chunk. A chunk continues the last agent message when the message ids match or
- * both are absent; agents without `messageId` would otherwise turn each chunk into a message.
+ * Appends a text chunk. Within a turn, a chunk continues the last agent message when the message
+ * ids match or both are absent; agents without `messageId` would otherwise turn each chunk into a
+ * message. A chunk after a prompt or the end of a turn starts a new message.
  */
 function withChunk(
-  entries: readonly ChatEntry[],
+  view: SessionView,
   chunk: { text: string; messageId: string | null },
   id: number,
 ): readonly ChatEntry[] {
+  const { entries } = view;
   const last = entries.at(-1);
-  if (last?.type === "agent_message" && last.messageId === chunk.messageId) {
+  if (
+    view.agentText === "continues" &&
+    last?.type === "agent_message" &&
+    last.messageId === chunk.messageId
+  ) {
     return [...entries.slice(0, -1), { ...last, text: last.text + chunk.text }];
   }
   return [
@@ -122,39 +130,74 @@ function withAnswer(
   );
 }
 
-function entriesAfter(
-  entries: readonly ChatEntry[],
-  { id, event }: RecordedEvent,
-): readonly ChatEntry[] {
+function entriesAfter(view: SessionView, { id, event }: RecordedEvent): readonly ChatEntry[] {
   switch (event.type) {
     case "prompt_sent": {
-      return [...entries, { id: `candidate-${id}`, type: "candidate_message", text: event.text }];
+      return event.origin === "server"
+        ? view.entries
+        : [...view.entries, { id: `candidate-${id}`, type: "candidate_message", text: event.text }];
     }
     case "agent_update": {
       const chunk = messageChunk(event.update);
-      return chunk === null ? entries : withChunk(entries, chunk, id);
+      return chunk === null || view.agentText === "hidden"
+        ? view.entries
+        : withChunk(view, chunk, id);
     }
     case "turn_ended": {
       return event.stopReason === "end_turn"
-        ? entries
+        ? view.entries
         : [
-            ...entries,
+            ...view.entries,
             { id: `turn-${id}`, type: "turn_interrupted", stopReason: event.stopReason },
           ];
     }
     case "turn_failed": {
-      return [...entries, { id: `turn-${id}`, type: "turn_failed", message: event.message }];
+      return [...view.entries, { id: `turn-${id}`, type: "turn_failed", message: event.message }];
     }
     case "permission_requested": {
-      return [...entries, permissionEntry(event, id)];
+      return [...view.entries, permissionEntry(event, id)];
     }
     case "permission_answered": {
-      return withAnswer(entries, event);
+      return withAnswer(view.entries, event);
     }
+    case "agent_text_hidden":
+    case "agent_text_shown":
     case "session_started":
     case "session_failed":
     case "session_ended": {
-      return entries;
+      return view.entries;
+    }
+    default: {
+      return event satisfies never;
+    }
+  }
+}
+
+/** Where the agent's next text chunk goes after the event; see `SessionView.agentText`. */
+function agentTextAfter(view: SessionView, event: SessionEvent): SessionView["agentText"] {
+  switch (event.type) {
+    case "agent_text_hidden": {
+      return "hidden";
+    }
+    case "agent_update": {
+      return view.agentText === "hidden" || messageChunk(event.update) === null
+        ? view.agentText
+        : "continues";
+    }
+    case "prompt_sent":
+    case "turn_ended":
+    case "turn_failed": {
+      return view.agentText === "hidden" ? "hidden" : "new";
+    }
+    case "agent_text_shown":
+    case "session_failed":
+    case "session_ended": {
+      return "new";
+    }
+    case "session_started":
+    case "permission_requested":
+    case "permission_answered": {
+      return view.agentText;
     }
     default: {
       return event satisfies never;
@@ -167,8 +210,9 @@ export function applyEvent(view: SessionView, recorded: RecordedEvent): SessionV
   return {
     ...view,
     status: statusAfter(view.status, recorded.event),
-    entries: entriesAfter(view.entries, recorded),
+    entries: entriesAfter(view, recorded),
     failure: recorded.event.type === "session_failed" ? recorded.event.failure : view.failure,
+    agentText: agentTextAfter(view, recorded.event),
   };
 }
 

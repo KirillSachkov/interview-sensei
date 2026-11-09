@@ -61,7 +61,7 @@ A new correction replaces the previous one: the latest correction applies.
 
 **Topic status**:
 How well the Candidate knows a Topic within a Target: not started, shaky or confident.
-Topic status follows from recent Attempts and is never set by hand. Confident needs recent Attempts without hints and at least one confident Deeper question.
+Topic status follows from recent Attempts of ended Mock interviews and is never set by hand: a running Mock interview's Attempts count once it ends. Confident needs recent Attempts without hints and at least one confident Deeper question.
 
 **Readiness**:
 The share of Topics with the confident Topic status in the enabled Sections of a Target.
@@ -104,7 +104,9 @@ Only that Agent session's agent gets it, and it closes when that agent stops.
 
 **Permission request**:
 The agent's request to perform an action, such as a shell command, with the options it offers.
-The server answers requests for our own MCP tools; every other request goes to the Candidate in the chat.
+The server answers requests for our own MCP tools.
+Every other request goes to the Candidate in the chat, when the session kind asks the Candidate.
+In a Mock interview it does not: its chat shows no requests, so the server refuses them itself.
 
 **Source**:
 Material attached to a Target: a vacancy, a resume, a link, a video transcript, a file or the Candidate's own note.

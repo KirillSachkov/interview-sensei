@@ -3,8 +3,8 @@ import type { SubmitEvent } from "react";
 
 import type { SessionView } from "@/shared/api";
 
-import { useSessionEvents } from "../model/use-session-events";
 import { agentName } from "@/entities/agent";
+import { useSessionEvents } from "@/entities/session";
 import { ChatEntries } from "./chat-entries";
 
 function failureText(failure: NonNullable<SessionView["failure"]>): string {

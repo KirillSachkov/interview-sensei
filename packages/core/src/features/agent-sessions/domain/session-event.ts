@@ -36,7 +36,11 @@ export type SessionFailure =
  */
 export type SessionEvent =
   | { readonly type: "session_started"; readonly acpSessionId: string }
-  | { readonly type: "prompt_sent"; readonly text: string }
+  /**
+   * A prompt to the agent. A prompt of the server, such as a template message of a mock interview,
+   * has the origin `server` and stays out of the chat; the Candidate's prompts have no origin.
+   */
+  | { readonly type: "prompt_sent"; readonly text: string; readonly origin?: "server" }
   | { readonly type: "agent_update"; readonly update: AgentUpdate }
   | { readonly type: "turn_ended"; readonly stopReason: string }
   /** The agent answered the prompt with an error and still runs; the session takes prompts. */
@@ -48,6 +52,13 @@ export type SessionEvent =
       readonly requestId: string;
       readonly answer: PermissionAnswer;
     }
+  /**
+   * The agent's text from here on stays out of the chat, over turns, until `agent_text_shown`;
+   * such as the text after a mock interview shows a question. The journal keeps it.
+   */
+  | { readonly type: "agent_text_hidden" }
+  /** The agent's text goes to the chat again, such as after the Candidate's answer. */
+  | { readonly type: "agent_text_shown" }
   | { readonly type: "session_failed"; readonly failure: SessionFailure }
   /** The server stopped while the session was live; its agent process is gone. */
   | { readonly type: "session_ended" };

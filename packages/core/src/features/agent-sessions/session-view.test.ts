@@ -46,6 +46,13 @@ function entryText(entry: ChatEntry): string {
   }
 }
 
+function agentTextOf(events: readonly SessionEvent[]) {
+  return replay(
+    session,
+    events.map((event, index) => ({ id: index + 1, event })),
+  ).agentText;
+}
+
 function entriesOf(events: readonly SessionEvent[]) {
   const journal = events.map((event, index) => ({ id: index + 1, event }));
   return replay(session, journal).entries.map((entry) => ({
@@ -147,3 +154,58 @@ function inputOf(toolCall: { toolCallId: string; [field: string]: unknown }) {
   ]).entries;
   return entry?.type === "permission_request" ? entry.input : undefined;
 }
+
+describe("session view of the server's prompts", () => {
+  it("keeps the server's prompts out of the chat", () => {
+    expect(
+      entriesOf([
+        { type: "prompt_sent", text: "The Candidate answered.", origin: "server" },
+        chunk("Спасибо"),
+      ]),
+    ).toStrictEqual([{ type: "agent_message", text: "Спасибо" }]);
+  });
+
+  it("starts a new agent message in each turn, even without a Candidate's line between", () => {
+    expect(
+      entriesOf([
+        { type: "prompt_sent", text: "Start", origin: "server" },
+        chunk("Начинаем."),
+        { type: "turn_ended", stopReason: "end_turn" },
+        { type: "prompt_sent", text: "The Candidate answered.", origin: "server" },
+        chunk("Ответ получен."),
+      ]),
+    ).toStrictEqual([
+      { type: "agent_message", text: "Начинаем." },
+      { type: "agent_message", text: "Ответ получен." },
+    ]);
+  });
+
+  it("hides the agent's text after agent_text_hidden across turns until agent_text_shown", () => {
+    expect(
+      entriesOf([
+        { type: "prompt_sent", text: "Начнём", origin: "server" },
+        chunk("Первый вопрос.", "m1"),
+        { type: "agent_text_hidden" },
+        chunk(" Подсказка: ответ — 42.", "m1"),
+        { type: "turn_ended", stopReason: "end_turn" },
+        { type: "prompt_sent", text: "Что значит этот вопрос?" },
+        chunk("Подсказка: вспомните про 42.", "m2"),
+        { type: "turn_ended", stopReason: "end_turn" },
+        { type: "agent_text_shown" },
+        { type: "prompt_sent", text: "The Candidate answered.", origin: "server" },
+        chunk("Ответ получен.", "m3"),
+      ]),
+    ).toStrictEqual([
+      { type: "agent_message", text: "Первый вопрос." },
+      { type: "candidate_message", text: "Что значит этот вопрос?" },
+      { type: "agent_message", text: "Ответ получен." },
+    ]);
+  });
+
+  it("tells while the agent's text is hidden, and not after the session ends", () => {
+    expect(
+      agentTextOf([{ type: "agent_text_hidden" }, { type: "turn_ended", stopReason: "end_turn" }]),
+    ).toBe("hidden");
+    expect(agentTextOf([{ type: "agent_text_hidden" }, { type: "session_ended" }])).toBe("new");
+  });
+});

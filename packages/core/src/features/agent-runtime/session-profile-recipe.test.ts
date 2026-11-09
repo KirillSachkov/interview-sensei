@@ -2,6 +2,7 @@
 // bans reach every agent by its own lever, and only when the profile asks for them.
 import { describe, expect, it } from "vitest";
 
+import { sessionProfiles } from "../../shared/session-kinds/index.ts";
 import { agentKinds } from "./domain/agent.ts";
 import type { LaunchProfile } from "./domain/launch-recipe.ts";
 import {
@@ -191,5 +192,58 @@ describe("session profile bans in the launch recipe", () => {
     expect(
       skillFiles.filter((file) => !isInside(`${dataDirectory}/agents/${agent}`, file.path)),
     ).toStrictEqual([]);
+  });
+});
+
+/** The mock interview's profile as the runtime passes it to a recipe, with a made-up skill text. */
+function mockInterviewProfile(): LaunchProfile {
+  const { role, skill, shell, web } = sessionProfiles["mock-interview"];
+  const text = `---\nname: ${skill}\ndescription: Runs the mock interview.\n---\n\nInterview.\n`;
+  return { role, skill: { name: skill, files: [{ path: "SKILL.md", content: text }] }, shell, web };
+}
+
+// Spec #41: the interviewer may run no shell and reach no web, and sees only its own skill.
+describe("mock interview profile in the launch recipe", () => {
+  const profile = mockInterviewProfile();
+
+  it("removes shell and web tools from Claude Code and leaves it only the sensei-interview skill", () => {
+    expect(recipe("claude", {}, profile).sessionMeta).toMatchObject({
+      claudeCode: {
+        options: {
+          skills: ["interview-sensei:sensei-interview"],
+          disallowedTools: ["Bash", "WebFetch", "WebSearch"],
+        },
+      },
+    });
+  });
+
+  it("turns off the shell tool and web search of Codex and gives it the sensei-interview skill", () => {
+    const launch = recipe("codex", {}, profile);
+    expect(JSON.parse(String(launch.env.CODEX_CONFIG))).toStrictEqual({
+      features: { shell_tool: false },
+      web_search: "disabled",
+    });
+    const [root = ""] = launch.additionalDirectories;
+    expect(Object.keys(filesBelow(launch, `${root}/.agents/skills`))).toStrictEqual([
+      "sensei-interview/SKILL.md",
+    ]);
+  });
+
+  it("denies shell and web to the OpenCode agent and allows only the sensei-interview skill", () => {
+    const skillsPath = `${dataDirectory}/agents/opencode/skills/sensei-interview`;
+    expect(permission(profile)).toContain(
+      '"permission":{"bash":"deny","webfetch":"deny","websearch":"deny"}',
+    );
+    expect(opencodeConfig(profile, v1).skills).toStrictEqual({ paths: [skillsPath] });
+    expect(permissions(profile)).toContain(
+      `"permissions":[${deny("shell")},${deny("webfetch")},${deny("websearch")}]`,
+    );
+    expect(opencodeConfig(profile, v2)).toMatchObject({
+      skills: [skillsPath],
+      policies: [
+        { action: "skill.use", resource: "*", effect: "deny" },
+        { action: "skill.use", resource: "sensei-interview", effect: "allow" },
+      ],
+    });
   });
 });

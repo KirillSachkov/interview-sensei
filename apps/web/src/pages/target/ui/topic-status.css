@@ -1,0 +1,22 @@
+/* The Topic status dots: «уверенно» filled green, «шатко» filled amber, «не начато» a ring. */
+
+.topic-dot.confident {
+  background: var(--color-ok);
+}
+
+.topic-dot.shaky {
+  background: var(--color-warn);
+}
+
+.topic-dot.not_started {
+  border: 2px solid var(--color-off);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
