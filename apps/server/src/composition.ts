@@ -7,7 +7,7 @@ import {
   agentSessionsMigrations,
   agentSessionsModule,
 } from "@interview-sensei/core/agent-sessions";
-import { checkHealth } from "@interview-sensei/core/health";
+import { healthModule } from "@interview-sensei/core/health";
 import { getBrief, mcpGatewayModule } from "@interview-sensei/core/mcp-gateway";
 import type { SessionTool } from "@interview-sensei/core/mcp-gateway";
 import type { SessionKind } from "@interview-sensei/core/session-kinds";
@@ -91,7 +91,7 @@ export async function composeFeatures({
       log.error({ err: error }, "An agent session failed in the background");
     },
   });
-  return { storage, runtime, mcp, sessions, health: () => checkHealth(clock) };
+  return { storage, runtime, mcp, sessions, health: healthModule({ clock }) };
 }
 
 /** The composed services that the routes and the server lifecycle receive. */

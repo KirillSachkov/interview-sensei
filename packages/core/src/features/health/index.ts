@@ -1,2 +1,2 @@
-export { checkHealth } from "./application/check-health.ts";
+export { healthModule } from "./module.ts";
 export type { HealthReport } from "./domain/health-report.ts";
