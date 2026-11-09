@@ -87,6 +87,26 @@ test("the chat shows the agent's Markdown formatted and raw HTML as text", async
   await expect(reply.locator("b")).toHaveCount(0);
 });
 
+test("the chat drops the agent's javascript: link and loads no remote image", async ({ page }) => {
+  const images: string[] = [];
+  page.on("request", (request) => {
+    if (request.resourceType() === "image") {
+      images.push(request.url());
+    }
+  });
+  await startNewChat(page);
+
+  await sendMessage(page, "/markdown");
+
+  const reply = page.getByRole("list", { name: "Сообщения" }).locator(":scope > li").last();
+  await expect(reply).toContainText("Опасная ссылка");
+  await expect(reply.locator('[href^="javascript"]')).toHaveCount(0);
+  await expect(reply.locator("img")).toHaveCount(0);
+  const image = reply.getByRole("link", { name: "Изображение: Схема" });
+  await expect(image).toHaveAttribute("href", "https://example.com/tracker.png");
+  expect(images).not.toContain("https://example.com/tracker.png");
+});
+
 test("the chat shows that the agent works until the Candidate stops the turn", async ({ page }) => {
   await startNewChat(page);
 

@@ -36,7 +36,7 @@ export async function sendText(
 
 /**
  * The reply to `/markdown`: Markdown as real agents write it, with raw HTML that the chat must show
- * as text.
+ * as text, a `javascript:` link that it must drop and a remote image that it must not load.
  */
 export const markdownSample = [
   "**Жирный** текст и `код`.",
@@ -53,4 +53,6 @@ export const markdownSample = [
   "| Горутины | шатко |",
   "",
   "[Документация](https://example.com/docs) и <b>сырой HTML</b>",
+  "",
+  "[Опасная ссылка](javascript:alert(1)) и ![Схема](https://example.com/tracker.png)",
 ].join("\n");
