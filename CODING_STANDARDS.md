@@ -123,6 +123,7 @@ Content that differs by session kind lives in that slice's `domain/`.
 `get_brief` is the template: the tool is in `mcp-gateway/application/get-brief.ts`, and the brief of each kind is in `briefFor` in `mcp-gateway/domain/brief.ts`.
 `sessionTools` in `apps/server/src/composition.ts` lists the tools of each session kind; add the new tool there.
 A tool acts only on the session it receives. Write its name in snake_case and its description in English.
+API tests call a tool as the agent does: the fake agent's prompt `/tool <name> <json>` calls it on the session's MCP address with these arguments ([testing](docs/agents/testing.md#test-levels)).
 
 The server allows calls of our MCP tools without asking the Candidate; `automaticAnswer` in `agent-runtime/domain/permissions.ts` decides.
 It reads only the structural marker that the agent's adapter sets, never `title` or other text.

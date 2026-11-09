@@ -7,6 +7,7 @@
 // - `/fail` answers the prompt with a JSON-RPC error and keeps running.
 // - `/brief` asks permission to call `get_brief` of our MCP server, then calls it over HTTP and
 //   replies «Фейковый агент прочитал brief: <brief>». The server allows the call by itself.
+// - `/tool <name> <json>` calls a tool of our MCP server the same way; see `fake-agent-tool.ts`.
 // - `/permission` asks permission for a foreign shell command whose title names the session's MCP
 //   server and tool, then replies with the chosen option: «Фейковый агент получил ответ: «<name>»».
 // - `/late` ends the turn, then asks permission for a foreign command outside any turn and sends
@@ -37,9 +38,12 @@ import {
   PROTOCOL_VERSION,
   RequestError,
 } from "@agentclientprotocol/sdk/unstable";
-import type { AgentContext, McpServer, PermissionOption } from "@agentclientprotocol/sdk/unstable";
+import type { AgentContext, McpServer } from "@agentclientprotocol/sdk/unstable";
 
 import { callMcpTool } from "./fake-agent-mcp.ts";
+import { askPermission, permissionOptions } from "./fake-agent-permission.ts";
+import { callTool, toolCommand } from "./fake-agent-tool.ts";
+import type { ToolCall } from "./fake-agent-tool.ts";
 import { fakeAgentModes } from "./fake-agent-modes.ts";
 import { profileReply, profileSettings, sessionCapabilities } from "./fake-agent-profile.ts";
 import type { ProfileSettings } from "./fake-agent-profile.ts";
@@ -56,13 +60,6 @@ const sessionSettings = new Map<string, ProfileSettings>();
 
 const agentMode = process.env.INTERVIEW_SENSEI_FAKE_AGENT_MODE;
 const modes = fakeAgentModes(agentMode);
-
-/** The options of every permission request, like those of a real adapter. */
-const permissionOptions: PermissionOption[] = [
-  { optionId: "allow-once", name: "Разрешить", kind: "allow_once" },
-  { optionId: "allow-always", name: "Разрешать всегда", kind: "allow_always" },
-  { optionId: "reject-once", name: "Отклонить", kind: "reject_once" },
-];
 
 /** Resolves the waiting `/wait` turn of each session when the client cancels it. */
 const cancelWaiters = new Map<string, () => void>();
@@ -124,29 +121,6 @@ function mcpServerOf(sessionId: string) {
   return server;
 }
 
-/** Announces the tool call, then asks permission for it with only its id, like an adapter. */
-async function askPermission(
-  client: AgentContext,
-  sessionId: string,
-  toolCall: {
-    toolCallId: string;
-    title: string;
-    kind: "execute" | "other";
-    [field: string]: unknown;
-  },
-) {
-  await client.notify("session/update", {
-    sessionId,
-    update: { sessionUpdate: "tool_call", status: "pending", ...toolCall },
-  });
-  const { outcome } = await client.request("session/request_permission", {
-    sessionId,
-    toolCall: { toolCallId: toolCall.toolCallId },
-    options: permissionOptions,
-  });
-  return outcome;
-}
-
 async function readBrief(client: AgentContext, sessionId: string) {
   const server = mcpServerOf(sessionId);
   const outcome = await askPermission(client, sessionId, {
@@ -162,7 +136,7 @@ async function readBrief(client: AgentContext, sessionId: string) {
   }
   try {
     const brief = await callMcpTool(server.url, "get_brief");
-    return await reply(client, sessionId, `Фейковый агент прочитал brief: ${brief}`);
+    return await reply(client, sessionId, `Фейковый агент прочитал brief: ${brief.text}`);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return reply(client, sessionId, `Фейковый агент не смог вызвать get_brief: ${message}`);
@@ -247,6 +221,17 @@ const commands = new Map<
   ],
 ]);
 
+/** Runs `/tool` or one of `commands`; echoes any other text. */
+async function respond(client: AgentContext, sessionId: string, text: string) {
+  const tool = toolCommand(text);
+  if (tool === null) {
+    const command = commands.get(text);
+    return command === undefined ? echo(client, sessionId, text) : command(client, sessionId);
+  }
+  const ask = async (call: ToolCall) => askPermission(client, sessionId, call);
+  return reply(client, sessionId, await callTool(tool, { server: mcpServerOf(sessionId), ask }));
+}
+
 const app = agent({ name: "interview-sensei-fake-agent" })
   .onRequest("initialize", () => ({
     protocolVersion: PROTOCOL_VERSION,
@@ -273,8 +258,7 @@ const app = agent({ name: "interview-sensei-fake-agent" })
     if (profile !== null) {
       return reply(client, sessionId, await profile);
     }
-    const command = commands.get(text);
-    return command === undefined ? echo(client, sessionId, text) : command(client, sessionId);
+    return respond(client, sessionId, text);
   })
   .onNotification("session/cancel", ({ params }) => {
     cancelWaiters.get(params.sessionId)?.();

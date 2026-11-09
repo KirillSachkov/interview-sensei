@@ -49,8 +49,24 @@ function toolText(result: unknown): string {
     .join("");
 }
 
-/** Initializes an MCP session at the address and calls the tool without arguments. */
-export async function callMcpTool(url: string, name: string): Promise<string> {
+/** What a tool call returned: its text, and whether the tool reported an error. */
+interface ToolResult {
+  readonly text: string;
+  readonly isError: boolean;
+}
+
+function toolResult(result: unknown): ToolResult {
+  const isError =
+    typeof result === "object" && result !== null && "isError" in result && result.isError === true;
+  return { text: toolText(result), isError };
+}
+
+/** Initializes an MCP session at the address and calls the tool with the arguments. */
+export async function callMcpTool(
+  url: string,
+  name: string,
+  args: Readonly<Record<string, unknown>> = {},
+): Promise<ToolResult> {
   resultOf(
     await post(url, {
       id: nextId++,
@@ -64,7 +80,7 @@ export async function callMcpTool(url: string, name: string): Promise<string> {
   );
   await post(url, { method: "notifications/initialized" });
   const result = resultOf(
-    await post(url, { id: nextId++, method: "tools/call", params: { name, arguments: {} } }),
+    await post(url, { id: nextId++, method: "tools/call", params: { name, arguments: args } }),
   );
-  return toolText(result);
+  return toolResult(result);
 }
