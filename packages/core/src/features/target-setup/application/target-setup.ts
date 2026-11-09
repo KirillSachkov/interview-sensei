@@ -101,7 +101,6 @@ async function applyIn(
   }
   const target = await writeDraft(dependencies, {
     targetId,
-    before: draft.questions,
     state: draft.after,
     transaction,
   });

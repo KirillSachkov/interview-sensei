@@ -20,8 +20,6 @@ type Writers = StateSources & { clock: Clock; attempts: SetupAttempts<Transactio
 
 interface Write {
   readonly targetId: string;
-  /** The Target's Questions before the draft. */
-  readonly before: readonly SetupQuestion[];
   readonly state: SetupState;
   readonly transaction: Transaction;
 }
@@ -76,7 +74,13 @@ function addedOf(
 /** Adds the draft's new Questions and stores the edits of the Target's Questions. */
 async function writeQuestions(
   { topics, clock }: StateSources & { clock: Clock },
-  { targetId, before, state, transaction, topicIds }: Write & { topicIds: readonly string[] },
+  {
+    targetId,
+    before,
+    state,
+    transaction,
+    topicIds,
+  }: Write & { before: readonly SetupQuestion[]; topicIds: readonly string[] },
 ) {
   const stored = new Map(before.map((question) => [question.id, question]));
   const createdAt = clock.now().toISOString();
@@ -129,8 +133,11 @@ export async function writeDraft(dependencies: Writers, write: Write) {
   const { targets } = dependencies;
   const { targetId, state, transaction } = write;
   await renameTopics(dependencies, write);
+  // A merge moves Questions to another Topic without the Candidate's edit, so the edits compare
+  // the draft with the Questions after the merges.
+  const before = await dependencies.topics.questions(targetId, transaction);
   const topicIds = await topicIdsOf(dependencies, write);
-  await writeQuestions(dependencies, { ...write, topicIds: topicIds.questions });
+  await writeQuestions(dependencies, { ...write, before, topicIds: topicIds.questions });
   await targets.savePreferences(targetId, state.preferences, transaction);
   return targets.update(targetId, updateOf(state, topicIds.plan), transaction);
 }

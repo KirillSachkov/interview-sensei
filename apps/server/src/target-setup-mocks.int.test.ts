@@ -1,7 +1,8 @@
 // Spec #45 with spec #41 and the rule «не подтверждён» of spec #47, seam 1: the draft of changes
 // and the data of Mock interviews. A Topic that the draft merges into another one hands over its
 // Attempts, so the Topic status and «Готовность» count them under the Topic that stays. A
-// made-up Question that the Candidate changes through the draft becomes confirmed.
+// made-up Question that the Candidate changes through the draft becomes confirmed; a Topic merge
+// alone leaves the mark.
 import type { FastifyInstance } from "fastify";
 import { describe, expect, it } from "vitest";
 
@@ -71,6 +72,24 @@ describe("the mark «не подтверждён» after the draft of changes", 
     const bank = await mock.questions();
     expect(bank.filter((question) => question.id === made.questionId)).toMatchObject([
       { text, unconfirmed: false },
+    ]);
+  });
+
+  it("keeps the mark on a made-up Question whose Topic the plan merges into another", async () => {
+    const mock = await interviewApi();
+    const { events } = await mock.answered(["Опыт и резюме"], "Ответ [new]");
+    const made = cardAt(await events.waitFor(hasQuestions(2)), 1);
+    const setup = await setupOf(mock);
+    await callTool(setup, "set_interview_plan", {
+      sections: demoPlan,
+      renameTopics: [{ from: "Опыт разработки", to: "Проектирование сервисов" }],
+    });
+
+    await applyDraft(mock.server, mock.target.id);
+
+    const bank = await mock.questions();
+    expect(bank.filter((question) => question.id === made.questionId)).toMatchObject([
+      { text: made.text, unconfirmed: true },
     ]);
   });
 });
