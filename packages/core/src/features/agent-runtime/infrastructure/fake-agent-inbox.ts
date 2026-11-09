@@ -10,21 +10,11 @@
 //   part's first lines.
 // - Then write_inbox_report with a summary, no doubts and a proposed Section «Фейковая секция».
 // A failed step ends the turn with «Фейковый разборщик сломался: <error>».
-import { randomUUID } from "node:crypto";
-
-import type { AgentContext } from "@agentclientprotocol/sdk/unstable";
-
-import { callMcpTool } from "./fake-agent-mcp.ts";
-import { askPermission } from "./fake-agent-permission.ts";
 import { sendText } from "./fake-agent-text.ts";
+import { allowedCall, briefLine } from "./fake-agent-tool.ts";
+import type { FakeSession } from "./fake-agent-tool.ts";
 
 const opening = "Inbox processing has started.";
-
-export interface Session {
-  readonly client: AgentContext;
-  readonly sessionId: string;
-  readonly server: { readonly name: string; readonly url: string };
-}
 
 interface BriefSection {
   readonly id: string;
@@ -40,27 +30,12 @@ interface Material {
 }
 
 /** Calls our MCP tool after the permission request that the server allows by itself. */
-export async function call(
-  { client, sessionId, server }: Session,
-  name: string,
-  input: object,
-): Promise<unknown> {
-  const outcome = await askPermission(client, sessionId, {
-    toolCallId: randomUUID(),
-    title: name,
-    kind: "other",
-    rawInput: input,
-    // The structural field the server recognizes our MCP tools by.
-    _meta: { fakeAgent: { mcpServer: server.name } },
-  });
-  if (outcome.outcome !== "selected" || outcome.optionId === "reject-once") {
-    throw new Error(`no permission for ${name}`);
+export async function call(session: FakeSession, name: string, input: object): Promise<unknown> {
+  const result = await allowedCall(session, name, input);
+  if (result === null || result.isError) {
+    throw new Error(result === null ? `no permission for ${name}` : `${name}: ${result.text}`);
   }
-  const { text, isError } = await callMcpTool(server.url, name, input);
-  if (isError) {
-    throw new Error(`${name}: ${text}`);
-  }
-  return name === "get_brief" ? text : JSON.parse(text);
+  return name === "get_brief" ? result.text : JSON.parse(result.text);
 }
 
 // The fake agent trusts the shapes of our own tools' results.
@@ -76,14 +51,15 @@ function briefTarget(brief: string): {
   readonly level: string | null;
   readonly sections: readonly BriefSection[];
 } {
-  const lines = brief.split("\n");
-  const parsed: unknown = JSON.parse(lines[lines.indexOf("Target:") + 1] ?? "{}");
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the brief of our own tool
-  return parsed as { level: string | null; sections: readonly BriefSection[] };
+  return (briefLine(brief, "Target:") ?? {}) as {
+    level: string | null;
+    sections: readonly BriefSection[];
+  };
 }
 
 /** The Topic the fake processor puts every Question into, and its Section's kind. */
-async function topicFor(session: Session, sections: readonly BriefSection[]) {
+async function topicFor(session: FakeSession, sections: readonly BriefSection[]) {
   const section =
     sections.find((candidate) => candidate.enabled && candidate.kind === "topics") ?? sections[0];
   if (section === undefined) {
@@ -120,7 +96,7 @@ interface Placement {
 }
 
 /** Reads every part of the material in order and adds one Question for each. */
-async function processMaterial(session: Session, material: Material, placement: Placement) {
+async function processMaterial(session: FakeSession, material: Material, placement: Placement) {
   for (let part = 1; part <= (material.parts ?? 0); part += 1) {
     // oxlint-disable-next-line eslint/no-await-in-loop -- the parts are read in order
     const read = partOf(await call(session, "read_source", { id: material.id, part }));
@@ -130,7 +106,7 @@ async function processMaterial(session: Session, material: Material, placement: 
   }
 }
 
-async function report(session: Session, count: number) {
+async function report(session: FakeSession, count: number) {
   await call(session, "write_inbox_report", {
     summary: `Фейковый разборщик: разобрано материалов: ${count}.`,
     proposals: {
@@ -140,14 +116,14 @@ async function report(session: Session, count: number) {
 }
 
 /** Where every Question goes: the Topic, its Section's kind and the Target's level. */
-async function placementFor(session: Session): Promise<Placement> {
+async function placementFor(session: FakeSession): Promise<Placement> {
   const target = briefTarget(briefOf(await call(session, "get_brief", {})));
   const topic = await topicFor(session, target.sections);
   return { ...topic, level: target.level ?? "middle" };
 }
 
 /** Processes the materials in order, then writes the report. */
-async function processMaterials(session: Session, materials: readonly Material[]) {
+async function processMaterials(session: FakeSession, materials: readonly Material[]) {
   const placement = await placementFor(session);
   for (const material of materials) {
     // oxlint-disable-next-line eslint/no-await-in-loop -- the materials are read in order
@@ -156,7 +132,7 @@ async function processMaterials(session: Session, materials: readonly Material[]
   await report(session, materials.length);
 }
 
-async function processAll(session: Session): Promise<void> {
+async function processAll(session: FakeSession): Promise<void> {
   const say = async (text: string) => sendText(session.client, session.sessionId, text);
   await say("Начинаю разбор.");
   const materials = materialsOf(await call(session, "list_inbox", {}));
@@ -173,7 +149,7 @@ export function inboxTurn(text: string) {
   if (!text.startsWith(opening)) {
     return null;
   }
-  return async (session: Session) => {
+  return async (session: FakeSession) => {
     try {
       await processAll(session);
     } catch (error) {

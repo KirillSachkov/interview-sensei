@@ -1,14 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 
-import { fetchInbox, startInboxProcessing, startRecheck, stopInboxProcessing } from "@/shared/api";
+import {
+  dismissInboxProposal,
+  dismissRecheckProposal,
+  fetchInbox,
+  startInboxProcessing,
+  startRecheck,
+  stopInboxProcessing,
+} from "@/shared/api";
 import type { SessionView } from "@/shared/api";
 
 import { refreshAppliedViews } from "./plan-views";
 import { sourcesQueryKey } from "./source-attachments";
 
 /** The query of the Target's Inbox processing: the card, the running processing, the report. */
-export function inboxQueryKey(targetId: string) {
+function inboxQueryKey(targetId: string) {
   return ["targets", targetId, "inbox"];
 }
 
@@ -60,6 +67,19 @@ export function useStartRecheck(targetId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async () => startRecheck(targetId),
+    onSettled: async () => queryClient.invalidateQueries({ queryKey: inboxQueryKey(targetId) }),
+  });
+}
+
+/**
+ * «Не сейчас» on a card: «Разбор материалов» leaves the materials in the Inbox, «Перепроверка
+ * базы» leaves the bank as it is.
+ */
+export function useDismissProposal(targetId: string, card: "processing" | "recheck") {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () =>
+      card === "processing" ? dismissInboxProposal(targetId) : dismissRecheckProposal(targetId),
     onSettled: async () => queryClient.invalidateQueries({ queryKey: inboxQueryKey(targetId) }),
   });
 }

@@ -1,18 +1,7 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-
-import { dismissRecheckProposal } from "@/shared/api";
 import type { InboxState } from "@/shared/api";
 
-import { inboxQueryKey, useStartRecheck } from "../model/inbox";
-
-/** «Не сейчас»: the card closes, the bank stays as it is. */
-function useDismissRecheck(targetId: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async () => dismissRecheckProposal(targetId),
-    onSettled: async () => queryClient.invalidateQueries({ queryKey: inboxQueryKey(targetId) }),
-  });
-}
+import { useDismissProposal, useStartRecheck } from "../model/inbox";
+import { ProposalActions } from "./proposal-actions";
 
 /**
  * The card «Перепроверка базы» above the setup chat's message form, after the agent's
@@ -27,7 +16,7 @@ export function RecheckProposal({
   proposal: NonNullable<InboxState["recheckProposal"]>;
 }) {
   const start = useStartRecheck(targetId);
-  const dismiss = useDismissRecheck(targetId);
+  const dismiss = useDismissProposal(targetId, "recheck");
   const busy = start.isPending || dismiss.isPending;
   return (
     <section className="draft-changes inbox-proposal" aria-label="Перепроверка базы">
@@ -39,28 +28,16 @@ export function RecheckProposal({
       {start.error === null ? null : (
         <p role="alert">Перепроверка не началась: {start.error.message}</p>
       )}
-      <div className="draft-actions">
-        <button
-          type="button"
-          className="primary"
-          disabled={busy}
-          onClick={() => {
-            start.mutate();
-          }}
-        >
-          Запустить перепроверку
-        </button>
-        <button
-          type="button"
-          className="ghost"
-          disabled={busy}
-          onClick={() => {
-            dismiss.mutate();
-          }}
-        >
-          Не сейчас
-        </button>
-      </div>
+      <ProposalActions
+        startLabel="Запустить перепроверку"
+        disabled={busy}
+        onStart={() => {
+          start.mutate();
+        }}
+        onDismiss={() => {
+          dismiss.mutate();
+        }}
+      />
     </section>
   );
 }

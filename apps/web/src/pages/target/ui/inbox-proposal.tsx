@@ -1,11 +1,15 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { dismissInboxProposal } from "@/shared/api";
 import type { InboxState, ProposalItem, SessionView } from "@/shared/api";
 
 import { sizeText, sourceTypeNames } from "../lib/source-names";
-import { inboxQueryKey, useInbox, useInboxAfterTurn, useStartProcessing } from "../model/inbox";
+import {
+  useDismissProposal,
+  useInbox,
+  useInboxAfterTurn,
+  useStartProcessing,
+} from "../model/inbox";
+import { ProposalActions } from "./proposal-actions";
 import { RecheckProposal } from "./recheck-proposal";
 
 /** One material of the card: its checkbox, title, type, size and the agent's assessment. */
@@ -42,15 +46,6 @@ function ProposalLine({
   );
 }
 
-/** «Не сейчас»: the card closes, the materials wait in the Inbox. */
-function useDismiss(targetId: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async () => dismissInboxProposal(targetId),
-    onSettled: async () => queryClient.invalidateQueries({ queryKey: inboxQueryKey(targetId) }),
-  });
-}
-
 /** The materials the Candidate unticked; the rest go to the processing. */
 function useUnticked() {
   const [unticked, setUnticked] = useState<ReadonlySet<string>>(new Set());
@@ -66,30 +61,6 @@ function useUnticked() {
   return { unticked, toggle };
 }
 
-/** «Запустить разбор» for the ticked materials and «Не сейчас». */
-function ProposalActions({
-  disabled,
-  canStart,
-  onStart,
-  onDismiss,
-}: {
-  disabled: boolean;
-  canStart: boolean;
-  onStart: () => void;
-  onDismiss: () => void;
-}) {
-  return (
-    <div className="draft-actions">
-      <button type="button" className="primary" disabled={disabled || !canStart} onClick={onStart}>
-        Запустить разбор
-      </button>
-      <button type="button" className="ghost" disabled={disabled} onClick={onDismiss}>
-        Не сейчас
-      </button>
-    </div>
-  );
-}
-
 function ProposalCard({
   targetId,
   proposal,
@@ -98,7 +69,7 @@ function ProposalCard({
   proposal: NonNullable<InboxState["proposal"]>;
 }) {
   const start = useStartProcessing(targetId);
-  const dismiss = useDismiss(targetId);
+  const dismiss = useDismissProposal(targetId, "processing");
   const { unticked, toggle } = useUnticked();
   const chosen = proposal.items.filter((item) => !unticked.has(item.sourceId));
   const busy = start.isPending || dismiss.isPending;
@@ -120,6 +91,7 @@ function ProposalCard({
       </ul>
       {start.error === null ? null : <p role="alert">Разбор не начался: {start.error.message}</p>}
       <ProposalActions
+        startLabel="Запустить разбор"
         disabled={busy}
         canStart={chosen.length > 0}
         onStart={() => {

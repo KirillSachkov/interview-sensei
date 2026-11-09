@@ -5,16 +5,11 @@
 // - It changes nothing: it only calls write_inbox_report with the list `proposals.hide`.
 // A failed step ends the turn with «Фейковый перепроверщик сломался: <error>».
 import { call } from "./fake-agent-inbox.ts";
-import type { Session } from "./fake-agent-inbox.ts";
 import { sendText } from "./fake-agent-text.ts";
+import { briefLine } from "./fake-agent-tool.ts";
+import type { FakeSession } from "./fake-agent-tool.ts";
 
 const opening = "Recheck of the question bank has started.";
-
-/** The JSON line after the heading line of the brief. */
-function briefLine(brief: string, heading: string): unknown {
-  const lines = brief.split("\n");
-  return JSON.parse(lines[lines.indexOf(heading) + 1] ?? "null");
-}
 
 /** The active Preferences and the visible Questions of the brief. */
 function briefOf(brief: unknown) {
@@ -28,7 +23,7 @@ function briefOf(brief: unknown) {
   return { preferences: target.preferences, questions };
 }
 
-async function recheck(session: Session): Promise<void> {
+async function recheck(session: FakeSession): Promise<void> {
   const say = async (text: string) => sendText(session.client, session.sessionId, text);
   await say("Начинаю перепроверку.");
   const { preferences, questions } = briefOf(await call(session, "get_brief", {}));
@@ -54,7 +49,7 @@ export function recheckTurn(text: string) {
   if (!text.startsWith(opening)) {
     return null;
   }
-  return async (session: Session) => {
+  return async (session: FakeSession) => {
     try {
       await recheck(session);
     } catch (error) {

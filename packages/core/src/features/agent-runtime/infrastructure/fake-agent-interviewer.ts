@@ -17,17 +17,11 @@
 // choose a quiz, a Deeper question or a made-up one; then the hint «Подсказка до ответа: …» in the
 // same turn, which the app keeps out of the chat.
 // A failed step ends the turn with «Фейковый интервьюер сломался: <error>».
-import { randomUUID } from "node:crypto";
-
-import type { AgentContext } from "@agentclientprotocol/sdk/unstable";
-
-import { inboxTurn } from "./fake-agent-inbox.ts";
-import { recheckTurn } from "./fake-agent-recheck.ts";
 import { moveToNextSection, presentNext } from "./fake-agent-interviewer-questions.ts";
 import type { InterviewerActions } from "./fake-agent-interviewer-questions.ts";
-import { callMcpTool } from "./fake-agent-mcp.ts";
-import { askPermission } from "./fake-agent-permission.ts";
 import { sendText } from "./fake-agent-text.ts";
+import { allowedCall } from "./fake-agent-tool.ts";
+import type { FakeSession } from "./fake-agent-tool.ts";
 
 async function start(actions: InterviewerActions): Promise<void> {
   await actions.say("Начинаем мок-собеседование.");
@@ -103,37 +97,15 @@ async function finish(actions: InterviewerActions): Promise<void> {
   await actions.say("Итог записан.");
 }
 
-/** The session that a turn runs in, with its MCP server over HTTP. */
-interface InterviewerSession {
-  readonly client: AgentContext;
-  readonly sessionId: string;
-  readonly server: { readonly name: string; readonly url: string };
-}
-
 /** Calls our MCP tool after the permission request that the server allows by itself. */
-async function callTool(
-  { client, sessionId, server }: InterviewerSession,
-  name: string,
-  input: object,
-) {
-  const outcome = await askPermission(client, sessionId, {
-    toolCallId: randomUUID(),
-    title: name,
-    kind: "other",
-    rawInput: input,
-    // The structural field the server recognizes our MCP tools by.
-    _meta: { fakeAgent: { mcpServer: server.name } },
-  });
-  if (outcome.outcome !== "selected" || outcome.optionId === "reject-once") {
-    return `Фейковый агент не получил разрешения на ${name}`;
-  }
-  const result = await callMcpTool(server.url, name, input);
-  return result.text;
+async function callTool(session: FakeSession, name: string, input: object) {
+  const result = await allowedCall(session, name, input);
+  return result === null ? `Фейковый агент не получил разрешения на ${name}` : result.text;
 }
 
 /** Runs the turn's steps; a failure becomes the turn's last text. */
 function turnOf(steps: Steps) {
-  return async (session: InterviewerSession) => {
+  return async (session: FakeSession) => {
     try {
       await steps({
         sessionId: session.sessionId,
@@ -177,15 +149,7 @@ const turns: readonly (readonly [string, (text: string) => Steps])[] = [
 ];
 
 /** The interviewer's turn for a template message, or null for another prompt. */
-function interviewerTurn(text: string) {
+export function interviewerTurn(text: string) {
   const found = turns.find(([sentence]) => text.startsWith(sentence));
   return found === undefined ? null : turnOf(found[1](text));
-}
-
-/**
- * The turn for a template message of the server: the interviewer's, or the Inbox processor's for
- * the opening of an Inbox processing; null for another prompt.
- */
-export function templateTurn(text: string) {
-  return interviewerTurn(text) ?? inboxTurn(text) ?? recheckTurn(text);
 }

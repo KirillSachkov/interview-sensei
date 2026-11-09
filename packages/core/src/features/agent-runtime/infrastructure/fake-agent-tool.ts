@@ -2,7 +2,10 @@
 // `/brief` calls `get_brief` the same way.
 import { randomUUID } from "node:crypto";
 
+import type { AgentContext } from "@agentclientprotocol/sdk/unstable";
+
 import { callMcpTool } from "./fake-agent-mcp.ts";
+import { askPermission } from "./fake-agent-permission.ts";
 
 /** The tool name and the arguments text of `/tool <name> <json>`, or null for other text. */
 export function toolCommand(text: string): { name: string; args: string } | null {
@@ -42,14 +45,14 @@ interface ToolCallDependencies {
 /** Asks permission for the call with our structural marker, which the server allows by itself. */
 async function permitted(
   name: string,
-  input: Record<string, unknown>,
+  input: object,
   { server, ask }: ToolCallDependencies,
 ): Promise<boolean> {
   const outcome = await ask({
     toolCallId: randomUUID(),
     title: name,
     kind: "other",
-    rawInput: input,
+    rawInput: Object.fromEntries(Object.entries(input)),
     // The structural field the server recognizes our MCP tools by.
     _meta: { fakeAgent: { mcpServer: server.name } },
   });
@@ -92,4 +95,33 @@ export async function callTool(
     const message = error instanceof Error ? error.message : String(error);
     return `Ошибка ${name}: ${message}`;
   }
+}
+
+/** The session a template turn runs in, with its MCP server over HTTP. */
+export interface FakeSession {
+  readonly client: AgentContext;
+  readonly sessionId: string;
+  readonly server: { readonly name: string; readonly url: string };
+}
+
+/**
+ * Calls our MCP tool in a template turn after the permission request that the server allows by
+ * itself; null without permission.
+ */
+export async function allowedCall(
+  { client, sessionId, server }: FakeSession,
+  name: string,
+  input: object,
+): Promise<{ readonly text: string; readonly isError: boolean } | null> {
+  const ask = async (call: ToolCall) => askPermission(client, sessionId, call);
+  if (!(await permitted(name, input, { server, ask }))) {
+    return null;
+  }
+  return callMcpTool(server.url, name, input);
+}
+
+/** The JSON line after the heading line of a brief, such as «Target:». */
+export function briefLine(brief: string, heading: string): unknown {
+  const lines = brief.split("\n");
+  return JSON.parse(lines[lines.indexOf(heading) + 1] ?? "null");
 }

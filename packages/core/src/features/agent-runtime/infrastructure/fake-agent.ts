@@ -44,7 +44,7 @@ import {
 } from "@agentclientprotocol/sdk/unstable";
 import type { AgentContext, McpServer } from "@agentclientprotocol/sdk/unstable";
 
-import { templateTurn } from "./fake-agent-interviewer.ts";
+import { templateTurn } from "./fake-agent-templates.ts";
 import { callBrief, callTool, toolCommand } from "./fake-agent-tool.ts";
 import type { ToolCall } from "./fake-agent-tool.ts";
 import { fakeAgentModes } from "./fake-agent-modes.ts";

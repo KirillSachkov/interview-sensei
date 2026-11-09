@@ -15,29 +15,17 @@ import { brief, createTopic, listInbox, writeReport } from "./inbox-work.ts";
 import type { ReportInput } from "./inbox-work.ts";
 import { inboxState, markReportSeen, reportList, reportView } from "./inbox-views.ts";
 
-/**
- * The setup agent's proposal: the card shows it in the chat. Only Sources of the Target that wait
- * in the Inbox can be proposed; nothing starts until the Candidate presses «Запустить разбор».
- */
-async function propose(
+/** Stores an open proposal of the mode in place of the Target's open one of that mode. */
+async function saveOpen(
   { dependencies }: InboxContext,
-  session: ToolSession,
-  items: readonly ProposalItem[],
+  { targetId, mode, items, reason }: Pick<InboxProposal, "targetId" | "mode" | "items" | "reason">,
 ): Promise<InboxProposal> {
-  const targetId = sessionTarget(session);
-  const sources = await dependencies.repository.list(targetId);
-  for (const { sourceId } of items) {
-    const source = sources.find((candidate) => candidate.id === sourceId);
-    if (source?.status !== "inbox") {
-      throw new Error(`The Source ${sourceId} is not a material of this Target in the Inbox`);
-    }
-  }
   const proposal: InboxProposal = {
     id: randomUUID(),
     targetId,
-    mode: "processing",
+    mode,
     items,
-    reason: null,
+    reason,
     status: "open",
     createdAt: dependencies.clock.now().toISOString(),
   };
@@ -46,30 +34,40 @@ async function propose(
 }
 
 /**
+ * The setup agent's proposal: the card shows it in the chat. Only Sources of the Target that wait
+ * in the Inbox can be proposed; nothing starts until the Candidate presses «Запустить разбор».
+ */
+async function propose(
+  context: InboxContext,
+  session: ToolSession,
+  items: readonly ProposalItem[],
+): Promise<InboxProposal> {
+  const targetId = sessionTarget(session);
+  const sources = await context.dependencies.repository.list(targetId);
+  for (const { sourceId } of items) {
+    const source = sources.find((candidate) => candidate.id === sourceId);
+    if (source?.status !== "inbox") {
+      throw new Error(`The Source ${sourceId} is not a material of this Target in the Inbox`);
+    }
+  }
+  return saveOpen(context, { targetId, mode: "processing", items, reason: null });
+}
+
+/**
  * The setup agent's proposal to recheck the bank, such as after a new Preference: the card
  * «Перепроверка базы» shows it in the chat; only the Candidate's button starts the recheck.
  */
 async function proposeRecheck(
-  { dependencies }: InboxContext,
+  context: InboxContext,
   session: ToolSession,
   reason: string,
 ): Promise<InboxProposal> {
   const targetId = sessionTarget(session);
-  const bank = await dependencies.questions.questions(targetId);
+  const bank = await context.dependencies.questions.questions(targetId);
   if (!bank.some((question) => !question.hidden)) {
     throw new Error("The Target has no visible Questions to recheck");
   }
-  const proposal: InboxProposal = {
-    id: randomUUID(),
-    targetId,
-    mode: "recheck",
-    items: [],
-    reason,
-    status: "open",
-    createdAt: dependencies.clock.now().toISOString(),
-  };
-  await dependencies.inbox.saveProposal(proposal);
-  return proposal;
+  return saveOpen(context, { targetId, mode: "recheck", items: [], reason });
 }
 
 export function createInbox(dependencies: InboxDependencies) {
