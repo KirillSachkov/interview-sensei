@@ -1,10 +1,13 @@
 import type { FastifyInstance } from "fastify";
 
 import { serverClosingMessage } from "./agent-session-routes.ts";
+import type { ArchiveGuard } from "./archive-guard.ts";
 import { SessionsClosedError } from "./composition.ts";
 import type { Features } from "./composition.ts";
 
-type Dependencies = Pick<Features, "targets" | "targetSetup" | "sessions" | "runtime">;
+type Dependencies = Pick<Features, "targets" | "targetSetup" | "sessions" | "runtime"> & {
+  readonly archiveGuard: ArchiveGuard;
+};
 
 const params = {
   type: "object",
@@ -67,11 +70,9 @@ function registerSetupSession(server: FastifyInstance, dependencies: Dependencie
     { schema: { params } },
     async (request, reply) => {
       const { id } = request.params;
-      const target = await dependencies.targets.get(id);
-      const opened =
-        target?.status === "archived"
-          ? "target_archived"
-          : await (target === undefined ? "target_not_found" : openSetup(dependencies, id));
+      const opened = await dependencies.archiveGuard.startSession(id, async (target) =>
+        target === undefined ? "target_not_found" : openSetup(dependencies, id),
+      );
       if (typeof opened === "string") {
         const [code, body] = setupRefusals[opened];
         return reply.code(code).send(body);

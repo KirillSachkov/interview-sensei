@@ -1,9 +1,12 @@
 import type { FastifyInstance } from "fastify";
 
+import type { ArchiveGuard } from "./archive-guard.ts";
 import type { Features } from "./composition.ts";
 import { deleteTarget } from "./target-deletion.ts";
 
-type Dependencies = Pick<Features, "targets" | "sessions" | "storage" | "targetData">;
+type Dependencies = Pick<Features, "targets" | "sessions" | "storage" | "targetData"> & {
+  readonly archiveGuard: ArchiveGuard;
+};
 
 const params = {
   type: "object",
@@ -24,16 +27,24 @@ function typedName(body: unknown): string | undefined | null {
   return typeof name === "string" ? name : null;
 }
 
-function registerArchive(server: FastifyInstance, { targets, sessions }: Dependencies) {
+/** The archived Target; a string names why it cannot go to the archive. */
+async function archiveUnlessRunning({ targets, sessions }: Dependencies, id: string) {
+  return sessions.running(id) ? ("session_running" as const) : targets.archive(id);
+}
+
+function registerArchive(server: FastifyInstance, dependencies: Dependencies) {
+  const { targets, archiveGuard } = dependencies;
   server.post<{ Params: { id: string } }>(
     "/api/targets/:id/archive",
     { schema: { params } },
     async (request, reply) => {
       const { id } = request.params;
-      if (sessions.running(id)) {
+      const archived = await archiveGuard.archive(id, async () =>
+        archiveUnlessRunning(dependencies, id),
+      );
+      if (archived === "session_running") {
         return reply.code(409).send({ error: "session_running", message: sessionRunningMessage });
       }
-      const archived = await targets.archive(id);
       if (archived === "target_not_found" || archived === undefined) {
         return reply.code(404).send({ error: "target_not_found" });
       }

@@ -134,6 +134,28 @@ describe("target archive", () => {
     expect(response.json()).toMatchObject({ error: "target_archived" });
   });
 
+  it("never both archives a Target and opens its setup session at the same time", async () => {
+    const api = await demoApi();
+
+    const [opened, archived] = await Promise.all([
+      post(api, `/api/targets/${api.target.id}/setup-session`),
+      archive(api),
+    ]);
+
+    expect([opened.statusCode, archived.statusCode]).not.toStrictEqual([201, 200]);
+  });
+
+  it("never both archives a Target and starts its Mock interview at the same time", async () => {
+    const api = await interviewApi();
+
+    const [started, archived] = await Promise.all([
+      api.start([api.sectionId("Опыт и резюме")]),
+      archive(api),
+    ]);
+
+    expect([started.statusCode, archived.statusCode]).not.toStrictEqual([201, 200]);
+  });
+
   it.each(["archive", "restore"])("answers 404 to %s of an unknown Target", async (action) => {
     const api = await demoApi();
 

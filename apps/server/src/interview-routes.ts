@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import type { WebSocket } from "ws";
 
+import type { ArchiveGuard } from "./archive-guard.ts";
 import { SessionsClosedError } from "./composition.ts";
 import type {
   AnswerOutcome,
@@ -12,7 +13,9 @@ import type {
 import { onlyField, replyOf, startRequestOf } from "./interview-requests.ts";
 import { attemptParams, params } from "./route-params.ts";
 
-type Dependencies = Pick<Features, "interviews" | "targets">;
+type Dependencies = Pick<Features, "interviews" | "targets"> & {
+  readonly archiveGuard: ArchiveGuard;
+};
 
 const otherAgentHint = "Или выберите другого агента в меню «Агент» в верхней панели.";
 
@@ -78,7 +81,7 @@ const targetArchived = {
 } as const;
 
 /** `POST /api/targets/:id/interviews`; an archived Target gets 409 `target_archived`, as its setup does. */
-function registerStart(server: FastifyInstance, { interviews, targets }: Dependencies) {
+function registerStart(server: FastifyInstance, { interviews, archiveGuard }: Dependencies) {
   server.post<{ Params: { id: string }; Body: unknown }>(
     "/api/targets/:id/interviews",
     { schema: { params } },
@@ -87,11 +90,12 @@ function registerStart(server: FastifyInstance, { interviews, targets }: Depende
       if (start === undefined) {
         return reply.code(400).send({ error: "invalid_request" });
       }
-      const target = await targets.get(start.targetId);
-      if (target?.status === "archived") {
+      const outcome = await archiveGuard.startSession(start.targetId, async () =>
+        startOrClosing(interviews, start),
+      );
+      if (outcome === "target_archived") {
         return reply.code(409).send(targetArchived);
       }
-      const outcome = await startOrClosing(interviews, start);
       return outcome.type === "started"
         ? reply.code(201).send(outcome.interview)
         : refuseStart(reply, outcome);
