@@ -2,7 +2,7 @@
 // declares them after its own tests: «Новая цель» creates «Python-разработчик», and the next
 // test works on it in the same serial order.
 import { expect, test } from "@playwright/test";
-import type { Locator } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 import { onboarding, setupChat, zones } from "./canvas-support.ts";
 import { openTarget } from "./target-actions.ts";
@@ -39,6 +39,16 @@ async function sendMessage(chat: ReturnType<typeof setupChat>, text: string) {
   await expect(chat.messages.last()).toContainText(`Фейковый агент получил: «${text}»`);
 }
 
+/** «Python-разработчик» with its running setup chat open and its history loaded. */
+async function openPythonChat(page: Page) {
+  await openTarget(page, pythonName);
+  await zones(page).goal.getByRole("button", { name: "Настроить цель" }).click();
+  const chat = setupChat(page);
+  // The message box appears with the chat's history, which callTool counts.
+  await expect(chat.panel.getByRole("textbox", { name: "Сообщение" })).toBeVisible();
+  return chat;
+}
+
 export function setupChatTests() {
   test.describe("the setup chat beside a large screen's canvas", () => {
     // The live check ran on a 1600×1000 window, where the whole chat panel is on the screen.
@@ -64,11 +74,7 @@ export function setupChatTests() {
     test("a long draft keeps the chat's last message, input and «Применить» in the panel", async ({
       page,
     }) => {
-      await openTarget(page, pythonName);
-      await zones(page).goal.getByRole("button", { name: "Настроить цель" }).click();
-      const chat = setupChat(page);
-      // The message box appears with the chat's history, which callTool counts.
-      await expect(chat.panel.getByRole("textbox", { name: "Сообщение" })).toBeVisible();
+      const chat = await openPythonChat(page);
       await chat.callTool("add_questions", { questions: manyQuestions });
 
       await sendMessage(chat, "Что дальше?");
