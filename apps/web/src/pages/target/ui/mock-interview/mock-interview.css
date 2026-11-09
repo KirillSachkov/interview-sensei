@@ -485,11 +485,6 @@
   margin: 0;
 }
 
-.side-thread-confirm button.danger {
-  color: var(--color-danger);
-  box-shadow: inset 0 0 0 1px var(--color-danger);
-}
-
 /* React Flow turns text selection off in its nodes; the Candidate selects a fragment for a Side
    thread in a question card, an interviewer message or a Debrief. */
 [data-discuss-scope],
