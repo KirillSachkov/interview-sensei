@@ -6,16 +6,18 @@ import { apiKeyCredentials, host, runtimeOffering } from "./agent-runtime-test-s
 import type { AgentHost } from "./domain/agent.ts";
 import type { OpencodeCredentialRow } from "./domain/opencode-credentials.ts";
 
-describe("agent runtime with the Candidate's OpenCode 2.x keys", () => {
-  const database = "/home/candidate/.local/share/opencode/opencode.db";
-  const opencode: AgentHost = {
-    ...host,
-    opencodeBinary: "/opt/homebrew/bin/opencode",
-    opencodeVersion: "opencode v2.2.6",
-    opencodeDatabase: database,
-    opencodeModel: { model: "deepseek/deepseek-flash" },
-  };
+const database = "/home/candidate/.local/share/opencode/opencode.db";
 
+/** A machine with OpenCode 2.x whose Candidate chose a DeepSeek model. */
+const opencode: AgentHost = {
+  ...host,
+  opencodeBinary: "/opt/homebrew/bin/opencode",
+  opencodeVersion: "opencode v2.2.6",
+  opencodeDatabase: database,
+  opencodeModel: { model: "deepseek/deepseek-flash" },
+};
+
+describe("agent runtime with the Candidate's OpenCode 2.x keys", () => {
   it("never reads the OpenCode database to list the agents", async () => {
     const { runtime, databases } = runtimeOffering(["opencode"], opencode);
 
@@ -47,13 +49,6 @@ describe("agent runtime with the Candidate's OpenCode 2.x keys", () => {
 });
 
 describe("agent runtime with each OpenCode 2.x login (#69)", () => {
-  const opencode: AgentHost = {
-    ...host,
-    opencodeBinary: "/opt/homebrew/bin/opencode",
-    opencodeVersion: "opencode v2.2.6",
-    opencodeDatabase: "/home/candidate/.local/share/opencode/opencode.db",
-    opencodeModel: { model: "deepseek/deepseek-flash" },
-  };
   const subscription: OpencodeCredentialRow = {
     id: "cred_1",
     integration: "deepseek",

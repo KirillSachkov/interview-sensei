@@ -20,20 +20,24 @@ export interface OpencodeKey {
   readonly key: string;
 }
 
-/** The API key of the credential JSON, or null for another kind or a broken value. */
-function apiKey(value: string): string | null {
+/** What the session can use of a credential: an API key, an OAuth login or neither. */
+type CredentialLogin = { readonly type: "key"; readonly key: string } | { readonly type: "oauth" };
+
+/** The login of the credential JSON, or null for another kind or a broken value. */
+function credentialLogin(value: string): CredentialLogin | null {
   try {
     const parsed: unknown = JSON.parse(value);
-    if (
-      typeof parsed !== "object" ||
-      parsed === null ||
-      !("type" in parsed) ||
-      !("key" in parsed)
-    ) {
+    if (typeof parsed !== "object" || parsed === null || !("type" in parsed)) {
       return null;
     }
-    return parsed.type === "key" && typeof parsed.key === "string" && parsed.key !== ""
-      ? parsed.key
+    if (parsed.type === "oauth") {
+      return { type: "oauth" };
+    }
+    return parsed.type === "key" &&
+      "key" in parsed &&
+      typeof parsed.key === "string" &&
+      parsed.key !== ""
+      ? { type: "key", key: parsed.key }
       : null;
   } catch {
     return null;
@@ -89,18 +93,6 @@ function chosenCredentials(
   return chosen;
 }
 
-/** Whether the credential JSON is an OAuth login, the 2.x login by subscription. */
-function isOauth(value: string): boolean {
-  try {
-    const parsed: unknown = JSON.parse(value);
-    return typeof parsed === "object" && parsed !== null && "type" in parsed
-      ? parsed.type === "oauth"
-      : false;
-  } catch {
-    return false;
-  }
-}
-
 /**
  * The API key of each provider the session uses, for the credential OpenCode would use: the
  * active one, otherwise the newest. Without a chosen model every provider gets its key. A
@@ -112,8 +104,8 @@ export function opencodeKeys(
   model: OpencodeModelSettings,
 ): OpencodeKey[] {
   return [...chosenCredentials(rows, model)].flatMap(([provider, row]) => {
-    const key = apiKey(row.value);
-    return key === null ? [] : [{ provider, key }];
+    const login = credentialLogin(row.value);
+    return login?.type === "key" ? [{ provider, key: login.key }] : [];
   });
 }
 
@@ -126,6 +118,6 @@ export function opencodeSubscriptionProviders(
   model: OpencodeModelSettings,
 ): string[] {
   return [...chosenCredentials(rows, model)].flatMap(([provider, row]) =>
-    isOauth(row.value) ? [provider] : [],
+    credentialLogin(row.value)?.type === "oauth" ? [provider] : [],
   );
 }
