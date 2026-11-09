@@ -181,7 +181,7 @@ export interface InboxAgents {
  * The reference answer of a Question as the report shows it: key points, a short sample, where it
  * comes from (`material`, `internet`, `agent` or `candidate`) and the part of the material.
  */
-export interface InboxReferenceAnswer {
+interface InboxReferenceAnswer {
   readonly points: readonly string[];
   readonly sample: string;
   readonly origin: "material" | "internet" | "agent" | "candidate";
