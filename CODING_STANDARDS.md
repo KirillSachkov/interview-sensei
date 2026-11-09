@@ -88,7 +88,7 @@ One text for the agent is in Russian: `onboardingPrompt` in `target-setup/domain
 It stands for the Candidate's first message, because an agent writes its first line in the prompt's language, even before it loads the skill.
 The language rule itself stays in the profile's role.
 
-`inbox-processing` (#47) has the skill `sensei-inbox`, no shell, the web, and `askCandidate: false`: it has no chat, so the server refuses other requests itself.
+`inbox-processing` (#47) has the skill `sensei-inbox`, no shell, the web, and `askCandidate: false`: it has no chat, so the server refuses other requests itself, and the recipe allows the web without requests.
 The server extracts the text of the Sources before the agent starts, so the agent needs no shell for a PDF or a page.
 The server's close waits for the started processings to read their texts (`inbox.settle`), then stops the agents.
 A Recheck is the same session kind in the mode `recheck`: its opening and brief differ, the server refuses `add_bank_questions` and `create_topic` in it, and `write_inbox_report` takes the list «скрыть?» as `proposals.hide`.
@@ -112,6 +112,10 @@ At each start the runtime reads the skill from `skills/`, or from its copy in th
 | OpenCode 1.x | `prompt` of its own primary agent `interview-sensei` in `agent`, selected as the session's mode | `skills.paths` with `agents/opencode/skills/<skill>`; `OPENCODE_DISABLE_EXTERNAL_SKILLS` | that agent's `permission`: `bash`; `webfetch`, `websearch` = `deny` |
 | OpenCode 2.x | `system` of the same agent in `agents`, also `default_agent`, selected as the session's mode | `skills` with the same path; `policies`: `skill.use` only for `<skill>`; `OPENCODE_DISABLE_EXTERNAL_SKILLS` as a backup | that agent's `permissions`: `shell`; `webfetch`, `websearch` = `deny` |
 | fake | ACP `systemPrompt`, `append` | as Codex, in `agents/fake/skills/<skill>` | `_meta.fakeAgent.disallowedTools` |
+
+A profile with the web and `askCandidate: false` lets the agent use the web without permission requests, since nobody answers them (`webWithoutAsking` in `recipe.ts`).
+Claude Code gets `WebFetch` and `WebSearch` in `allowedTools`; the OpenCode agent gets `webfetch` and `websearch` = `allow`.
+Codex asks no permission for its web search.
 
 Codex 0.165 reads a skill file only through shell, so a profile without shell gets the skill's `SKILL.md` in the role.
 Its read-only sandbox makes the model refuse writes, though `apply_patch` asks the Candidate first; the role tells it so.

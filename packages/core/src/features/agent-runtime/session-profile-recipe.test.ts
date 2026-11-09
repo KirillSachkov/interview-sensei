@@ -195,11 +195,42 @@ describe("session profile bans in the launch recipe", () => {
   });
 });
 
+// Spec #47: Inbox processing has no chat, so nobody answers a permission request for the web.
+describe("web without permission requests in the launch recipe", () => {
+  it("lets Claude Code use an allowed web without asking only when no Candidate answers its requests", () => {
+    const background = { ...openProfile, askCandidate: false };
+    expect(disallowed(background)).toContain('"allowedTools":["WebFetch","WebSearch"]');
+    expect(disallowed(openProfile)).toContain('"allowedTools":[]');
+    expect(disallowed({ ...background, web: false })).toContain('"allowedTools":[]');
+  });
+
+  it("lets the OpenCode agent use an allowed web without asking only when no Candidate answers its requests", () => {
+    const background = { ...openProfile, askCandidate: false };
+    expect(permission(background)).toContain(
+      '"permission":{"webfetch":"allow","websearch":"allow"}',
+    );
+    expect(permissions(background)).toContain(
+      '"permissions":[{"action":"webfetch","resource":"*","effect":"allow"},{"action":"websearch","resource":"*","effect":"allow"}]',
+    );
+    expect(permissions({ ...background, web: false })).toContain(
+      `"permissions":[${deny("webfetch")},${deny("websearch")}]`,
+    );
+  });
+
+  it("gives the Inbox processing agent the web without permission requests: it has no chat", () => {
+    const { role, shell, web, askCandidate } = sessionProfiles["inbox-processing"];
+    const profile = { ...lockedProfile, role, shell, web, askCandidate };
+    expect(disallowed(profile)).toContain('"allowedTools":["WebFetch","WebSearch"]');
+    expect(permissions(profile)).toContain('"effect":"allow"');
+  });
+});
+
 /** The mock interview's profile as the runtime passes it to a recipe, with a made-up skill text. */
 function mockInterviewProfile(): LaunchProfile {
-  const { role, skill, shell, web } = sessionProfiles["mock-interview"];
+  const { role, skill, shell, web, askCandidate } = sessionProfiles["mock-interview"];
   const text = `---\nname: ${skill}\ndescription: Runs the mock interview.\n---\n\nInterview.\n`;
-  return { role, skill: { name: skill, files: [{ path: "SKILL.md", content: text }] }, shell, web };
+  const files = [{ path: "SKILL.md", content: text }];
+  return { role, skill: { name: skill, files }, shell, web, askCandidate };
 }
 
 // Spec #41: the interviewer may run no shell and reach no web, and sees only its own skill.

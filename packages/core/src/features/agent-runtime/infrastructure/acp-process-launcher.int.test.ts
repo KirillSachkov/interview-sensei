@@ -67,6 +67,7 @@ const profile = {
   },
   shell: false,
   web: false,
+  askCandidate: true,
 };
 
 /** The fake agent's recipe in a fresh temporary data directory. */

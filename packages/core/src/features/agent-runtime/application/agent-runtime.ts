@@ -137,7 +137,7 @@ function profileOf(kind: string): SessionProfile {
 
 /** The profile as the recipes take it, with the role addition and the skill's files read now. */
 async function launchProfile(
-  { role, skill, shell, web }: SessionProfile,
+  { role, skill, shell, web, askCandidate }: SessionProfile,
   {
     roleAddition,
     readSkill,
@@ -148,6 +148,7 @@ async function launchProfile(
     skill: await readSkill(skill),
     shell,
     web,
+    askCandidate,
   };
 }
 

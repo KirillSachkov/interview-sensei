@@ -54,6 +54,7 @@ describe("launch recipe", () => {
             strictMcpConfig: true,
             plugins: [{ type: "local", path: plugin }],
             skills: ["interview-sensei:probe-skill"],
+            allowedTools: [],
             disallowedTools: ["Bash", "WebFetch", "WebSearch"],
             allowDangerouslySkipPermissions: false,
             persistSession: false,

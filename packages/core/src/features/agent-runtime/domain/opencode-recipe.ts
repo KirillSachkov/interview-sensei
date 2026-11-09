@@ -1,7 +1,7 @@
 // OpenCode as `opencode acp` from PATH: its own XDG directories, and the role, the skill and the
 // bans in OPENCODE_CONFIG_CONTENT; OpenCode reads no `_meta` and has no ACP system prompt.
 // OpenCode 2.x renamed the config keys; the recipe writes the keys of the installed version.
-import { child, applicationName, required, skillCopy } from "./recipe.ts";
+import { child, applicationName, required, skillCopy, webWithoutAsking } from "./recipe.ts";
 import type { AgentHost } from "./agent.ts";
 import type { OpencodeKey } from "./opencode-credentials.ts";
 import type { LaunchProfile, LaunchRecipe, LaunchRequest } from "./recipe.ts";
@@ -25,7 +25,19 @@ const agentDescription = "The agent of an Interview Sensei session";
  * OpenCode 1.x. It has no permission modes; its config asks the Candidate before changes. Our
  * agent's `prompt` replaces OpenCode's base prompt, and its bans deny tools over the shared `ask`.
  */
-function configV1({ role, shell, web }: LaunchProfile, skillsPath: string) {
+/** The agent's own rule for the web tools: denied, allowed without asking, or the shared `ask`. */
+function webEffect(profile: LaunchProfile): "deny" | "allow" | null {
+  if (!profile.web) {
+    return "deny";
+  }
+  return webWithoutAsking(profile) ? "allow" : null;
+}
+
+const webActions = ["webfetch", "websearch"];
+
+function configV1(profile: LaunchProfile, skillsPath: string) {
+  const { role, shell } = profile;
+  const web = webEffect(profile);
   return {
     // Neither the Candidate's OpenCode installation nor a shared link may change.
     autoupdate: false,
@@ -39,7 +51,7 @@ function configV1({ role, shell, web }: LaunchProfile, skillsPath: string) {
         prompt: role,
         permission: {
           ...(shell ? {} : { bash: "deny" }),
-          ...(web ? {} : { webfetch: "deny", websearch: "deny" }),
+          ...(web === null ? {} : Object.fromEntries(webActions.map((action) => [action, web]))),
         },
       },
     },
@@ -47,7 +59,7 @@ function configV1({ role, shell, web }: LaunchProfile, skillsPath: string) {
 }
 
 /** A 2.x permission rule or policy for every resource of the action. */
-function rule(action: string, effect: "ask" | "deny") {
+function rule(action: string, effect: "ask" | "deny" | "allow") {
   return { action, resource: "*", effect };
 }
 
@@ -56,7 +68,9 @@ function rule(action: string, effect: "ask" | "deny") {
  * wins, and our agent's rules come after the shared ones. 2.x reads skills from `~/.agents/skills`
  * whatever the flags say, so its policies leave the agent only the profile's skill.
  */
-function configV2({ role, shell, web, skill }: LaunchProfile, skillsPath: string) {
+function configV2(profile: LaunchProfile, skillsPath: string) {
+  const { role, shell, skill } = profile;
+  const web = webEffect(profile);
   return {
     update: "disable",
     share: "disabled",
@@ -74,9 +88,10 @@ function configV2({ role, shell, web, skill }: LaunchProfile, skillsPath: string
         mode: "primary",
         description: agentDescription,
         system: role,
-        permissions: [...(shell ? [] : ["shell"]), ...(web ? [] : ["webfetch", "websearch"])].map(
-          (action) => rule(action, "deny"),
-        ),
+        permissions: [
+          ...(shell ? [] : [rule("shell", "deny")]),
+          ...(web === null ? [] : webActions.map((action) => rule(action, web))),
+        ],
       },
     },
   };

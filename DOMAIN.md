@@ -165,6 +165,7 @@ The agent's request to perform an action, such as a shell command, with the opti
 The server answers requests for our own MCP tools.
 Every other request goes to the Candidate in the chat, when the session kind asks the Candidate.
 In a Mock interview and in Inbox processing it does not: they show no requests, so the server refuses them itself.
+Inbox processing may use the web, so its agent opens pages without a request.
 
 **Source**:
 Material attached to a Target: a vacancy, a resume, a link, a video transcript, a file or the Candidate's own note.

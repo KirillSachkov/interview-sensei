@@ -38,6 +38,7 @@ export const lockedProfile: LaunchProfile = {
   },
   shell: false,
   web: false,
+  askCandidate: true,
 };
 
 /** The same profile with shell and web allowed. */
