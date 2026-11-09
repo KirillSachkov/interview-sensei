@@ -18,6 +18,8 @@ export interface SourceView {
   readonly url: string | null;
   readonly path: string | null;
   readonly status: string;
+  readonly failure: string | null;
+  readonly parts: number | null;
   readonly createdAt: string;
 }
 

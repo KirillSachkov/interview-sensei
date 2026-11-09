@@ -72,6 +72,10 @@ So a tool set may use services built after the gateway, such as `interviews`: `s
 `composeInterviews` gives `interviews` a function that calls `progress`, which exists by the first call.
 A Topic merge in a draft of changes moves the merged Topic's Attempts through `interviews` in the same transaction, so Topic status counts them under the Topic that stays.
 `topicMerges` gives `target-setup` this port the same way: `interviews` exists by the first application of a draft.
+Inbox processing in `sources` starts its agent through `agent-sessions`, which composeFeatures builds after `sources`: `inboxSessions` hands it over the same way.
+`add_bank_questions` of `sources` leaves out duplicates by the rule of `add_questions` (#45): `target-setup` exports `withoutDuplicates`, and composeFeatures passes it to `sources` as its `DuplicateFilter` port.
+`create_topic` of `sources` creates the Topic through `question-bank` and adds it to the Section through `targets`, in one shared transaction.
+The bulk review of Questions in `question-bank` asks `interviews` which Questions have Attempts through its `QuestionAttempts` port: deleting such a Question hides it. `topicMerges` hands `interviews` over the same way as for a Topic merge.
 
 ### Session profiles
 
@@ -107,6 +111,14 @@ It is a note, not a prompt: `AgentSessions.addNote` puts it before the next prom
 Several Side threads on one question before that prompt give one note: `addNote` skips a note that already waits.
 The journal keeps notes in `notes` of that `prompt_sent`; the chat leaves them out.
 
+`inbox-processing` (#47) has the skill `sensei-inbox`, no shell, the web, and `askCandidate: false`: it has no chat, so the server refuses other requests itself, and the recipe allows the web without requests.
+The server extracts the text of the Sources before the agent starts, so the agent needs no shell for a PDF or a page.
+The server's close waits for the started processings to read their texts (`inbox.settle`), then stops the agents.
+A Recheck is the same session kind in the mode `recheck`: its opening and brief differ, the server refuses `add_bank_questions` and `create_topic` in it, and `write_inbox_report` takes the list «скрыть?» as `proposals.hide`.
+A run without the agent's report ends through `closeRun` in `sources/application/inbox-ending.ts`, with the partial report of `partialReport`: «Остановить разбор» (`inbox.stop`), the agent's failure (`watchAgent` follows the session as in `interviews`), an agent that stays idle for 2 minutes after its turn without the report (`watchSession` in `agent-watch.ts` waits with the injected `Timer` and counts the status at the start too; `watchAgent` then also ends the session), a failed start, no readable Source, and the server's start (`inbox.endInterrupted` after `sessions.endInterrupted`).
+`closeRun` acts only on a run that still runs, so the agent's own report and an early end never both close it.
+The run records each part the agent reads with `read_source` (`readParts`): only a Source read to its last part becomes «готов», in a partial report and in the agent's own (`settledSources`).
+
 A slice adds a session kind like this:
 
 1. Add the kind to `sessionKinds` in `shared/session-kinds/kinds.ts`.
@@ -124,6 +136,10 @@ At each start the runtime reads the skill from `skills/`, or from its copy in th
 | OpenCode 2.x | `system` of the same agent in `agents`, also `default_agent`, selected as the session's mode | `skills` with the same path; `policies`: `skill.use` only for `<skill>`; `OPENCODE_DISABLE_EXTERNAL_SKILLS` as a backup | that agent's `permissions`: `shell`; `webfetch`, `websearch` = `deny` |
 | fake | ACP `systemPrompt`, `append` | as Codex, in `agents/fake/skills/<skill>` | `_meta.fakeAgent.disallowedTools` |
 
+A profile with the web and `askCandidate: false` lets the agent use the web without permission requests, since nobody answers them (`webWithoutAsking` in `recipe.ts`).
+Claude Code gets `WebFetch` and `WebSearch` in `allowedTools`; the OpenCode agent gets `webfetch` and `websearch` = `allow`.
+Codex asks no permission for its web search.
+
 Codex 0.165 reads a skill file only through shell, so a profile without shell gets the skill's `SKILL.md` in the role.
 Its read-only sandbox makes the model refuse writes, though `apply_patch` asks the Candidate first; the role tells it so.
 Its `config.toml` sets `features.apps` and `features.plugins` to `false`: the Candidate's ChatGPT apps and plugins bring their own tools and skills.
@@ -136,6 +152,26 @@ The launcher sets the mode with `session/set_mode` when `session/new` lists it i
 Otherwise it sets the config option of category `mode`: OpenCode 1.17 and later offer their agents only there.
 An agent without the ACP capability for the recipe's `systemPrompt` or `additionalDirectories` does not start, and neither does one that does not offer the recipe's mode either way.
 A profile that allows shell or web gets no ban for it. The permission modes stay as [storage](#storage) and #17 set them.
+
+### Text of Sources
+
+The `sources` slice reads the text of a Source itself (#63) and cuts it into numbered parts of at most 8000 characters at paragraph borders (`textParts`); `read_source` gives one part.
+The parts lie in `targets/<Target id>/texts/<Source id>/0001.txt` and onward, beside the Sources' files, so deleting the Target removes them.
+`textFormat` picks the reader by the file's extension; a link is a web page.
+
+| Format | Reader |
+| --- | --- |
+| PDF | `unpdf` 1.x, which bundles pdf.js; 2.x needs Node 24, and the package runs on Node 22.15 |
+| DOCX | `word/document.xml` from the archive by `fflate`, its paragraphs by `documentXmlText` |
+| TXT, MD | the file as UTF-8 |
+| SRT, VTT | `subtitleText`: the spoken lines without numbers, times, tags and repeats |
+| HTML file, link | the page's article by `@mozilla/readability` on `linkedom`, then `htmlText`; a link's PDF or plain text by its content type |
+
+A page waits at most 30 seconds on the injected `Timer` and may hold at most 20 MB.
+linkedom and Readability type their DOM with TypeScript's DOM library, which server code does not load.
+So only `sources/infrastructure/page-text.ts` touches their DOM, under a file-level disable of the unsafe-value rules with that reason.
+A Source the server cannot read gets the Source status «ошибка» with the reason in Russian.
+A link to a web page is the exception: it stays «разбирается» without parts, and the Inbox processing agent opens it on the web.
 
 ### Local requests
 
@@ -235,6 +271,7 @@ It removes files and directories only inside the recipe's `syncedDirectories`, t
 A slice that stores data owns a Postgres schema named after it, with its Drizzle tables and drizzle-kit migrations in `infrastructure/`.
 The slice keeps its tables in `infrastructure/schema.ts` and its drizzle-kit config in `infrastructure/drizzle.config.ts`, with the output in `infrastructure/migrations/`.
 Generate migrations with `db:generate`; never write or edit them by hand. Prettier ignores them.
+Prettier reads `.prettierignore` only from its working directory, so run it from the root (`pnpm format`) or from `packages/core`, which has its own copy; never from another directory.
 `db:generate` turns the first `CREATE SCHEMA` into `CREATE SCHEMA IF NOT EXISTS`, because the migrator first creates the schema for the history table.
 `schema.ts` exports its `pgSchema`: drizzle-kit reads only exported objects and would otherwise drop the schema.
 The slice exports its `SliceMigrations` from `index.ts`, and `sliceMigrations` in `apps/server/src/composition.ts` lists it.

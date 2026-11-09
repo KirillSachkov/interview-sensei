@@ -7,6 +7,7 @@ import type { SessionView } from "@/shared/api";
 import { useSourceAttachments, useSourcesAfterTurn } from "../model/source-attachments";
 import { DraftChanges } from "./draft-changes";
 import { FinishSetup } from "./finish-setup";
+import { InboxProposal } from "./inbox-proposal";
 
 /** Follows the agent's turns for the materials; shows nothing. */
 function SourcesFollower({
@@ -42,6 +43,7 @@ function SetupSession({ targetId }: { targetId: string }) {
       renderAboveInput={(view) => (
         <>
           <SourcesFollower targetId={targetId} status={view.status} />
+          <InboxProposal targetId={targetId} status={view.status} />
           <DraftChanges targetId={targetId} status={view.status} />
         </>
       )}
@@ -58,8 +60,8 @@ function SetupSession({ targetId }: { targetId: string }) {
 export const setupChatOverhang = 568;
 
 /**
- * «Настройка цели»: the chat with the Target's setup agent and the draft of changes above its
- * message form. The page places it beside the card where the Candidate opened it; «Скрыть» hides
+ * «Настройка цели»: the chat with the Target's setup agent, and the card «Разбор материалов» and the
+ * draft of changes above its message form. The page places it beside the card where the Candidate opened it; «Скрыть» hides
  * it and the session goes on, «Завершить» ends the session.
  */
 export function SetupChat({ targetId, onClose }: { targetId: string; onClose: () => void }) {

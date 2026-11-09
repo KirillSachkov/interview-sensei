@@ -4,6 +4,7 @@ import type { FastifyInstance } from "fastify";
 import { registerAgentSessionRoutes } from "./agent-session-routes.ts";
 import { archiveGuard } from "./archive-guard.ts";
 import type { Features } from "./composition.ts";
+import { registerInboxRoutes } from "./inbox-routes.ts";
 import { registerInterviewRoutes } from "./interview-routes.ts";
 import { registerProgressRoutes } from "./progress-routes.ts";
 import { registerSourceRoutes } from "./source-routes.ts";
@@ -17,6 +18,7 @@ export function registerApi(server: FastifyInstance, features: Features) {
   registerTargetRoutes(server, guarded);
   registerTargetSetupRoutes(server, guarded);
   registerSourceRoutes(server, features);
+  registerInboxRoutes(server, guarded);
   registerInterviewRoutes(server, guarded);
   registerProgressRoutes(server, features);
   registerAgentSessionRoutes(server, {

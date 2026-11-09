@@ -19,7 +19,7 @@ import {
 } from "./launch-recipe-test-support.ts";
 
 /** The `_meta` of Claude Code's session as JSON, for the profile. */
-function disallowed(profile: LaunchProfile): string {
+function claudeMeta(profile: LaunchProfile): string {
   return JSON.stringify(recipe("claude", {}, profile).sessionMeta);
 }
 
@@ -132,11 +132,11 @@ describe("session profile role and skill in the launch recipe", () => {
 
 describe("session profile bans in the launch recipe", () => {
   it("removes shell and web tools from Claude Code only when the profile forbids them", () => {
-    expect(disallowed({ ...openProfile, shell: false })).toContain('"disallowedTools":["Bash"]');
-    expect(disallowed({ ...openProfile, web: false })).toContain(
+    expect(claudeMeta({ ...openProfile, shell: false })).toContain('"disallowedTools":["Bash"]');
+    expect(claudeMeta({ ...openProfile, web: false })).toContain(
       '"disallowedTools":["WebFetch","WebSearch"]',
     );
-    expect(disallowed(openProfile)).toContain('"disallowedTools":[]');
+    expect(claudeMeta(openProfile)).toContain('"disallowedTools":[]');
   });
 
   it("turns off the shell tool and web search of Codex only when the profile forbids them", () => {
@@ -195,11 +195,51 @@ describe("session profile bans in the launch recipe", () => {
   });
 });
 
+// Spec #47: Inbox processing has no chat, so nobody answers a permission request for the web.
+describe("web without permission requests in the launch recipe", () => {
+  it("lets Claude Code use an allowed web without asking only when no Candidate answers its requests", () => {
+    const background = { ...openProfile, askCandidate: false };
+    expect(claudeMeta(background)).toContain('"allowedTools":["WebFetch","WebSearch"]');
+    expect(claudeMeta(openProfile)).toContain('"allowedTools":[]');
+    expect(claudeMeta({ ...background, web: false })).toContain('"allowedTools":[]');
+  });
+
+  it("lets the OpenCode agent use an allowed web without asking only when no Candidate answers its requests", () => {
+    const background = { ...openProfile, askCandidate: false };
+    expect(permission(background)).toContain(
+      '"permission":{"webfetch":"allow","websearch":"allow"}',
+    );
+    expect(permissions(background)).toContain(
+      '"permissions":[{"action":"webfetch","resource":"*","effect":"allow"},{"action":"websearch","resource":"*","effect":"allow"}]',
+    );
+    expect(permissions({ ...background, web: false })).toContain(
+      `"permissions":[${deny("webfetch")},${deny("websearch")}]`,
+    );
+  });
+
+  it("gives the Inbox processing agent the web without permission requests: it has no chat", () => {
+    const { role, shell, web, askCandidate } = sessionProfiles["inbox-processing"];
+    const profile = { ...lockedProfile, role, shell, web, askCandidate };
+    expect(claudeMeta(profile)).toContain('"allowedTools":["WebFetch","WebSearch"]');
+    expect(permissions(profile)).toContain(
+      '"permissions":[{"action":"shell","resource":"*","effect":"deny"},{"action":"webfetch","resource":"*","effect":"allow"},{"action":"websearch","resource":"*","effect":"allow"}]',
+    );
+  });
+
+  it("keeps the Side thread's web behind the Candidate's answer: it has a chat", () => {
+    const { role, shell, web, askCandidate } = sessionProfiles["side-thread"];
+    const profile = { ...lockedProfile, role, shell, web, askCandidate };
+    expect(claudeMeta(profile)).toContain('"allowedTools":[]');
+    expect(permissions(profile)).toContain(`"permissions":[${deny("shell")}]`);
+  });
+});
+
 /** The mock interview's profile as the runtime passes it to a recipe, with a made-up skill text. */
 function mockInterviewProfile(): LaunchProfile {
-  const { role, skill, shell, web } = sessionProfiles["mock-interview"];
+  const { role, skill, shell, web, askCandidate } = sessionProfiles["mock-interview"];
   const text = `---\nname: ${skill}\ndescription: Runs the mock interview.\n---\n\nInterview.\n`;
-  return { role, skill: { name: skill, files: [{ path: "SKILL.md", content: text }] }, shell, web };
+  const files = [{ path: "SKILL.md", content: text }];
+  return { role, skill: { name: skill, files }, shell, web, askCandidate };
 }
 
 // Spec #41: the interviewer may run no shell and reach no web, and sees only its own skill.

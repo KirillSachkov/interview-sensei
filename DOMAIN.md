@@ -40,11 +40,20 @@ An area of knowledge within a Target that its Sections check.
 A Topic merged into another one hands over its Questions and Attempts, so its progress counts there.
 
 **Question**:
-An interview question with its source and Topic.
+An interview question with its Topic, level and the Section kind it fits.
+A Question from a Source refers to it and to the part of its text it came from, and may have a Reference answer.
 A Question that an agent made up without a Source, in a Mock interview or in Inbox processing, is unconfirmed («не подтверждён») until the Candidate confirms it.
-A Question from material or one the Candidate applied through the draft of changes is confirmed.
+A Question from a Source or one the Candidate applied through the draft of changes is confirmed.
 Through the draft of changes, a new text, a move to another Topic or the useful Question rating confirms an unconfirmed Question; hiding it, another rating or a Topic merge does not.
+Outside the draft, 👍, the useful Question rating, confirms it too.
+A Question that Inbox processing added is new («новый») until the Candidate marks the Questions of its Inbox report as seen.
+The Candidate hides, deletes, rates ⚠ or 👍 several Questions at once. Deleting a Question with Attempts hides it instead, so its history stays.
 _Avoid_: Task, when the item is not an algorithm problem.
+
+**Reference answer**:
+What a good answer to a Question contains: 3–5 key points and a short sample answer, with its origin and, for an answer from a Source, the Source and its part.
+The origin is one of «из материала», «из интернета», «из знаний агента» and «проверен кандидатом».
+Inbox processing writes a Reference answer only from the Source itself; a Question whose Source has no answer stays without one.
 
 **Mock interview**:
 The only kind of interview: the agent acts as an interviewer and asks Questions for a Target.
@@ -90,13 +99,37 @@ Topic status follows from recent Attempts of ended Mock interviews and is never 
 The share of Topics with the confident Topic status in the enabled Sections of a Target.
 
 **Inbox**:
-Material that the Candidate added to a Target and the agent has not processed yet: links, files and video transcripts.
-The Candidate attaches material in a Target setup session; each attachment becomes a Source at once, with the status «в Inbox».
-Inbox processing starts only after the Candidate confirms it.
-The agent processes it in the background: it adds Questions to Sections and Topics, then writes an Inbox report.
+The Sources of a Target that wait for Inbox processing, with the Source status «в Inbox».
+The Candidate attaches material in a Target setup session; each attachment becomes a Source at once, with the Source status «в Inbox».
+The agent there proposes Inbox processing with a card, and only the Candidate's button starts it.
+
+**Inbox processing**:
+The background work on Sources of the Inbox: the server reads the text of each Source into numbered parts, then an Agent session of its own reads every part, adds Questions to the Topics of existing Sections and writes an Inbox report.
+It may create a Topic inside a Section, but never changes Sections or the Interview plan: it proposes them in the Inbox report.
+A Target has at most one Inbox processing at a time, a Recheck included; Sources added meanwhile wait for the next one.
+«Остановить разбор», a failed agent, an agent that ended its work without the Inbox report, or a restart of the server ends it early; so does a start where the server could not read any Source.
+Then the Questions already added stay, a Source whose every part the agent read becomes «готов», the other Sources «разбирается» go back to the Inbox, and the server writes a partial Inbox report.
+The agent's own Inbox report moves the Sources by the same rule: a Source the agent did not read to its last part goes back to the Inbox.
+
+**Source status**:
+Where a Source is in Inbox processing: «в Inbox» until processing starts, «разбирается» during it, «готов» after it, or «ошибка» with the reason when the Source could not be read.
+The server gives «ошибка» to a format it cannot read, archives included, to a Source without text, and to a video file or a video link: «приложите транскрипт».
+The Candidate attaches the video's transcript as a Source of its own, and Inbox processing reads it as text.
+A web page the server could not read stays «разбирается» without parts: the agent opens it on the web, and its Questions have no part.
+It becomes «готов» by the agent's Inbox report and goes back to the Inbox when processing ends without one.
+The agent gives «ошибка» with its reason to a Source it cannot read either.
 
 **Inbox report**:
-The agent's summary of one Inbox processing session: what it processed, which Questions it added where, and which Questions it doubts.
+The summary of one Inbox processing: the processed Sources, the added Questions by Section and Topic, each with its Source, the part and the reference answer, the number of duplicates the server left out, the Questions the agent doubts, and its proposals of new Sections and Preferences; for a Recheck, the list «скрыть?».
+The server counts the Sources, Questions and duplicates; the agent writes the summary, the doubts and the proposals.
+When the agent did not read every part of some Sources, the server adds to its summary how many went back to the Inbox.
+A partial Inbox report comes from the server when Inbox processing ended without the agent's report: its summary says why and how many Sources were read to the end, and it has no doubts or proposals.
+A Target keeps every Inbox report as its history.
+
+**Recheck**:
+An Inbox processing of the Target's Questions instead of Sources, against its active Preferences, after the Candidate added or changed a Preference.
+The agent of the Target setup proposes it with a card, and only the Candidate's button starts it.
+It changes nothing itself: its Inbox report lists Questions to hide («скрыть?») with reasons, and the Candidate hides the ones they accept.
 
 **Preference**:
 A rule the Candidate gave for a Target in plain language, with rejected Questions as examples, such as "fewer definitions, more applied questions".
@@ -120,12 +153,13 @@ The compact context a Side thread starts from: the Target, the current Question,
 Once the Candidate opened the Debrief of the Attempt, it also holds its Grade, gaps, justification and strong answer.
 
 **Question rating**:
-The Candidate's opinion of a Question itself: useful, irrelevant, or wrong.
+The Candidate's opinion of a Question itself: useful (👍), irrelevant, or wrong (⚠), with the Candidate's optional comment for wrong.
 _Avoid_: Grade, which assesses the Candidate's answer, not the Question.
 
 **Agent session**:
 One conversation of the application with the Candidate's agent: its kind, agent, ACP session id, status and event journal.
 There are four kinds: Target setup, Inbox processing, Mock interview and Side thread. Each kind has its own skill, MCP tools and limits.
+Inbox processing has no chat: the Candidate sees only the Source statuses and the Inbox report.
 The server records every event in the journal; the chat and its history after a restart come from the journal, not from the agent's log.
 The code calls it `AgentSession`. The skeleton's agent check also runs in one, but it is not a domain kind.
 _Avoid_: Session, when the kind of session matters.
@@ -138,8 +172,10 @@ Only that Agent session's agent gets it, and it closes when that agent stops.
 The agent's request to perform an action, such as a shell command, with the options it offers.
 The server answers requests for our own MCP tools.
 Every other request goes to the Candidate in the chat, when the session kind asks the Candidate.
-In a Mock interview it does not: its chat shows no requests, so the server refuses them itself.
+In a Mock interview and in Inbox processing it does not: they show no requests, so the server refuses them itself.
+Inbox processing may use the web, so its agent opens pages without a request.
 
 **Source**:
 Material attached to a Target: a vacancy, a resume, a link, a video transcript, a file or the Candidate's own note.
 A Target can have any number of Sources of each type. Questions refer to the Sources they came from.
+The server reads the text of a Source itself, from PDF, DOCX, plain text, Markdown, subtitles and web pages, and keeps it in numbered parts in the data directory.

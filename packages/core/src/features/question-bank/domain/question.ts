@@ -1,5 +1,26 @@
 export type Level = "junior" | "middle" | "senior";
 export type QuestionRating = "useful" | "irrelevant" | "wrong";
+/** How a Section runs and grades its answers; a Question records the kind it fits. */
+export type SectionKind = "conversation" | "topics" | "design";
+
+/**
+ * Where a reference answer comes from: the material itself, the web, the agent's own knowledge, or
+ * the Candidate, who checked it.
+ */
+type ReferenceOrigin = "material" | "internet" | "agent" | "candidate";
+
+/**
+ * The reference answer of a Question: 3–5 key points and a short sample answer, with its origin
+ * and, for an answer from a material, the Source and its part.
+ */
+export interface ReferenceAnswer {
+  readonly points: readonly string[];
+  readonly sample: string;
+  readonly origin: ReferenceOrigin;
+  readonly sourceId: string | null;
+  /** The number of the Source's part, from 1; null without a Source. */
+  readonly part: number | null;
+}
 export interface QuizOption {
   readonly id: string;
   readonly text: string;
@@ -15,7 +36,8 @@ export type QuestionContent =
       readonly options: readonly QuizOption[];
       readonly correctOptionIds: readonly string[];
     };
-export type Question = QuestionContent & {
+/** What every stored Question has besides its content. */
+interface QuestionRecord {
   readonly id: string;
   readonly targetId: string;
   readonly topicId: string;
@@ -26,7 +48,36 @@ export type Question = QuestionContent & {
   readonly hidden: boolean;
   readonly rating: QuestionRating | null;
   readonly createdAt: string;
-};
+}
+
+/** The Candidate's review of a Question; a new Question has neither. */
+interface ReviewDetails {
+  /** The Candidate's comment to ⚠, the rating «ошибка». */
+  readonly ratingComment: string | null;
+  /** «новый»: Inbox processing added it, and the Candidate has not seen it yet. */
+  readonly unseen: boolean;
+}
+
+/** What Inbox processing adds to a Question; other writers leave them null. */
+interface InboxDetails {
+  /** The part of the first Source that the Question came from, from 1; null when unknown. */
+  readonly sourcePart: number | null;
+  /** The Section kind the Question fits; null when nobody set it. */
+  readonly sectionKind: SectionKind | null;
+  readonly referenceAnswer: ReferenceAnswer | null;
+}
+
+export type Question = QuestionContent & QuestionRecord & InboxDetails & ReviewDetails;
+
+/**
+ * A Question to store: the Inbox processing's fields it leaves out are null, a comment is null and
+ * the Question is not «новый».
+ */
+export type StoredQuestion = QuestionContent &
+  QuestionRecord &
+  Partial<InboxDetails> &
+  Partial<ReviewDetails>;
+
 export interface Topic {
   readonly id: string;
   readonly targetId: string;

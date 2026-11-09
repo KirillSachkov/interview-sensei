@@ -9,7 +9,7 @@ import type { Source, SourceType } from "../domain/source.ts";
 export interface SourcesDependencies {
   readonly repository: SourceRepository<Transaction>;
   readonly files: SourceFiles;
-  readonly targets: SourceTargets;
+  readonly targets: SourceTargets<Transaction>;
   readonly clock: Clock;
 }
 
@@ -49,7 +49,7 @@ function viewOf(files: SourceFiles, { file, ...source }: Source): SourceView {
 /** Writes the file, then its Source; a failed write keeps neither. */
 async function store(
   { repository, files, clock }: SourcesDependencies,
-  source: Omit<Source, "file" | "status" | "createdAt">,
+  source: Omit<Source, "file" | "status" | "failure" | "parts" | "createdAt">,
   { name, bytes }: { name: string; bytes: AttachedFile["bytes"] | Iterable<Uint8Array> },
 ): Promise<Source | null> {
   const place = { targetId: source.targetId, sourceId: source.id, name: safeFileName(name) };
@@ -57,7 +57,14 @@ async function store(
   if (file === null) {
     return null;
   }
-  const stored: Source = { ...source, file, status: "inbox", createdAt: clock.now().toISOString() };
+  const stored: Source = {
+    ...source,
+    file,
+    status: "inbox",
+    failure: null,
+    parts: null,
+    createdAt: clock.now().toISOString(),
+  };
   try {
     await repository.add(stored);
   } catch (error) {
@@ -98,6 +105,8 @@ async function addOne(dependencies: SourcesDependencies, targetId: string, added
       url: added.url,
       file: null,
       status: "inbox",
+      failure: null,
+      parts: null,
       createdAt: dependencies.clock.now().toISOString(),
     };
     await dependencies.repository.add(source);

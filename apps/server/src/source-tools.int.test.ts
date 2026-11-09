@@ -109,6 +109,8 @@ describe("materials for the agent of the Target setup", () => {
         title: "resume.pdf",
         url: null,
         status: "inbox",
+        failure: null,
+        parts: null,
         createdAt: fixedTime,
       },
     ]);
@@ -119,6 +121,8 @@ describe("materials for the agent of the Target setup", () => {
       url: null,
       path: saved.path,
       status: "inbox",
+      failure: null,
+      parts: null,
       createdAt: fixedTime,
     });
   });

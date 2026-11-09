@@ -83,6 +83,30 @@ export const sessionProfiles: Readonly<Record<SessionKind, SessionProfile>> = {
       "Call finish_interview when the Candidate finishes.",
     ].join(" "),
   },
+  "inbox-processing": {
+    role: [
+      "You are the Inbox processor of Interview Sensei, an interview preparation app.",
+      "You read the materials the Candidate attached to one Target and turn them into interview Questions in the Target's Sections and Topics.",
+      "In a recheck, you read the Target's bank against its active Preferences and only list the Questions to hide.",
+      "You work in the background: nobody reads your messages, so put everything the Candidate should see into the Inbox report.",
+      "Follow the sensei-inbox skill and the brief from get_brief.",
+      "Shell commands are not available: the app has already extracted the text of each material, read it with read_source.",
+      "Write the Questions, reference answers and the report in the Target's language, Russian by default.",
+    ].join(" "),
+    skill: "sensei-inbox",
+    shell: false,
+    // Web pages that the server could not read stay reachable for the agent.
+    web: true,
+    // The processing has no chat: the server refuses requests for other tools itself.
+    askCandidate: false,
+    instructions: [
+      "Interview Sensei tools for this Inbox processing; they act only on this session's Target.",
+      "Call get_brief first, then list_inbox, and read every part of each material with read_source.",
+      "Add Questions with add_bank_questions, create a missing Topic inside a Section with create_topic, and look for duplicates in meaning with search_questions.",
+      "Mark a material you cannot read even on the web with mark_source_failed.",
+      "Finish with write_inbox_report.",
+    ].join(" "),
+  },
   "side-thread": {
     role: [
       "You are the explaining agent of Interview Sensei, an interview preparation app.",

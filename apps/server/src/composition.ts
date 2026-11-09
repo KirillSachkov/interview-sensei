@@ -21,7 +21,7 @@ import {
   composeSessions,
   getBrief,
 } from "./composition-agents.ts";
-import type { AgentDependencies, SessionToolSets } from "./composition-agents.ts";
+import type { AgentDependencies, AgentSessions, SessionToolSets } from "./composition-agents.ts";
 import {
   composeTargets,
   demoCreator,
@@ -36,6 +36,7 @@ export type { AgentSessions, SessionView } from "./composition-agents.ts";
 export { mcpGatewayModule, mcpRoute } from "./composition-agents.ts";
 export type { McpGateway } from "./composition-agents.ts";
 export { UnknownAgentError } from "./composition-targets.ts";
+export type { InboxStartOutcome } from "@interview-sensei/core/sources";
 export { grades } from "@interview-sensei/core/interviews";
 export type * from "@interview-sensei/core/interviews";
 
@@ -65,7 +66,7 @@ interface InterviewServices {
  * thread their services once composeFeatures has built them, after the gateway.
  */
 function sessionTools(slices: ReturnType<typeof composeTargets>) {
-  const { getTarget, searchQuestions, listSources, getSource, setup } = targetTools(slices);
+  const { getTarget, searchQuestions, listSources, getSource, setup, inbox } = targetTools(slices);
   let services: InterviewServices | null = null;
   const built = () => {
     if (services === null) {
@@ -76,6 +77,7 @@ function sessionTools(slices: ReturnType<typeof composeTargets>) {
   const sets: SessionToolSets = {
     "service-chat": [getBrief],
     "target-setup": setup,
+    "inbox-processing": inbox,
     get "mock-interview"() {
       const { interviews, progress } = built();
       return [...interviewTools(interviews), getTarget, searchQuestions, getProgress(progress)];
@@ -121,13 +123,52 @@ function composeInterviews(
 }
 
 /**
- * The Topic merges of a draft move the Attempts of `interviews`, which composeFeatures builds after
- * target-setup; it exists by the first application of a draft.
+ * Inbox processing starts its agent through `sessions`, which composeFeatures builds after the
+ * sources slice; it exists by the first start.
+ */
+function inboxSessions(sessions: () => AgentSessions) {
+  return {
+    start: async (request: Parameters<AgentSessions["start"]>[0]) => sessions().start(request),
+    end: async (sessionId: string) => sessions().end(sessionId),
+    stop: async (sessionId: string) => sessions().stop(sessionId),
+    subscribe: (...subscription: Parameters<AgentSessions["subscribe"]>) =>
+      sessions().subscribe(...subscription),
+    view: async (sessionId: string) => sessions().view(sessionId),
+  };
+}
+
+/**
+ * The Topic merges of a draft move the Attempts of `interviews`, and the question bank asks it which
+ * Questions have Attempts. composeFeatures builds it after these slices; it exists by the first call.
  */
 function topicMerges(interviews: () => ReturnType<typeof interviewsModule>) {
   return {
     mergeTopic: async (...merge: Parameters<ReturnType<typeof interviewsModule>["mergeTopic"]>) =>
       interviews().mergeTopic(...merge),
+    attempted: async (targetId: string, questionIds: readonly string[]) =>
+      interviews().attempted(targetId, questionIds),
+  };
+}
+
+/**
+ * What the Target slices take from the server; `interviews` and `sessions` are built after them and
+ * exist by the first call.
+ */
+function targetDependencies(
+  { clock, timer, dataDirectory, log }: FeatureDependencies,
+  later: {
+    interviews: () => ReturnType<typeof interviewsModule>;
+    sessions: () => AgentSessions;
+  },
+) {
+  return {
+    clock,
+    timer,
+    dataDirectory,
+    attempts: topicMerges(later.interviews),
+    sessions: inboxSessions(later.sessions),
+    onError: (error: unknown) =>
+      log.error({ err: error }, "An Inbox processing failed in the background"),
   };
 }
 
@@ -147,7 +188,7 @@ export async function composeFeatures(dependencies: FeatureDependencies) {
   const runtime = composeRuntime(dependencies);
   const slices = composeTargets(
     storage,
-    { clock, dataDirectory, attempts: topicMerges(() => interviews) },
+    targetDependencies(dependencies, { interviews: () => interviews, sessions: () => sessions }),
     runtime,
   );
   const { targets, questionBank } = slices;

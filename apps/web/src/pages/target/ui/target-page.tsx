@@ -10,9 +10,9 @@ import { Canvas } from "@/shared/ui/canvas";
 import type { CanvasZone } from "@/shared/ui/canvas";
 
 import { GoalZone, goalZoneOverhang } from "./goal-zone";
-import type { GoalZoneProps, QuestionsView, SetupAnchor } from "./goal-zone";
+import type { GoalZoneProps, SetupAnchor } from "./goal-zone";
 import { MockInterviews } from "./mock-interview/mock-interviews";
-import { QuestionsPanel } from "./questions-panel";
+import { SidePanel, useSidePanel } from "./side-panel";
 
 /**
  * The zones of the Target's canvas. A slice adds its widget to a zone's `content` here and leaves
@@ -44,7 +44,8 @@ function TargetCanvas({ target }: { target: TargetView }) {
   const [setupAnchor, setSetupAnchor] = useState<SetupAnchor>(
     target.status === "draft" ? "target" : null,
   );
-  const [questions, setQuestions] = useState<QuestionsView | null>(null);
+  const panel = useSidePanel();
+  const { onQuestions, onReport } = panel;
   const zones = useMemo(
     () =>
       targetZones({
@@ -54,9 +55,10 @@ function TargetCanvas({ target }: { target: TargetView }) {
         onCloseSetup: () => {
           setSetupAnchor(null);
         },
-        onQuestions: setQuestions,
+        onQuestions,
+        onReport,
       }),
-    [target, setupAnchor],
+    [target, setupAnchor, onQuestions, onReport],
   );
   useEffect(() => {
     rememberTarget(target.id);
@@ -66,16 +68,7 @@ function TargetCanvas({ target }: { target: TargetView }) {
       <TopBar target={target} />
       <main>
         <Canvas zones={zones} label="Холст цели" />
-        {questions === null ? null : (
-          <QuestionsPanel
-            key={JSON.stringify(questions.scope)}
-            targetId={target.id}
-            view={questions}
-            onClose={() => {
-              setQuestions(null);
-            }}
-          />
-        )}
+        <SidePanel targetId={target.id} panel={panel} />
       </main>
     </>
   );

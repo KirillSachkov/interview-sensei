@@ -1,10 +1,17 @@
 import { randomUUID } from "node:crypto";
 
 import type { Transaction } from "../../../shared/storage/index.ts";
-import type { QuestionEdit, QuestionFilter, QuestionRepository } from "../domain/ports.ts";
+import type {
+  QuestionAttempts,
+  QuestionEdit,
+  QuestionFilter,
+  QuestionRepository,
+} from "../domain/ports.ts";
+import { review } from "./question-review.ts";
+import type { Review } from "./question-review.ts";
 import { addQuestions, editQuestions, renameTopic } from "./bank-edits.ts";
 import type { NewQuestion } from "./bank-edits.ts";
-import type { Question, Topic } from "../domain/question.ts";
+import type { StoredQuestion, Topic } from "../domain/question.ts";
 import { topicKey, validateQuestion } from "../domain/question.ts";
 
 /** One Topic per distinct name: the existing one, or a new one with the name. */
@@ -56,7 +63,7 @@ interface EnsureTopics {
 async function seed(
   repository: QuestionRepository<Transaction>,
   topics: readonly Topic[],
-  questions: readonly Question[],
+  questions: readonly StoredQuestion[],
 ) {
   for (const question of questions) {
     validateQuestion(question);
@@ -69,12 +76,15 @@ async function seed(
   await repository.seed(topics, questions);
 }
 
-export function createQuestionBank(repository: QuestionRepository<Transaction>) {
+export function createQuestionBank(
+  repository: QuestionRepository<Transaction>,
+  attempts: QuestionAttempts,
+) {
   return {
-    seed: async (topics: readonly Topic[], questions: readonly Question[]) =>
+    seed: async (topics: readonly Topic[], questions: readonly StoredQuestion[]) =>
       seed(repository, topics, questions),
     /** Adds one Question, such as one the interviewer made up, to a Topic of its Target. */
-    add: async (question: Question) => {
+    add: async (question: StoredQuestion) => {
       validateQuestion(question);
       const topics = await repository.topics(question.targetId);
       if (!topics.some((topic) => topic.id === question.topicId)) {
@@ -89,6 +99,10 @@ export function createQuestionBank(repository: QuestionRepository<Transaction>) 
       repository.search(targetId, filter),
     rate: repository.rate,
     hide: repository.hide,
+    review: async (targetId: string, request: Review) =>
+      review({ repository, attempts }, targetId, request),
+    /** «просмотрено»: the Questions of the Target are no longer «новый». */
+    markSeen: repository.markSeen,
     /** Erases the Target's Topics and Questions when the Target is deleted for good. */
     eraseTarget: async (targetId: string, transaction: Transaction) =>
       repository.erase(targetId, transaction),

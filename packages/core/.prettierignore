@@ -1,0 +1,3 @@
+# Prettier reads .prettierignore only from its working directory; this copy covers runs from packages/core.
+# drizzle-kit output stays as generated, so the next `db:generate` diffs against it unchanged.
+src/features/*/infrastructure/migrations/

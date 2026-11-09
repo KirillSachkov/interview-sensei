@@ -7,7 +7,7 @@
 // A failed step ends the turn with «Фейковый агент ветки сломался: <error>».
 import type { AgentContext } from "@agentclientprotocol/sdk/unstable";
 
-import { interviewerTurn, turnOf } from "./fake-agent-interviewer.ts";
+import { turnOf } from "./fake-agent-interviewer.ts";
 import { sendText } from "./fake-agent-text.ts";
 import type { Steps } from "./fake-agent-interviewer.ts";
 
@@ -27,15 +27,10 @@ const opened: Steps = async (actions) => {
 };
 
 /** The explaining agent's turn for the server's opening message, or null for another prompt. */
-function sideThreadTurn(text: string) {
+export function sideThreadTurn(text: string) {
   return text.startsWith("The Candidate opened a side thread from a mock interview.")
     ? turnOf(opened, "Фейковый агент ветки сломался")
     : null;
-}
-
-/** The turn that calls our MCP tools: the interviewer's or the explaining agent's; null otherwise. */
-export function toolTurn(text: string) {
-  return interviewerTurn(text) ?? sideThreadTurn(text);
 }
 
 const notePrefix = "The Candidate discussed question ";

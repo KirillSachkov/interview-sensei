@@ -14,11 +14,15 @@ import {
   setupBrief,
   targetSetupMigrations,
   targetSetupModule,
+  withoutDuplicates,
 } from "@interview-sensei/core/target-setup";
 import { appSettingsMigrations, appSettingsModule } from "@interview-sensei/core/app-settings";
 import {
   getSource,
+  inboxTools,
   listSources,
+  proposeInboxProcessing,
+  proposeRecheck,
   sourceTools,
   sourcesMigrations,
   sourcesModule,
@@ -29,6 +33,7 @@ import type { SliceMigrations, Storage, StorageOptions } from "@interview-sensei
 export { UnknownAgentError } from "@interview-sensei/core/targets";
 
 type Clock = StorageOptions["clock"];
+type Timer = StorageOptions["timer"];
 
 /** The migrations of the slices this module composes, in the order composition.ts applies them. */
 export const targetSliceMigrations: readonly SliceMigrations[] = [
@@ -40,6 +45,24 @@ export const targetSliceMigrations: readonly SliceMigrations[] = [
 ];
 
 type SetupAttempts = Parameters<typeof targetSetupModule>[0]["attempts"];
+type QuestionAttempts = Parameters<typeof questionBankModule>[0]["attempts"];
+type InboxSessions = Parameters<typeof sourcesModule>[0]["sessions"];
+
+/** What the slices of this module take from the server besides the storage. */
+export interface TargetSliceDependencies {
+  readonly clock: Clock;
+  readonly timer: Timer;
+  readonly dataDirectory: string;
+  /**
+   * The interviews slice: a Topic merge of a draft moves the merged Topic's Attempts, and a deleted
+   * Question with Attempts is hidden instead.
+   */
+  readonly attempts: SetupAttempts & QuestionAttempts;
+  /** The agent-sessions slice, built after these slices: Inbox processing starts its agent there. */
+  readonly sessions: InboxSessions;
+  /** Receives the failures of background work. */
+  readonly onError: (error: unknown) => void;
+}
 
 /**
  * Targets, their Questions, the drafts of their changes, their materials in the data directory and
@@ -49,15 +72,11 @@ type SetupAttempts = Parameters<typeof targetSetupModule>[0]["attempts"];
  */
 export function composeTargets(
   storage: Storage,
-  {
-    clock,
-    dataDirectory,
-    attempts,
-  }: { clock: Clock; dataDirectory: string; attempts: SetupAttempts },
+  { clock, timer, dataDirectory, attempts, sessions, onError }: TargetSliceDependencies,
   runtime: AgentRuntime,
 ) {
   const { database } = storage;
-  const questionBank = questionBankModule({ database });
+  const questionBank = questionBankModule({ database, attempts });
   const appSettings = appSettingsModule({ database, agents: runtime });
   const targets = targetsModule({
     database,
@@ -74,13 +93,28 @@ export function composeTargets(
     topics: questionBank,
     attempts,
   });
-  const sources = sourcesModule({ database, dataDirectory, clock, targets });
+  const sources = sourcesModule({
+    database,
+    transaction: storage.transaction,
+    dataDirectory,
+    clock,
+    timer,
+    targets,
+    agents: runtime,
+    questions: questionBank,
+    duplicates: { withoutDuplicates },
+    sessions,
+    onError,
+  });
   return { questionBank, targets, targetSetup, appSettings, sources };
 }
 
 type TargetSlices = ReturnType<typeof composeTargets>;
 
-/** The MCP tools of these slices: the Target setup's set and the reading tools of other kinds. */
+/**
+ * The MCP tools of these slices: the Target setup's set, the Inbox processing's set and the reading
+ * tools of other kinds.
+ */
 export function targetTools({ targets, questionBank, targetSetup, sources }: TargetSlices) {
   const reading = {
     getTarget: getTarget(targets),
@@ -96,6 +130,14 @@ export function targetTools({ targets, questionBank, targetSetup, sources }: Tar
       reading.searchQuestions,
       ...draftTools(targetSetup),
       ...sourceTools(sources),
+      proposeInboxProcessing(sources.inbox),
+      proposeRecheck(sources.inbox),
+    ],
+    inbox: [
+      ...inboxTools(sources.inbox),
+      reading.getTarget,
+      reading.searchQuestions,
+      getSource(sources),
     ],
   };
 }

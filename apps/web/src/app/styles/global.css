@@ -734,6 +734,116 @@ textarea {
   white-space: nowrap;
 }
 
+.source-tags {
+  display: flex;
+  flex: none;
+  gap: var(--space-1);
+}
+
+.source-tags .tag {
+  margin-left: 0;
+}
+
+.source-status {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.source-processing {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.source-ready {
+  color: var(--color-ok);
+}
+
+.source-failed {
+  color: var(--color-danger);
+}
+
+.inbox-line {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.inbox-waiting {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* The card «Разбор материалов» in the setup chat */
+
+.inbox-proposal ul {
+  align-self: stretch;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Beats `.draft-change-list > li`: its space-between would push each material to the right edge. */
+.draft-change-list > .inbox-proposal-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: var(--space-2);
+  cursor: pointer;
+}
+
+.inbox-proposal-item input {
+  margin-top: 5px;
+}
+
+.inbox-proposal-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* The side panel of an Inbox report */
+
+.report-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.report-block h3 {
+  font-size: var(--font-size-body);
+  font-weight: 600;
+}
+
+.report-block ul {
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.report-sections,
+.report-topics {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  list-style: none;
+}
+
+ul.report-sections,
+ul.report-topics {
+  padding-left: 0;
+}
+
+.report-sections h4 {
+  font-size: var(--font-size-body);
+}
+
+.report-topic {
+  color: var(--color-muted);
+}
+
 button.tag.topic-chip {
   display: inline-flex;
   align-items: center;
@@ -923,4 +1033,91 @@ button.danger {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+}
+
+/* The review of an Inbox report's Questions */
+
+.report-filter,
+.report-history {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.report-history select {
+  flex: 1;
+  min-width: 0;
+}
+
+.report-question-line {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  cursor: pointer;
+}
+
+.report-question-line input {
+  margin-top: 5px;
+}
+
+.report-question-source {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-small);
+}
+
+.report-reference {
+  margin-top: var(--space-1);
+  font-size: var(--font-size-small);
+}
+
+.report-reference summary {
+  cursor: pointer;
+}
+
+.report-reference ul {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-5);
+}
+
+.report-reference p {
+  margin: var(--space-1) 0 0;
+  color: var(--color-muted);
+}
+
+.report-marks .tag:first-child {
+  margin-left: 0;
+}
+
+.tag.warning {
+  color: var(--color-danger);
+}
+
+.report-bulk {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--color-line);
+  background: var(--color-surface);
+  padding: var(--space-3) 0 0;
+}
+
+.report-bulk p {
+  margin: 0;
+}
+
+.report-bulk-buttons,
+.report-warn {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.report-warn input {
+  flex: 1;
+  min-width: 0;
 }
