@@ -1,3 +1,5 @@
+import { useEffect, useRef } from "react";
+
 import type { ChatEntry } from "@/shared/api";
 import { AgentMarkdown } from "@/shared/ui/markdown";
 
@@ -53,13 +55,21 @@ function EntryLine({
   }
 }
 
-/** The messages of the chat in order. */
+/** The messages of the chat in order; a list that scrolls keeps the newest message in sight. */
 export function ChatEntries({
   entries,
   ...answering
 }: { entries: readonly ChatEntry[] } & PermissionAnswering) {
+  const list = useRef<HTMLOListElement>(null);
+  // A new message, or the newest one as it grows by chunks.
+  const newest = entries.at(-1);
+  useEffect(() => {
+    if (newest !== undefined && list.current !== null) {
+      list.current.scrollTop = list.current.scrollHeight;
+    }
+  }, [newest]);
   return (
-    <ol aria-label="Сообщения" className="chat-entries">
+    <ol ref={list} aria-label="Сообщения" className="chat-entries">
       {entries.map((entry) => (
         <li key={entry.id}>
           <EntryLine entry={entry} answering={answering} />

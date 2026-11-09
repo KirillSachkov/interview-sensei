@@ -36,6 +36,7 @@ import {
   switcherItem,
 } from "./target-actions.ts";
 import { mockInterviewTests } from "./mock-interview-tests.ts";
+import { setupChatTests } from "./setup-chat-tests.ts";
 
 test.describe.configure({ mode: "serial" });
 
@@ -289,4 +290,5 @@ test("a draft Target is deleted at once after the confirmation", async ({ page }
   await expect(switcherItem(page, /Цель без названия/u)).toHaveCount(0);
 });
 
+setupChatTests();
 mockInterviewTests();

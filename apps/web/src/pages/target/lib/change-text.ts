@@ -32,11 +32,19 @@ function targetText(operation: Operation<"update_target">): string {
 
 function planText(operation: Operation<"set_interview_plan">): string {
   const sections = counted(operation.sections.length, ["секция", "секции", "секций"]);
-  const names = quoted(operation.sections.map((section) => section.name));
-  const renames = (operation.renameTopics ?? []).map(
-    ({ from, to }) => `; тема «${from}» станет «${to}»`,
+  const renames = operation.renameTopics ?? [];
+  return renames.length === 0 ? `План: ${sections}` : `План: ${sections}, переименование тем`;
+}
+
+/** Each Section of the plan with its Topics, then the Topic renames. */
+function planDetails(operation: Operation<"set_interview_plan">): string[] {
+  const sections = operation.sections.map(({ name, topics }) =>
+    topics === undefined || topics.length === 0 ? `«${name}»` : `«${name}»: ${quoted(topics)}`,
   );
-  return `План: ${sections} — ${names}${renames.join("")}`;
+  const renames = (operation.renameTopics ?? []).map(
+    ({ from, to }) => `Тема «${from}» станет «${to}»`,
+  );
+  return [...sections, ...renames];
 }
 
 function preferenceText(operation: Operation<"save_preference">): string {
@@ -61,7 +69,10 @@ function editsText(operation: Operation<"edit_questions">): string {
   return `Вопросы: изменить ${questions} — ${[...new Set(kinds.flat())].join(", ")}`;
 }
 
-/** One change of the draft as the Candidate reads it in the list above the message form. */
+/**
+ * One change of the draft as the Candidate reads it in the list above the message form: a short
+ * line, whose details `changeDetails` gives.
+ */
 export function changeText(operation: DraftOperation): string {
   switch (operation.type) {
     case "update_target": {
@@ -74,11 +85,30 @@ export function changeText(operation: DraftOperation): string {
       return preferenceText(operation);
     }
     case "add_questions": {
-      const questions = counted(operation.questions.length, ["вопрос", "вопроса", "вопросов"]);
-      return `Вопросы: добавить ${questions} — ${quoted(operation.questions.map((question) => question.text))}`;
+      return `Вопросы: добавить ${counted(operation.questions.length, ["вопрос", "вопроса", "вопросов"])}`;
     }
     case "edit_questions": {
       return editsText(operation);
+    }
+    default: {
+      return operation satisfies never;
+    }
+  }
+}
+
+/** The lines under the change's short line that the Candidate opens: what a long change holds. */
+export function changeDetails(operation: DraftOperation): readonly string[] {
+  switch (operation.type) {
+    case "set_interview_plan": {
+      return planDetails(operation);
+    }
+    case "add_questions": {
+      return operation.questions.map((question) => `«${question.topic}»: ${question.text}`);
+    }
+    case "update_target":
+    case "save_preference":
+    case "edit_questions": {
+      return [];
     }
     default: {
       return operation satisfies never;

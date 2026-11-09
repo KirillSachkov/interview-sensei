@@ -8,10 +8,10 @@ import {
   fetchDraft,
   removeDraftChange,
 } from "@/shared/api";
-import type { SessionView } from "@/shared/api";
+import type { DraftOperation, SessionView } from "@/shared/api";
 
-import { changeText } from "../lib/change-text";
-import { refreshPlanViews } from "../model/plan-views";
+import { changeDetails, changeText } from "../lib/change-text";
+import { refreshAppliedViews } from "../model/plan-views";
 
 function failureText(error: Error): string {
   return error instanceof DraftProblemsError
@@ -50,10 +50,7 @@ function useDraftApply(targetId: string) {
     onSuccess: async (target) => {
       queryClient.setQueryData(["targets", targetId], target);
       queryClient.setQueryData(["targets", targetId, "draft"], []);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["targets"], exact: true }),
-        refreshPlanViews(queryClient, targetId),
-      ]);
+      await refreshAppliedViews(queryClient, targetId);
     },
   });
 }
@@ -68,7 +65,27 @@ function DraftFailure({ applying, removing }: { applying: Error | null; removing
 
 type Draft = ReturnType<typeof useDraft>;
 
-/** The changes in the order of recording, each with ✕. */
+/** The change's short line; a long change opens its details under it. */
+function ChangeLine({ operation }: { operation: DraftOperation }) {
+  const details = changeDetails(operation);
+  if (details.length === 0) {
+    return <span>{changeText(operation)}</span>;
+  }
+  return (
+    <details>
+      <summary>{changeText(operation)}</summary>
+      <ul>
+        {details.map((line, index) => (
+          // The lines are the change's own text and may repeat.
+          // oxlint-disable-next-line react/no-array-index-key -- a change never changes its lines
+          <li key={index}>{line}</li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+/** The changes in the order of recording, each with ✕; the list scrolls when it is long. */
 function ChangeList({
   changes,
   disabled,
@@ -79,10 +96,10 @@ function ChangeList({
   onRemove: (changeId: string) => void;
 }) {
   return (
-    <ol aria-label="Изменения черновика">
+    <ol aria-label="Изменения черновика" className="draft-change-list">
       {changes.map((change) => (
         <li key={change.id}>
-          <span>{changeText(change.operation)}</span>
+          <ChangeLine operation={change.operation} />
           <button
             type="button"
             className="ghost"
@@ -100,12 +117,16 @@ function ChangeList({
   );
 }
 
-/** Reloads the draft whenever the agent ends a turn: its tools change the draft during the turn. */
+/**
+ * Reloads the draft and the Target whenever the agent ends a turn: its tools change the draft
+ * during the turn, and its `apply_changes` changes the Target as «Применить» does.
+ */
 function useDraftAfterTurn(targetId: string, status: SessionView["status"]) {
   const queryClient = useQueryClient();
   useEffect(() => {
     if (status === "idle") {
       void queryClient.invalidateQueries({ queryKey: ["targets", targetId, "draft"] });
+      void refreshAppliedViews(queryClient, targetId);
     }
   }, [queryClient, targetId, status]);
 }

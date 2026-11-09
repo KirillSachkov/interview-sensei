@@ -28,8 +28,9 @@ export async function chooseAgent(page: Page, name: RegExp) {
 /** The setup chat beside the canvas; `/tool <name> <json>` makes the fake agent call our tool. */
 export function setupChat(page: Page) {
   const panel = page.getByRole("complementary", { name: "Настройка цели" });
-  const messages = panel.getByRole("list", { name: "Сообщения" }).getByRole("listitem");
-  const changes = panel.getByRole("list", { name: "Изменения черновика" }).getByRole("listitem");
+  // Only the lists' own items: an agent's Markdown list or a change's details have items too.
+  const messages = panel.getByRole("list", { name: "Сообщения" }).locator(":scope > li");
+  const changes = panel.getByRole("list", { name: "Изменения черновика" }).locator(":scope > li");
   const callTool = async (name: string, args: object) => {
     const count = await messages.count();
     await panel.getByLabel("Сообщение").fill(`/tool ${name} ${JSON.stringify(args)}`);
