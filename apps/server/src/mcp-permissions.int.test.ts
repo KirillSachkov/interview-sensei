@@ -106,16 +106,17 @@ describe("mcp and permissions", () => {
       request: {
         input: "touch interview-sensei/get_brief.txt",
         options: [
-          { optionId: "allow-once", name: "Разрешить", kind: "allow_once" },
-          { optionId: "allow-always", name: "Разрешать всегда", kind: "allow_always" },
-          { optionId: "reject-once", name: "Отклонить", kind: "reject_once" },
+          { optionId: "allow-once", name: "Allow once", kind: "allow_once" },
+          { optionId: "allow-always", name: "Always allow", kind: "allow_always" },
+          { optionId: "reject-once", name: "Reject", kind: "reject_once" },
+          { optionId: "reject-always", name: "Always reject", kind: "reject_always" },
         ],
         answer: null,
       },
     });
     events.send({ type: "permission", requestId: request?.requestId, optionId: "reject-once" });
 
-    const answered = await events.waitFor(hasAnswered("Фейковый агент получил ответ: «Отклонить»"));
+    const answered = await events.waitFor(hasAnswered("Фейковый агент получил ответ: «Reject»"));
     expect(permissionRequests(answered)).toMatchObject([
       { answer: { outcome: "selected", optionId: "reject-once" } },
     ]);
@@ -132,7 +133,7 @@ describe("mcp and permissions", () => {
     const [request] = permissionRequests(asking);
     expect(request).toMatchObject({ input: "touch interview-sensei/get_brief.txt", answer: null });
     events.send({ type: "permission", requestId: request?.requestId, optionId: "allow-once" });
-    await events.waitFor(hasAnswered("Фейковый агент получил ответ: «Разрешить»"));
+    await events.waitFor(hasAnswered("Фейковый агент получил ответ: «Allow once»"));
   });
 
   it("answers a waiting permission request with cancelled when the Candidate stops the turn", async () => {

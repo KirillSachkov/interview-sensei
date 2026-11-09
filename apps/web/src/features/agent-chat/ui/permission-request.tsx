@@ -1,5 +1,18 @@
 import type { PermissionEntry } from "@/shared/api";
 
+type PermissionOption = PermissionEntry["options"][number];
+
+/** The Russian names of the ACP option kinds; agents name their options in their own language. */
+const kindNames: Readonly<Record<string, string>> = {
+  allow_once: "Разрешить один раз",
+  allow_always: "Разрешать всегда",
+  reject_once: "Запретить",
+  reject_always: "Запрещать всегда",
+};
+
+/** The option's name for the Candidate: by its kind, or the agent's own name for an unknown kind. */
+const optionName = (option: PermissionOption) => kindNames[option.kind] ?? option.name;
+
 function answerText(entry: PermissionEntry): string {
   if (entry.answer === null) {
     return "Запрос закрыт без ответа.";
@@ -9,12 +22,13 @@ function answerText(entry: PermissionEntry): string {
   }
   const { optionId } = entry.answer;
   const chosen = entry.options.find((option) => option.optionId === optionId);
-  return `Ваш ответ: ${chosen?.name ?? optionId}`;
+  return `Ваш ответ: ${chosen === undefined ? optionId : optionName(chosen)}`;
 }
 
 /**
  * The agent's request for permission, such as to run a command. While it waits, the Candidate
- * picks one of the agent's options; the option names are the agent's own text.
+ * picks one of the agent's options; a button names the option by its kind, and the agent's own
+ * name, which may say more, shows as its tooltip.
  */
 export function PermissionRequest({
   entry,
@@ -49,11 +63,12 @@ export function PermissionRequest({
             <button
               key={option.optionId}
               type="button"
+              title={option.name}
               onClick={() => {
                 onAnswer(entry.requestId, option.optionId);
               }}
             >
-              {option.name}
+              {optionName(option)}
             </button>
           ))}
         </p>

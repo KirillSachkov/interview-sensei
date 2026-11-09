@@ -41,6 +41,22 @@ test("the chat shows the agent's error answer and takes the next message", async
   await expect(messages.last()).toHaveText("Агент: Фейковый агент получил: «Привет»");
 });
 
+/**
+ * The fake agent names its options in English, as real agents do: the buttons take Russian names
+ * by the option's kind, and the agent's own name stays as the tooltip.
+ */
+async function expectOptionsByKind(request: Locator) {
+  const buttons = request.getByRole("button");
+  await expect(buttons).toHaveText([
+    "Разрешить один раз",
+    "Разрешать всегда",
+    "Запретить",
+    "Запрещать всегда",
+  ]);
+  await expect(buttons.first()).toHaveAttribute("title", "Allow once");
+  return buttons;
+}
+
 test("the Candidate answers the agent's permission request in the chat", async ({ page }) => {
   const messages = await startNewChat(page);
 
@@ -54,10 +70,11 @@ test("the Candidate answers the agent's permission request in the chat", async (
   await expect(request).toContainText(
     "Команда или аргументы агента: touch interview-sensei/get_brief.txt",
   );
-  await request.getByRole("button", { name: "Разрешить", exact: true }).click();
-  await expect(request).toContainText("Ваш ответ: Разрешить");
-  await expect(request.getByRole("button")).toHaveCount(0);
-  await expect(messages.last()).toHaveText("Агент: Фейковый агент получил ответ: «Разрешить»");
+  const buttons = await expectOptionsByKind(request);
+  await buttons.first().click();
+  await expect(request).toContainText("Ваш ответ: Разрешить один раз");
+  await expect(buttons).toHaveCount(0);
+  await expect(messages.last()).toHaveText("Агент: Фейковый агент получил ответ: «Allow once»");
 });
 
 /** The bold text, list, code block, table and safe link of the fake agent's `/markdown`. */

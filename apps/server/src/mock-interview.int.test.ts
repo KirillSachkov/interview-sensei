@@ -226,7 +226,7 @@ describe("mock interview chat", () => {
 
     // `/permission` asks for a shell command and replies with the answer it got.
     await expect(ask(chat, "/permission", "Фейковый агент получил ответ")).resolves.toBe(
-      "Фейковый агент получил ответ: «Отклонить»",
+      "Фейковый агент получил ответ: «Reject»",
     );
     const requests = chat.views
       .flatMap((view) => view.entries)
