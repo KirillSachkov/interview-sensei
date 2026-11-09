@@ -22,7 +22,7 @@ export function api(server: FastifyInstance) {
 }
 
 /** A new draft Target from «Новая цель». */
-export async function newTarget(server: FastifyInstance): Promise<TargetView> {
+async function newTarget(server: FastifyInstance): Promise<TargetView> {
   const response = await api(server).post("/api/targets");
   expect(response.statusCode).toBe(201);
   return response.json<TargetView>();

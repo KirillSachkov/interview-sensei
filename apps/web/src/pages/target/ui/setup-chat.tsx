@@ -6,6 +6,7 @@ import type { SessionView } from "@/shared/api";
 
 import { useSourceAttachments, useSourcesAfterTurn } from "../model/source-attachments";
 import { DraftChanges } from "./draft-changes";
+import { FinishSetup } from "./finish-setup";
 
 /** Follows the agent's turns for the materials; shows nothing. */
 function SourcesFollower({
@@ -52,16 +53,19 @@ function SetupSession({ targetId }: { targetId: string }) {
 /**
  * «Настройка цели»: the chat with the Target's setup agent and the draft of changes above its
  * message form. The page places it beside the card where the Candidate opened it; «Скрыть» hides
- * it and the session goes on.
+ * it and the session goes on, «Завершить» ends the session.
  */
 export function SetupChat({ targetId, onClose }: { targetId: string; onClose: () => void }) {
   return (
     <aside className="island setup-chat" aria-labelledby="setup-chat-title">
       <header className="setup-chat-head">
         <h2 id="setup-chat-title">Настройка цели</h2>
-        <button type="button" className="ghost" onClick={onClose}>
-          Скрыть
-        </button>
+        <div className="setup-chat-actions">
+          <FinishSetup targetId={targetId} onFinished={onClose} />
+          <button type="button" className="ghost" onClick={onClose}>
+            Скрыть
+          </button>
+        </div>
       </header>
       <SetupSession targetId={targetId} />
     </aside>

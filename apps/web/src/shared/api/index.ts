@@ -1,11 +1,18 @@
 export { fetchAgents } from "./agents";
 export type { AgentAvailability } from "./agents";
 export { fetchHealth } from "./health";
-export { applyDraft, DraftProblemsError, fetchDraft } from "./drafts";
+export {
+  applyDraft,
+  discardDraft,
+  DraftProblemsError,
+  fetchDraft,
+  removeDraftChange,
+} from "./drafts";
 export type { DraftOperation } from "./drafts";
 export { fetchSources, maxSourceFileBytes, uploadSource } from "./sources";
 export type { SourceType, SourceView } from "./sources";
 export {
+  endSetupSession,
   fetchSessions,
   isSessionView,
   openSetupSession,

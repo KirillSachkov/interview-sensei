@@ -133,6 +133,16 @@ export async function openSetupSession(targetId: string): Promise<SessionView> {
   return body;
 }
 
+/** «Завершить»: ends the Target's running setup session; its draft of changes stays. */
+export async function endSetupSession(targetId: string): Promise<void> {
+  const response = await fetch(`/api/targets/${encodeURIComponent(targetId)}/setup-session/end`, {
+    method: "POST",
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+}
+
 /** The WebSocket address of the session's events, on the page's own host. */
 export function sessionEventsUrl(sessionId: string): string {
   const protocol = globalThis.location.protocol === "https:" ? "wss:" : "ws:";
