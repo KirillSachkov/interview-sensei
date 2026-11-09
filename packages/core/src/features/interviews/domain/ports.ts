@@ -6,6 +6,7 @@ import type {
   CandidateAnswer,
   FollowUp,
   InterviewStatus,
+  Level,
   MockInterview,
   PastQuestion,
 } from "./interview.ts";
@@ -26,7 +27,7 @@ export interface PlanSection {
 export interface TargetPlan {
   readonly id: string;
   readonly name: string;
-  readonly level: "junior" | "middle" | "senior" | null;
+  readonly level: Level | null;
   readonly tone: "friendly" | "neutral" | "strict";
   readonly language: string;
   readonly sections: readonly PlanSection[];
@@ -60,7 +61,7 @@ export interface BankQuestion {
   readonly format: "open" | "quiz";
   readonly options: readonly { readonly id: string; readonly text: string }[];
   readonly correctOptionIds: readonly string[];
-  readonly level: "junior" | "middle" | "senior";
+  readonly level: Level;
   readonly hidden: boolean;
   readonly rating: "useful" | "irrelevant" | "wrong" | null;
 }

@@ -46,10 +46,7 @@ import { fakeAgentModes } from "./fake-agent-modes.ts";
 import { askPermission, permissionOptions } from "./fake-agent-permission.ts";
 import { profileReply, profileSettings, sessionCapabilities } from "./fake-agent-profile.ts";
 import type { ProfileSettings } from "./fake-agent-profile.ts";
-
-// A short pause between chunks lets a person see the reply grow; the fake agent stands for an
-// external program and has no injected Timer.
-const chunkPauseMs = 40;
+import { sendChunk, sendText } from "./fake-agent-text.ts";
 
 /** The MCP servers each session got in `session/new`. */
 const sessionMcpServers = new Map<string, McpServer[]>();
@@ -62,13 +59,6 @@ const modes = fakeAgentModes(agentMode);
 
 /** Resolves the waiting `/wait` turn of each session when the client cancels it. */
 const cancelWaiters = new Map<string, () => void>();
-
-async function sendChunk(client: AgentContext, sessionId: string, text: string): Promise<void> {
-  await client.notify("session/update", {
-    sessionId,
-    update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text } },
-  });
-}
 
 /** Resolves when everything written to stdout so far has reached the pipe. */
 async function flushStdout(): Promise<void> {
@@ -98,12 +88,7 @@ async function waitForCancel(client: AgentContext, sessionId: string) {
 
 /** Sends the reply in chunks of one word and ends the turn. */
 async function reply(client: AgentContext, sessionId: string, text: string) {
-  for (const word of text.split(/(?<= )/u)) {
-    /* oxlint-disable eslint/no-await-in-loop -- chunks go out one after another, like a real stream */
-    await sendChunk(client, sessionId, word);
-    await delay(chunkPauseMs);
-    /* oxlint-enable eslint/no-await-in-loop */
-  }
+  await sendText(client, sessionId, text);
   return { stopReason: "end_turn" as const };
 }
 

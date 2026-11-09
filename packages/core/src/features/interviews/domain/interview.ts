@@ -6,7 +6,13 @@ export type InterviewStatus = "running" | "finished" | "interrupted";
 /** How the Candidate shifts the level of the questions against the Target's level. */
 export type Difficulty = "easier" | "as_is" | "harder";
 
-export type Grade = 0 | 1 | 2 | 3;
+/** The Grades of an Attempt, from no answer to a complete one. */
+export const grades = [0, 1, 2, 3] as const;
+export type Grade = (typeof grades)[number];
+
+/** The levels of a Target and of its Questions, from the lowest. */
+export const levels = ["junior", "middle", "senior"] as const;
+export type Level = (typeof levels)[number];
 
 /**
  * Who graded an Attempt: the agent, the app by the quiz rule, or the app for «Не знаю», which

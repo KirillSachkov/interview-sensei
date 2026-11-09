@@ -1,12 +1,9 @@
 // The question selection rules (#8): the code ranks the candidates, the agent picks and shows one.
 // The weights were tuned on the unit tests in candidates.test.ts; the spec leaves their values to
 // the tests.
-import type { Difficulty, PastQuestion } from "./interview.ts";
+import { levels } from "./interview.ts";
+import type { Difficulty, Level, PastQuestion } from "./interview.ts";
 import type { BankQuestion } from "./ports.ts";
-
-type Level = BankQuestion["level"];
-
-const levels: readonly Level[] = ["junior", "middle", "senior"];
 
 const shifts: Readonly<Record<Difficulty, number>> = { easier: -1, as_is: 0, harder: 1 };
 

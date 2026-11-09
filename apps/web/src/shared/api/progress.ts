@@ -1,4 +1,5 @@
 // Progress, the summary Debrief, Disputes and the session history of the server (#54).
+import { checked, isObject, path } from "./http";
 
 /** «не начато», «шатко» or «уверенно». */
 export type TopicStatus = "not_started" | "shaky" | "confident";
@@ -68,10 +69,6 @@ export interface HistoryFilter {
   readonly sectionId?: string;
 }
 
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
 /** The server builds these bodies; the web app checks only that it got one. */
 const isProgress = (value: unknown): value is TargetProgress =>
   isObject(value) && isObject(value.readiness) && Array.isArray(value.topics);
@@ -79,24 +76,6 @@ const isSummary = (value: unknown): value is InterviewSummary =>
   isObject(value) && typeof value.status === "string" && Array.isArray(value.topicChanges);
 const isHistoryPage = (value: unknown): value is HistoryPage =>
   isObject(value) && Array.isArray(value.items) && typeof value.total === "number";
-
-async function checked<Value>(
-  response: Response,
-  check: (value: unknown) => value is Value,
-): Promise<Value> {
-  const body: unknown = await response.json().catch(() => null);
-  if (!response.ok) {
-    throw new Error(
-      isObject(body) && typeof body.message === "string" ? body.message : `HTTP ${response.status}`,
-    );
-  }
-  if (!check(body)) {
-    throw new Error("неожиданный ответ");
-  }
-  return body;
-}
-
-const path = (value: string) => encodeURIComponent(value);
 
 export async function fetchProgress(targetId: string): Promise<TargetProgress> {
   return checked(await fetch(`/api/targets/${path(targetId)}/progress`), isProgress);

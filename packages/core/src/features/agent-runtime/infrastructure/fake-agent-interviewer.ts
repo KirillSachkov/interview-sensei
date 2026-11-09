@@ -18,7 +18,6 @@
 // same turn, which the app keeps out of the chat.
 // A failed step ends the turn with «Фейковый интервьюер сломался: <error>».
 import { randomUUID } from "node:crypto";
-import { setTimeout as delay } from "node:timers/promises";
 
 import type { AgentContext } from "@agentclientprotocol/sdk/unstable";
 
@@ -26,9 +25,7 @@ import { moveToNextSection, presentNext } from "./fake-agent-interviewer-questio
 import type { InterviewerActions } from "./fake-agent-interviewer-questions.ts";
 import { callMcpTool } from "./fake-agent-mcp.ts";
 import { askPermission } from "./fake-agent-permission.ts";
-
-// The pause between chunks, as in the fake agent's other replies.
-const chunkPauseMs = 40;
+import { sendText } from "./fake-agent-text.ts";
 
 async function start(actions: InterviewerActions): Promise<void> {
   await actions.say("Начинаем мок-собеседование.");
@@ -131,19 +128,6 @@ async function callTool(
   return callMcpTool(server.url, name, input);
 }
 
-/** Sends the text in chunks of one word without ending the turn. */
-async function say({ client, sessionId }: InterviewerSession, text: string): Promise<void> {
-  for (const word of text.split(/(?<= )/u)) {
-    /* oxlint-disable eslint/no-await-in-loop -- chunks go out one after another, like a real stream */
-    await client.notify("session/update", {
-      sessionId,
-      update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: word } },
-    });
-    await delay(chunkPauseMs);
-    /* oxlint-enable eslint/no-await-in-loop */
-  }
-}
-
 /** Runs the turn's steps; a failure becomes the turn's last text. */
 function turnOf(steps: Steps) {
   return async (session: InterviewerSession) => {
@@ -151,11 +135,11 @@ function turnOf(steps: Steps) {
       await steps({
         sessionId: session.sessionId,
         call: async (name, input) => callTool(session, name, input),
-        say: async (text) => say(session, text),
+        say: async (text) => sendText(session.client, session.sessionId, text),
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      await say(session, `Фейковый интервьюер сломался: ${message}`);
+      await sendText(session.client, session.sessionId, `Фейковый интервьюер сломался: ${message}`);
     }
     return { stopReason: "end_turn" as const };
   };

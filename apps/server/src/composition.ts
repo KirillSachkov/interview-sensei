@@ -15,7 +15,6 @@ import {
   interviewTools,
 } from "@interview-sensei/core/interviews";
 import { getProgress, progressModule } from "@interview-sensei/core/progress";
-
 import { agentRuntimeModule } from "@interview-sensei/core/agent-runtime";
 import type { AgentRuntime, UserEnvironment } from "@interview-sensei/core/agent-runtime";
 import {
@@ -36,7 +35,8 @@ export { UnknownAgentError } from "@interview-sensei/core/targets";
 export type { AgentSessions, SessionView } from "@interview-sensei/core/agent-sessions";
 export { mcpRoute } from "@interview-sensei/core/mcp-gateway";
 export type { McpGateway } from "@interview-sensei/core/mcp-gateway";
-export type { InterviewView, StartRequest } from "@interview-sensei/core/interviews";
+export { grades } from "@interview-sensei/core/interviews";
+export type { Grade, InterviewView, StartRequest } from "@interview-sensei/core/interviews";
 
 /**
  * The migrations of every core slice that stores data, applied at each start in this order. A

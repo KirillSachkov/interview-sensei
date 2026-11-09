@@ -1,5 +1,6 @@
 // The Mock interview API of the server. The view never holds a Grade: it comes only with the
 // Debrief of an Attempt.
+import { checked, isObject, path, sent } from "./http";
 
 /** The Candidate's answer as the server recorded it. */
 interface CandidateAnswer {
@@ -80,10 +81,6 @@ export interface PlanSection {
   readonly enabled: boolean;
 }
 
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
 /** The server builds the view; the web app checks only that it got one. */
 function isInterviewView(value: unknown): value is InterviewView {
   return (
@@ -107,34 +104,6 @@ function isPlanSection(value: unknown): value is PlanSection {
     typeof value.enabled === "boolean"
   );
 }
-
-/** The Russian message the server put in an error body, if there is one. */
-async function serverMessage(response: Response): Promise<string | undefined> {
-  const body: unknown = await response.json().catch(() => null);
-  return isObject(body) && typeof body.message === "string" ? body.message : undefined;
-}
-
-async function checked<Value>(
-  response: Response,
-  check: (value: unknown) => value is Value,
-): Promise<Value> {
-  if (!response.ok) {
-    throw new Error((await serverMessage(response)) ?? `HTTP ${response.status}`);
-  }
-  const body: unknown = await response.json();
-  if (!check(body)) {
-    throw new Error("неожиданный ответ");
-  }
-  return body;
-}
-
-async function sent(response: Response): Promise<void> {
-  if (!response.ok) {
-    throw new Error((await serverMessage(response)) ?? `HTTP ${response.status}`);
-  }
-}
-
-const path = (value: string) => encodeURIComponent(value);
 
 function postJson(url: string, body?: object) {
   return fetch(url, {

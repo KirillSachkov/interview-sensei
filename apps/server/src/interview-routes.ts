@@ -4,16 +4,9 @@ import type { WebSocket } from "ws";
 import { SessionsClosedError } from "./composition.ts";
 import type { Features, InterviewView, StartRequest } from "./composition.ts";
 import { onlyField, replyOf, startRequestOf } from "./interview-requests.ts";
+import { attemptParams, params } from "./route-params.ts";
 
 type Dependencies = Pick<Features, "interviews" | "targets">;
-
-const uuid = { type: "string", format: "uuid" } as const;
-const params = { type: "object", properties: { id: uuid }, required: ["id"] } as const;
-const attemptParams = {
-  type: "object",
-  properties: { id: uuid, attemptId: uuid },
-  required: ["id", "attemptId"],
-} as const;
 
 const otherAgentHint = "Или выберите другого агента в меню «Агент» в верхней панели.";
 

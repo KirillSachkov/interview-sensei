@@ -12,10 +12,13 @@ export function getProgress(progress: Progress) {
     input: z.strictObject({}),
     run: async (_input, session) => {
       if (session.targetId === undefined || session.targetId === null) {
-        return "This session has no Target";
+        throw new Error("This session has no Target, so it has no progress.");
       }
       const found = await progress.target(session.targetId);
-      return found === undefined ? "Target not found" : JSON.stringify(found);
+      if (found === undefined) {
+        throw new Error("The session's Target no longer exists.");
+      }
+      return JSON.stringify(found);
     },
   });
 }

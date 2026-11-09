@@ -7,39 +7,18 @@ import type {
   Attempt,
   CandidateAnswer,
   FollowUp,
-  Grade,
   MockInterview,
   PastQuestion,
 } from "../domain/interview.ts";
 import type { InterviewRepository } from "../domain/ports.ts";
 import { drizzleHistoryQueries } from "./drizzle-history-queries.ts";
+import { toAttempt, toGrade, toInterview } from "./rows.ts";
 import { askedQuestions, attempts, disputes, interviews } from "./schema.ts";
 
-const iso = (date: Date | null) => date?.toISOString() ?? null;
 const date = (moment: string | undefined) => (moment === undefined ? undefined : new Date(moment));
-
-function toInterview(row: typeof interviews.$inferSelect): MockInterview {
-  return {
-    ...row,
-    startedAt: row.startedAt.toISOString(),
-    finishRequestedAt: iso(row.finishRequestedAt),
-    finishedAt: iso(row.finishedAt),
-  };
-}
 
 function toAsked(row: typeof askedQuestions.$inferSelect): AskedQuestion {
   return { ...row, presentedAt: row.presentedAt.toISOString() };
-}
-
-function toGrade(grade: number): Grade {
-  if (grade === 0 || grade === 1 || grade === 2 || grade === 3) {
-    return grade;
-  }
-  throw new Error(`A stored Grade is out of range: ${grade}`);
-}
-
-function toAttempt(row: typeof attempts.$inferSelect): Attempt {
-  return { ...row, grade: toGrade(row.grade), recordedAt: row.recordedAt.toISOString() };
 }
 
 async function oneInterview(database: Database, condition: SQL | undefined) {

@@ -4,11 +4,12 @@ import { z } from "zod";
 
 import { sessionTool } from "../../../shared/mcp/index.ts";
 import type { SessionTool } from "../../../shared/mcp/index.ts";
+import { grades } from "../domain/interview.ts";
 import type { Interviews } from "./interviews.ts";
 import { questionTools } from "./question-tools.ts";
 
 const judgment = z.strictObject({
-  grade: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]),
+  grade: z.literal(grades),
   gaps: z.string().describe("What the answer missed or got wrong; empty when nothing."),
   justification: z
     .string()

@@ -1,6 +1,8 @@
 import type { FastifyInstance } from "fastify";
 
-import type { Features } from "./composition.ts";
+import { grades } from "./composition.ts";
+import type { Features, Grade } from "./composition.ts";
+import { attemptParams, params, uuid } from "./route-params.ts";
 
 type Dependencies = Pick<Features, "interviews" | "progress" | "targets">;
 
@@ -11,34 +13,25 @@ interface HistoryQuery {
   sectionId?: string;
 }
 
-const uuid = { type: "string", format: "uuid" } as const;
-const params = { type: "object", properties: { id: uuid }, required: ["id"] } as const;
-const attemptParams = {
-  type: "object",
-  properties: { id: uuid, attemptId: uuid },
-  required: ["id", "attemptId"],
-} as const;
-
 const querystring = {
   type: "object",
   properties: {
     page: { type: "integer", minimum: 1, default: 1 },
     from: { type: "string", format: "date-time" },
     to: { type: "string", format: "date-time" },
-    sectionId: { type: "string", format: "uuid" },
+    sectionId: uuid,
   },
   additionalProperties: false,
 } as const;
 
 /** The Dispute's new Grade and reason; body checks keep JSON types strict, without coercion. */
-function disputeOf(body: unknown): { grade: 0 | 1 | 2 | 3; reason: unknown } | undefined {
+function disputeOf(body: unknown): { grade: Grade; reason: unknown } | undefined {
   if (typeof body !== "object" || body === null || Object.keys(body).length !== 2) {
     return undefined;
   }
-  const grade: unknown = Reflect.get(body, "grade");
-  return grade === 0 || grade === 1 || grade === 2 || grade === 3
-    ? { grade, reason: Reflect.get(body, "reason") }
-    : undefined;
+  const given: unknown = Reflect.get(body, "grade");
+  const grade = grades.find((known) => known === given);
+  return grade === undefined ? undefined : { grade, reason: Reflect.get(body, "reason") };
 }
 
 function registerDispute(server: FastifyInstance, { interviews }: Dependencies) {

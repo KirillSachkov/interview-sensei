@@ -3,25 +3,9 @@ import { and, asc, desc, eq, gte, lt, sql } from "drizzle-orm";
 import type { Database } from "../../../shared/storage/index.ts";
 import type { Dispute } from "../domain/dispute.ts";
 import type { AttemptRecord, HistoryFilter } from "../domain/history.ts";
-import type { Grade, MockInterview } from "../domain/interview.ts";
 import type { HistoryRepository } from "../domain/ports.ts";
+import { toAttempt, toGrade, toInterview } from "./rows.ts";
 import { askedQuestions, attempts, disputes, interviews } from "./schema.ts";
-
-function toGrade(grade: number): Grade {
-  if (grade === 0 || grade === 1 || grade === 2 || grade === 3) {
-    return grade;
-  }
-  throw new Error(`A stored Grade is out of range: ${grade}`);
-}
-
-function toInterview(row: typeof interviews.$inferSelect): MockInterview {
-  return {
-    ...row,
-    startedAt: row.startedAt.toISOString(),
-    finishRequestedAt: row.finishRequestedAt?.toISOString() ?? null,
-    finishedAt: row.finishedAt?.toISOString() ?? null,
-  };
-}
 
 function toDispute({ sequence: _order, ...row }: typeof disputes.$inferSelect): Dispute {
   return { ...row, grade: toGrade(row.grade), disputedAt: row.disputedAt.toISOString() };
@@ -52,11 +36,7 @@ async function targetAttempts(database: Database, targetId: string) {
     .where(eq(interviews.targetId, targetId))
     .orderBy(asc(attempts.recordedAt), asc(interviews.startedAt), asc(askedQuestions.position));
   return rows.map(({ attempt, ...question }): AttemptRecord => ({
-    attempt: {
-      ...attempt,
-      grade: toGrade(attempt.grade),
-      recordedAt: attempt.recordedAt.toISOString(),
-    },
+    attempt: toAttempt(attempt),
     question,
   }));
 }

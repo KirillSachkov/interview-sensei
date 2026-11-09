@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { sessionTool } from "../../../shared/mcp/index.ts";
 import type { SessionTool } from "../../../shared/mcp/index.ts";
+import { levels } from "../domain/interview.ts";
 import type { Interviewer } from "./interviewer.ts";
 
 export function questionTools(interviewer: Interviewer): readonly SessionTool[] {
@@ -14,7 +15,7 @@ export function questionTools(interviewer: Interviewer): readonly SessionTool[] 
       input: z.strictObject({
         limit: z.number().int().min(1).max(20).default(10),
         level: z
-          .enum(["junior", "middle", "senior"])
+          .enum(levels)
           .optional()
           .describe(
             "Another level than questionLevel of the brief, when you adjust the difficulty.",

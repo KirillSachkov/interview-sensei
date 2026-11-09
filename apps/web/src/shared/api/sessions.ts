@@ -1,3 +1,5 @@
+import { serverMessage } from "./http";
+
 /** One line of the chat; the server folds the agent's events into these. */
 export type ChatEntry =
   | { readonly id: string; readonly type: "candidate_message"; readonly text: string }
@@ -81,20 +83,6 @@ async function readJson(response: Response): Promise<unknown> {
     throw new Error((await serverMessage(response)) ?? `HTTP ${response.status}`);
   }
   return response.json();
-}
-
-/** The Russian message the server put in an error body, if there is one. */
-async function serverMessage(response: Response): Promise<string | undefined> {
-  const body: unknown = await response.json().catch(() => null);
-  if (
-    typeof body === "object" &&
-    body !== null &&
-    "message" in body &&
-    typeof body.message === "string"
-  ) {
-    return body.message;
-  }
-  return undefined;
 }
 
 /** Every session, the newest first. */
