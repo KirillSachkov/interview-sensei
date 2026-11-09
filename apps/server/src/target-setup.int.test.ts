@@ -211,10 +211,8 @@ describe("draft of changes", () => {
     const { changes } = await draft(server, created.id);
     expect(changes.map((change) => change.operation)).toStrictEqual([
       { type: "update_target", ...named },
-      {
-        type: "set_interview_plan",
-        sections: plan.sections.map((section) => ({ ...section, enabled: true })),
-      },
+      // The draft keeps the plan as the agent gave it: an omitted field is filled in on apply.
+      { type: "set_interview_plan", sections: plan.sections },
     ]);
     await expect(targetOf(server, created.id)).resolves.toMatchObject({
       name: "",
