@@ -53,7 +53,7 @@ function SetupSession({ targetId }: { targetId: string }) {
 /**
  * How far the open chat reaches beyond the right edge of its zone, in canvas pixels: the chat's
  * 560px and its 32px gap from the card, less the zone frame's 24px padding and 1px border, rounded
- * up. `.setup-chat` in global.css owns these sizes; change both together.
+ * up. `.setup-chat` and `.zone-frame` in global.css own these sizes; change them together.
  */
 export const setupChatOverhang = 568;
 
