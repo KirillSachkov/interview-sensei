@@ -102,13 +102,22 @@ async function finishWithSummaryDebrief(sessions: Locator) {
   await expect(summary).toContainText("Без ответа: 1");
 }
 
-/** «Готовность» counts no confident Topic and puts the shaky Topic among those to work on. */
+/**
+ * «Готовность» counts no confident Topic and puts the shaky Topic among those to work on; the
+ * Topic's chip on the plan shows the shaky dot, and «Готовность» lists no plan Topics of its own.
+ * Chromium puts a space before the visually hidden status in the chip's name.
+ */
 async function expectReadiness(goal: Locator) {
   const readiness = goal.getByRole("region", { name: "Готовность" });
   await expect(readiness).toContainText("0 из 5 тем уверенно");
   await expect(readiness.getByRole("list", { name: "Подтянуть в первую очередь" })).toContainText(
     "Проектирование сервисов",
   );
+  await expect(readiness.getByRole("list", { name: "Темы плана" })).toHaveCount(0);
+  const chip = goal
+    .getByRole("list", { name: "План собеседования" })
+    .getByRole("button", { name: /^Проектирование сервисов ?: шатко$/u });
+  await expect(chip.locator(".topic-dot.shaky")).toBeVisible();
 }
 
 const disputeReason = "Я назвал сбои и наблюдаемость.";

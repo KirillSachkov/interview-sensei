@@ -1,6 +1,6 @@
-// The setup chat tests of the live check of spec #45 (D1, D2) with their helpers. canvas.test.ts
+// The setup chat tests of the live check of spec #45 (D1, D2) and of issue #71 with their helpers. canvas.test.ts
 // declares them after its own tests: «Новая цель» creates «Python-разработчик», and the next
-// test works on it in the same serial order.
+// tests work on it in the same serial order.
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 
@@ -124,6 +124,39 @@ function draftChatTests() {
   });
 }
 
+/** The element's box on the page; an element off the page fails the test. */
+async function box(element: Locator) {
+  const found = await element.boundingBox();
+  if (found === null) {
+    throw new Error("The element has no box on the page");
+  }
+  return found;
+}
+
+/** The left element ends before the right one starts, so it covers no part of it. */
+async function expectLeftOf(left: Locator, right: Locator) {
+  const [leftBox, rightBox] = await Promise.all([box(left), box(right)]);
+  expect(leftBox.x + leftBox.width).toBeLessThan(rightBox.x);
+}
+
+// Issue #71: the open setup chat used to cover the left part of the «Сессии» zone.
+function sessionsZoneTest() {
+  test("the open setup chat leaves the «Сессии» zone free, and «Начать мок» works", async ({
+    page,
+  }) => {
+    const chat = await openPythonChat(page);
+    const { sessions } = zones(page);
+    const start = sessions.getByRole("button", { name: "Начать мок" });
+
+    await expect(start).toBeVisible();
+    await start.click();
+
+    await expect(sessions.getByRole("dialog", { name: "Начать мок" })).toBeVisible();
+    await expect(chat.panel).toBeVisible();
+    await expectLeftOf(chat.panel, sessions);
+  });
+}
+
 export function setupChatTests() {
   test.describe("the setup chat beside a large screen's canvas", () => {
     // The live check ran on a 1600×1000 window, where the whole chat panel is on the screen.
@@ -141,7 +174,9 @@ export function setupChatTests() {
       await chat.callTool("apply_changes", {});
 
       const plan = zones(page).goal.getByRole("list", { name: "План собеседования" });
-      await expect(plan.getByRole("list", { name: "Темы" })).toHaveText("ГенераторыGIL");
+      await expect(plan.getByRole("list", { name: "Темы" })).toHaveText(
+        "Генераторы: не начатоGIL: не начато",
+      );
       await expect(zones(page).goal).toContainText("Уровень: Middle");
       await expect(page.getByRole("button", { name: pythonName })).not.toContainText("черновик");
     });
@@ -169,4 +204,5 @@ export function setupChatTests() {
 
     draftChatTests();
   });
+  sessionsZoneTest();
 }

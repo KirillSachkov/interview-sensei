@@ -2,10 +2,12 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
 import { setSectionEnabled } from "@/shared/api";
-import type { PlanSection, QuestionScope, TargetView } from "@/shared/api";
+import type { PlanSection, QuestionScope, TargetView, TopicStatus } from "@/shared/api";
 
 import { questionCount } from "../lib/question-count";
 import { refreshPlanViews } from "../model/plan-views";
+import { useProgress } from "../model/progress";
+import { TopicDot, TopicStatusText } from "./topic-status";
 
 const kindNames: Record<PlanSection["kind"], string> = {
   conversation: "разговор",
@@ -26,6 +28,9 @@ export interface PlanActions {
   /** The setup chat when it is open beside this Section. */
   readonly renderChat: (sectionId: string) => ReactNode;
 }
+
+/** The Topic status of each Topic of the plan by its id; empty until the progress loads. */
+type TopicStatuses = ReadonlyMap<string, TopicStatus>;
 
 /** The Section's switch: it writes at once, without the draft of changes. */
 function SectionToggle({ targetId, section }: { targetId: string; section: PlanSection }) {
@@ -56,26 +61,41 @@ function SectionToggle({ targetId, section }: { targetId: string; section: PlanS
   );
 }
 
-function SectionTopics({ section, actions }: { section: PlanSection; actions: PlanActions }) {
+function SectionTopics({
+  section,
+  statuses,
+  actions,
+}: {
+  section: PlanSection;
+  statuses: TopicStatuses;
+  actions: PlanActions;
+}) {
   if (section.topics.length === 0) {
     return null;
   }
   return (
     <ul className="plan-topics" aria-label="Темы">
-      {section.topics.map((topic) => (
-        <li key={topic.id}>
-          <button
-            type="button"
-            className="tag topic-chip"
-            title={questionCount(topic.questionCount)}
-            onClick={() => {
-              actions.onQuestions({ scope: { topicId: topic.id }, title: topic.name });
-            }}
-          >
-            {topic.name}
-          </button>
-        </li>
-      ))}
+      {section.topics.map((topic) => {
+        const status = statuses.get(topic.id);
+        return (
+          <li key={topic.id}>
+            <button
+              type="button"
+              className="tag topic-chip"
+              title={questionCount(topic.questionCount)}
+              onClick={() => {
+                actions.onQuestions({ scope: { topicId: topic.id }, title: topic.name });
+              }}
+            >
+              {status === undefined ? null : <TopicDot status={status} />}
+              <span>
+                {topic.name}
+                {status === undefined ? null : <TopicStatusText status={status} />}
+              </span>
+            </button>
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -119,11 +139,13 @@ function SectionBlock({
   targetId,
   section,
   number,
+  statuses,
   actions,
 }: {
   targetId: string;
   section: PlanSection;
   number: number;
+  statuses: TopicStatuses;
   actions: PlanActions;
 }) {
   const count = section.topics.reduce((sum, topic) => sum + topic.questionCount, 0);
@@ -140,7 +162,7 @@ function SectionBlock({
           actions.onSetup(section.id);
         }}
       />
-      <SectionTopics section={section} actions={actions} />
+      <SectionTopics section={section} statuses={statuses} actions={actions} />
       {section.topics.length === 0 ? null : (
         <button
           type="button"
@@ -159,10 +181,14 @@ function SectionBlock({
 
 /**
  * The Target's Interview plan in the «Цель» zone: numbered Sections with a colour bar by Section
- * kind, Topic chips, the number of Questions, the switch and ✎. A chip or the number opens the
- * Questions in the side panel.
+ * kind, Topic chips with their Topic status dots, the number of Questions, the switch and ✎. A chip
+ * or the number opens the Questions in the side panel.
  */
 export function TargetPlan({ target, actions }: { target: TargetView; actions: PlanActions }) {
+  const progress = useProgress(target.id);
+  const statuses: TopicStatuses = new Map(
+    progress.data?.topics.map((topic) => [topic.id, topic.status]),
+  );
   if (target.sections.length === 0) {
     return <p className="muted">Плана пока нет: его соберёт агент в чате настройки.</p>;
   }
@@ -174,6 +200,7 @@ export function TargetPlan({ target, actions }: { target: TargetView; actions: P
           targetId={target.id}
           section={section}
           number={index + 1}
+          statuses={statuses}
           actions={actions}
         />
       ))}
