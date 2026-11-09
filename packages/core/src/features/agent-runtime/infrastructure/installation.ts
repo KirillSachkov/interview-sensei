@@ -5,7 +5,9 @@ import path from "node:path";
 
 import type { Timer } from "../../../shared/time/index.ts";
 import type { AgentHost } from "../domain/agent.ts";
+import { opencodeKeys } from "../domain/opencode-credentials.ts";
 import { opencodeModelSettings } from "../domain/opencode-settings.ts";
+import { opencodeDatabasePath, readOpencodeCredentials } from "./opencode-credentials.ts";
 import { opencodeVersion } from "./opencode-version.ts";
 
 const require = createRequire(import.meta.url);
@@ -84,7 +86,10 @@ export function inspectAgentHost(
   timer: Timer,
 ): () => Promise<AgentHost> {
   const codexHome = env.CODEX_HOME ?? path.join(home, ".codex");
-  const dataHome = env.XDG_DATA_HOME ?? path.join(home, ".local", "share");
+  const opencodeData = path.join(
+    env.XDG_DATA_HOME ?? path.join(home, ".local", "share"),
+    "opencode",
+  );
   const configHome = env.XDG_CONFIG_HOME ?? path.join(home, ".config");
   return async () => {
     const opencodeBinary = await findInPath("opencode", env.PATH);
@@ -96,7 +101,8 @@ export function inspectAgentHost(
       opencodeBinary,
       opencodeVersion: await opencodeVersion(opencodeBinary, { env, timer }),
       codexAuth: await userFile(path.join(codexHome, "auth.json")),
-      opencodeAuth: await userFile(path.join(dataHome, "opencode", "auth.json")),
+      opencodeAuth: await userFile(path.join(opencodeData, "auth.json")),
+      opencodeKeys: opencodeKeys(readOpencodeCredentials(opencodeDatabasePath(opencodeData, env))),
       opencodeModel: opencodeModelSettings(
         await Promise.all(
           opencodeConfigFiles.map((name) => textOrNull(path.join(configHome, "opencode", name))),

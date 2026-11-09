@@ -43,6 +43,7 @@ Without it the server offers Claude Code, Codex and OpenCode from `userEnvironme
 The fake agent gets an empty environment plus its recipe's variables.
 Tests that check the real agents' availability pass a temporary directory as `userEnvironment.home` and PATH, and start no real agent.
 For the OpenCode version they put a stub `opencode` script into that PATH; it answers only `--version`.
+For the OpenCode 2.x keys they create a made-up `opencode.db` with `node:sqlite` in that home.
 A stub that hangs stands for a stuck OpenCode: the test runs the timeout task of the injected `Timer` by hand.
 Launch recipes are pure: unit tests give them made-up paths, profiles and skills, and nothing touches the disk.
 Unit tests give `opencodeModelSettings` made-up texts; a missing or invalid file gives no model.

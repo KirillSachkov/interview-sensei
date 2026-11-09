@@ -3,6 +3,7 @@
 // OpenCode 2.x renamed the config keys; the recipe writes the keys of the installed version.
 import { child, applicationName, required, skillCopy } from "./recipe.ts";
 import type { AgentHost } from "./agent.ts";
+import type { OpencodeKey } from "./opencode-credentials.ts";
 import type { LaunchProfile, LaunchRecipe, LaunchRequest } from "./recipe.ts";
 
 /** The config keys of OpenCode 1.x (`agent`, `prompt`) or of 2.x (`agents`, `system`). */
@@ -91,6 +92,39 @@ function opencodeHomes(root: string) {
   };
 }
 
+/** The variable that carries the key; only its name enters the config. */
+function keyVariable(index: number): string {
+  return `INTERVIEW_SENSEI_OPENCODE_KEY_${String(index + 1)}`;
+}
+
+/** The variables of the Candidate's 2.x keys; 1.x reads them from the linked `auth.json`. */
+function keyVariables(schema: OpencodeConfigSchema, keys: readonly OpencodeKey[]) {
+  return schema === "2.x"
+    ? Object.fromEntries(keys.map(({ key }, index) => [keyVariable(index), key]))
+    : {};
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * The 2.x `providers` with each key's variable first in its provider's `env`, the list of
+ * variables that hold the provider's key. A provider entry of the Candidate keeps the rest.
+ */
+function providersWithKeys(
+  providers: Readonly<Record<string, unknown>> | undefined,
+  keys: readonly OpencodeKey[],
+): Record<string, unknown> {
+  const entries = keys.map(({ provider }, index): [string, Record<string, unknown>] => {
+    const own = providers?.[provider];
+    const entry = isObject(own) ? own : {};
+    const env: unknown[] = Array.isArray(entry.env) ? entry.env : [];
+    return [provider, { ...entry, env: [keyVariable(index), ...env] }];
+  });
+  return { ...providers, ...Object.fromEntries(entries) };
+}
+
 /**
  * The whole config of the session: the Candidate's model, our limits, the skill and the agent.
  * The Candidate's model keys pass as they are; 2.x migrates the 1.x ones itself.
@@ -103,8 +137,14 @@ function opencodeConfigContent(
     skillsPath,
   }: { schema: OpencodeConfigSchema; profile: LaunchProfile; skillsPath: string },
 ) {
-  const own = schema === "2.x" ? configV2(profile, skillsPath) : configV1(profile, skillsPath);
-  return JSON.stringify({ ...host.opencodeModel, ...own });
+  if (schema === "1.x") {
+    return JSON.stringify({ ...host.opencodeModel, ...configV1(profile, skillsPath) });
+  }
+  const keys =
+    host.opencodeKeys.length === 0
+      ? {}
+      : { providers: providersWithKeys(host.opencodeModel.providers, host.opencodeKeys) };
+  return JSON.stringify({ ...host.opencodeModel, ...keys, ...configV2(profile, skillsPath) });
 }
 
 export function opencodeRecipe({
@@ -129,6 +169,7 @@ export function opencodeRecipe({
       OPENCODE_DISABLE_EXTERNAL_SKILLS: "1",
       OPENCODE_DISABLE_PROJECT_CONFIG: "1",
       OPENCODE_CONFIG_CONTENT: opencodeConfigContent(host, { schema, profile, skillsPath }),
+      ...keyVariables(schema, host.opencodeKeys),
     },
     sessionMeta: null,
     // OpenCode has no ACP system prompt; its own agent carries the role.
@@ -147,6 +188,7 @@ export function opencodeRecipe({
       sessionDirectory,
     ],
     files: skill.files,
+    // 1.x reads the keys here; 2.x imports this file only into a database it migrates from 1.x.
     // A link to a missing file would make OpenCode create the Candidate's file on login.
     symlinks: host.opencodeAuth.exists
       ? [{ path: child(ownData, "auth.json"), target: host.opencodeAuth.path }]

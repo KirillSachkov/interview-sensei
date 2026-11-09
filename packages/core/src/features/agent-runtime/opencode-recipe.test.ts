@@ -123,3 +123,48 @@ describe("opencode recipe with the Candidate's model", () => {
     );
   });
 });
+
+describe("opencode recipe with the Candidate's provider keys", () => {
+  const opencodeKeys = [
+    { provider: "deepseek", key: "sk-deepseek" },
+    { provider: "minimax", key: "sk-minimax" },
+  ];
+  const v2 = { opencodeKeys, opencodeVersion: opencodeVersions.v2 };
+
+  it("gives OpenCode 2.x each key in its own variable and names it in the provider's entry", () => {
+    const launch = recipe("opencode", v2);
+    expect(launch.env).toMatchObject({
+      INTERVIEW_SENSEI_OPENCODE_KEY_1: "sk-deepseek",
+      INTERVIEW_SENSEI_OPENCODE_KEY_2: "sk-minimax",
+    });
+    expect(opencodeConfig(lockedProfile, v2)).toMatchObject({
+      providers: {
+        deepseek: { env: ["INTERVIEW_SENSEI_OPENCODE_KEY_1"] },
+        minimax: { env: ["INTERVIEW_SENSEI_OPENCODE_KEY_2"] },
+      },
+    });
+  });
+
+  it("keeps the keys out of the config text", () => {
+    const config = String(recipe("opencode", v2).env.OPENCODE_CONFIG_CONTENT);
+    expect(config).not.toContain("sk-deepseek");
+    expect(config).not.toContain("sk-minimax");
+  });
+
+  it("adds the key variable to the Candidate's own 2.x provider entry", () => {
+    const deepseek = { models: { "deepseek-flash": { name: "DeepSeek Flash" } }, env: ["MY_KEY"] };
+    const opencodeModel = { model: "deepseek/deepseek-flash", providers: { deepseek } };
+    expect(opencodeConfig(lockedProfile, { ...v2, opencodeModel })).toMatchObject({
+      providers: {
+        deepseek: { ...deepseek, env: ["INTERVIEW_SENSEI_OPENCODE_KEY_1", "MY_KEY"] },
+      },
+    });
+  });
+
+  it("gives OpenCode 1.x no keys: it reads the linked auth.json", () => {
+    const v1 = { opencodeKeys, opencodeVersion: opencodeVersions.v1 };
+    const launch = recipe("opencode", v1);
+    expect(Object.keys(launch.env).filter((name) => name.includes("KEY"))).toStrictEqual([]);
+    expect(opencodeConfig(lockedProfile, v1)).not.toHaveProperty("providers");
+  });
+});

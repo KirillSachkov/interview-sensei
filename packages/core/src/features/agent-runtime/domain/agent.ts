@@ -1,3 +1,4 @@
+import type { OpencodeKey } from "./opencode-credentials.ts";
 import type { OpencodeModelSettings } from "./opencode-settings.ts";
 
 /** The agents the server can start; `fake` only for tests and manual checks. */
@@ -38,8 +39,13 @@ export interface AgentHost {
   readonly opencodeVersion: string | null;
   /** The Candidate's Codex login: `auth.json` in `$CODEX_HOME` or `~/.codex`. */
   readonly codexAuth: UserFile;
-  /** The Candidate's OpenCode provider keys: `opencode/auth.json` in `$XDG_DATA_HOME`. */
+  /** The Candidate's OpenCode 1.x provider keys: `opencode/auth.json` in `$XDG_DATA_HOME`. */
   readonly opencodeAuth: UserFile;
+  /**
+   * The API keys of the Candidate's OpenCode 2.x, read from its own database; see `opencodeKeys`.
+   * Never logged.
+   */
+  readonly opencodeKeys: readonly OpencodeKey[];
   /** The model the Candidate chose for OpenCode; see `opencodeModelSettings`. */
   readonly opencodeModel: OpencodeModelSettings;
 }

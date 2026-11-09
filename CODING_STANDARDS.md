@@ -158,7 +158,12 @@ The model comes from `config.json`, `opencode.json` and `opencode.jsonc` in `$XD
 The recipe passes the copied provider entries in `OPENCODE_CONFIG_CONTENT`, which has no file location.
 So a relative `{file:...}` in such an entry may not resolve; `~/` and absolute paths do.
 The recipe drops `OPENCODE_CONFIG`, so it ignores a model that the Candidate chose only in that file.
-The agent gets the Candidate's env without `OPENCODE_CONFIG`, `OPENCODE_CONFIG_DIR`, `CODEX_HOME` and `INTERVIEW_SENSEI_*`; the recipe's variables go over it.
+OpenCode 2.x keeps provider keys in the `credential` table of its `opencode.db` and ignores `auth.json` in a new database.
+So the server also reads that table, in `$XDG_DATA_HOME/opencode` or `~/.local/share/opencode`, or the file that `OPENCODE_DB` names there.
+It opens the database `immutable` and read-only, so it creates no `-shm` or `-wal` file; a key still in OpenCode's write-ahead log appears after a checkpoint.
+`opencodeKeys` takes the key of the credential OpenCode would use for each provider; an OAuth credential gives none, because a copied refresh token could rotate.
+The 2.x recipe passes each key in its own variable `INTERVIEW_SENSEI_OPENCODE_KEY_<n>` and names it in `env` of the provider's `providers` entry; the config text holds no key.
+The agent gets the Candidate's env without `OPENCODE_CONFIG`, `OPENCODE_CONFIG_DIR`, `OPENCODE_DB`, `CODEX_HOME` and `INTERVIEW_SENSEI_*`; the recipe's variables go over it.
 `agentEnvironment` in `launch-recipe.ts` filters it. `CLAUDE_CONFIG_DIR` passes unchanged.
 API keys stay: the Candidate chose them. With `ANTHROPIC_API_KEY` set, Claude Code bills the API instead of the subscription.
 Launch recipes in `agent-runtime/domain/*-recipe.ts` put every directory, file and link into the data directory; their unit tests check it.

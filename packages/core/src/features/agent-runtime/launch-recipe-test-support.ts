@@ -18,6 +18,7 @@ export const host: AgentHost = {
   opencodeVersion: "opencode v2.2.6",
   codexAuth: { path: "/home/candidate/.codex/auth.json", exists: true },
   opencodeAuth: { path: "/home/candidate/.local/share/opencode/auth.json", exists: true },
+  opencodeKeys: [],
   opencodeModel: {},
 };
 

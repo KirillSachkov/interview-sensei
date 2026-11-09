@@ -239,6 +239,7 @@ describe("agent environment", () => {
     OPENAI_API_KEY: "sk-candidate",
     OPENCODE_CONFIG: "/home/candidate/opencode.json",
     OPENCODE_CONFIG_DIR: "/home/candidate/.opencode",
+    OPENCODE_DB: "/home/candidate/opencode.db",
     CLAUDE_CONFIG_DIR: "/home/candidate/.claude-work",
     CODEX_HOME: "/home/candidate/.codex",
     INTERVIEW_SENSEI_DATA_DIR: "/home/candidate/.interview-sensei",
