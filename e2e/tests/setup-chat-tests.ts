@@ -39,6 +39,42 @@ async function sendMessage(chat: ReturnType<typeof setupChat>, text: string) {
   await expect(chat.messages.last()).toContainText(`Фейковый агент получил: «${text}»`);
 }
 
+/** Sends `/markdown` and waits for the fake agent's tall reply. */
+async function sendMarkdown(chat: ReturnType<typeof setupChat>) {
+  const count = await chat.messages.count();
+  await chat.panel.getByLabel("Сообщение").fill("/markdown");
+  await chat.panel.getByRole("button", { name: "Отправить" }).click();
+  await expect(chat.messages).toHaveCount(count + 2);
+  await expect(chat.messages.last()).toContainText("Опасная ссылка");
+}
+
+/** The scroll position of an element; the tests compile without the DOM types. */
+interface Scrolled {
+  scrollTop: number;
+  readonly scrollHeight: number;
+  readonly clientHeight: number;
+}
+
+/** How far the scrolled list is from its bottom, in pixels; it must overflow to scroll at all. */
+async function scrollGap(list: Locator): Promise<number> {
+  const { scrollHeight, scrollTop, clientHeight } = await list.evaluate(
+    ({ scrollHeight: height, scrollTop: top, clientHeight: client }: Scrolled) => ({
+      scrollHeight: height,
+      scrollTop: top,
+      clientHeight: client,
+    }),
+  );
+  expect(scrollHeight).toBeGreaterThan(clientHeight);
+  return scrollHeight - scrollTop - clientHeight;
+}
+
+/** Scrolls the list to its top, as the Candidate does to reread the chat. */
+async function scrollToTop(list: Locator) {
+  await list.evaluate((element: Scrolled) => {
+    element.scrollTop = 0;
+  });
+}
+
 /** «Python-разработчик» with its running setup chat open and its history loaded. */
 async function openPythonChat(page: Page) {
   await openTarget(page, pythonName);
@@ -47,6 +83,45 @@ async function openPythonChat(page: Page) {
   // The message box appears with the chat's history, which callTool counts.
   await expect(chat.panel.getByRole("textbox", { name: "Сообщение" })).toBeVisible();
   return chat;
+}
+
+/** The draft's words and the chat's scroll while the draft comes and goes, on «Python-разработчик». */
+function draftChatTests() {
+  test("the draft names the language and the Preference in the screen's Russian words", async ({
+    page,
+  }) => {
+    const chat = await openPythonChat(page);
+
+    await chat.callTool("update_target", { language: "ru" });
+    await chat.callTool("save_preference", { text: "Меньше определений" });
+
+    await expect(chat.changes).toHaveText([
+      /^Цель: язык русский/u,
+      /^Пожелание: «Меньше определений»/u,
+    ]);
+    await chat.panel.getByRole("button", { name: "Отменить изменения" }).click();
+    await expect(chat.changes).toHaveCount(0);
+  });
+
+  test("the chat stays at its last message when the draft appears, and stays put when scrolled up", async ({
+    page,
+  }) => {
+    const chat = await openPythonChat(page);
+    const list = chat.panel.getByRole("list", { name: "Сообщения" });
+    // A tall reply, so the messages overflow the list before the draft takes its room.
+    await sendMarkdown(chat);
+
+    await chat.callTool("update_target", { tone: "strict" });
+
+    await expect(chat.changes).toHaveCount(1);
+    await expect(async () => {
+      expect(await scrollGap(list)).toBeLessThanOrEqual(1);
+    }).toPass({ timeout: 5000 });
+    await scrollToTop(list);
+    await chat.panel.getByRole("button", { name: "Отменить изменения" }).click();
+    await expect(chat.changes).toHaveCount(0);
+    expect(await list.evaluate(({ scrollTop }: Scrolled) => scrollTop)).toBe(0);
+  });
 }
 
 export function setupChatTests() {
@@ -91,5 +166,7 @@ export function setupChatTests() {
       await chat.panel.getByRole("button", { name: "Отменить изменения" }).click();
       await expect(chat.changes).toHaveCount(0);
     });
+
+    draftChatTests();
   });
 }

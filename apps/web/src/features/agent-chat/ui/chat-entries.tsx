@@ -55,6 +55,30 @@ function EntryLine({
   }
 }
 
+/** A list closer to its bottom than this, in pixels, counts as scrolled to the bottom. */
+const bottomSlack = 2;
+
+/**
+ * Keeps the list at its bottom when it gets shorter, such as when the draft of changes takes room
+ * below it, but only if it was at the bottom: a Candidate who scrolled up stays where they are.
+ * It was at the bottom when the distance to the bottom is no more than the height it lost.
+ * Returns the cleanup.
+ */
+function pinToBottom(list: HTMLElement): () => void {
+  let lastHeight = list.clientHeight;
+  const observer = new ResizeObserver(() => {
+    const lost = Math.max(lastHeight - list.clientHeight, 0);
+    lastHeight = list.clientHeight;
+    if (list.scrollHeight - list.scrollTop - list.clientHeight <= lost + bottomSlack) {
+      list.scrollTop = list.scrollHeight;
+    }
+  });
+  observer.observe(list);
+  return () => {
+    observer.disconnect();
+  };
+}
+
 /** The messages of the chat in order; a list that scrolls keeps the newest message in sight. */
 export function ChatEntries({
   entries,
@@ -68,6 +92,7 @@ export function ChatEntries({
       list.current.scrollTop = list.current.scrollHeight;
     }
   }, [newest]);
+  useEffect(() => (list.current === null ? undefined : pinToBottom(list.current)), []);
   return (
     <ol ref={list} aria-label="Сообщения" className="chat-entries">
       {entries.map((entry) => (
