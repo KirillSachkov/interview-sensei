@@ -4,7 +4,7 @@ import type { Page, Request } from "@playwright/test";
 
 /** Opens the page, starts a chat with the fake agent and returns its message list items. */
 async function startNewChat(page: Page) {
-  await page.goto("/");
+  await page.goto("/agent-check");
   await page
     .getByRole("combobox", { name: "Агент", exact: true })
     .selectOption({ label: "Фейковый агент" });
@@ -90,7 +90,7 @@ async function openWithClaude(page: Page) {
   const started = page.waitForRequest(
     (request) => isPost(request) && request.url().endsWith("/api/sessions"),
   );
-  await page.goto("/");
+  await page.goto("/agent-check");
   return async (): Promise<unknown> => {
     const request = await started;
     return request.postDataJSON();

@@ -67,6 +67,8 @@ Give each worktree its own ports when several run at once.
 The server keeps all data in `~/.interview-sensei`; the `INTERVIEW_SENSEI_DATA_DIR` variable overrides it.
 `pnpm dev` and `pnpm start` use the default directory.
 `pnpm test:e2e` uses `e2e/.data`, which Git ignores; its webServer command empties it before each run.
+All e2e test files share that data directory, so only `e2e/tests/canvas.test.ts` creates Targets.
+Its tests run in order: the first sees no Targets and opens the demo Target, the rest use it.
 Each agent session works in its own directory under `sessions/` in the data directory.
 The agents' own homes and configs live under `agents/` in the data directory, with symlinks to the Candidate's `auth.json`.
 Claude Code is the exception (#24): it keeps the Candidate's config directory and writes its own state there.
