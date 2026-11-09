@@ -146,6 +146,23 @@ test("«Настроить цель» returns to the running setup chat", async 
   await expect(chat.messages.last()).toContainText("Агент: Результат set_interview_plan:");
 });
 
+// Issue #71: the open setup chat used to cover the left part of the «Сессии» zone.
+test("the open setup chat leaves the «Сессии» zone free, and «Начать мок» works", async ({
+  page,
+}) => {
+  const chat = await openGoChat(page);
+  const { sessions } = zones(page);
+  const start = sessions.getByRole("button", { name: "Начать мок" });
+
+  await expect(start).toBeVisible();
+  await start.click();
+
+  await expect(sessions.getByRole("dialog", { name: "Начать мок" })).toBeVisible();
+  await expect(chat.panel).toBeVisible();
+  const [panel, zone] = await Promise.all([chat.panel.boundingBox(), sessions.boundingBox()]);
+  expect((panel?.x ?? 0) + (panel?.width ?? 0)).toBeLessThan(zone?.x ?? 0);
+});
+
 test("files attached in the setup chat go with the message and appear in «Материалы»", async ({
   page,
 }) => {

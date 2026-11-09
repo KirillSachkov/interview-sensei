@@ -423,7 +423,10 @@ textarea {
   gap: var(--space-3);
 }
 
-/* The chat stands to the right of the card or the Section where the Candidate opened it. */
+/*
+ * The chat stands to the right of the card or the Section where the Candidate opened it. The canvas
+ * moves «Сессии» aside by `setupChatReach` in setup-chat.tsx: change it with the width or the gap.
+ */
 .setup-chat {
   position: absolute;
   top: 0;
