@@ -5,10 +5,16 @@
 //   the Grade of the marker `[grade:N]` in the answer, 2 without one. With the marker `[twice]` it
 //   calls `record_attempt` once more and replies «Повторная запись: <tool result>». Then the next
 //   question.
+// - «The Candidate answered your Follow-up.»: «Уточнение получено.», then the same as an answer.
+// - `[followup]` in an answer: `ask_follow_up` instead of `record_attempt`; a refused one gives
+//   «Follow-up отклонён: <tool result>» and the Attempt.
+// - `[section]`: `set_current_section` with the brief's next Section before the next question.
+// - A quiz result or «Не знаю»: «Квиз оценён: N.» or «Вопрос пропущен.», then the next question.
+// - «Five minutes of the time limit are left.»: «Осталось 5 минут: веду интервью к концу.».
 // - «The Candidate finished the mock interview.»: `finish_interview`, then «Итог записан.».
-// The next question: the first open candidate of `next_question_candidates`, or the first one;
-// `present_question` with it, then the hint «Подсказка до ответа: …» in the same turn, which the
-// app keeps out of the chat. Without candidates it replies «Вопросов больше нет.».
+// The next question comes from fake-agent-interviewer-questions.ts: `[quiz]`, `[deeper]` and `[new]`
+// choose a quiz, a Deeper question or a made-up one; then the hint «Подсказка до ответа: …» in the
+// same turn, which the app keeps out of the chat.
 // A failed step ends the turn with «Фейковый интервьюер сломался: <error>».
 import { randomUUID } from "node:crypto";
 import { setTimeout as delay } from "node:timers/promises";
