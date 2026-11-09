@@ -12,8 +12,10 @@ export interface OriginPlace {
   readonly fromDebrief: boolean;
 }
 
+/** `message_before_question`: the interviewer's message came before any question was shown. */
 export interface OriginRefusal {
-  readonly type: "question_not_found" | "message_not_found" | "attempt_not_found";
+  readonly type:
+    "question_not_found" | "message_not_found" | "attempt_not_found" | "message_before_question";
 }
 
 /** The interviewer's chat message with the id and its place in the chat; undefined when none. */
@@ -71,7 +73,7 @@ async function messagePlace(
   }
   const question = questionAtMessage(asked, message.index);
   return question === undefined
-    ? { type: "question_not_found" }
+    ? { type: "message_before_question" }
     : { question, fragment: fragment ?? message.text, fromDebrief: false };
 }
 

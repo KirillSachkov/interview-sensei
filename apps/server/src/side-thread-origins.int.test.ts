@@ -111,6 +111,23 @@ describe("side thread origins", () => {
     await expect(cardNow(api, run.interview.id, 1)).resolves.toMatchObject({ hinted: false });
   });
 
+  it("refuses a side thread at an interviewer message from before the first question, with the reason", async () => {
+    const api = await interviewApi();
+    const { run } = await gradedFirst(api, 2);
+    const chatView = await run.chat.waitFor(saysWhenIdle("Ответ получен."));
+
+    const response = await openSideThread(api, {
+      interviewId: run.interview.id,
+      origin: { kind: "message", id: messageId(chatView, "Начинаем мок-собеседование.") },
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json()).toMatchObject({
+      error: "message_before_question",
+      message: expect.stringContaining("до первого вопроса"),
+    });
+  });
+
   it("sends the text that the Candidate selected as the fragment", async () => {
     const api = await interviewApi();
     const { run, card } = await gradedFirst(api, 2);

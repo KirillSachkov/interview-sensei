@@ -26,7 +26,8 @@ export interface SideThreadRequest {
 /**
  * - `opened`: the agent starts in the background; with the Candidate's question it answers it.
  * - `question_not_found`, `message_not_found`, `attempt_not_found`: the Mock interview has no
- *   such origin, or a message comes before the first question.
+ *   such origin.
+ * - `message_before_question`: the interviewer's message came before the first question.
  * - `agent_unavailable`: the Mock interview's agent cannot run now; `reason` says why, in Russian,
  *   when the runtime knows it.
  */

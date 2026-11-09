@@ -55,6 +55,12 @@ function refuseOpening(reply: FastifyReply, outcome: Exclude<OpenOrClosing, { ty
         message: "Сервер завершает работу и не открывает новые ветки.",
       });
     }
+    case "message_before_question": {
+      return reply.code(409).send({
+        error: outcome.type,
+        message: "Это сообщение пришло до первого вопроса, поэтому ветку у него открыть нельзя.",
+      });
+    }
     case "target_archived": {
       return reply.code(409).send({
         error: outcome.type,
@@ -88,7 +94,8 @@ function refuseOpening(reply: FastifyReply, outcome: Exclude<OpenOrClosing, { ty
  *   card (`question`, the asked question's id), an interviewer message (`message`, its chat entry
  *   id) or a Debrief (`debrief`, the Attempt's id). 201 with the Side thread; 400
  *   `invalid_request` or `agent_unavailable`, 404 `interview_not_found`, `question_not_found`,
- *   `message_not_found` or `attempt_not_found`, 409 `target_archived`, 503 `server_closing`.
+ *   `message_not_found` or `attempt_not_found`, 409 `message_before_question` or `target_archived`,
+ *   503 `server_closing`.
  * - `GET /api/interviews/:id/side-threads`: the Side threads in the order they were opened; the
  *   view of the Mock interview holds them too.
  * - `DELETE /api/interviews/:id/side-threads/:threadId`: ✕ deletes the Side thread with its
