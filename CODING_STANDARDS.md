@@ -63,6 +63,8 @@ Every request needs a loopback `Host` with the server's port, so DNS rebinding f
 Requests other than GET and HEAD, WebSocket upgrades and requests with an `Origin` need the server's own loopback origin.
 Only `pnpm dev` adds the Vite dev server's origin, through `allowedOrigins` in `main.ts`; the Vite proxy sets the server's `Host`.
 The MCP addresses skip this check and keep the MCP SDK's own `Host` and `Origin` checks.
+`server.ts` builds the `exemptRoutes` list of these skipped routes; no other file adds to it.
+Adding an exemption needs the owner's review.
 
 ### MCP tools
 
