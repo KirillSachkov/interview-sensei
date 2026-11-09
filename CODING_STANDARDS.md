@@ -230,6 +230,7 @@ It removes files and directories only inside the recipe's `syncedDirectories`, t
 A slice that stores data owns a Postgres schema named after it, with its Drizzle tables and drizzle-kit migrations in `infrastructure/`.
 The slice keeps its tables in `infrastructure/schema.ts` and its drizzle-kit config in `infrastructure/drizzle.config.ts`, with the output in `infrastructure/migrations/`.
 Generate migrations with `db:generate`; never write or edit them by hand. Prettier ignores them.
+Prettier reads `.prettierignore` only from its working directory, so run it from the root (`pnpm format`) or from `packages/core`, which has its own copy; never from another directory.
 `db:generate` turns the first `CREATE SCHEMA` into `CREATE SCHEMA IF NOT EXISTS`, because the migrator first creates the schema for the history table.
 `schema.ts` exports its `pgSchema`: drizzle-kit reads only exported objects and would otherwise drop the schema.
 The slice exports its `SliceMigrations` from `index.ts`, and `sliceMigrations` in `apps/server/src/composition.ts` lists it.
