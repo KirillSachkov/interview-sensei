@@ -10,12 +10,10 @@ import {
 } from "@interview-sensei/core/question-bank";
 import { targetsModule, targetsMigrations, getTarget } from "@interview-sensei/core/targets";
 import {
-  applyChanges,
-  setInterviewPlan,
+  draftTools,
   setupBrief,
   targetSetupMigrations,
   targetSetupModule,
-  updateTarget,
 } from "@interview-sensei/core/target-setup";
 
 import { agentRuntimeModule } from "@interview-sensei/core/agent-runtime";
@@ -67,9 +65,7 @@ function sessionTools({
       setupBrief(targetSetup),
       getTarget(targets),
       searchQuestions(questionBank, targets),
-      updateTarget(targetSetup),
-      setInterviewPlan(targetSetup),
-      applyChanges(targetSetup),
+      ...draftTools(targetSetup),
     ],
   };
 }

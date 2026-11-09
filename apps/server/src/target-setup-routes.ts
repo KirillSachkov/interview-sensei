@@ -72,6 +72,63 @@ function registerSetupSession(server: FastifyInstance, dependencies: Dependencie
   );
 }
 
+function registerSetupEnd(server: FastifyInstance, { targets, sessions }: Dependencies) {
+  server.post<{ Params: { id: string } }>(
+    "/api/targets/:id/setup-session/end",
+    { schema: { params } },
+    async (request, reply) => {
+      const { id } = request.params;
+      if ((await targets.get(id)) === undefined) {
+        return reply.code(404).send({ error: "target_not_found" });
+      }
+      const all = await sessions.list();
+      const setups = all.filter(
+        (session) => session.kind === "target-setup" && session.targetId === id,
+      );
+      // Only the live one ends; the others ended before.
+      await Promise.all(setups.map(async (session) => sessions.end(session.id)));
+      return reply.code(204).send();
+    },
+  );
+}
+
+const changeParams = {
+  type: "object",
+  properties: {
+    id: { type: "string", format: "uuid" },
+    changeId: { type: "string", format: "uuid" },
+  },
+  required: ["id", "changeId"],
+} as const;
+
+function registerDraftRemoval(server: FastifyInstance, { targets, targetSetup }: Dependencies) {
+  server.delete<{ Params: { id: string; changeId: string } }>(
+    "/api/targets/:id/draft/changes/:changeId",
+    { schema: { params: changeParams } },
+    async (request, reply) => {
+      const { id, changeId } = request.params;
+      if ((await targets.get(id)) === undefined) {
+        return reply.code(404).send({ error: "target_not_found" });
+      }
+      return (await targetSetup.removeChange(id, changeId))
+        ? reply.code(204).send()
+        : reply.code(404).send({ error: "change_not_found" });
+    },
+  );
+  server.delete<{ Params: { id: string } }>(
+    "/api/targets/:id/draft",
+    { schema: { params } },
+    async (request, reply) => {
+      const { id } = request.params;
+      if ((await targets.get(id)) === undefined) {
+        return reply.code(404).send({ error: "target_not_found" });
+      }
+      await targetSetup.discard(id);
+      return reply.code(204).send();
+    },
+  );
+}
+
 function registerDraft(server: FastifyInstance, { targets, targetSetup }: Dependencies) {
   server.get<{ Params: { id: string } }>(
     "/api/targets/:id/draft",
@@ -118,8 +175,17 @@ function registerDraft(server: FastifyInstance, { targets, targetSetup }: Depend
  * - `GET /api/targets/:id/draft`: `{ changes }`, the draft of changes in the order of recording.
  * - `POST /api/targets/:id/draft/apply`: writes the whole draft and answers the Target; 409
  *   `draft_empty`, or 409 `draft_invalid` with `problems` and the Target unchanged.
+ * - `POST /api/targets/:id/setup-session/end`: «Завершить», 204; ends the running setup session,
+ *   and the draft stays.
+ * - `DELETE /api/targets/:id/draft/changes/:changeId`: ✕ of one change, 204; 404
+ *   `change_not_found` when the Target's draft has no such change.
+ * - `DELETE /api/targets/:id/draft`: «Отменить изменения», 204; empties the draft.
+ *
+ * Each answers 404 `target_not_found` for an unknown Target.
  */
 export function registerTargetSetupRoutes(server: FastifyInstance, dependencies: Dependencies) {
   registerSetupSession(server, dependencies);
+  registerSetupEnd(server, dependencies);
   registerDraft(server, dependencies);
+  registerDraftRemoval(server, dependencies);
 }

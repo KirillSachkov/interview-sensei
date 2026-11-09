@@ -1,9 +1,9 @@
-import { and, asc, eq, ne } from "drizzle-orm";
+import { and, asc, eq, ne, sql } from "drizzle-orm";
 
 import { executorOf } from "../../../shared/storage/index.ts";
 import type { Database, Executor, Transaction } from "../../../shared/storage/index.ts";
 import type { TargetRepository } from "../domain/ports.ts";
-import type { Section, Target, TargetUpdate } from "../domain/target.ts";
+import type { Preference, Section, Target, TargetUpdate } from "../domain/target.ts";
 import { preferences, sections, targets } from "./schema.ts";
 
 function toTarget(row: typeof targets.$inferSelect): Target {
@@ -52,6 +52,8 @@ export function drizzleTargetRepository(database: Database): TargetRepository<Tr
         .orderBy(asc(sections.position)),
     preferences: async (id, transaction) =>
       activePreferences(executorOf(database, transaction), id),
+    savePreferences: async (rules, transaction) =>
+      savePreferences(executorOf(database, transaction), rules),
   };
 }
 
@@ -74,6 +76,25 @@ async function update(
     await executor.insert(sections).values([...plan]);
   }
   return true;
+}
+
+/** Inserts new Preferences and updates the existing ones of the same Target. */
+async function savePreferences(executor: Executor, rules: readonly Preference[]) {
+  if (rules.length === 0) {
+    return;
+  }
+  await executor
+    .insert(preferences)
+    .values(rules.map((rule) => ({ ...rule, createdAt: new Date(rule.createdAt) })))
+    .onConflictDoUpdate({
+      target: preferences.id,
+      set: {
+        text: sql`excluded.text`,
+        rejectedQuestionIds: sql`excluded.rejected_question_ids`,
+        active: sql`excluded.active`,
+      },
+      setWhere: eq(preferences.targetId, sql`excluded.target_id`),
+    });
 }
 
 async function list(database: Database) {

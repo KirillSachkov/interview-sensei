@@ -5,7 +5,8 @@ import type { PermissionAnswer, PermissionRequest, SessionFailure } from "./sess
  * - `idle`: the agent waits for a prompt.
  * - `working`: the agent handles a prompt; the UI shows that it works.
  * - `failed`: the agent did not start or its process exited; the session takes no prompts.
- * - `ended`: the server stopped while the session was live; the history stays readable.
+ * - `ended`: the Candidate ended the session, or the server stopped while it was live; the history
+ *   stays readable.
  */
 export type SessionStatus = "starting" | "idle" | "working" | "failed" | "ended";
 

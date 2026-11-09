@@ -5,6 +5,7 @@ import type { Clock } from "../../../shared/time/index.ts";
 import type { TargetAgents, TargetRepository, TargetTopics } from "../domain/ports.ts";
 import type {
   NewTarget,
+  Preference,
   Section,
   Target,
   TargetAgent,
@@ -172,6 +173,21 @@ export function createTargets(dependencies: Dependencies) {
       return target === undefined ? undefined : targetAgent(dependencies.agents, target.agent);
     },
     setAgent: async (id: string, agent: string | null) => setAgent(dependencies, id, agent),
+    /**
+     * Adds the Preferences with new ids and stores the text, examples and activity of the
+     * Target's existing ones.
+     */
+    savePreferences: async (
+      targetId: string,
+      rules: readonly Omit<Preference, "targetId" | "createdAt">[],
+      transaction?: Transaction,
+    ) => {
+      const createdAt = dependencies.clock.now().toISOString();
+      await repository.savePreferences(
+        rules.map((rule) => ({ ...rule, targetId, createdAt })),
+        transaction,
+      );
+    },
     topicIds: async (targetId: string, sectionId: string) => {
       const plan = await repository.sections(targetId);
       return plan.find((section) => section.id === sectionId)?.topicIds;

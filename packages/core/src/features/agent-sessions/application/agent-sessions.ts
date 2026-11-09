@@ -59,6 +59,11 @@ export interface AgentSessions {
   readonly cancel: (sessionId: string) => Promise<void>;
   /** Calls the listener after each change of a live session; returns the unsubscribe function. */
   readonly subscribe: (sessionId: string, listener: SessionListener) => () => void;
+  /**
+   * Stops the live session's agent and marks the session as ended, as «Завершить» asks; false
+   * when the session is not live.
+   */
+  readonly end: (sessionId: string) => Promise<boolean>;
   /** Marks sessions that were live when the server last stopped as ended. Call it at start. */
   readonly endInterrupted: () => Promise<void>;
   /**
@@ -270,6 +275,13 @@ export function createAgentSessions(dependencies: AgentSessionsDependencies): Ag
       return () => {
         listeners?.delete(listener);
       };
+    },
+    end: async (sessionId) => {
+      const session = context.live.get(sessionId);
+      if (session !== undefined) {
+        await end(session);
+      }
+      return session !== undefined;
     },
     endInterrupted: async () => endInterrupted(context),
     close: async () => close(context),

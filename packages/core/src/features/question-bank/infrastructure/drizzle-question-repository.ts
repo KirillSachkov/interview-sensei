@@ -3,16 +3,9 @@ import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
 import { executorOf } from "../../../shared/storage/index.ts";
 import type { Database, Executor, Transaction } from "../../../shared/storage/index.ts";
 import type { QuestionFilter, QuestionRepository } from "../domain/ports.ts";
-import type { Question, QuestionContent } from "../domain/question.ts";
+import type { Question } from "../domain/question.ts";
 import { questions, topics } from "./schema.ts";
-
-function toQuestion(row: typeof questions.$inferSelect): Question {
-  const content: QuestionContent =
-    row.format === "open"
-      ? { format: "open", options: [], correctOptionIds: [] }
-      : { format: "quiz", options: row.options, correctOptionIds: row.correctOptionIds };
-  return { ...row, ...content, createdAt: row.createdAt.toISOString() };
-}
+import { setupWrites, toQuestion } from "./setup-writes.ts";
 
 async function search(
   database: Database,
@@ -88,6 +81,7 @@ export function drizzleQuestionRepository(database: Database): QuestionRepositor
         .returning({ id: questions.id });
       return rows.length > 0;
     },
+    ...setupWrites(database),
     hide: async (id, hidden) => {
       const rows = await database
         .update(questions)

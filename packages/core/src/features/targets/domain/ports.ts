@@ -29,6 +29,11 @@ export interface TargetRepository<Transaction> {
     targetId: string,
     transaction?: Transaction,
   ) => Promise<readonly Preference[]>;
+  /** Inserts new Preferences; stores the text, examples and activity of existing ones. */
+  readonly savePreferences: (
+    preferences: readonly Preference[],
+    transaction?: Transaction,
+  ) => Promise<void>;
 }
 /** The question-bank slice supplies Target-scoped Topics and their Question counts. */
 export interface TargetTopics<Transaction> {
