@@ -13,6 +13,7 @@
 // - `/late` ends the turn, then asks permission for a foreign command outside any turn and sends
 //   «Поздний запрос: <outcome>» when the answer comes.
 // - `/mcp` replies with the session's MCP server: «MCP: <name> <url>».
+// - `/tool-list` replies with the sorted names of the tools of that server: «MCP tools: <json>».
 // - `/mode` replies with the session's permission mode: «Режим: <id>». A new session starts in
 //   `candidate-mode`, which stands for the mode in the Candidate's own settings.
 // - `/meta` replies with the `_meta` of `session/new` as JSON: «_meta: <json>».
@@ -22,6 +23,8 @@
 // - `/system`, `/skills` and `/tools` reply with the role, skills and bans of the session's
 //   profile; see `fake-agent-profile.ts`.
 // - The template messages of a mock interview get the interviewer's turns of `fake-agent-interviewer.ts`.
+// - The opening message of a Side thread gets the turn of `fake-agent-side-thread.ts`, and the
+//   server's notes before a prompt get «Отметка: <note> » there.
 // - Any other text gets the reply «Фейковый агент получил: «<text>»» in several chunks.
 //
 // The variable INTERVIEW_SENSEI_FAKE_AGENT_MODE stands for broken agents in launcher tests:
@@ -43,13 +46,13 @@ import {
 } from "@agentclientprotocol/sdk/unstable";
 import type { AgentContext, McpServer } from "@agentclientprotocol/sdk/unstable";
 
-import { interviewerTurn } from "./fake-agent-interviewer.ts";
-import { callBrief, callTool, toolCommand } from "./fake-agent-tool.ts";
+import { callBrief, callTool, toolCommand, toolList } from "./fake-agent-tool.ts";
 import type { ToolCall } from "./fake-agent-tool.ts";
 import { fakeAgentModes } from "./fake-agent-modes.ts";
 import { askPermission, permissionOptions } from "./fake-agent-permission.ts";
 import { profileReply, profileSettings, sessionCapabilities } from "./fake-agent-profile.ts";
 import type { ProfileSettings } from "./fake-agent-profile.ts";
+import { sayNotes, splitNotes, toolTurn } from "./fake-agent-side-thread.ts";
 import { markdownSample, sendChunk, sendText } from "./fake-agent-text.ts";
 
 /** The MCP servers each session got in `session/new`. */
@@ -190,6 +193,10 @@ const commands = new Map<
       reply(client, sessionId, `env: ${JSON.stringify(Object.keys(process.env).toSorted())}`),
   ],
   [
+    "/tool-list",
+    async (client, sessionId) => reply(client, sessionId, await toolList(mcpServerOf(sessionId))),
+  ],
+  [
     "/mcp",
     async (client, sessionId) => {
       const { name, url } = mcpServerOf(sessionId);
@@ -229,14 +236,17 @@ const app = agent({ name: "interview-sensei-fake-agent" })
   })
   .onRequest("session/set_config_option", ({ params }) => ({ configOptions: modes.set(params) }))
   .onRequest("session/prompt", async ({ params: { sessionId, prompt }, client }) => {
-    const text = prompt.map((block) => (block.type === "text" ? block.text : "")).join("");
+    const { notes, rest: text } = splitNotes(
+      prompt.map((block) => (block.type === "text" ? block.text : "")).join(""),
+    );
+    await sayNotes(client, sessionId, notes);
     const profile = profileReply(text, sessionSettings.get(sessionId));
     if (profile !== null) {
       return reply(client, sessionId, await profile);
     }
-    const interview = interviewerTurn(text);
-    if (interview !== null) {
-      return interview({ client, sessionId, server: mcpServerOf(sessionId) });
+    const turn = toolTurn(text);
+    if (turn !== null) {
+      return turn({ client, sessionId, server: mcpServerOf(sessionId) });
     }
     return respond(client, sessionId, text);
   })

@@ -52,11 +52,36 @@ async function openNow({ live, start }: OpenerDependencies, key: OpenKey, prepar
   return { session: await start(request), created: true };
 }
 
-/** Whether a live session of the Target, of any kind, runs now. */
-export function runningFor(live: ReadonlyMap<string, LiveSession>, targetId: string): boolean {
-  return [...live.values()].some(
-    (session) => session.view.targetId === targetId && isLive(session.view.status),
+/** The live sessions of the Target; with `kind`, only those of that kind. */
+function liveOf(
+  live: ReadonlyMap<string, LiveSession>,
+  targetId: string,
+  kind?: SessionKind,
+): LiveSession[] {
+  return [...live.values()].filter(
+    (session) =>
+      session.view.targetId === targetId &&
+      isLive(session.view.status) &&
+      (kind === undefined || session.view.kind === kind),
   );
+}
+
+/** Whether a live session of the Target runs now, of any kind but `except`. */
+export function runningFor(
+  live: ReadonlyMap<string, LiveSession>,
+  targetId: string,
+  except?: SessionKind,
+): boolean {
+  return liveOf(live, targetId).some((session) => session.view.kind !== except);
+}
+
+/** Stops at once, even in a turn, and ends every live session of the kind for the Target. */
+export async function stopAll(
+  live: ReadonlyMap<string, LiveSession>,
+  targetId: string,
+  kind: SessionKind,
+): Promise<void> {
+  await Promise.all(liveOf(live, targetId, kind).map(async (session) => end(session)));
 }
 
 /** Ends the live session at once, even in a turn; false when the session is not live. */

@@ -1,5 +1,4 @@
 import type { HistoryFilter, HistoryPage, TopicAttempt } from "../domain/history.ts";
-import type { Grade } from "../domain/interview.ts";
 import type { InterviewView } from "../domain/interview-view.ts";
 import { answerPresented } from "./candidate-answer.ts";
 import type { AnswerOutcome, CandidateReply } from "./candidate-answer.ts";
@@ -9,17 +8,26 @@ import type { FollowUpOutcome } from "./follow-ups.ts";
 import type { Context, InterviewListener, InterviewsDependencies } from "./context.ts";
 import { start } from "./start-interview.ts";
 import type { StartOutcome, StartRequest } from "./start-interview.ts";
-import { endInterrupted, finish } from "./endings.ts";
+import { endInterrupted, finish, finishByAgent } from "./endings.ts";
 import type { FinishOutcome } from "./endings.ts";
 import { createInterviewer } from "./interviewer.ts";
 import type { Interviewer } from "./interviewer.ts";
-import { debrief, dispute, history, interviewSummary, targetTopicAttempts } from "./records.ts";
-import type { AttemptDebrief, InterviewSummary } from "./records.ts";
+import {
+  debrief,
+  dispute,
+  openDebrief,
+  history,
+  interviewSummary,
+  targetTopicAttempts,
+} from "./records.ts";
+import type { AttemptDebrief, DisputeRequest, InterviewSummary } from "./records.ts";
+import { createSideThreads } from "./side-threads.ts";
+import type { SideThreads } from "./side-threads.ts";
 
 /** How many of a Target's newest Mock interviews the canvas shows. */
 const latestCount = 5;
 
-export interface Interviews {
+export interface Interviews extends SideThreads {
   /** Starts a Mock interview with the Target's agent as the interviewer. */
   readonly start: (request: StartRequest) => Promise<StartOutcome>;
   readonly view: (id: string) => Promise<InterviewView | undefined>;
@@ -42,13 +50,10 @@ export interface Interviews {
    * is recorded.
    */
   readonly attempt: (id: string, attemptId: string) => Promise<AttemptDebrief | undefined>;
+  /** The Candidate opened the Debrief: Side threads on its question learn the Grade from now on. */
+  readonly openDebrief: (id: string, attemptId: string) => Promise<"recorded" | "not_found">;
   /** Records the Candidate's correction of the Grade; the latest one applies. */
-  readonly dispute: (request: {
-    id: string;
-    attemptId: string;
-    grade: Grade;
-    reason: string;
-  }) => Promise<AttemptDebrief | undefined>;
+  readonly dispute: (request: DisputeRequest) => Promise<AttemptDebrief | undefined>;
   /** How the Mock interview ended, for its summary Debrief. */
   readonly summary: (id: string) => Promise<InterviewSummary | undefined>;
   /** One page of the Target's session history, from 1, the newest first. */
@@ -97,12 +102,17 @@ export function createInterviews(dependencies: InterviewsDependencies): Intervie
     answerFollowUp: async (id, reply) => answerFollowUp(context, id, reply),
     finish: async (id) => finish(context, id),
     attempt: async (id, attemptId) => debrief(dependencies, id, attemptId),
+    openDebrief: async (id, attemptId) => openDebrief(dependencies, id, attemptId),
     dispute: async (request) => dispute(context, request),
     summary: async (id) => interviewSummary(dependencies, id),
     history: async (request) => history(dependencies, request),
     topicAttempts: async (targetId) => targetTopicAttempts(dependencies, targetId),
     endInterrupted: async () => endInterrupted(context),
     subscribe: (id, listener) => subscribe(context, id, listener),
-    interviewer: createInterviewer(context),
+    interviewer: {
+      ...createInterviewer(context),
+      finish: async (sessionId, result) => finishByAgent(context, sessionId, result),
+    },
+    ...createSideThreads(context),
   };
 }

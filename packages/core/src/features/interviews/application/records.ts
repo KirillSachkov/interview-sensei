@@ -55,10 +55,36 @@ export async function debrief(
   };
 }
 
+/**
+ * The Candidate opened the Debrief of the Attempt: its Grade went to the Candidate, so from now on
+ * the Handoff brief of a Side thread on its question holds it too. `not_found` for an unknown Attempt.
+ */
+export async function openDebrief(
+  { repository }: InterviewsDependencies,
+  id: string,
+  attemptId: string,
+): Promise<"recorded" | "not_found"> {
+  const attempts = await repository.attempts(id);
+  const attempt = attempts.find((entry) => entry.id === attemptId);
+  if (attempt === undefined) {
+    return "not_found";
+  }
+  await repository.markDebriefOpened(attempt.askedQuestionId);
+  return "recorded";
+}
+
+/** The Candidate's correction of the Grade of the Mock interview's Attempt, with its reason. */
+export interface DisputeRequest {
+  readonly id: string;
+  readonly attemptId: string;
+  readonly grade: Grade;
+  readonly reason: string;
+}
+
 /** Records the Candidate's Dispute of the Attempt's Grade; undefined for an unknown Attempt. */
 export async function dispute(
   context: Context,
-  { id, attemptId, grade, reason }: { id: string; attemptId: string; grade: Grade; reason: string },
+  { id, attemptId, grade, reason }: DisputeRequest,
 ): Promise<AttemptDebrief | undefined> {
   const { dependencies } = context;
   return change(context, id, async () => {

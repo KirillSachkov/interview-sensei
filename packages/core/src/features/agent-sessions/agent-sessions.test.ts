@@ -59,6 +59,11 @@ function memoryRepository(created: Promise<null> = Promise.resolve(null)) {
     load: (sessionId) => Promise.resolve(sessions.get(sessionId)),
     list: () => Promise.resolve([...sessions.values()]),
     journal: (sessionId) => Promise.resolve(journals.get(sessionId) ?? []),
+    remove: (sessionId) => {
+      sessions.delete(sessionId);
+      journals.delete(sessionId);
+      return Promise.resolve();
+    },
   };
   const statuses = (): SessionStatus[] => [...sessions.values()].map((session) => session.status);
   return { repository, storage, statuses };

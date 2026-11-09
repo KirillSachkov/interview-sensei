@@ -79,6 +79,13 @@ async function journal(database: Database, sessionId: string): Promise<readonly 
     .orderBy(asc(events.id));
 }
 
+async function remove(database: Database, sessionId: string): Promise<void> {
+  await database.transaction(async (transaction) => {
+    await transaction.delete(events).where(eq(events.sessionId, sessionId));
+    await transaction.delete(sessions).where(eq(sessions.id, sessionId));
+  });
+}
+
 /** The journals go first: their events reference the sessions. */
 async function eraseTarget(executor: Executor, targetId: string): Promise<readonly string[]> {
   const owned = executor
@@ -103,6 +110,7 @@ export function drizzleSessionRepository(
     load: async (sessionId) => load(database, sessionId),
     list: async () => list(database),
     journal: async (sessionId) => journal(database, sessionId),
+    remove: async (sessionId) => remove(database, sessionId),
     eraseTarget: async (targetId, transaction) => eraseTarget(transaction, targetId),
   };
 }

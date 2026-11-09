@@ -64,7 +64,8 @@ export async function callTool(chat: Chat, name: string): Promise<unknown> {
 
 /**
  * The demo Target with a finished Mock interview: one asked question with its Attempt and a
- * Dispute. The interviewer's session has ended, so nothing of the Target runs.
+ * Dispute. The interviewer's session has ended, so nothing of the Target runs. Also resolves with
+ * the Mock interview's id and its graded card.
  */
 export async function demoWithMock(dataDirectory?: string) {
   const api = await interviewApi(dataDirectory === undefined ? {} : { dataDirectory });
@@ -76,5 +77,5 @@ export async function demoWithMock(dataDirectory?: string) {
   await run.events.waitFor((view) => view.status === "finished");
   // The session ends after the agent's last turn.
   await run.chat.waitFor((view) => view.status === "ended");
-  return api;
+  return { ...api, interviewId: run.interview.id, graded };
 }

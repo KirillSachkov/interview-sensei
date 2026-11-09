@@ -19,7 +19,7 @@ import {
 } from "./chat-test-support.ts";
 import type { SessionView } from "./chat-test-support.ts";
 import { demoApi, model } from "./model-test-support.ts";
-import { demoWithMock } from "./progress-test-support.ts";
+import { demoWithSideThread } from "./side-thread-test-support.ts";
 import { upload } from "./source-test-support.ts";
 import { deleteTarget } from "./target-deletion.ts";
 
@@ -67,7 +67,7 @@ async function targetRows(dataDirectory: string, targetId: string) {
     );
     // These rows reach the Target through their Mock interview; the data directory has one Target.
     const interviewRows = await Promise.all(
-      ["asked_questions", "attempts", "disputes"].map(async (table) => {
+      ["asked_questions", "attempts", "disputes", "side_threads"].map(async (table) => {
         const result = await database.execute<{ rows: number }>(
           `select count(*)::int as rows from interviews.${table}`,
         );
@@ -108,11 +108,12 @@ async function targetData(
 }
 
 /**
- * The demo Target with a finished Mock interview, a material file and a draft change of its setup
- * agent; the agent then crashes, so no session of the Target runs.
+ * The demo Target with a finished Mock interview and a Side thread from its Debrief, a material
+ * file and a draft change of its setup agent; the agents then crash, so no session of the Target
+ * runs.
  */
 async function demoWithData(dataDirectory: string) {
-  const api = await demoWithMock(dataDirectory);
+  const api = await demoWithSideThread(dataDirectory);
   await upload(api.server, { targetId: api.target.id, name: "vacancy.txt", body: "Go" });
   const opened = await request(api.server, {
     method: "POST",
@@ -147,11 +148,12 @@ describe("deleting an archived Target", () => {
       files: true,
       sessionFiles: true,
       rows: {
-        "agent_sessions.sessions": 2,
+        "agent_sessions.sessions": 3,
         "interviews.asked_questions": 1,
         "interviews.attempts": 1,
         "interviews.disputes": 1,
         "interviews.interviews": 1,
+        "interviews.side_threads": 1,
         "question_bank.questions": 30,
         "question_bank.topics": 5,
         "sources.sources": 1,

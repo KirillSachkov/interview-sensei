@@ -16,8 +16,9 @@ import type {
   InterviewTopicMerge,
 } from "../domain/ports.ts";
 import { drizzleHistoryQueries } from "./drizzle-history-queries.ts";
+import { drizzleSideThreadQueries } from "./drizzle-side-thread-queries.ts";
 import { toAttempt, toGrade, toInterview } from "./rows.ts";
-import { askedQuestions, attempts, disputes, interviews } from "./schema.ts";
+import { askedQuestions, attempts, disputes, interviews, sideThreads } from "./schema.ts";
 
 const date = (moment: string | undefined) => (moment === undefined ? undefined : new Date(moment));
 
@@ -154,13 +155,17 @@ function attemptQueries(database: Database) {
   } satisfies Partial<InterviewRepository>;
 }
 
-/** The Disputes go first, then the Attempts and the asked questions: each references the next. */
+/**
+ * The Disputes and Side threads go first, then the Attempts and the asked questions: each
+ * references the next.
+ */
 async function eraseTarget(executor: Executor, targetId: string): Promise<void> {
   const owned = executor
     .select({ id: interviews.id })
     .from(interviews)
     .where(eq(interviews.targetId, targetId));
   await executor.delete(disputes).where(inArray(disputes.interviewId, owned));
+  await executor.delete(sideThreads).where(inArray(sideThreads.interviewId, owned));
   await executor.delete(attempts).where(inArray(attempts.interviewId, owned));
   await executor.delete(askedQuestions).where(inArray(askedQuestions.interviewId, owned));
   await executor.delete(interviews).where(eq(interviews.targetId, targetId));
@@ -203,6 +208,7 @@ export function drizzleInterviewRepository(
     ...attemptQueries(database),
     history: async (targetId) => history(database, targetId),
     ...drizzleHistoryQueries(database),
+    ...drizzleSideThreadQueries(database),
     eraseTarget: async (targetId, transaction) => eraseTarget(transaction, targetId),
     mergeTopic: async (targetId, topics, transaction) => mergeTopic(transaction, targetId, topics),
   };

@@ -84,6 +84,28 @@ The mock interview adds the Target's tone and language this way (`interviewerRol
 One text for the agent is in Russian: `onboardingPrompt` in `target-setup/domain/brief.ts`, the first prompt of a draft Target's setup session.
 It stands for the Candidate's first message, because an agent writes its first line in the prompt's language, even before it loads the skill.
 The language rule itself stays in the profile's role.
+The `side-thread` kind (#80) explains: skill `sensei-explain`, web on, shell off, and `askCandidate: true`, because the Side thread has a chat.
+`interviews` starts it with the agent of its Mock interview and adds the Target's language (`sideThreadRole`).
+Its first server prompt, `sideThreadOpened` in `handoff-brief.ts`, repeats the ban on describing plans and tools: in the live check OpenCode began that turn with an English line about loading the skill, though the role and the skill forbid it.
+Its tools only read: `get_brief` of `interviews` with the Handoff brief, `get_target`, `search_questions`, `list_sources` and `get_source` of `sources` and `get_progress`.
+The server builds the Handoff brief from stored data (`handoffBrief`): its `debrief`, the Grade after the latest Dispute with gaps, justification and strong answer, comes only once `asked_questions.debrief_opened` is set.
+`POST /api/interviews/:id/attempts/:attemptId/debrief-opened` sets it: the browser sends it when the Candidate opens the Debrief, before it reads the Debrief; a Side thread from a Debrief sets it too.
+`GET /api/interviews/:id/attempts/:attemptId` only reads the Debrief and records nothing.
+A Side thread from an interviewer message (`agent-N`, the chat entry id) goes to the question that was shown when the message came.
+`present_question` hides the agent's text first, then stores the number of chat entries in `asked_questions.chat_position`; the message belongs to the last question whose position is not after its index in the chat.
+Questions from before this column have none and count as shown at the chat's start.
+Deleting a Side thread stops its agent at once and deletes its AgentSession, journal and session directory with `AgentSessions.remove`; `asked_questions.hinted` stays.
+A finished Mock interview ends its Side threads whose session is `idle` (`closeIdleSideThreads`); a working one goes on.
+`POST /api/targets/:id/archive` refuses with `session_running` only for live sessions of other kinds; it stops the Target's live Side threads with `AgentSessions.stopAll` and then archives.
+
+### Server messages
+
+The server talks to the interviewer with template messages in `interviews/domain/agent-messages.ts` (#10): the start, an answer, a quiz result, «Не знаю», a Follow-up answer, five minutes left and the finish.
+They go through `AgentSessions.queuePrompt`, after the agent's current turn, and stay out of the chat.
+The sixth message of #10, `discussedInSideThread`, tells the interviewer only that the Candidate discussed question N in a Side thread, never its content.
+It is a note, not a prompt: `AgentSessions.addNote` puts it before the next prompt the agent gets, the Candidate's or the server's, so the current turn goes on.
+Several Side threads on one question before that prompt give one note: `addNote` skips a note that already waits.
+The journal keeps notes in `notes` of that `prompt_sent`; the chat leaves them out.
 
 A slice adds a session kind like this:
 
@@ -248,6 +270,7 @@ A slice adds content to a zone like this:
 2. Add the widget to the zone's `content` in `targetZones`.
 
 The slice leaves `Canvas` and the top bar (`widgets/top-bar`) unchanged.
+React Flow also turns text selection off in its nodes; text the Candidate selects, such as a fragment for a Side thread inside `data-discuss-scope`, sets `user-select: text`.
 The owner approved one exception in #45: the top bar gets «Новая цель» and «Настройки».
 Spec #45 also puts «Меню цели» there, with «В архив», and the item «Архив» in the Target switcher.
 Issue #71 adds `overhang` to a zone: the canvas pixels a widget takes to the right of the zone's width, such as the open setup chat.

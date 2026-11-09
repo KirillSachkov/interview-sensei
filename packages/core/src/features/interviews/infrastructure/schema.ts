@@ -12,6 +12,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import type { Dispute } from "../domain/dispute.ts";
+import type { SideThreadOrigin } from "../domain/side-thread.ts";
 import type {
   AskedQuestion,
   CandidateAnswer,
@@ -76,6 +77,12 @@ export const askedQuestions = interviewsSchema.table(
       .$type<readonly FollowUp[]>()
       .notNull()
       .default(sql`'[]'::jsonb`),
+    /** A Side thread opened before the answer: the Attempt is recorded as received with a hint. */
+    hinted: boolean("hinted").notNull().default(false),
+    /** The Candidate opened the Debrief: the Handoff brief may hold the Grade from then on. */
+    debriefOpened: boolean("debrief_opened").notNull().default(false),
+    /** How many entries the interviewer chat had when the question was shown; null before #80. */
+    chatPosition: integer("chat_position"),
   },
   (table) => [unique().on(table.interviewId, table.position)],
 );
@@ -113,4 +120,28 @@ export const disputes = interviewsSchema.table("disputes", {
   grade: integer("grade").$type<Dispute["grade"]>().notNull(),
   reason: text("reason").notNull(),
   disputedAt: moment("disputed_at").notNull(),
+});
+
+/**
+ * The Side threads of Mock interviews. Deleting one removes its row and its AgentSession's journal;
+ * the hint mark of its asked question stays.
+ */
+export const sideThreads = interviewsSchema.table("side_threads", {
+  id: uuid("id").primaryKey(),
+  interviewId: uuid("interview_id")
+    .notNull()
+    .references(() => interviews.id),
+  sessionId: uuid("session_id").notNull().unique(),
+  originKind: text("origin_kind").$type<SideThreadOrigin["kind"]>().notNull(),
+  // Text: an agent message of the chat has an id of its journal entry, not a UUID.
+  originId: text("origin_id").notNull(),
+  askedQuestionId: uuid("asked_question_id")
+    .notNull()
+    .references(() => askedQuestions.id),
+  fragment: text("fragment"),
+  question: text("question"),
+  hinted: boolean("hinted").notNull(),
+  createdAt: moment("created_at").notNull(),
+  /** The order the Side threads were opened in, for Side threads opened at the same moment. */
+  sequence: integer("sequence").notNull().generatedAlwaysAsIdentity(),
 });

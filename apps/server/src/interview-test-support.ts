@@ -25,6 +25,8 @@ export interface Card {
   } | null;
   readonly followUps: readonly { question: string; answer: string | null; askedAt: string }[];
   readonly attemptId: string | null;
+  /** A Side thread opened before the answer: the Attempt is received with a hint. */
+  readonly hinted: boolean;
 }
 
 export interface Interview {
@@ -42,6 +44,8 @@ export interface Interview {
   readonly summary: string | null;
   readonly nextStep: string | null;
   readonly questions: readonly Card[];
+  /** The Side threads in the order they were opened; see side-thread-test-support.ts. */
+  readonly sideThreads: readonly { readonly id: string; readonly askedQuestionId: string }[];
 }
 
 function isInterviewMessage(message: unknown): message is { interview: Interview } {

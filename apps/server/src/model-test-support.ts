@@ -63,6 +63,7 @@ export function modelClient(features: Features, targetId?: string) {
       "service-chat": Object.values(features.modelTools),
       "target-setup": [],
       "mock-interview": [],
+      "side-thread": [],
     },
     origin: () => origin,
     onError: () => {},

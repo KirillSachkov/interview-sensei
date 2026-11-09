@@ -1,25 +1,36 @@
-import { useState } from "react";
-import type { SubmitEvent } from "react";
-
 import { useSessionEvents } from "@/entities/session";
 import type { ChatEntry } from "@/shared/api";
-import { AgentMarkdown } from "@/shared/ui/markdown";
 
-/** A line of the interviewer chat; tool calls never reach it. */
-function Line({ entry }: { entry: ChatEntry }) {
+import { AgentLine, CandidateLine, ChatForm } from "./chat-parts";
+import { DiscussSeparately } from "./discuss-separately";
+
+/**
+ * A line of the interviewer chat; tool calls never reach it. An interviewer message after the
+ * first question has «Обсудить отдельно»: a Side thread discusses a question.
+ */
+function Line({
+  entry,
+  interviewId,
+  discussable,
+}: {
+  entry: ChatEntry;
+  interviewId: string;
+  discussable: boolean;
+}) {
   switch (entry.type) {
     case "candidate_message": {
-      return (
-        <p className="chat-line mine">
-          <span className="muted">Вы: </span>
-          {entry.text}
-        </p>
-      );
+      return <CandidateLine text={entry.text} />;
     }
     case "agent_message": {
       return (
-        <div className="chat-line">
-          <AgentMarkdown text={entry.text} />
+        <div className="chat-message" data-discuss-scope="">
+          <AgentLine text={entry.text} />
+          {discussable ? (
+            <DiscussSeparately
+              interviewId={interviewId}
+              origin={{ kind: "message", id: entry.id }}
+            />
+          ) : null}
         </div>
       );
     }
@@ -36,25 +47,33 @@ function Line({ entry }: { entry: ChatEntry }) {
   }
 }
 
-/** The «Интервьюер» column beside the current question: a chat with the interviewer. */
-export function InterviewerChat({ sessionId }: { sessionId: string }) {
+/**
+ * The «Интервьюер» column beside the current question: a chat with the interviewer. Its messages
+ * from the chat entry `discussFrom` on, where the first question came, open Side threads; none
+ * before the first question.
+ */
+export function InterviewerChat({
+  interviewId,
+  sessionId,
+  discussFrom,
+}: {
+  interviewId: string;
+  sessionId: string;
+  discussFrom: number | null;
+}) {
   const { view, notice, lost, prompt } = useSessionEvents(sessionId);
-  const [text, setText] = useState("");
   const status = lost === null ? (view?.status ?? null) : null;
-  const submit = (event: SubmitEvent) => {
-    event.preventDefault();
-    if (text.trim() !== "" && status === "idle") {
-      prompt(text);
-      setText("");
-    }
-  };
   return (
     <aside className="interviewer" aria-label="Интервьюер">
       <h4>Интервьюер</h4>
       <ol className="interviewer-lines nowheel" aria-label="Сообщения интервьюера">
-        {(view?.entries ?? []).map((entry) => (
+        {(view?.entries ?? []).map((entry, index) => (
           <li key={entry.id}>
-            <Line entry={entry} />
+            <Line
+              entry={entry}
+              interviewId={interviewId}
+              discussable={discussFrom !== null && index >= discussFrom}
+            />
           </li>
         ))}
       </ol>
@@ -68,21 +87,12 @@ export function InterviewerChat({ sessionId }: { sessionId: string }) {
       ) : null}
       {lost === null ? null : <p role="alert">{lost}</p>}
       {notice === null ? null : <output>{notice}</output>}
-      <form className="interviewer-form" onSubmit={submit}>
-        <input
-          className="nodrag nopan"
-          aria-label="Сообщение интервьюеру"
-          placeholder="Уточнить вопрос"
-          value={text}
-          disabled={status !== "idle" && status !== "working"}
-          onChange={(event) => {
-            setText(event.target.value);
-          }}
-        />
-        <button type="submit" disabled={status !== "idle" || text.trim() === ""}>
-          Отправить
-        </button>
-      </form>
+      <ChatForm
+        status={status}
+        onSend={prompt}
+        label="Сообщение интервьюеру"
+        placeholder="Уточнить вопрос"
+      />
     </aside>
   );
 }

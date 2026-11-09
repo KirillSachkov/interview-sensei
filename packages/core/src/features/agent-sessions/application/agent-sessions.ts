@@ -1,3 +1,4 @@
+import { rm } from "node:fs/promises";
 import path from "node:path";
 
 import type { AgentSession, SessionView } from "../domain/agent-session.ts";
@@ -11,27 +12,25 @@ import {
   launch,
   liveSession,
   record,
-  runTurn,
 } from "./live-session.ts";
 import type { LiveSession, LiveSessionDependencies, SessionListener } from "./live-session.ts";
-import { runningFor, sessionOpener, stopNow } from "./open-session.ts";
+import {
+  addNote,
+  candidatePrompt,
+  drain,
+  enqueue,
+  hideAgentText,
+  queuePrompt,
+} from "./server-prompts.ts";
+import type { PromptOutcome, QueueContext, QueueOutcome } from "./server-prompts.ts";
+import { runningFor, sessionOpener, stopAll, stopNow } from "./open-session.ts";
 import type { OpenSession, StartRequest } from "./open-session.ts";
-import { drain, enqueue, hideAgentText, queuePrompt } from "./server-prompts.ts";
-import type { QueueContext, QueueOutcome } from "./server-prompts.ts";
 
 export interface AgentSessionsDependencies extends LiveSessionDependencies {
   readonly launcher: AgentLauncher;
   /** Each session gets its own directory here, inside the data directory. */
   readonly sessionsDirectory: string;
 }
-
-/**
- * - `accepted`: the agent got the prompt.
- * - `busy`: the agent still starts or handles the previous prompt.
- * - `closed`: the session failed or ended and takes no prompts.
- * - `not_found`: no session has this id.
- */
-type PromptOutcome = "accepted" | "busy" | "closed" | "not_found";
 
 export interface AgentSessions {
   /**
@@ -46,8 +45,10 @@ export interface AgentSessions {
   readonly open: OpenSession;
   /** Every session, the newest first. */
   readonly list: () => Promise<readonly AgentSession[]>;
-  /** Whether a live session of the Target, of any kind, runs on this server now. */
-  readonly running: (targetId: string) => boolean;
+  /** Whether a live session of the Target, of any kind but `except`, runs on this server now. */
+  readonly running: (targetId: string, except?: StartRequest["kind"]) => boolean;
+  /** Stops at once, even in a turn, and ends every live session of the kind for the Target. */
+  readonly stopAll: (targetId: string, kind: StartRequest["kind"]) => Promise<void>;
   readonly view: (sessionId: string) => Promise<SessionView | undefined>;
   /** Sends the Candidate's prompt to the agent; refuses it while the agent works. */
   readonly prompt: (sessionId: string, text: string) => Promise<PromptOutcome>;
@@ -64,11 +65,15 @@ export interface AgentSessions {
   ) => Promise<QueueOutcome>;
   /** Hides the agent's text from the chat until a prompt with `showAgentText`; only when live. */
   readonly hideAgentText: (sessionId: string) => Promise<void>;
+  /** See `addNote` in server-prompts.ts, such as the mock interview's note about a Side thread. */
+  readonly addNote: (sessionId: string, text: string) => void;
   /**
    * Stops the agent after its current turn and the server's queued prompts, and marks the session
    * as ended. Does nothing for a session that is not live.
    */
   readonly end: (sessionId: string) => Promise<void>;
+  /** Stops the agent at once and deletes the session with its journal for good, such as a Side thread. */
+  readonly remove: (sessionId: string) => Promise<void>;
   /** Stops the agent at once, even in a turn, and ends the session; false when it is not live. */
   readonly stop: (sessionId: string) => Promise<boolean>;
   /**
@@ -183,22 +188,6 @@ async function view({ dependencies, live }: Context, sessionId: string) {
   return stored === undefined ? undefined : replay(stored, await repository.journal(sessionId));
 }
 
-async function prompt(context: Context, sessionId: string, text: string): Promise<PromptOutcome> {
-  const session = context.live.get(sessionId);
-  if (session === undefined) {
-    return (await context.dependencies.repository.load(sessionId)) ? "closed" : "not_found";
-  }
-  const { agent } = session;
-  if (agent === null || session.turnActive || !isLive(session.view.status)) {
-    return isLive(session.view.status) ? "busy" : "closed";
-  }
-  // Set before the first await, so a second prompt in the meantime sees the turn.
-  session.turnActive = true;
-  await record(session, { type: "prompt_sent", text });
-  void runTurn(session, agent, text);
-  return "accepted";
-}
-
 async function cancel({ live }: Context, sessionId: string): Promise<void> {
   const session = live.get(sessionId);
   const agent = session?.agent ?? null;
@@ -240,6 +229,13 @@ async function endInterrupted({ dependencies: { repository, clock } }: Context):
   );
 }
 
+/** Stops the session's agent at once and deletes the session, its journal and its directory. */
+async function remove({ live, dependencies }: Context, sessionId: string): Promise<void> {
+  await stopNow(live, sessionId);
+  await dependencies.repository.remove(sessionId);
+  await rm(path.join(dependencies.sessionsDirectory, sessionId), { recursive: true, force: true });
+}
+
 async function close(context: Context): Promise<void> {
   context.closing = true;
   // A session being created ends in its start, before the storage closes.
@@ -269,20 +265,22 @@ export function createAgentSessions(dependencies: AgentSessionsDependencies): Ag
   };
   return {
     start: async (request) => start(context, request),
-    open: sessionOpener({
-      live: context.live,
-      start: async (request) => start(context, request),
-    }),
+    open: sessionOpener({ live, start: async (request) => start(context, request) }),
     list: async () => dependencies.repository.list(),
-    running: (targetId) => runningFor(context.live, targetId),
+    running: (targetId, except) => runningFor(context.live, targetId, except),
+    stopAll: async (targetId, kind) => stopAll(context.live, targetId, kind),
     view: async (sessionId) => view(context, sessionId),
-    prompt: async (sessionId, text) => prompt(context, sessionId, text),
+    prompt: async (sessionId, text) => candidatePrompt(context.queue, sessionId, text),
     queuePrompt: async (sessionId, text, options) =>
       queuePrompt(context.queue, { sessionId, text }, options),
     hideAgentText: async (sessionId) => hideAgentText(context.queue, sessionId),
+    addNote: (sessionId, text) => {
+      addNote(context.queue, sessionId, text);
+    },
     end: async (sessionId) => {
       await enqueue(context.queue, sessionId, (settle) => ({ type: "end", settle }));
     },
+    remove: async (sessionId) => remove(context, sessionId),
     stop: async (sessionId) => stopNow(context.live, sessionId),
     answerPermission: async (sessionId, request) => answer(context, sessionId, request),
     cancel: async (sessionId) => cancel(context, sessionId),
