@@ -19,7 +19,7 @@ Never reset another worker’s checkout to obtain a desired base.
 
 ## Shared resources and finish
 
-This repository currently launches no application services.
+`pnpm dev` and `pnpm test:e2e` start local servers on fixed default ports; [testing](testing.md#ports) lists them and their overrides.
 Worktrees isolate files, not credentials, ports or external effects.
 Before an experiment starts shared services, establish ownership and an isolation plan in its issue.
 Retain the PR worktree for acceptance.

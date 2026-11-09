@@ -1,0 +1,34 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  "workspaces": {
+    ".": {
+      // Workspace dependency-cruiser configs extend it; knip does not follow `extends` there.
+      "entry": ["config/dependency-cruiser/base.cjs"],
+    },
+    "packages/core": {
+      // Run or loaded as programs rather than imported: drizzle-kit loads the slice configs and
+      // reads every export of a slice schema, and the server starts the fake ACP agent as a process.
+      "entry": [
+        "scripts/*.ts",
+        "src/features/*/infrastructure/drizzle.config.ts",
+        "src/features/*/infrastructure/schema.ts",
+        "src/features/agent-runtime/infrastructure/fake-agent.ts",
+      ],
+      // The server starts the ACP adapters as programs; installation.ts only resolves their paths.
+      "ignoreDependencies": [
+        "@agentclientprotocol/claude-agent-acp",
+        "@agentclientprotocol/codex-acp",
+      ],
+    },
+    "apps/web": {
+      // Steiger has no knip plugin; `pnpm boundaries` loads this config.
+      "entry": ["steiger.config.ts"],
+      // A direct dependency only so pnpm links its agent skills (#32); the code imports @tanstack/react-router.
+      "ignoreDependencies": ["@tanstack/router-core"],
+      "ignoreIssues": {
+        // The router plugin decides what the generated route tree exports.
+        "src/**/*.gen.ts": ["exports", "types"],
+      },
+    },
+  },
+}

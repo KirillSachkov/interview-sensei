@@ -1,0 +1,22 @@
+{
+  "$schema": "../../node_modules/oxlint/configuration_schema.json",
+  "extends": ["../../config/oxlint/react.json"],
+  // Options apply only in the root config of a run, so each workspace sets them.
+  "options": {
+    "typeAware": true,
+    "typeCheck": true,
+    "denyWarnings": true,
+    "reportUnusedDisableDirectives": "error"
+  },
+  "overrides": [
+    {
+      // The router generator writes `/* eslint-disable */` and `// @ts-nocheck` into the route tree,
+      // so neither oxlint rules nor the type check inspect that file. This override only allows the
+      // generator's blanket directive. Start Vite to regenerate the file instead of editing it.
+      "files": ["src/app/route-tree.gen.ts"],
+      "rules": {
+        "unicorn/no-abusive-eslint-disable": "off"
+      }
+    }
+  ]
+}

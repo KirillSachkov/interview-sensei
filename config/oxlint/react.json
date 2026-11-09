@@ -1,0 +1,48 @@
+{
+  "$schema": "../../node_modules/oxlint/configuration_schema.json",
+  "extends": ["./base.json"],
+  // Oxlint implements the react-hooks rules inside its react plugin (react/rules-of-hooks, react/exhaustive-deps).
+  "plugins": [
+    "eslint",
+    "typescript",
+    "unicorn",
+    "oxc",
+    "import",
+    "promise",
+    "vitest",
+    "react",
+    "jsx-a11y"
+  ],
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "error",
+    // TypeScript compiles JSX with the automatic runtime ("jsx": "react-jsx"), so files need no React import.
+    "react/react-in-jsx-scope": "off",
+    "import/no-unassigned-import": ["error", { "allow": ["**/*.css"] }],
+    // TanStack Router redirects and aborts by throwing redirect() and notFound().
+    "typescript/only-throw-error": [
+      "error",
+      {
+        "allow": [
+          {
+            "from": "package",
+            "package": "@tanstack/router-core",
+            "name": ["Redirect", "NotFoundError"]
+          }
+        ]
+      }
+    ],
+
+    // Selected restriction rules.
+    "react/button-has-type": "error",
+    "react/no-clone-element": "error",
+    "react/no-danger": "error",
+    "react/no-react-children": "error",
+    "react/no-unknown-property": "error",
+    "jsx-a11y/anchor-ambiguous-text": "error",
+
+    // Disabled rules.
+    // Page layouts nest markup deeper than the default limit of 2; splitting them only to satisfy the limit hurts readability.
+    "react/jsx-max-depth": "off"
+  }
+}

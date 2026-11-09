@@ -1,0 +1,15 @@
+{
+  "$schema": "../../node_modules/oxlint/configuration_schema.json",
+  "extends": ["./base.json"],
+  "plugins": ["eslint", "typescript", "unicorn", "oxc", "import", "promise", "vitest", "node"],
+  "rules": {
+    // Selected restriction rules.
+    "node/handle-callback-err": "error",
+    "node/no-new-require": "error",
+    "node/no-path-concat": "error",
+
+    // Disabled rules.
+    // The server is a Node.js application; built-in modules are its platform.
+    "import/no-nodejs-modules": "off"
+  }
+}

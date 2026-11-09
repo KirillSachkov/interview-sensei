@@ -1,0 +1,45 @@
+packages:
+  - apps/*
+  - packages/*
+  - e2e
+engineStrict: true
+saveExact: true
+strictPeerDependencies: true
+# Fresh releases wait a day before install, which limits exposure to compromised versions.
+minimumReleaseAge: 1440
+# Refuses a version published with weaker provenance than an earlier one, a sign of a hijacked account.
+trustPolicy: no-downgrade
+trustPolicyExclude:
+  # Maintenance releases of an older major, published without provenance after a newer major had it.
+  # Not a takeover: same maintainers, long-standing versions. Remove when the dependants move on.
+  - chokidar@4.0.3 # via steiger
+  - semver@6.3.1 # via @babel/core in @tanstack/router-plugin
+# Install scripts run only for the packages listed here as true.
+allowBuilds:
+  esbuild: true
+peerDependencyRules:
+  allowedVersions:
+    # TypeScript 7 ships no classic JavaScript compiler API. .pnpmfile.cjs gives the tools that call it
+    # the TypeScript 6 API from @typescript/typescript6; these peers only see the version.
+    "tsconfck>typescript": "7"
+    # @steiger/toolkit uses vitest only in its rule-testing helpers, which the project does not use.
+    "@steiger/toolkit>vitest": "5"
+packageExtensions:
+  # The published types import @steiger/toolkit, which the package lists only as a devDependency;
+  # without it steiger.config.ts sees the recommended config as an error type.
+  "@feature-sliced/steiger-plugin@0.8.1":
+    dependencies:
+      "@steiger/toolkit": "0.2.4"
+# Agent skills that the owner approved (#32). pnpm links them at install time; the lockfile pins them.
+permissions:
+  "@tanstack/react-router":
+    skills: true
+  "@tanstack/router-core":
+    skills: true
+  "@tanstack/router-plugin":
+    skills: true
+# One target for every agent: .claude/skills points to .agents/skills, and Codex reads .agents/skills.
+# Without it, pnpm also links into the directory of the detected agent, such as .cursor/skills.
+skills:
+  dirs:
+    - .agents/skills
