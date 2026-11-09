@@ -33,6 +33,7 @@ Each slice exports one module factory from `module.ts` at the slice root, such a
 The factory takes only what the server owns: database, clock, timer, data directory, callbacks and other slices' services.
 It creates the slice's infrastructure itself and returns the slice's service.
 The slice's `index.ts` exports the factory, its migrations, its MCP tools and the types of its service.
+It also exports the constants, errors and dependency types that the server needs, such as `SessionsClosedError`.
 It does not export application or infrastructure parts.
 
 `apps/server/src/composition.ts` is the only server file that imports core features; `server-composes-features-in-one-module` checks it.
@@ -41,6 +42,7 @@ Routes take composed services and their types from `composition.ts`.
 Shared subpaths, such as `time`, `storage` and `session-kinds`, stay open to every server file.
 
 The session kinds live in `packages/core/src/shared/session-kinds` (`@interview-sensei/core/session-kinds`).
+A request types the kind as `SessionKind` on entry; storage keeps it as a string.
 `agent-sessions` treats a kind as an opaque label, as it treats the agent.
 A new slice plugs in like this:
 
