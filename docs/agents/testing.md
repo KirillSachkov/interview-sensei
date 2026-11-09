@@ -103,6 +103,7 @@ A test of an unavailable agent stores Codex as the agent of a paused mock interv
 The fake agent has a side thread mode for Side threads (`fake-agent-side-thread.ts`).
 On «The Candidate opened a side thread from a mock interview.» it calls `get_brief` and replies «Разбираю вопрос кандидата: «<candidateQuestion>»».
 A failed step there ends the turn with «Фейковый агент ветки сломался: <error>».
+On «The side thread continues in a new session.» it calls `get_brief` and replies «Продолжаю ветку: N сообщения до перерыва», where N counts the messages of the brief's `continuation`.
 `/brief` in the Side thread's chat replies with the whole Handoff brief as JSON.
 `/tool-list` replies with the sorted names of the session's MCP tools: «MCP tools: <json>».
 A prompt that starts with the server's note «The Candidate discussed question N in a side thread.» first gets «Отметка: <note>», then the reply to the rest.

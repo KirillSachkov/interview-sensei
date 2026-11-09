@@ -104,9 +104,19 @@ export interface InterviewSessions {
     agent: string;
     targetId: string;
     roleAddition: string;
-    /** The earlier session that the new one continues after a pause; its chat comes first. */
+    /**
+     * The earlier session that the new one continues, after a pause or a restart; its chat comes
+     * first.
+     */
     continues?: string;
   }) => Promise<{ readonly id: string }>;
+  /**
+   * The Candidate's and the agent's messages of the earlier sessions that this one continues, in
+   * order; empty when it continues none.
+   */
+  readonly earlierMessages: (
+    sessionId: string,
+  ) => Promise<readonly { readonly from: "candidate" | "agent"; readonly text: string }[]>;
   /**
    * Sends a template message after the agent's current turn; it stays out of the chat. With
    * `showAgentText`, the agent's hidden text goes to the chat again from this message on.
@@ -124,7 +134,10 @@ export interface InterviewSessions {
   readonly end: (sessionId: string) => Promise<void>;
   /** Stops the agent at once, even in a turn, and ends the session; false when it is not live. */
   readonly stop: (sessionId: string) => Promise<boolean>;
-  /** Stops the agent at once and deletes the session with its journal for good. */
+  /**
+   * Stops the agent at once and deletes the session with the earlier sessions it continues and
+   * their journals, for good.
+   */
   readonly remove: (sessionId: string) => Promise<void>;
   /** Calls the listener after each change of a live session; returns the unsubscribe. */
   readonly subscribe: (
@@ -201,6 +214,8 @@ export interface SideThreadRepository {
   /** The Mock interview's Side threads in the order they were opened. */
   readonly sideThreads: (interviewId: string) => Promise<readonly SideThread[]>;
   readonly sideThreadBySession: (sessionId: string) => Promise<SideThread | undefined>;
+  /** Moves the Side thread to the new AgentSession that continues its earlier one. */
+  readonly continueSideThread: (id: string, sessionId: string) => Promise<void>;
   /** Marks the asked question: its Attempt is recorded as received with a hint. */
   readonly markHinted: (askedQuestionId: string) => Promise<void>;
   /** Marks the asked question: the Candidate opened the Debrief of its Attempt. */

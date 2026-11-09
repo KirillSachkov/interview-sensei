@@ -99,3 +99,22 @@ export async function originPlace(
     }
   }
 }
+
+/** The agent cannot run now; `reason` says why, in Russian, when the runtime knows it. */
+export interface AgentRefusal {
+  readonly type: "agent_unavailable";
+  readonly reason: string | null;
+}
+
+/** Why the Mock interview's agent cannot run now, or null when it can. */
+export async function agentRefusal(
+  { agents }: InterviewsDependencies,
+  agent: string,
+): Promise<AgentRefusal | null> {
+  const listed = await agents.listAgents();
+  const offered = listed.find((entry) => entry.agent === agent);
+  if (offered === undefined) {
+    return { type: "agent_unavailable", reason: null };
+  }
+  return offered.available ? null : { type: "agent_unavailable", reason: offered.reason };
+}

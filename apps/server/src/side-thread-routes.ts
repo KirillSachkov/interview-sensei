@@ -5,7 +5,12 @@ import type { FastifyInstance, FastifyReply } from "fastify";
 
 import type { ArchiveGuard } from "./archive-guard.ts";
 import { SessionsClosedError } from "./composition.ts";
-import type { Features, SideThreadOutcome, SideThreadRequest } from "./composition.ts";
+import type {
+  ContinueOutcome,
+  Features,
+  SideThreadOutcome,
+  SideThreadRequest,
+} from "./composition.ts";
 import { sideThreadRequestOf } from "./interview-requests.ts";
 import { params, uuid } from "./route-params.ts";
 
@@ -88,6 +93,73 @@ function refuseOpening(reply: FastifyReply, outcome: Exclude<OpenOrClosing, { ty
   }
 }
 
+type ContinueOrClosing =
+  ContinueOutcome | { readonly type: "server_closing" } | { readonly type: "target_archived" };
+
+/** «Продолжить» in the Side thread as a new agent session of the Target, as an opening. */
+async function continueOrClosing(
+  { interviews, archiveGuard }: Dependencies,
+  { id, threadId }: { id: string; threadId: string },
+): Promise<ContinueOrClosing> {
+  const interview = await interviews.view(id);
+  if (interview === undefined) {
+    return { type: "not_found" };
+  }
+  try {
+    const outcome = await archiveGuard.startSession(interview.targetId, async () =>
+      interviews.continueSideThread(id, threadId),
+    );
+    return outcome === "target_archived" ? { type: outcome } : outcome;
+  } catch (error) {
+    if (error instanceof SessionsClosedError) {
+      return { type: "server_closing" };
+    }
+    throw error;
+  }
+}
+
+/** The refusal of «Продолжить» in Russian. */
+function refuseContinuation(
+  reply: FastifyReply,
+  outcome: Exclude<ContinueOrClosing, { type: "continued" }>,
+) {
+  switch (outcome.type) {
+    case "not_found": {
+      return reply.code(404).send({ error: "side_thread_not_found" });
+    }
+    case "running": {
+      return reply.code(409).send({
+        error: "side_thread_running",
+        message: "Агент ветки ещё работает: пишите в ветку как обычно.",
+      });
+    }
+    case "target_archived": {
+      return reply.code(409).send({
+        error: outcome.type,
+        message: "Цель в архиве. Верните её из архива, чтобы продолжить ветку.",
+      });
+    }
+    case "server_closing": {
+      return reply.code(503).send({
+        error: outcome.type,
+        message: "Сервер завершает работу и не продолжает ветки.",
+      });
+    }
+    case "agent_unavailable": {
+      return reply.code(400).send({
+        error: outcome.type,
+        message:
+          outcome.reason === null
+            ? "Агент мока недоступен, поэтому ветку продолжить нельзя."
+            : `Агент мока недоступен. ${outcome.reason}`,
+      });
+    }
+    default: {
+      return outcome satisfies never;
+    }
+  }
+}
+
 /**
  * - `POST /api/interviews/:id/side-threads` `{ origin: { kind, id }, fragment?, question? }`:
  *   «Обсудить отдельно» with the selected fragment and the Candidate's question. The origin is a
@@ -98,8 +170,13 @@ function refuseOpening(reply: FastifyReply, outcome: Exclude<OpenOrClosing, { ty
  *   503 `server_closing`.
  * - `GET /api/interviews/:id/side-threads`: the Side threads in the order they were opened; the
  *   view of the Mock interview holds them too.
- * - `DELETE /api/interviews/:id/side-threads/:threadId`: ✕ deletes the Side thread with its
- *   AgentSession and journal for good; the hint mark stays. 204, or 404 `side_thread_not_found`.
+ * - `POST /api/interviews/:id/side-threads/:threadId/continue`: «Продолжить» in a Side thread
+ *   whose agent is gone (#85): a new session of the thread continues its chat. 200 with the Side
+ *   thread and its new `sessionId`; 400 `agent_unavailable`, 404 `side_thread_not_found`, 409
+ *   `side_thread_running` or `target_archived`, 503 `server_closing`.
+ * - `DELETE /api/interviews/:id/side-threads/:threadId`: ✕ deletes the Side thread with every
+ *   AgentSession of its chat and their journals for good; the hint mark stays. 204, or 404
+ *   `side_thread_not_found`.
  */
 export function registerSideThreadRoutes(server: FastifyInstance, dependencies: Dependencies) {
   const { interviews } = dependencies;
@@ -125,6 +202,16 @@ export function registerSideThreadRoutes(server: FastifyInstance, dependencies: 
       return outcome.type === "opened"
         ? reply.code(201).send(outcome.thread)
         : refuseOpening(reply, outcome);
+    },
+  );
+  server.post<{ Params: { id: string; threadId: string } }>(
+    "/api/interviews/:id/side-threads/:threadId/continue",
+    { schema: { params: threadParams } },
+    async (request, reply) => {
+      const outcome = await continueOrClosing(dependencies, request.params);
+      return outcome.type === "continued"
+        ? reply.code(200).send(outcome.thread)
+        : refuseContinuation(reply, outcome);
     },
   );
   server.delete<{ Params: { id: string; threadId: string } }>(

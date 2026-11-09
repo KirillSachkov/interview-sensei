@@ -21,6 +21,8 @@ Then it builds the Target's name, level, Sections and Topics in the draft of cha
 The changes of a Target that the agent of its Target setup session has recorded and the Candidate has not applied yet. The Target stays unchanged until then.
 The Candidate sees the draft as a list in the chat and applies it as a whole, by a button or by agreeing in words; the agent applies it only after that agreement.
 A Target has one draft of changes. It outlives the Agent session and a restart, so a Target is never changed halfway.
+After a restart or a crash of the agent, opening the Target setup continues the conversation: a new Agent session starts with the earlier chat, and its brief holds the draft and the last messages.
+After «Завершить» the next Target setup session starts afresh.
 The draft holds one Interview plan: a new plan replaces the earlier one and keeps its Topic renames.
 _Avoid_: Draft, alone: a new Target is a draft too.
 
@@ -123,11 +125,14 @@ The Candidate opens a Side thread at a question card, at an interviewer message 
 A Side thread from an interviewer message discusses the Question that was shown when the message came; a message before the first Question opens none.
 The Candidate can delete a Side thread for good; the hint mark on the Attempt stays.
 When the Mock interview finishes, its Side threads whose agent waits for a message close; archiving the Target closes all of its Side threads.
-A closed Side thread, and every Side thread after a restart, stays readable and takes no more messages.
+A closed Side thread, and every Side thread after a restart or a crash of its agent, stays readable; «Продолжить» starts a new Agent session of the Side thread with the Mock interview's agent.
+The new session's chat starts with the earlier one, and its Handoff brief holds the Side thread's earlier messages. Continuing never changes the hint mark.
+Deleting a continued Side thread deletes every Agent session of its chat.
 
 **Handoff brief**:
 The compact context a Side thread starts from: the Target, the current Question, the Candidate's answer and Follow-ups, the selected fragment and the Candidate's question. It never contains Grades the Candidate has not opened.
 Once the Candidate opened the Debrief of the Attempt, it also holds its Grade, gaps, justification and strong answer.
+In a continued Side thread it also holds the Side thread's earlier messages.
 
 **Question rating**:
 The Candidate's opinion of a Question itself: useful, irrelevant, or wrong.

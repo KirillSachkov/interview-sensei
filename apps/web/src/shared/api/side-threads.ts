@@ -71,3 +71,15 @@ export async function deleteSideThread({ interviewId, id }: SideThread): Promise
   });
   await sent(response);
 }
+
+/**
+ * «Продолжить» in a Side thread whose agent is gone, such as after a restart (#85): a new session
+ * continues its chat; resolves with the Side thread and its new `sessionId`.
+ */
+export async function continueSideThread({ interviewId, id }: SideThread): Promise<SideThread> {
+  const response = await fetch(
+    `/api/interviews/${path(interviewId)}/side-threads/${path(id)}/continue`,
+    { method: "POST" },
+  );
+  return checked(response, isSideThread);
+}

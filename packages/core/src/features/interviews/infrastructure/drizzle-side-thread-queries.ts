@@ -42,6 +42,9 @@ export function drizzleSideThreadQueries(database: Database): SideThreadReposito
         .where(eq(sideThreads.sessionId, sessionId));
       return row === undefined ? undefined : toSideThread(row);
     },
+    continueSideThread: async (id, sessionId) => {
+      await database.update(sideThreads).set({ sessionId }).where(eq(sideThreads.id, id));
+    },
     markHinted: async (askedQuestionId) => {
       await database
         .update(askedQuestions)

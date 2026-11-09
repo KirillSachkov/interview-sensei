@@ -269,8 +269,11 @@ async function runTurn(session: LiveSession, agent: LiveAgent, text: string) {
   }
 }
 
-/** Stops the agent and marks the session as ended, once a starting agent has started. */
-export async function end(session: LiveSession): Promise<void> {
+/**
+ * Stops the agent and marks the session as ended, once a starting agent has started; `byCandidate`
+ * when the Candidate ended it.
+ */
+export async function end(session: LiveSession, { byCandidate = false } = {}): Promise<void> {
   // Wait for a starting agent, so its process does not outlive the server.
   await session.started;
   const { agent } = session;
@@ -279,7 +282,10 @@ export async function end(session: LiveSession): Promise<void> {
   await agent?.stop();
   await closeMcp(session);
   if (isLive(session.view.status)) {
-    await record(session, { type: "session_ended" });
+    await record(
+      session,
+      byCandidate ? { type: "session_ended", by: "candidate" } : { type: "session_ended" },
+    );
   }
   await session.written;
 }

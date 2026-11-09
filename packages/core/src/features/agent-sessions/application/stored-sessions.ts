@@ -4,7 +4,8 @@ import type { Clock } from "../../../shared/time/index.ts";
 import type { SessionView } from "../domain/agent-session.ts";
 import { isLive } from "../domain/agent-session.ts";
 import type { SessionRepository } from "../domain/ports.ts";
-import { replay } from "../domain/session-view.ts";
+import { conversationOf, replay } from "../domain/session-view.ts";
+import type { ConversationMessage } from "../domain/session-view.ts";
 import type { LiveSession } from "./live-session.ts";
 
 /**
@@ -30,6 +31,57 @@ export async function sessionView(
       ? undefined
       : await sessionView(live, repository, stored.continuesSessionId);
   return replay(stored, await repository.journal(sessionId), earlier?.entries);
+}
+
+/** The session, live or stored; undefined for an unknown id. */
+async function sessionOf(
+  live: ReadonlyMap<string, LiveSession>,
+  repository: SessionRepository,
+  sessionId: string,
+) {
+  return live.get(sessionId)?.view ?? (await repository.load(sessionId));
+}
+
+/**
+ * The Candidate's and the agent's messages of the sessions this one continues, in order; empty
+ * when it continues none.
+ */
+export async function earlierMessages(
+  live: ReadonlyMap<string, LiveSession>,
+  repository: SessionRepository,
+  sessionId: string,
+): Promise<ConversationMessage[]> {
+  const session = await sessionOf(live, repository, sessionId);
+  const earlierId = session?.continuesSessionId;
+  const earlier =
+    earlierId === undefined ? undefined : await sessionView(live, repository, earlierId);
+  return conversationOf(earlier?.entries ?? []);
+}
+
+/** The ids of the session and of the earlier sessions it continues, the latest first. */
+export async function chainOf(
+  live: ReadonlyMap<string, LiveSession>,
+  repository: SessionRepository,
+  sessionId: string,
+): Promise<string[]> {
+  const session = await sessionOf(live, repository, sessionId);
+  if (session === undefined) {
+    return [sessionId];
+  }
+  const earlier =
+    session.continuesSessionId === undefined
+      ? []
+      : await chainOf(live, repository, session.continuesSessionId);
+  return [sessionId, ...earlier];
+}
+
+/** Whether the Candidate ended the session, rather than the server or a failure of its agent. */
+export async function endedByCandidate(
+  repository: SessionRepository,
+  sessionId: string,
+): Promise<boolean> {
+  const journal = await repository.journal(sessionId);
+  return journal.some(({ event }) => event.type === "session_ended" && event.by === "candidate");
 }
 
 /** Marks sessions that were live when the server last stopped as ended. */

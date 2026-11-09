@@ -233,3 +233,34 @@ export function replay(
   );
   return { ...view, status: session.status };
 }
+
+/** One message of a conversation: the Candidate's or the agent's text of the chat. */
+export interface ConversationMessage {
+  readonly from: "candidate" | "agent";
+  readonly text: string;
+}
+
+/** The chat entry as a message of the conversation; null for entries that are no message. */
+function messageOf(entry: ChatEntry): ConversationMessage | null {
+  switch (entry.type) {
+    case "candidate_message": {
+      return { from: "candidate", text: entry.text };
+    }
+    case "agent_message": {
+      return { from: "agent", text: entry.text };
+    }
+    case "turn_interrupted":
+    case "turn_failed":
+    case "permission_request": {
+      return null;
+    }
+    default: {
+      return entry satisfies never;
+    }
+  }
+}
+
+/** The Candidate's and the agent's messages of the chat in order, without other entries. */
+export function conversationOf(entries: readonly ChatEntry[]): ConversationMessage[] {
+  return entries.map((entry) => messageOf(entry)).filter((message) => message !== null);
+}

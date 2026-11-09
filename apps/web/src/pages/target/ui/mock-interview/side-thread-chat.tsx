@@ -3,7 +3,7 @@ import { useState } from "react";
 
 import { useSessionEvents } from "@/entities/session";
 import { PermissionRequest } from "@/features/agent-chat";
-import { deleteSideThread } from "@/shared/api";
+import { continueSideThread, deleteSideThread } from "@/shared/api";
 import type { ChatEntry, SessionView, SideThread } from "@/shared/api";
 
 import { AgentLine, CandidateLine, ChatForm } from "./chat-parts";
@@ -49,18 +49,61 @@ function Line({
   }
 }
 
-/** What the agent does now, or why the Side thread takes no messages. */
-function ThreadState({ view, onCancel }: { view: SessionView; onCancel: () => void }) {
+/**
+ * «Продолжить» in a Side thread whose agent is gone (#85): a new agent session goes on with the
+ * thread, and its chat keeps the earlier messages.
+ */
+function ContinueThread({ thread, text }: { thread: SideThread; text: string }) {
+  const refresh = useRefreshSideThreads(thread.interviewId);
+  const continuation = useMutation({
+    mutationFn: async () => continueSideThread(thread),
+    onSuccess: refresh,
+  });
+  return (
+    <div className="side-thread-continue">
+      <p className="muted">{text}</p>
+      <button
+        type="button"
+        className="primary"
+        disabled={continuation.isPending}
+        onClick={() => {
+          continuation.mutate();
+        }}
+      >
+        Продолжить
+      </button>
+      {continuation.isError ? (
+        <p role="alert">Ветка не продолжилась: {continuation.error.message}</p>
+      ) : null}
+    </div>
+  );
+}
+
+/** What the agent does now, or why the Side thread takes no messages and how to go on. */
+function ThreadState({
+  thread,
+  view,
+  onCancel,
+}: {
+  thread: SideThread;
+  view: SessionView;
+  onCancel: () => void;
+}) {
   if (view.failure !== null) {
     return (
-      <p role="alert">
-        Агент ветки недоступен или упал. Мок идёт дальше; чтобы продолжить разговор, откройте новую
-        ветку кнопкой «Обсудить отдельно».
-      </p>
+      <ContinueThread
+        thread={thread}
+        text="Агент ветки недоступен или упал. «Продолжить» запустит его заново, переписка сохранится."
+      />
     );
   }
   if (view.status === "ended") {
-    return <p className="muted">Ветка закрыта и доступна только для чтения.</p>;
+    return (
+      <ContinueThread
+        thread={thread}
+        text="Агент ветки остановлен. «Продолжить» запустит его заново, переписка сохранится."
+      />
+    );
   }
   if (view.status === "starting") {
     return (
@@ -133,8 +176,8 @@ function DeleteThread({ thread }: { thread: SideThread }) {
 
 /**
  * A Side thread to the right of its question (#80): a chat with the same agent as the mock
- * interview, which explains. The reply comes in chunks; «Остановить» ends the agent's turn, and ✕
- * deletes the thread.
+ * interview, which explains. The reply comes in chunks; «Остановить» ends the agent's turn,
+ * «Продолжить» starts a new agent once the earlier one is gone, and ✕ deletes the thread.
  */
 export function SideThreadChat({ thread, number }: { thread: SideThread; number: number }) {
   const { view, notice, lost, prompt, cancel, answerPermission } = useSessionEvents(
@@ -156,7 +199,7 @@ export function SideThreadChat({ thread, number }: { thread: SideThread; number:
           </li>
         ))}
       </ol>
-      {view === null ? null : <ThreadState view={view} onCancel={cancel} />}
+      {view === null ? null : <ThreadState thread={thread} view={view} onCancel={cancel} />}
       {lost === null ? null : <p role="alert">{lost}</p>}
       {notice === null ? null : <output>{notice}</output>}
       <ChatForm

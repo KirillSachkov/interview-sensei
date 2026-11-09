@@ -10,6 +10,35 @@ import type { SetupTarget } from "./ports.ts";
 export const onboardingPrompt =
   "Начни настройку новой цели: вызови get_brief и задай мне первый вопрос.";
 
+/**
+ * The application's first prompt to the agent of a setup session that continues an earlier one
+ * (#85), such as after a restart. In Russian for the reason of `onboardingPrompt`.
+ */
+export const continuationPrompt =
+  "Продолжим настройку цели: вызови get_brief, посмотри черновик и наши последние сообщения и коротко скажи, на чём мы остановились.";
+
+/** How many of the earlier conversation's last messages the brief of a continued session holds. */
+const lastMessagesInBrief = 20;
+
+/** One message of the earlier setup conversation. */
+export interface SetupMessage {
+  readonly from: "candidate" | "agent";
+  readonly text: string;
+}
+
+/** The lines about the earlier conversation in the brief of a continued session; none without one. */
+function continuationText(earlier: readonly SetupMessage[]): string[] {
+  if (earlier.length === 0) {
+    return [];
+  }
+  return [
+    "This session continues an earlier setup session that stopped, such as at a restart of the app: go on from where the conversation stopped and do not start over.",
+    `The last messages of that conversation, oldest first: ${JSON.stringify(
+      earlier.slice(-lastMessagesInBrief),
+    )}`,
+  ];
+}
+
 /** The Target without ids, as the agent reads it in the brief. */
 function targetText(target: SetupTarget): string {
   return JSON.stringify({
@@ -41,9 +70,14 @@ function draftText(target: SetupTarget, changes: readonly DraftChange[]): string
 
 /**
  * The brief of the Target setup session: its mode, how to change the Target, the Target, its
- * active Preferences and its draft of changes.
+ * active Preferences and its draft of changes; for a session that continues an earlier one, the
+ * last messages of the earlier conversation.
  */
-export function setupBrief(target: SetupTarget, changes: readonly DraftChange[]): string {
+export function setupBrief(
+  target: SetupTarget,
+  changes: readonly DraftChange[],
+  earlier: readonly SetupMessage[] = [],
+): string {
   const mode =
     target.status === "draft"
       ? [
@@ -60,5 +94,6 @@ export function setupBrief(target: SetupTarget, changes: readonly DraftChange[])
     "Call apply_changes only after the Candidate explicitly agrees.",
     `The Target now: ${targetText(target)}`,
     ...draftText(target, changes),
+    ...continuationText(earlier),
   ].join("\n");
 }

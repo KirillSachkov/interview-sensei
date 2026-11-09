@@ -30,8 +30,11 @@ interface OpenKey {
   readonly targetId: string;
 }
 
-/** Describes the new session when the kind and Target have no live one. */
-type Prepare = () => Promise<{ agent: string; opening?: string }>;
+/**
+ * Describes the new session when the kind and Target have no live one; `continues` is the earlier
+ * session it goes on with, as `StartRequest.continues`.
+ */
+type Prepare = () => Promise<Pick<StartRequest, "agent" | "opening" | "continues">>;
 
 export type OpenSession = (
   key: OpenKey,
@@ -53,8 +56,13 @@ async function openNow({ live, start }: OpenerDependencies, key: OpenKey, prepar
   if (running !== undefined) {
     return { session: running.view, created: false };
   }
-  const { agent, opening } = await prepare();
-  const request = { ...key, agent, ...(opening === undefined ? {} : { opening }) };
+  const { agent, opening, continues } = await prepare();
+  const request = {
+    ...key,
+    agent,
+    ...(opening === undefined ? {} : { opening }),
+    ...(continues === undefined ? {} : { continues }),
+  };
   return { session: await start(request), created: true };
 }
 
@@ -90,14 +98,18 @@ export async function stopAll(
   await Promise.all(liveOf(live, targetId, kind).map(async (session) => end(session)));
 }
 
-/** Ends the live session at once, even in a turn; false when the session is not live. */
+/**
+ * Ends the live session at once, even in a turn; false when the session is not live.
+ * `byCandidate` when the Candidate ended it.
+ */
 export async function stopNow(
   live: ReadonlyMap<string, LiveSession>,
   sessionId: string,
+  options: { readonly byCandidate?: boolean } = {},
 ): Promise<boolean> {
   const session = live.get(sessionId);
   if (session !== undefined) {
-    await end(session);
+    await end(session, options);
   }
   return session !== undefined;
 }

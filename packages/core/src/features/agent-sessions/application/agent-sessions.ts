@@ -1,4 +1,3 @@
-import { rm } from "node:fs/promises";
 import path from "node:path";
 
 import type { AgentSession, SessionView } from "../domain/agent-session.ts";
@@ -23,7 +22,14 @@ import {
 import type { PromptOutcome, QueueContext, QueueOutcome } from "./server-prompts.ts";
 import { runningFor, sessionOpener, stopAll, stopNow } from "./open-session.ts";
 import type { OpenSession, StartRequest } from "./open-session.ts";
-import { endInterrupted, sessionView } from "./stored-sessions.ts";
+import type { ConversationMessage } from "../domain/session-view.ts";
+import { removeChain } from "./session-removal.ts";
+import {
+  earlierMessages,
+  endInterrupted,
+  endedByCandidate,
+  sessionView,
+} from "./stored-sessions.ts";
 
 export interface AgentSessionsDependencies extends LiveSessionDependencies {
   readonly launcher: AgentLauncher;
@@ -49,6 +55,13 @@ export interface AgentSessions {
   /** Stops at once, even in a turn, and ends every live session of the kind for the Target. */
   readonly stopAll: (targetId: string, kind: StartRequest["kind"]) => Promise<void>;
   readonly view: (sessionId: string) => Promise<SessionView | undefined>;
+  /**
+   * The Candidate's and the agent's messages of the earlier sessions that this one continues, in
+   * order, for the brief of a continued conversation; empty when it continues none.
+   */
+  readonly earlierMessages: (sessionId: string) => Promise<readonly ConversationMessage[]>;
+  /** Whether the Candidate ended the session, as with «Завершить», rather than the server. */
+  readonly endedByCandidate: (sessionId: string) => Promise<boolean>;
   /** Sends the Candidate's prompt to the agent; refuses it while the agent works. */
   readonly prompt: (sessionId: string, text: string) => Promise<PromptOutcome>;
   /**
@@ -71,10 +84,19 @@ export interface AgentSessions {
    * as ended. Does nothing for a session that is not live.
    */
   readonly end: (sessionId: string) => Promise<void>;
-  /** Stops the agent at once and deletes the session with its journal for good, such as a Side thread. */
+  /**
+   * Stops the agent at once and deletes the session and the earlier sessions it continues, with
+   * their journals, for good, such as a Side thread.
+   */
   readonly remove: (sessionId: string) => Promise<void>;
-  /** Stops the agent at once, even in a turn, and ends the session; false when it is not live. */
-  readonly stop: (sessionId: string) => Promise<boolean>;
+  /**
+   * Stops the agent at once, even in a turn, and ends the session; false when it is not live.
+   * `byCandidate` when the Candidate ends it, as with «Завершить» of the Target setup.
+   */
+  readonly stop: (
+    sessionId: string,
+    options?: { readonly byCandidate?: boolean },
+  ) => Promise<boolean>;
   /**
    * Passes the Candidate's choice to the agent's permission request. `not_found` when the request
    * no longer waits or did not offer the option.
@@ -207,11 +229,12 @@ async function answer(
   return "accepted";
 }
 
-/** Stops the session's agent at once and deletes the session, its journal and its directory. */
-async function remove({ live, dependencies }: Context, sessionId: string): Promise<void> {
-  await stopNow(live, sessionId);
-  await dependencies.repository.remove(sessionId);
-  await rm(path.join(dependencies.sessionsDirectory, sessionId), { recursive: true, force: true });
+function subscribe({ live }: Context, sessionId: string, listener: SessionListener): () => void {
+  const listeners = live.get(sessionId)?.listeners;
+  listeners?.add(listener);
+  return () => {
+    listeners?.delete(listener);
+  };
 }
 
 async function close(context: Context): Promise<void> {
@@ -248,6 +271,9 @@ export function createAgentSessions(dependencies: AgentSessionsDependencies): Ag
     running: (targetId, except) => runningFor(context.live, targetId, except),
     stopAll: async (targetId, kind) => stopAll(context.live, targetId, kind),
     view: async (sessionId) => sessionView(context.live, dependencies.repository, sessionId),
+    earlierMessages: async (sessionId) =>
+      earlierMessages(context.live, dependencies.repository, sessionId),
+    endedByCandidate: async (sessionId) => endedByCandidate(dependencies.repository, sessionId),
     prompt: async (sessionId, text) => candidatePrompt(context.queue, sessionId, text),
     queuePrompt: async (sessionId, text, options) =>
       queuePrompt(context.queue, { sessionId, text }, options),
@@ -258,17 +284,11 @@ export function createAgentSessions(dependencies: AgentSessionsDependencies): Ag
     end: async (sessionId) => {
       await enqueue(context.queue, sessionId, (settle) => ({ type: "end", settle }));
     },
-    remove: async (sessionId) => remove(context, sessionId),
-    stop: async (sessionId) => stopNow(context.live, sessionId),
+    remove: async (sessionId) => removeChain(context, sessionId),
+    stop: async (sessionId, options) => stopNow(context.live, sessionId, options),
     answerPermission: async (sessionId, request) => answer(context, sessionId, request),
     cancel: async (sessionId) => cancel(context, sessionId),
-    subscribe: (sessionId, listener) => {
-      const listeners = context.live.get(sessionId)?.listeners;
-      listeners?.add(listener);
-      return () => {
-        listeners?.delete(listener);
-      };
-    },
+    subscribe: (sessionId, listener) => subscribe(context, sessionId, listener),
     endInterrupted: async () => endInterrupted(dependencies),
     close: async () => close(context),
   };

@@ -81,7 +81,10 @@ export function composeTargets(
 type TargetSlices = ReturnType<typeof composeTargets>;
 
 /** The MCP tools of these slices: the Target setup's set and the reading tools of other kinds. */
-export function targetTools({ targets, questionBank, targetSetup, sources }: TargetSlices) {
+export function targetTools(
+  { targets, questionBank, targetSetup, sources }: TargetSlices,
+  earlierMessages: Parameters<typeof setupBrief>[1],
+) {
   const reading = {
     getTarget: getTarget(targets),
     searchQuestions: searchQuestions(questionBank, targets),
@@ -91,7 +94,7 @@ export function targetTools({ targets, questionBank, targetSetup, sources }: Tar
     listSources: listSources(sources),
     getSource: getSource(sources),
     setup: [
-      setupBrief(targetSetup),
+      setupBrief(targetSetup, earlierMessages),
       reading.getTarget,
       reading.searchQuestions,
       ...draftTools(targetSetup),
