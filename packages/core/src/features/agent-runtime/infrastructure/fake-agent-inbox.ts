@@ -11,7 +11,7 @@
 // - Then write_inbox_report with a summary, no doubts and a proposed Section «Фейковая секция».
 // A failed step ends the turn with «Фейковый разборщик сломался: <error>».
 import { sendText } from "./fake-agent-text.ts";
-import { allowedCall, briefLine } from "./fake-agent-tool.ts";
+import { briefLine, call } from "./fake-agent-tool.ts";
 import type { FakeSession } from "./fake-agent-tool.ts";
 
 const opening = "Inbox processing has started.";
@@ -27,15 +27,6 @@ interface Material {
   readonly id: string;
   readonly title: string;
   readonly parts: number | null;
-}
-
-/** Calls our MCP tool after the permission request that the server allows by itself. */
-export async function call(session: FakeSession, name: string, input: object): Promise<unknown> {
-  const result = await allowedCall(session, name, input);
-  if (result === null || result.isError) {
-    throw new Error(result === null ? `no permission for ${name}` : `${name}: ${result.text}`);
-  }
-  return name === "get_brief" ? result.text : JSON.parse(result.text);
 }
 
 // The fake agent trusts the shapes of our own tools' results.

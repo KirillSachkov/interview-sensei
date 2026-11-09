@@ -4,9 +4,8 @@
 //   itself with `/tool`.
 // - It changes nothing: it only calls write_inbox_report with the list `proposals.hide`.
 // A failed step ends the turn with «Фейковый перепроверщик сломался: <error>».
-import { call } from "./fake-agent-inbox.ts";
 import { sendText } from "./fake-agent-text.ts";
-import { briefLine } from "./fake-agent-tool.ts";
+import { briefLine, call } from "./fake-agent-tool.ts";
 import type { FakeSession } from "./fake-agent-tool.ts";
 
 const opening = "Recheck of the question bank has started.";

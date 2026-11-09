@@ -113,11 +113,23 @@ export async function allowedCall(
   name: string,
   input: object,
 ): Promise<{ readonly text: string; readonly isError: boolean } | null> {
-  const ask = async (call: ToolCall) => askPermission(client, sessionId, call);
+  const ask = async (toolCall: ToolCall) => askPermission(client, sessionId, toolCall);
   if (!(await permitted(name, input, { server, ask }))) {
     return null;
   }
   return callMcpTool(server.url, name, input);
+}
+
+/**
+ * Calls our MCP tool in a template turn like allowedCall; rejects without permission or on the
+ * tool's error. Resolves with the brief's text for get_brief, with the parsed JSON otherwise.
+ */
+export async function call(session: FakeSession, name: string, input: object): Promise<unknown> {
+  const result = await allowedCall(session, name, input);
+  if (result === null || result.isError) {
+    throw new Error(result === null ? `no permission for ${name}` : `${name}: ${result.text}`);
+  }
+  return name === "get_brief" ? result.text : JSON.parse(result.text);
 }
 
 /** The JSON line after the heading line of a brief, such as «Target:». */

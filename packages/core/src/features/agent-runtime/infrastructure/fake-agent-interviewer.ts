@@ -97,8 +97,8 @@ async function finish(actions: InterviewerActions): Promise<void> {
   await actions.say("Итог записан.");
 }
 
-/** Calls our MCP tool after the permission request that the server allows by itself. */
-async function callTool(session: FakeSession, name: string, input: object) {
+/** Calls our MCP tool after the allowed permission request; resolves with its text or why not. */
+async function toolText(session: FakeSession, name: string, input: object) {
   const result = await allowedCall(session, name, input);
   return result === null ? `Фейковый агент не получил разрешения на ${name}` : result.text;
 }
@@ -109,7 +109,7 @@ function turnOf(steps: Steps) {
     try {
       await steps({
         sessionId: session.sessionId,
-        call: async (name, input) => callTool(session, name, input),
+        call: async (name, input) => toolText(session, name, input),
         say: async (text) => sendText(session.client, session.sessionId, text),
       });
     } catch (error) {
