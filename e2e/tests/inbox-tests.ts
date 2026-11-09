@@ -1,0 +1,107 @@
+// Spec #47, seam 3: a material attached in the setup chat goes through Inbox processing to the
+// Inbox report. canvas.test.ts declares these tests after the setup chat's: the test creates
+// «Rust-разработчик» and works only on it.
+import { expect, test } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
+
+import { onboarding, zones } from "./canvas-support.ts";
+import type { setupChat } from "./canvas-support.ts";
+
+type SetupChat = ReturnType<typeof setupChat>;
+
+const rustName = "Rust-разработчик";
+
+const vacancy = "Как устроено владение в Rust?\n\nКаждое значение имеет одного владельца.";
+
+/** A new Target «Rust-разработчик» with one Section of Topics, applied by the setup agent. */
+async function newRustTarget(page: Page) {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Новая цель" }).click();
+  const chat = await onboarding(page);
+  await chat.callTool("update_target", { name: rustName, level: "middle" });
+  await chat.callTool("set_interview_plan", {
+    sections: [{ name: "Rust", kind: "topics", topics: ["Владение"] }],
+  });
+  await chat.callTool("apply_changes", {});
+  await expect(page.getByRole("button", { name: rustName })).toBeVisible();
+  return chat;
+}
+
+/** Attaches the vacancy with 📎 and sends it with a message, as the Candidate does. */
+async function attachVacancy(chat: SetupChat) {
+  await chat.panel
+    .getByLabel("Прикрепить файлы")
+    .setInputFiles([
+      { name: "vacancy.md", mimeType: "text/markdown", buffer: Buffer.from(vacancy) },
+    ]);
+  await chat.panel.getByLabel("Сообщение").fill("Вот вакансия");
+  await chat.panel.getByRole("button", { name: "Отправить" }).click();
+  await expect(chat.messages.last()).toContainText("Агент: Фейковый агент получил");
+  await expect(chat.messages.last()).toContainText("Прикреплённые файлы: «vacancy.md».");
+}
+
+/** The id of the Target's only material, as the setup agent learns it from list_sources. */
+async function onlySourceId(page: Page): Promise<string> {
+  const targetId = new URL(page.url()).pathname.split("/").at(-1) ?? "";
+  const response = await page.request.get(`/api/targets/${targetId}/sources`);
+  const body: unknown = await response.json();
+  const id = /"id":"(?<id>[0-9a-f-]{36})"/u.exec(JSON.stringify(body))?.groups?.id;
+  if (typeof id !== "string") {
+    throw new TypeError("The Target has no material");
+  }
+  return id;
+}
+
+/** The setup agent proposes the vacancy: the chat shows the card «Разбор материалов». */
+async function proposeVacancy(page: Page, chat: SetupChat) {
+  await chat.callTool("propose_inbox_processing", {
+    sources: [{ id: await onlySourceId(page), assessment: "вакансия — добавит темы" }],
+  });
+  const card = chat.panel.getByRole("region", { name: "Разбор материалов" });
+  await expect(card).toContainText("vacancy.md");
+  await expect(card).toContainText("вакансия — добавит темы");
+  return card;
+}
+
+/** Hides the chat, opens the latest Inbox report from «Материалы» and checks what it shows. */
+async function expectReport(
+  page: Page,
+  { chat, materials }: { chat: SetupChat; materials: Locator },
+) {
+  await chat.panel.getByRole("button", { name: "Скрыть" }).click();
+  // The card may end up under the zoom island: «Показать всё» fits the view to the zone.
+  await page.getByRole("button", { name: "Показать всё" }).click();
+  await materials.getByRole("button", { name: "Отчёт о разборе" }).click();
+  const report = page.getByRole("complementary", { name: "Отчёт о разборе" });
+  await expect(report).toContainText("Фейковый разборщик: разобрано материалов: 1.");
+  await expect(report.getByRole("heading", { name: "Добавлено вопросов: 1" })).toBeVisible();
+  await expect(report.getByRole("list", { name: "Добавленные вопросы" })).toContainText(
+    "Как устроено владение в Rust?",
+  );
+  await expect(report.getByRole("region", { name: "Предложения агента" })).toContainText(
+    "Фейковая секция",
+  );
+}
+
+export function inboxTests() {
+  test.describe("Inbox processing of a material from the setup chat", () => {
+    test.use({ viewport: { width: 1600, height: 1000 } });
+
+    test("the card starts the processing, «Материалы» shows the statuses, and the report shows the Questions", async ({
+      page,
+    }) => {
+      const chat = await newRustTarget(page);
+      await attachVacancy(chat);
+      const materials = zones(page).goal.getByRole("article", { name: "Материалы" });
+      await expect(materials.getByRole("listitem")).toContainText(["в Inbox"]);
+      const card = await proposeVacancy(page, chat);
+
+      await card.getByRole("button", { name: "Запустить разбор" }).click();
+
+      await expect(card).toBeHidden();
+      await expect(materials.getByRole("listitem")).toContainText(["готов"]);
+      await expect(materials).not.toContainText("Не разобрано");
+      await expectReport(page, { chat, materials });
+    });
+  });
+}

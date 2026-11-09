@@ -18,6 +18,8 @@ export interface GoalZoneProps {
   readonly onSetup: (anchor: Exclude<SetupAnchor, null>) => void;
   readonly onCloseSetup: () => void;
   readonly onQuestions: (view: QuestionsView) => void;
+  /** Opens the side panel of an Inbox report. */
+  readonly onReport: (reportId: string) => void;
 }
 
 /**
@@ -25,7 +27,7 @@ export interface GoalZoneProps {
  * and the materials. The setup chat opens beside the card or the Section where the Candidate opened it.
  */
 export function GoalZone({
-  zone: { target, setupAnchor, onSetup, onCloseSetup, onQuestions },
+  zone: { target, setupAnchor, onSetup, onCloseSetup, onQuestions, onReport },
 }: {
   zone: GoalZoneProps;
 }) {
@@ -56,7 +58,7 @@ export function GoalZone({
             typeof setupAnchor === "object" && setupAnchor?.sectionId === sectionId ? chat : null,
         }}
       />
-      <SourcesCard targetId={target.id} />
+      <SourcesCard targetId={target.id} onReport={onReport} />
     </>
   );
 }

@@ -94,6 +94,13 @@ Other prompts in a mock interview's chat, such as `/system` or `/tools`, get the
 A test runs the 2-minute wait for `finish_interview` with that timer; `/wait` in the interviewer chat keeps the message that the Candidate finished from the agent.
 `/crash` in the interviewer chat makes the mock interview «прерван».
 
+The fake agent also has an Inbox processor mode (`fake-agent-inbox.ts`) for the opening «Inbox processing has started.».
+It reads `get_brief` and `list_inbox`, puts one Question per part into the first Topic of the first Section of kind `topics` (creating «Из материалов» when there is none), and writes the Inbox report.
+A material whose title has `[manual]` makes it stop at «Жду команд.», so an API test drives the processing with `/tool` in the processing session's chat.
+`inbox-test-support.ts` starts a processing, finds its session and waits for the fake processor's first turn; `material-test-support.ts` makes a PDF, a DOCX and a web page on a local HTTP server, so no test needs the network.
+The server reads the texts and starts the agent in the background, so the tests wait for them with `vi.waitFor`.
+The fake agent streams a reply word by word, so a test of a long text uses words without spaces.
+
 ## Ports
 
 `pnpm dev` uses server port 4310 and web port 5173; set `SERVER_PORT` and `WEB_PORT` to change them.

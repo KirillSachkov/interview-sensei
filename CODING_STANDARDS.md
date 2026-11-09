@@ -71,6 +71,9 @@ So a tool set may use services built after the gateway, such as `interviews`: `s
 `composeInterviews` gives `interviews` a function that calls `progress`, which exists by the first call.
 A Topic merge in a draft of changes moves the merged Topic's Attempts through `interviews` in the same transaction, so Topic status counts them under the Topic that stays.
 `topicMerges` gives `target-setup` this port the same way: `interviews` exists by the first application of a draft.
+Inbox processing in `sources` starts its agent through `agent-sessions`, which composeFeatures builds after `sources`: `inboxSessions` hands it over the same way.
+`add_bank_questions` of `sources` leaves out duplicates by the rule of `add_questions` (#45): `target-setup` exports `withoutDuplicates`, and composeFeatures passes it to `sources` as its `DuplicateFilter` port.
+`create_topic` of `sources` creates the Topic through `question-bank` and adds it to the Section through `targets`, in one shared transaction.
 
 ### Session profiles
 
@@ -83,6 +86,10 @@ The mock interview adds the Target's tone and language this way (`interviewerRol
 One text for the agent is in Russian: `onboardingPrompt` in `target-setup/domain/brief.ts`, the first prompt of a draft Target's setup session.
 It stands for the Candidate's first message, because an agent writes its first line in the prompt's language, even before it loads the skill.
 The language rule itself stays in the profile's role.
+
+`inbox-processing` (#47) has the skill `sensei-inbox`, no shell, the web, and `askCandidate: false`: it has no chat, so the server refuses other requests itself.
+The server extracts the text of the Sources before the agent starts, so the agent needs no shell for a PDF or a page.
+The server's close waits for the started processings to read their texts (`inbox.settle`), then stops the agents.
 
 A slice adds a session kind like this:
 
@@ -113,6 +120,25 @@ The launcher sets the mode with `session/set_mode` when `session/new` lists it i
 Otherwise it sets the config option of category `mode`: OpenCode 1.17 and later offer their agents only there.
 An agent without the ACP capability for the recipe's `systemPrompt` or `additionalDirectories` does not start, and neither does one that does not offer the recipe's mode either way.
 A profile that allows shell or web gets no ban for it. The permission modes stay as [storage](#storage) and #17 set them.
+
+### Text of Sources
+
+The `sources` slice reads the text of a Source itself (#63) and cuts it into numbered parts of at most 8000 characters at paragraph borders (`textParts`); `read_source` gives one part.
+The parts lie in `targets/<Target id>/texts/<Source id>/0001.txt` and onward, beside the Sources' files, so deleting the Target removes them.
+`textFormat` picks the reader by the file's extension; a link is a web page.
+
+| Format | Reader |
+| --- | --- |
+| PDF | `unpdf` 1.x, which bundles pdf.js; 2.x needs Node 24, and the package runs on Node 22.15 |
+| DOCX | `word/document.xml` from the archive by `fflate`, its paragraphs by `documentXmlText` |
+| TXT, MD | the file as UTF-8 |
+| SRT, VTT | `subtitleText`: the spoken lines without numbers, times, tags and repeats |
+| HTML file, link | the page's article by `@mozilla/readability` on `linkedom`, then `htmlText`; a link's PDF or plain text by its content type |
+
+A page waits at most 30 seconds on the injected `Timer` and may hold at most 20 MB.
+linkedom and Readability type their DOM with TypeScript's DOM library, which server code does not load.
+So only `sources/infrastructure/page-text.ts` touches their DOM, under a file-level disable of the unsafe-value rules with that reason.
+A Source the server cannot read gets the Source status «ошибка» with the reason in Russian.
 
 ### Local requests
 
