@@ -13,6 +13,7 @@ import {
   isInside,
   lockedProfile,
   notesText,
+  opencodeVersions,
   recipe,
   sessionDirectory,
   skillText,
@@ -124,60 +125,53 @@ describe("launch recipe", () => {
     });
   });
 
-  it("starts OpenCode from PATH with its own XDG directories and limits from its config", () => {
-    const root = `${dataDirectory}/agents/opencode`;
-    const skills = `${root}/skills/probe-skill`;
-    const { env, ...launch } = recipe("opencode");
-    const { OPENCODE_CONFIG_CONTENT: config, ...homesAndFlags } = env;
-    expect({ ...launch, env: homesAndFlags }).toStrictEqual({
-      command: host.opencodeBinary,
-      args: ["acp"],
-      env: {
-        XDG_CONFIG_HOME: `${root}/config`,
-        XDG_DATA_HOME: `${root}/data`,
-        XDG_STATE_HOME: `${root}/state`,
-        XDG_CACHE_HOME: `${root}/cache`,
-        OPENCODE_DISABLE_CLAUDE_CODE: "1",
-        OPENCODE_DISABLE_EXTERNAL_SKILLS: "1",
-        OPENCODE_DISABLE_PROJECT_CONFIG: "1",
-      },
-      sessionMeta: null,
-      systemPrompt: null,
-      additionalDirectories: [],
-      mode: "interview-sensei",
-      cwd: sessionDirectory,
-      dataDirectory,
-      directories: [
-        `${root}/config`,
-        `${root}/data/opencode`,
-        `${root}/state`,
-        `${root}/cache`,
-        `${skills}/probe-skill`,
-        `${skills}/probe-skill/references`,
-        sessionDirectory,
-      ],
-      files: [
-        { path: `${skills}/probe-skill/SKILL.md`, content: skillText },
-        { path: `${skills}/probe-skill/references/notes.md`, content: notesText },
-      ],
-      symlinks: [{ path: `${root}/data/opencode/auth.json`, target: host.opencodeAuth.path }],
-      syncedDirectories: [`${skills}/probe-skill`],
-    });
-    expect(JSON.parse(String(config))).toStrictEqual({
-      autoupdate: false,
-      share: "disabled",
-      permission: { edit: "ask", bash: "ask", webfetch: "ask", external_directory: "ask" },
-      skills: { paths: [skills] },
-      agent: {
-        "interview-sensei": {
-          mode: "primary",
-          description: "The agent of an Interview Sensei session",
-          prompt: lockedProfile.role,
-          permission: { bash: "deny", webfetch: "deny", websearch: "deny" },
+  it.each([
+    ["1.x", opencodeVersions.v1, { OPENCODE_DISABLE_EXTERNAL_SKILLS: "1" }],
+    ["2.x", opencodeVersions.v2, {}],
+  ])(
+    "starts OpenCode %s from PATH with its own XDG directories and its own config",
+    (_schema, opencodeVersion, skillFlag) => {
+      const root = `${dataDirectory}/agents/opencode`;
+      const skills = `${root}/skills/probe-skill`;
+      const { env, ...launch } = recipe("opencode", { opencodeVersion });
+      const { OPENCODE_CONFIG_CONTENT: config, ...homesAndFlags } = env;
+      expect(config).toBeTypeOf("string");
+      expect({ ...launch, env: homesAndFlags }).toStrictEqual({
+        command: host.opencodeBinary,
+        args: ["acp"],
+        env: {
+          XDG_CONFIG_HOME: `${root}/config`,
+          XDG_DATA_HOME: `${root}/data`,
+          XDG_STATE_HOME: `${root}/state`,
+          XDG_CACHE_HOME: `${root}/cache`,
+          OPENCODE_DISABLE_CLAUDE_CODE: "1",
+          ...skillFlag,
+          OPENCODE_DISABLE_PROJECT_CONFIG: "1",
         },
-      },
-    });
-  });
+        sessionMeta: null,
+        systemPrompt: null,
+        additionalDirectories: [],
+        mode: "interview-sensei",
+        cwd: sessionDirectory,
+        dataDirectory,
+        directories: [
+          `${root}/config`,
+          `${root}/data/opencode`,
+          `${root}/state`,
+          `${root}/cache`,
+          `${skills}/probe-skill`,
+          `${skills}/probe-skill/references`,
+          sessionDirectory,
+        ],
+        files: [
+          { path: `${skills}/probe-skill/SKILL.md`, content: skillText },
+          { path: `${skills}/probe-skill/references/notes.md`, content: notesText },
+        ],
+        symlinks: [{ path: `${root}/data/opencode/auth.json`, target: host.opencodeAuth.path }],
+        syncedDirectories: [`${skills}/probe-skill`],
+      });
+    },
+  );
 
   it("links no OpenCode login that the Candidate does not have", () => {
     const launch = recipe("opencode", {
@@ -220,7 +214,7 @@ describe("launch recipe", () => {
   });
 
   it.each(agentKinds)("never asks %s to skip permissions", (agent) => {
-    const launch = JSON.stringify(recipe(agent));
+    const launch = JSON.stringify(recipe(agent, { opencodeVersion: opencodeVersions.v1 }));
     expect(launch).not.toMatch(/bypassPermissions|agent-full-access|"allow"/u);
     expect(launch).not.toContain('"allowDangerouslySkipPermissions":true');
   });
@@ -236,21 +230,6 @@ describe("launch recipe", () => {
     expect(() => recipe("claude", { claudeAdapter: null })).toThrow(/claude/u);
     expect(() => recipe("codex", { codexAdapter: null })).toThrow(/codex/u);
     expect(() => recipe("opencode", { opencodeBinary: null })).toThrow(/opencode/u);
-  });
-});
-
-describe("opencode recipe with the Candidate's model", () => {
-  it("puts the Candidate's model into the agent's config under the recipe's own settings", () => {
-    const deepseek = { models: { "deepseek-flash": { name: "DeepSeek Flash" } } };
-    const opencodeModel = { model: "deepseek/deepseek-flash", provider: { deepseek } };
-    const config = recipe("opencode", { opencodeModel }).env.OPENCODE_CONFIG_CONTENT;
-    expect(JSON.parse(String(config))).toMatchObject({
-      model: "deepseek/deepseek-flash",
-      provider: { deepseek },
-      autoupdate: false,
-      share: "disabled",
-      permission: { edit: "ask", bash: "ask", webfetch: "ask", external_directory: "ask" },
-    });
   });
 });
 

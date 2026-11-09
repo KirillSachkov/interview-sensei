@@ -34,6 +34,8 @@ export interface AgentHost {
   readonly codexAdapter: string | null;
   /** `opencode` found in PATH, or null. */
   readonly opencodeBinary: string | null;
+  /** What `opencode --version` printed, or null when it failed; see `opencodeConfigSchema`. */
+  readonly opencodeVersion: string | null;
   /** The Candidate's Codex login: `auth.json` in `$CODEX_HOME` or `~/.codex`. */
   readonly codexAuth: UserFile;
   /** The Candidate's OpenCode provider keys: `opencode/auth.json` in `$XDG_DATA_HOME`. */

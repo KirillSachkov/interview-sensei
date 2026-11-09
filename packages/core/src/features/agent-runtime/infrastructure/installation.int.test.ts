@@ -7,6 +7,7 @@ import path from "node:path";
 import { describe, expect, it, onTestFinished } from "vitest";
 
 import { agentAvailability } from "../domain/agent.ts";
+import { opencodeConfigSchema } from "../domain/opencode-recipe.ts";
 import { inspectAgentHost } from "./installation.ts";
 
 async function temporaryHome(): Promise<string> {
@@ -21,6 +22,22 @@ async function placeFile(file: string, mode = 0o600): Promise<void> {
   await mkdir(path.dirname(file), { recursive: true });
   await writeFile(file, "{}");
   await chmod(file, mode);
+}
+
+/**
+ * A stub `opencode` in `bin` that prints `output` for `--version` and exits with `code`; it keeps
+ * its arguments in `calls`, so the test sees that nothing but `--version` ran.
+ */
+async function stubOpencode(bin: string, { output, code = 0 }: { output: string; code?: number }) {
+  const calls = path.join(bin, "calls");
+  const script = path.join(bin, "opencode");
+  await mkdir(bin, { recursive: true });
+  await writeFile(
+    script,
+    `#!/bin/sh\necho "$@" >> '${calls}'\nprintf '%s\\n' '${output}'\nexit ${String(code)}\n`,
+  );
+  await chmod(script, 0o700);
+  return { calls };
 }
 
 async function availabilityIn(home: string, env: Record<string, string> = {}) {
@@ -132,5 +149,34 @@ describe("agent host inspection", () => {
     const host = await inspectAgentHost({ home, env: {} })();
 
     expect(host.opencodeModel).toStrictEqual({});
+  });
+});
+
+describe("opencode version inspection", () => {
+  it.each([
+    ["opencode v2.2.6", "2.x"],
+    ["1.18.30", "1.x"],
+  ])("asks only `opencode --version`, which prints %s, for the version", async (output, schema) => {
+    const home = await temporaryHome();
+    const bin = path.join(home, "bin");
+    const { calls } = await stubOpencode(bin, { output });
+
+    const host = await inspectAgentHost({ home, env: { PATH: bin } })();
+
+    expect(host.opencodeVersion).toBe(output);
+    expect(opencodeConfigSchema(host.opencodeVersion)).toBe(schema);
+    await expect(readFile(calls, "utf8")).resolves.toBe("--version\n");
+  });
+
+  it("knows no OpenCode version when `opencode --version` fails or OpenCode is missing", async () => {
+    const home = await temporaryHome();
+    const bin = path.join(home, "bin");
+    await stubOpencode(bin, { output: "opencode v2.2.6", code: 1 });
+
+    const failed = await inspectAgentHost({ home, env: { PATH: bin } })();
+    const missing = await inspectAgentHost({ home, env: { PATH: path.join(home, "none") } })();
+
+    expect(failed.opencodeVersion).toBeNull();
+    expect(missing.opencodeVersion).toBeNull();
   });
 });

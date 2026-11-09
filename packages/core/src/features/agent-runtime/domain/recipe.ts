@@ -56,9 +56,9 @@ export interface LaunchRecipe {
   /** The ACP `additionalDirectories` of `session/new`, inside the data directory. */
   readonly additionalDirectories: readonly string[];
   /**
-   * The mode the server sets with `session/set_mode` right after `session/new`, so the
-   * Candidate's own mode never applies; null for an agent without modes. For OpenCode it selects
-   * the recipe's own agent.
+   * The mode the server sets right after `session/new`, with `session/set_mode` or the config
+   * option of category `mode`, so the Candidate's own mode never applies; null for an agent
+   * without modes. For OpenCode it selects the recipe's own agent.
    */
   readonly mode: string | null;
   /** The session directory inside the data directory. */

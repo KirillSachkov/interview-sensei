@@ -14,7 +14,6 @@ import type {
   ClientContext,
   InitializeResponse,
   NewSessionRequest,
-  NewSessionResponse,
 } from "@agentclientprotocol/sdk/unstable";
 
 import type { Timer } from "../../../shared/time/index.ts";
@@ -28,6 +27,7 @@ import type {
   TurnOutcome,
 } from "../domain/ports.ts";
 import { prepareRecipe } from "./prepare-recipe.ts";
+import { setMode } from "./session-mode.ts";
 
 const clientInfo = { name: "interview-sensei", version: "0.0.0" };
 
@@ -72,24 +72,6 @@ async function stopProcess(child: AgentProcess, timer: Timer): Promise<void> {
       cancelKill();
     }
   }
-}
-
-/**
- * Sets the recipe's mode, so the Candidate's own mode never applies; for OpenCode the mode is the
- * recipe's own agent. An agent that does not offer the mode does not start.
- */
-async function setMode(
-  agent: ClientContext,
-  { session, mode }: { session: NewSessionResponse; mode: string | null },
-): Promise<void> {
-  if (mode === null) {
-    return;
-  }
-  const offered = session.modes?.availableModes.some((available) => available.id === mode);
-  if (offered !== true) {
-    throw new Error(`The agent does not offer the mode ${mode}`);
-  }
-  await agent.request("session/set_mode", { sessionId: session.sessionId, modeId: mode });
 }
 
 /**

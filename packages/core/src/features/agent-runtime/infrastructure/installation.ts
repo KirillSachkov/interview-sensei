@@ -1,7 +1,10 @@
+import { spawn } from "node:child_process";
+import { once } from "node:events";
 import { constants } from "node:fs";
 import { access, readFile, stat } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
+import { text } from "node:stream/consumers";
 
 import type { AgentHost } from "../domain/agent.ts";
 import { opencodeModelSettings } from "../domain/opencode-settings.ts";
@@ -70,29 +73,63 @@ async function textOrNull(file: string): Promise<string | null> {
   }
 }
 
+/** How long `opencode --version` may take; it answers in well under a second. */
+const versionTimeoutMs = 5000;
+
+/**
+ * What `opencode --version` printed, or null when OpenCode is missing, fails or says nothing.
+ * Neither 1.x nor 2.x starts a session, reads the config or writes a file for `--version`.
+ */
+async function opencodeVersion(
+  binary: string | null,
+  env: UserEnvironment["env"],
+): Promise<string | null> {
+  if (binary === null) {
+    return null;
+  }
+  try {
+    const child = spawn(binary, ["--version"], {
+      env,
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: versionTimeoutMs,
+      windowsHide: true,
+    });
+    const [output] = await Promise.all([text(child.stdout), once(child, "close")]);
+    const version = output.trim();
+    return child.exitCode === 0 && version !== "" ? version : null;
+  } catch {
+    // An `opencode` that is not a program, or that the timeout stopped.
+    return null;
+  }
+}
+
 /** The global config files in OpenCode's merge order; read only, never logged. */
 const opencodeConfigFiles = ["config.json", "opencode.json", "opencode.jsonc"];
 
 /**
- * Finds the adapters, OpenCode and the Candidate's logins. It only reads: the Candidate's agent
- * directories are never written.
+ * Finds the adapters, OpenCode with its version and the Candidate's logins. It only reads: the
+ * Candidate's agent directories are never written.
  */
 export function inspectAgentHost({ home, env }: UserEnvironment): () => Promise<AgentHost> {
   const codexHome = env.CODEX_HOME ?? path.join(home, ".codex");
   const dataHome = env.XDG_DATA_HOME ?? path.join(home, ".local", "share");
   const configHome = env.XDG_CONFIG_HOME ?? path.join(home, ".config");
-  return async () => ({
-    nodeExecutable: process.execPath,
-    fakeAgentScript: path.join(import.meta.dirname, "fake-agent.ts"),
-    claudeAdapter: adapterScript("@agentclientprotocol/claude-agent-acp", "dist/index.js"),
-    codexAdapter: adapterScript("@agentclientprotocol/codex-acp", "dist/index.js"),
-    opencodeBinary: await findInPath("opencode", env.PATH),
-    codexAuth: await userFile(path.join(codexHome, "auth.json")),
-    opencodeAuth: await userFile(path.join(dataHome, "opencode", "auth.json")),
-    opencodeModel: opencodeModelSettings(
-      await Promise.all(
-        opencodeConfigFiles.map((name) => textOrNull(path.join(configHome, "opencode", name))),
+  return async () => {
+    const opencodeBinary = await findInPath("opencode", env.PATH);
+    return {
+      nodeExecutable: process.execPath,
+      fakeAgentScript: path.join(import.meta.dirname, "fake-agent.ts"),
+      claudeAdapter: adapterScript("@agentclientprotocol/claude-agent-acp", "dist/index.js"),
+      codexAdapter: adapterScript("@agentclientprotocol/codex-acp", "dist/index.js"),
+      opencodeBinary,
+      opencodeVersion: await opencodeVersion(opencodeBinary, env),
+      codexAuth: await userFile(path.join(codexHome, "auth.json")),
+      opencodeAuth: await userFile(path.join(dataHome, "opencode", "auth.json")),
+      opencodeModel: opencodeModelSettings(
+        await Promise.all(
+          opencodeConfigFiles.map((name) => textOrNull(path.join(configHome, "opencode", name))),
+        ),
       ),
-    ),
-  });
+    };
+  };
 }

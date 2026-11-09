@@ -15,6 +15,7 @@ export const host: AgentHost = {
   claudeAdapter: "/app/node_modules/claude-agent-acp/dist/index.js",
   codexAdapter: "/app/node_modules/codex-acp/dist/index.js",
   opencodeBinary: "/opt/homebrew/bin/opencode",
+  opencodeVersion: "opencode v2.2.6",
   codexAuth: { path: "/home/candidate/.codex/auth.json", exists: true },
   opencodeAuth: { path: "/home/candidate/.local/share/opencode/auth.json", exists: true },
   opencodeModel: {},
@@ -54,10 +55,16 @@ export function recipe(
   });
 }
 
+/** What `opencode --version` prints for each config schema: 2.x as `opencode v…`, 1.x bare. */
+export const opencodeVersions = { v1: "1.18.30", v2: "opencode v2.2.6" } as const;
+
 /** The OpenCode config the recipe passes in OPENCODE_CONFIG_CONTENT. */
-export function opencodeConfig(profile: LaunchProfile = lockedProfile): Record<string, unknown> {
+export function opencodeConfig(
+  profile: LaunchProfile = lockedProfile,
+  changes: Partial<AgentHost> = {},
+): Record<string, unknown> {
   const config: unknown = JSON.parse(
-    String(recipe("opencode", {}, profile).env.OPENCODE_CONFIG_CONTENT),
+    String(recipe("opencode", changes, profile).env.OPENCODE_CONFIG_CONTENT),
   );
   if (typeof config !== "object" || config === null) {
     throw new Error("The OpenCode config is not an object");

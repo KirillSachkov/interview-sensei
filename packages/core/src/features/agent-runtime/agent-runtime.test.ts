@@ -40,6 +40,7 @@ const host: AgentHost = {
   claudeAdapter: "claude-agent-acp.js",
   codexAdapter: "codex-acp.js",
   opencodeBinary: null,
+  opencodeVersion: null,
   codexAuth: { path: "/home/candidate/.codex/auth.json", exists: false },
   opencodeAuth: { path: "/home/candidate/.local/share/opencode/auth.json", exists: false },
   opencodeModel: {},

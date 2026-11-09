@@ -12,6 +12,7 @@ import {
   notesText,
   openProfile,
   opencodeConfig,
+  opencodeVersions,
   recipe,
   skillText,
 } from "./launch-recipe-test-support.ts";
@@ -26,9 +27,22 @@ function codexConfig(profile: LaunchProfile): string | undefined {
   return recipe("codex", {}, profile).env.CODEX_CONFIG;
 }
 
-/** The `agent` section of the OpenCode config as JSON, for the profile. */
+const v1 = { opencodeVersion: opencodeVersions.v1 };
+const v2 = { opencodeVersion: opencodeVersions.v2 };
+
+/** The `agent` section of the OpenCode 1.x config as JSON, for the profile. */
 function permission(profile: LaunchProfile): string {
-  return JSON.stringify(opencodeConfig(profile).agent);
+  return JSON.stringify(opencodeConfig(profile, v1).agent);
+}
+
+/** A 2.x rule that denies the action, as JSON. */
+function deny(action: string): string {
+  return `{"action":"${action}","resource":"*","effect":"deny"}`;
+}
+
+/** The `agents` section of the OpenCode 2.x config as JSON, for the profile. */
+function permissions(profile: LaunchProfile): string {
+  return JSON.stringify(opencodeConfig(profile, v2).agents);
 }
 
 describe("session profile role and skill in the launch recipe", () => {
@@ -42,8 +56,12 @@ describe("session profile role and skill in the launch recipe", () => {
     const launch = recipe("opencode");
     expect(launch.systemPrompt).toBeNull();
     expect(launch.mode).toBe("interview-sensei");
-    expect(opencodeConfig()).toMatchObject({
+    expect(opencodeConfig(lockedProfile, v1)).toMatchObject({
       agent: { "interview-sensei": { mode: "primary", prompt: lockedProfile.role } },
+    });
+    expect(opencodeConfig(lockedProfile, v2)).toMatchObject({
+      default_agent: "interview-sensei",
+      agents: { "interview-sensei": { mode: "primary", system: lockedProfile.role } },
     });
   });
 
@@ -79,10 +97,9 @@ describe("session profile role and skill in the launch recipe", () => {
 
   it("gives OpenCode exactly the profile's skill in the one skills path of its config", () => {
     const launch = recipe("opencode");
-    const { skills } = opencodeConfig();
-    expect(skills).toStrictEqual({
-      paths: [`${dataDirectory}/agents/opencode/skills/probe-skill`],
-    });
+    const skillsPath = `${dataDirectory}/agents/opencode/skills/probe-skill`;
+    expect(opencodeConfig(lockedProfile, v1).skills).toStrictEqual({ paths: [skillsPath] });
+    expect(opencodeConfig(lockedProfile, v2).skills).toStrictEqual([skillsPath]);
     expect(filesBelow(launch, `${dataDirectory}/agents/opencode/skills/probe-skill`)).toStrictEqual(
       {
         "probe-skill/SKILL.md": skillText,
@@ -107,12 +124,22 @@ describe("session profile bans in the launch recipe", () => {
     expect(codexConfig(openProfile)).toBeUndefined();
   });
 
-  it("denies shell and web to the OpenCode agent only when the profile forbids them", () => {
+  it("denies shell and web to the OpenCode 1.x agent only when the profile forbids them", () => {
     expect(permission({ ...openProfile, shell: false })).toContain('"permission":{"bash":"deny"}');
     expect(permission({ ...openProfile, web: false })).toContain(
       '"permission":{"webfetch":"deny","websearch":"deny"}',
     );
     expect(permission(openProfile)).toContain('"permission":{}');
+  });
+
+  it("denies shell and web to the OpenCode 2.x agent only when the profile forbids them", () => {
+    expect(permissions({ ...openProfile, shell: false })).toContain(
+      `"permissions":[${deny("shell")}]`,
+    );
+    expect(permissions({ ...openProfile, web: false })).toContain(
+      `"permissions":[${deny("webfetch")},${deny("websearch")}]`,
+    );
+    expect(permissions(openProfile)).toContain('"permissions":[]');
   });
 
   it("tells the fake agent the bans only when the profile forbids them", () => {

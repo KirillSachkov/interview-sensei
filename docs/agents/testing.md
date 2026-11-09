@@ -42,6 +42,7 @@ Without it the server offers Claude Code, Codex and OpenCode from `userEnvironme
 [Storage](../../CODING_STANDARDS.md#storage) in the coding standards owns what the agents get from that environment.
 The fake agent gets an empty environment plus its recipe's variables.
 Tests that check the real agents' availability pass a temporary directory as `userEnvironment.home` and PATH, and start no real agent.
+For the OpenCode version they put a stub `opencode` script into that PATH; it answers only `--version`.
 Launch recipes are pure: unit tests give them made-up paths, profiles and skills, and nothing touches the disk.
 Unit tests give `opencodeModelSettings` made-up texts; a missing or invalid file gives no model.
 The fake agent streams a reply in chunks; the prompt `/wait` waits for a cancel, `/fail` answers with a JSON-RPC error, and `/crash` exits with code 1.
@@ -52,6 +53,7 @@ A new fake session starts in the mode `candidate-mode`, which stands for the Can
 `/env` replies with the names of the fake agent's environment variables.
 `/system` replies with the role from the ACP `systemPrompt` of `session/new`, `/skills` with the skills in `.agents/skills` of its `additionalDirectories`, and `/tools` with the bans from `_meta.fakeAgent.disallowedTools`.
 `INTERVIEW_SENSEI_FAKE_AGENT_MODE=no-session-capabilities` makes it take neither a system prompt nor additional directories.
+`INTERVIEW_SENSEI_FAKE_AGENT_MODE=mode-config-option` makes it offer its modes only as the config option `mode`, as OpenCode 2.x does.
 In-process API tests listen on a free loopback port: the agent reaches the session's MCP address over real HTTP.
 They send the page's `Host` and `Origin` from `browserHeaders` in `chat-test-support.ts`: the server refuses others.
 `INTERVIEW_SENSEI_FAKE_AGENT_MODE=silent` makes it a hung agent; `ignore-sigterm` makes it ignore SIGTERM.

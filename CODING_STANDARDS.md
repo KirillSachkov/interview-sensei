@@ -83,11 +83,17 @@ At each start the runtime reads the skill from `skills/`, or from its copy in th
 | --- | --- | --- | --- |
 | Claude Code | ACP `systemPrompt`, `append` | local plugin `interview-sensei` in `agents/claude/skills/<skill>`; `skills` lists only `interview-sensei:<skill>` | `disallowedTools`: `Bash`; `WebFetch`, `WebSearch` |
 | Codex | ACP `systemPrompt`, `append` | `.agents/skills` of the ACP `additionalDirectories` entry `agents/codex/skills/<skill>` | `CODEX_CONFIG`: `features.shell_tool = false`; `web_search = "disabled"` |
-| OpenCode | `prompt` of its own primary agent `interview-sensei`, selected as the session's mode | `skills.paths` with `agents/opencode/skills/<skill>` | that agent's `permission`: `bash`; `webfetch`, `websearch` = `deny` |
+| OpenCode 1.x | `prompt` of its own primary agent `interview-sensei` in `agent`, selected as the session's mode | `skills.paths` with `agents/opencode/skills/<skill>`; `OPENCODE_DISABLE_EXTERNAL_SKILLS` | that agent's `permission`: `bash`; `webfetch`, `websearch` = `deny` |
+| OpenCode 2.x | `system` of the same agent in `agents`, also `default_agent`, selected as the session's mode | `skills` with the same path; `policies`: `skill.use` only for `<skill>` | that agent's `permissions`: `shell`; `webfetch`, `websearch` = `deny` |
 | fake | ACP `systemPrompt`, `append` | as Codex, in `agents/fake/skills/<skill>` | `_meta.fakeAgent.disallowedTools` |
 
-The OpenCode config uses the 1.x keys `agent`, `prompt`, `permission` and `skills.paths`, which 2.x still reads as deprecated.
-An agent without the ACP capability for the recipe's `systemPrompt` or `additionalDirectories` does not start, and neither does one that does not offer the recipe's mode.
+The OpenCode recipe writes the config keys of the installed version.
+`inspectAgentHost` runs only `opencode --version`: 1.x prints `1.18.30`, 2.x prints `opencode v2.2.6`.
+`opencodeConfigSchema` picks 2.x for a major version of 2 or more, and 1.x for any other answer or none: 2.x still reads the 1.x keys, but older 1.x releases do not read the 2.x keys.
+2.x reads `~/.agents/skills` despite every flag, so its `policies` deny every skill except the profile's.
+The launcher sets the mode with `session/set_mode` when `session/new` lists it in `modes`.
+Otherwise it sets the config option of category `mode`: OpenCode 1.17 and later offer their agents only there.
+An agent without the ACP capability for the recipe's `systemPrompt` or `additionalDirectories` does not start, and neither does one that does not offer the recipe's mode either way.
 A profile that allows shell or web gets no ban for it. The permission modes stay as [storage](#storage) and #17 set them.
 
 ### Local requests
@@ -141,6 +147,7 @@ Claude Code is the exception, approved by the owner in #24.
 It keeps the Candidate's config directory, `CLAUDE_CONFIG_DIR` or `~/.claude`, because it ties the Keychain login to it.
 So Claude Code writes its own state there; the recipe isolates it with `settingSources: []` and `persistSession: false`.
 It reads one thing more there: the OpenCode recipe takes `model`, `small_model` and their `provider` entries from the Candidate's global OpenCode config.
+The recipe passes these 1.x keys as they are; OpenCode 2.x migrates them itself, but `providers` and other 2.x keys of that config stay out.
 `opencodeModelSettings` in `agent-runtime/domain/opencode-settings.ts` picks them; other keys, such as `mcp`, `permission` or `instructions`, never reach the agent.
 The server never logs or journals that config.
 The model comes from `config.json`, `opencode.json` and `opencode.jsonc` in `$XDG_CONFIG_HOME/opencode` or `~/.config/opencode`.

@@ -172,17 +172,18 @@ describe("acp launcher", () => {
     await expect(stopped).resolves.toBeUndefined();
   });
 
-  it("sets the recipe's permission mode right after session/new instead of the Candidate's", async () => {
-    const { launched, updates } = launch({ ...(await fakeRecipe()), mode: "default" }, idleTimer);
+  // The fake agent lists its modes in `modes`, or as the config option `mode` like OpenCode 2.x.
+  it.each([{}, { INTERVIEW_SENSEI_FAKE_AGENT_MODE: "mode-config-option" }])(
+    "sets only an offered mode of the recipe right after session/new, with the agent's env %j",
+    async (env) => {
+      const recipe = { ...(await fakeRecipe()), env };
+      const { launched, updates } = launch({ ...recipe, mode: "default" }, idleTimer);
+      await expect(replyTo(await launched, updates, "/mode")).resolves.toBe("Режим: default");
 
-    await expect(replyTo(await launched, updates, "/mode")).resolves.toBe("Режим: default");
-  });
-
-  it("refuses to start an agent that does not offer the recipe's mode", async () => {
-    const { launched } = launch({ ...(await fakeRecipe()), mode: "bypass-everything" }, idleTimer);
-
-    await expect(launched).rejects.toThrow(/does not offer the mode bypass-everything/u);
-  });
+      const refused = launch({ ...recipe, mode: "bypass-everything" }, idleTimer).launched;
+      await expect(refused).rejects.toThrow(/does not offer the mode bypass-everything/u);
+    },
+  );
 
   it("passes the recipe's _meta to session/new", async () => {
     const sessionMeta = { claudeCode: { options: { settingSources: [] } } };
