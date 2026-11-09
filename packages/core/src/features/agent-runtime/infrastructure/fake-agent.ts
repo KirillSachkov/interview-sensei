@@ -18,6 +18,7 @@
 // - `/env` replies with the sorted names of its environment variables as JSON: «env: <json>».
 // - `/system`, `/skills` and `/tools` reply with the role, skills and bans of the session's
 //   profile; see `fake-agent-profile.ts`.
+// - The template messages of a mock interview get the interviewer's turns of `fake-agent-interviewer.ts`.
 // - Any other text gets the reply «Фейковый агент получил: «<text>»» in several chunks.
 //
 // The variable INTERVIEW_SENSEI_FAKE_AGENT_MODE stands for broken agents in launcher tests:
@@ -37,10 +38,12 @@ import {
   PROTOCOL_VERSION,
   RequestError,
 } from "@agentclientprotocol/sdk/unstable";
-import type { AgentContext, McpServer, PermissionOption } from "@agentclientprotocol/sdk/unstable";
+import type { AgentContext, McpServer } from "@agentclientprotocol/sdk/unstable";
 
+import { interviewerTurn } from "./fake-agent-interviewer.ts";
 import { callMcpTool } from "./fake-agent-mcp.ts";
 import { fakeAgentModes } from "./fake-agent-modes.ts";
+import { askPermission, permissionOptions } from "./fake-agent-permission.ts";
 import { profileReply, profileSettings, sessionCapabilities } from "./fake-agent-profile.ts";
 import type { ProfileSettings } from "./fake-agent-profile.ts";
 
@@ -56,13 +59,6 @@ const sessionSettings = new Map<string, ProfileSettings>();
 
 const agentMode = process.env.INTERVIEW_SENSEI_FAKE_AGENT_MODE;
 const modes = fakeAgentModes(agentMode);
-
-/** The options of every permission request, like those of a real adapter. */
-const permissionOptions: PermissionOption[] = [
-  { optionId: "allow-once", name: "Разрешить", kind: "allow_once" },
-  { optionId: "allow-always", name: "Разрешать всегда", kind: "allow_always" },
-  { optionId: "reject-once", name: "Отклонить", kind: "reject_once" },
-];
 
 /** Resolves the waiting `/wait` turn of each session when the client cancels it. */
 const cancelWaiters = new Map<string, () => void>();
@@ -122,29 +118,6 @@ function mcpServerOf(sessionId: string) {
     throw new Error("The session has no MCP server over HTTP");
   }
   return server;
-}
-
-/** Announces the tool call, then asks permission for it with only its id, like an adapter. */
-async function askPermission(
-  client: AgentContext,
-  sessionId: string,
-  toolCall: {
-    toolCallId: string;
-    title: string;
-    kind: "execute" | "other";
-    [field: string]: unknown;
-  },
-) {
-  await client.notify("session/update", {
-    sessionId,
-    update: { sessionUpdate: "tool_call", status: "pending", ...toolCall },
-  });
-  const { outcome } = await client.request("session/request_permission", {
-    sessionId,
-    toolCall: { toolCallId: toolCall.toolCallId },
-    options: permissionOptions,
-  });
-  return outcome;
 }
 
 async function readBrief(client: AgentContext, sessionId: string) {
@@ -272,6 +245,10 @@ const app = agent({ name: "interview-sensei-fake-agent" })
     const profile = profileReply(text, sessionSettings.get(sessionId));
     if (profile !== null) {
       return reply(client, sessionId, await profile);
+    }
+    const interview = interviewerTurn(text);
+    if (interview !== null) {
+      return interview({ client, sessionId, server: mcpServerOf(sessionId) });
     }
     const command = commands.get(text);
     return command === undefined ? echo(client, sessionId, text) : command(client, sessionId);

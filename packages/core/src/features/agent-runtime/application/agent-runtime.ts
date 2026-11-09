@@ -41,7 +41,13 @@ export interface AgentRuntime {
    * other permission requests go to `onPermission`.
    */
   readonly start: (
-    request: SessionRequest & { agent: string; kind: string; workingDirectory: string },
+    request: SessionRequest & {
+      agent: string;
+      kind: string;
+      /** Text added after the role of the kind's profile, such as a mock interview's tone. */
+      roleAddition?: string;
+      workingDirectory: string;
+    },
   ) => Promise<LiveAgent>;
 }
 
@@ -126,12 +132,20 @@ function profileOf(kind: string): SessionProfile {
   return sessionProfiles[kind];
 }
 
-/** The profile as the recipes take it, with the skill's files read now. */
+/** The profile as the recipes take it, with the role addition and the skill's files read now. */
 async function launchProfile(
   { role, skill, shell, web }: SessionProfile,
-  readSkill: AgentRuntimeDependencies["readSkill"],
+  {
+    roleAddition,
+    readSkill,
+  }: { roleAddition: string | undefined; readSkill: AgentRuntimeDependencies["readSkill"] },
 ): Promise<LaunchProfile> {
-  return { role, skill: await readSkill(skill), shell, web };
+  return {
+    role: roleAddition === undefined ? role : `${role}\n\n${roleAddition}`,
+    skill: await readSkill(skill),
+    shell,
+    web,
+  };
 }
 
 /** The agent's availability on this machine now; throws the reason when it is unavailable. */
@@ -174,12 +188,12 @@ export function createAgentRuntime(dependencies: AgentRuntimeDependencies): Agen
     dependencies;
   return {
     listAgents: async () => agentAvailability(agents, await inspectHost()),
-    start: async ({ agent: requested, kind, workingDirectory, ...request }) => {
+    start: async ({ agent: requested, kind, roleAddition, workingDirectory, ...request }) => {
       const sessionProfile = profileOf(kind);
       const { agent, host } = await availableHost(dependencies, requested);
       const recipe = launchRecipe({
         agent,
-        profile: await launchProfile(sessionProfile, readSkill),
+        profile: await launchProfile(sessionProfile, { roleAddition, readSkill }),
         host,
         opencodeKeys: await sessionKeys(agent, host, readOpencodeCredentials),
         dataDirectory,

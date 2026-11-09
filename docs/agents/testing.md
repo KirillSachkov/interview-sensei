@@ -60,6 +60,19 @@ In-process API tests listen on a free loopback port: the agent reaches the sessi
 They send the page's `Host` and `Origin` from `browserHeaders` in `chat-test-support.ts`: the server refuses others.
 `INTERVIEW_SENSEI_FAKE_AGENT_MODE=silent` makes it a hung agent; `ignore-sigterm` makes it ignore SIGTERM.
 
+The fake agent has an interviewer mode for mock interviews (`fake-agent-interviewer.ts`).
+It knows the server's template messages by their first sentence and answers them with our MCP tools, each after a permission request that the server allows.
+On «The mock interview has started.» it calls `get_brief`, then shows the next question.
+To show a question, it takes the first open candidate of `next_question_candidates`, or the first one, and calls `present_question`.
+Right after that it sends «Подсказка до ответа: …» in the same turn; the browser must never get this hint.
+On «The Candidate answered the presented question.» it replies «Ответ получен.» and calls `record_attempt`.
+The Grade comes from the marker `[grade:N]` in the Candidate's answer, 2 without one; then it shows the next question.
+The marker `[twice]` makes it call `record_attempt` once more and reply «Повторная запись: <tool result>».
+On «The Candidate finished the mock interview.» it calls `finish_interview` and replies «Итог записан.».
+A failed step ends the turn with «Фейковый интервьюер сломался: <error>».
+Other prompts in a mock interview's chat, such as `/system` or `/tools`, get the replies above.
+`interview-test-support.ts` in the server starts a mock interview on the demo Target and follows its socket and its chat.
+
 ## Ports
 
 `pnpm dev` uses server port 4310 and web port 5173; set `SERVER_PORT` and `WEB_PORT` to change them.

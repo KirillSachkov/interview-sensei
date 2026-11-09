@@ -10,4 +10,5 @@ export const questionBankMigrations: SliceMigrations = {
 
 export { searchQuestions } from "./application/search-questions.ts";
 
-export { demoTarget, demoQuestions } from "./domain/demo-data.ts";
+export { demoTarget } from "./domain/demo-data.ts";
+export { demoBank } from "./application/demo-bank.ts";

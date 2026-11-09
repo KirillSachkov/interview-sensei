@@ -147,3 +147,47 @@ function inputOf(toolCall: { toolCallId: string; [field: string]: unknown }) {
   ]).entries;
   return entry?.type === "permission_request" ? entry.input : undefined;
 }
+
+describe("session view of the server's prompts", () => {
+  it("keeps the server's prompts out of the chat", () => {
+    expect(
+      entriesOf([
+        { type: "prompt_sent", text: "The Candidate answered.", origin: "server" },
+        chunk("Спасибо"),
+      ]),
+    ).toStrictEqual([{ type: "agent_message", text: "Спасибо" }]);
+  });
+
+  it("starts a new agent message in each turn, even without a Candidate's line between", () => {
+    expect(
+      entriesOf([
+        { type: "prompt_sent", text: "Start", origin: "server" },
+        chunk("Начинаем."),
+        { type: "turn_ended", stopReason: "end_turn" },
+        { type: "prompt_sent", text: "The Candidate answered.", origin: "server" },
+        chunk("Ответ получен."),
+      ]),
+    ).toStrictEqual([
+      { type: "agent_message", text: "Начинаем." },
+      { type: "agent_message", text: "Ответ получен." },
+    ]);
+  });
+
+  it("hides the agent's text after agent_text_hidden until the turn ends", () => {
+    expect(
+      entriesOf([
+        { type: "prompt_sent", text: "Начнём", origin: "server" },
+        chunk("Первый вопрос.", "m1"),
+        { type: "agent_text_hidden" },
+        chunk(" Подсказка: ответ — 42.", "m1"),
+        { type: "turn_ended", stopReason: "end_turn" },
+        { type: "prompt_sent", text: "Что значит этот вопрос?" },
+        chunk("Уточню.", "m2"),
+      ]),
+    ).toStrictEqual([
+      { type: "agent_message", text: "Первый вопрос." },
+      { type: "candidate_message", text: "Что значит этот вопрос?" },
+      { type: "agent_message", text: "Уточню." },
+    ]);
+  });
+});

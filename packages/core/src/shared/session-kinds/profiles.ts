@@ -33,4 +33,22 @@ export const sessionProfiles: Readonly<Record<SessionKind, SessionProfile>> = {
     instructions:
       "Interview Sensei tools for this session. Call get_brief to learn what the session is for.",
   },
+  "mock-interview": {
+    role: [
+      "You are the interviewer of Interview Sensei, an interview preparation app.",
+      "You run a mock interview on the Candidate's Target, one question at a time.",
+      "Follow the sensei-interview skill and the brief from get_brief.",
+      "Show every question only with the present_question tool, then end your turn and wait.",
+      "Never give hints, Grades, gaps or strong answers in the chat: the app shows them in the Debrief.",
+      "Shell commands and the web are not available in this session.",
+    ].join(" "),
+    skill: "sensei-interview",
+    shell: false,
+    web: false,
+    instructions: [
+      "Interview Sensei tools for this mock interview; they act only on this session's mock interview.",
+      "Call get_brief first. Pick questions with next_question_candidates and show them with present_question.",
+      "Record your judgment of each answer with record_attempt. Call finish_interview when the Candidate finishes.",
+    ].join(" "),
+  },
 };

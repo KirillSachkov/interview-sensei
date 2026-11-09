@@ -9,7 +9,7 @@ import { rememberTarget } from "@/shared/lib";
 import { Canvas } from "@/shared/ui/canvas";
 import type { CanvasZone } from "@/shared/ui/canvas";
 
-import { SessionsPlaceholder } from "./sessions-placeholder";
+import { MockInterviews } from "./mock-interview/mock-interviews";
 import { TargetCard } from "./target-card";
 
 /**
@@ -25,7 +25,7 @@ function targetZones(target: TargetSummary): CanvasZone[] {
       hint: "моки по этой цели",
       width: 1080,
       minHeight: 640,
-      content: <SessionsPlaceholder />,
+      content: <MockInterviews targetId={target.id} />,
     },
   ];
 }

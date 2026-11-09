@@ -58,7 +58,7 @@ export function modelClient(features: Features, targetId?: string) {
   const origin = "http://127.0.0.1:4399";
   const sessionId = crypto.randomUUID();
   const gateway = mcpGatewayModule({
-    tools: { "service-chat": Object.values(features.modelTools) },
+    tools: { "service-chat": Object.values(features.modelTools), "mock-interview": [] },
     origin: () => origin,
     onError: () => {},
   });

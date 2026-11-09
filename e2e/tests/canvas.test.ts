@@ -2,7 +2,7 @@
 // order: the first one sees no Targets and opens the demo Target, the rest work on it. No other
 // test file creates Targets.
 import { expect, test } from "@playwright/test";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 test.describe.configure({ mode: "serial" });
 
@@ -115,3 +115,53 @@ function unknownTargetTest(address: string) {
 unknownTargetTest("/targets/00000000-0000-4000-8000-000000000099");
 // The server answers 400 to an id that is not a UUID; the page shows the same message.
 unknownTargetTest("/targets/unknown");
+
+// Spec #41: the fake agent's interviewer mode takes the Grade from the marker in the answer and
+// sends a hint right after it shows a question, which the chat must leave out.
+
+/** Starts a mock on «Опыт и резюме» only, from the dialog «Начать мок». */
+async function startMock(sessions: Locator) {
+  await sessions.getByRole("button", { name: "Начать мок" }).click();
+  const dialog = sessions.getByRole("dialog", { name: "Начать мок" });
+  await dialog.getByRole("checkbox", { name: "TypeScript и Node.js" }).uncheck();
+  await dialog.getByRole("checkbox", { name: "Проектирование" }).uncheck();
+  await dialog.getByRole("button", { name: "Начать" }).click();
+}
+
+/** Answers the card's question; Enter sends the answer. */
+async function answer(card: Locator, text: string) {
+  const field = card.getByRole("textbox", { name: "Ваш ответ" });
+  await field.fill(text);
+  await field.press("Enter");
+  await expect(card).toContainText(`Ваш ответ: ${text}`);
+}
+
+/** Opens the card's Debrief and checks its Grade. */
+async function openDebrief(card: Locator, grade: string) {
+  await card.getByRole("button", { name: "Посмотреть разбор" }).click();
+  await expect(card.getByRole("region", { name: "Разбор" })).toContainText(`Оценка: ${grade}`);
+}
+
+/** Presses «Завершить» and waits for the interviewer's summary. */
+async function finishMock(sessions: Locator) {
+  await sessions.getByRole("button", { name: "Завершить" }).click();
+  const result = sessions.getByRole("region", { name: "Итог мока" });
+  await expect(result.getByRole("heading", { name: "Мок завершён" })).toBeVisible();
+  await expect(result).toContainText("Фейковый интервьюер: мок завершён.");
+}
+
+test("the Candidate starts a mock, answers, opens the Debrief and finishes the mock", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const { sessions } = zones(page);
+  await startMock(sessions);
+
+  const first = sessions.getByRole("article", { name: "Вопрос 1" });
+  await answer(first, "Я вёл сервис платежей. [grade:3]");
+  await openDebrief(first, "3 из 3");
+  const interviewer = sessions.getByRole("complementary", { name: "Интервьюер" });
+  await expect(interviewer).toContainText("Ответ получен.");
+  await expect(interviewer).not.toContainText("Подсказка до ответа");
+  await finishMock(sessions);
+});

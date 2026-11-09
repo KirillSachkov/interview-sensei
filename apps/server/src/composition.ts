@@ -5,10 +5,16 @@ import {
   questionBankModule,
   questionBankMigrations,
   searchQuestions,
+  demoBank,
   demoTarget,
-  demoQuestions,
 } from "@interview-sensei/core/question-bank";
 import { targetsModule, targetsMigrations, getTarget } from "@interview-sensei/core/targets";
+import {
+  interviewsMigrations,
+  interviewsModule,
+  interviewTools,
+} from "@interview-sensei/core/interviews";
+import type { Interviews } from "@interview-sensei/core/interviews";
 
 import { agentRuntimeModule } from "@interview-sensei/core/agent-runtime";
 import type { AgentRuntime, UserEnvironment } from "@interview-sensei/core/agent-runtime";
@@ -18,8 +24,6 @@ import {
 } from "@interview-sensei/core/agent-sessions";
 import { healthModule } from "@interview-sensei/core/health";
 import { getBrief, mcpGatewayModule } from "@interview-sensei/core/mcp-gateway";
-import type { SessionTool } from "@interview-sensei/core/mcp-gateway";
-import type { SessionKind } from "@interview-sensei/core/session-kinds";
 import { openStorage } from "@interview-sensei/core/storage";
 import type { SliceMigrations, Storage } from "@interview-sensei/core/storage";
 import type { Clock, Timer } from "@interview-sensei/core/time";
@@ -33,6 +37,7 @@ export { UnknownAgentError } from "@interview-sensei/core/targets";
 export type { AgentSessions, SessionView } from "@interview-sensei/core/agent-sessions";
 export { mcpRoute } from "@interview-sensei/core/mcp-gateway";
 export type { McpGateway } from "@interview-sensei/core/mcp-gateway";
+export type { InterviewView, StartRequest } from "@interview-sensei/core/interviews";
 
 /**
  * The migrations of every core slice that stores data, applied at each start in this order. A
@@ -42,15 +47,51 @@ const sliceMigrations: readonly SliceMigrations[] = [
   agentSessionsMigrations,
   questionBankMigrations,
   targetsMigrations,
+  interviewsMigrations,
 ];
+
+/** The MCP tool set of each session kind, as the gateway takes it. */
+type SessionToolSets = Parameters<typeof mcpGatewayModule>[0]["tools"];
+
+/** The services whose MCP tools the session kinds use; composeFeatures builds them after the gateway. */
+interface ToolServices {
+  interviews: Interviews;
+  targets: Targets;
+  questionBank: QuestionBank;
+}
 
 /**
  * The MCP tool set of each session kind. A slice exports its tools from its index.ts; add them to
- * the kinds that need them. It compiles only while every session kind has an entry.
+ * the kinds that need them. It compiles only while every session kind has an entry. The gateway
+ * reads a set when a session starts; `bind` gives the sets the services once composeFeatures has
+ * built them, after the gateway.
  */
-const sessionTools: Readonly<Record<SessionKind, readonly SessionTool[]>> = {
-  "service-chat": [getBrief],
-};
+function sessionTools() {
+  let services: ToolServices | null = null;
+  const built = () => {
+    if (services === null) {
+      throw new Error("A session started before the server composed its features");
+    }
+    return services;
+  };
+  const sets: SessionToolSets = {
+    "service-chat": [getBrief],
+    get "mock-interview"() {
+      const { interviews, targets, questionBank } = built();
+      return [
+        ...interviewTools(interviews),
+        getTarget(targets),
+        searchQuestions(questionBank, targets),
+      ];
+    },
+  };
+  return {
+    sets,
+    bind: (ready: ToolServices) => {
+      services = ready;
+    },
+  };
+}
 
 export interface FeatureDependencies {
   clock: Clock;
@@ -92,17 +133,16 @@ export async function composeFeatures({
       log.error({ err: error }, "The periodic database dump failed");
     },
   });
-  const { runtime, mcp, sessions } = composeAgents(storage, {
-    timer,
-    dataDirectory,
-    skillsDirectory,
-    fakeAgent,
-    userEnvironment,
-    origin,
-    log,
-    clock,
-  });
+  const tools = sessionTools();
+  const { runtime, mcp, sessions } = composeAgents(
+    storage,
+    { timer, dataDirectory, skillsDirectory, fakeAgent, userEnvironment, origin, log, clock },
+    tools.sets,
+  );
   const { questionBank, targets } = composeTargets(storage, clock, runtime);
+  const services = { clock, targets, sessions, agents: runtime, questions: questionBank };
+  const interviews = composeInterviews(storage, log, services);
+  tools.bind({ interviews, targets, questionBank });
   const modelTools = {
     getTarget: getTarget(targets),
     searchQuestions: searchQuestions(questionBank, targets),
@@ -115,10 +155,26 @@ export async function composeFeatures({
     sessions,
     targets,
     questionBank,
+    interviews,
     createDemo,
     modelTools,
     health: healthModule({ clock }),
   };
+}
+
+/** Mock interviews: the Target's agent is the interviewer in an AgentSession. */
+function composeInterviews(
+  storage: Storage,
+  log: FastifyBaseLogger,
+  services: Omit<Parameters<typeof interviewsModule>[0], "database" | "onError">,
+) {
+  return interviewsModule({
+    database: storage.database,
+    ...services,
+    onError: (error) => {
+      log.error({ err: error }, "A mock interview failed in the background");
+    },
+  });
 }
 
 /** Targets and their Questions; a Target's agent is one of the agents that `runtime` offers. */
@@ -139,52 +195,10 @@ interface DemoDependencies {
   clock: Clock;
 }
 
-function demoTopics(targetId: string) {
-  return demoTarget.topics.map((topic) => ({
-    id: crypto.randomUUID(),
-    targetId,
-    name: topic.name,
-    key: topic.key,
-  }));
-}
-function demoTopicId(topics: ReturnType<typeof demoTopics>, key: string) {
-  const topic = topics.find((entry) => entry.key === key);
-  if (topic === undefined) {
-    throw new Error(`Unknown demo Topic: ${key}`);
-  }
-  return topic.id;
-}
-function questionsForDemo(topics: ReturnType<typeof demoTopics>, targetId: string, clock: Clock) {
-  return demoQuestions.map((question) => {
-    const common = {
-      id: crypto.randomUUID(),
-      targetId,
-      topicId: demoTopicId(topics, question.topicKey),
-      text: question.text,
-      level: demoTarget.level,
-      sourceIds: [],
-      unconfirmed: false,
-      hidden: false,
-      rating: null,
-      createdAt: clock.now().toISOString(),
-    };
-    return question.format === "open"
-      ? Object.assign(common, {
-          format: "open" as const,
-          options: [] as const,
-          correctOptionIds: [] as const,
-        })
-      : Object.assign(common, {
-          format: "quiz" as const,
-          options: question.options,
-          correctOptionIds: question.correctOptionIds,
-        });
-  });
-}
 async function createDemoTarget({ targets, questionBank, clock }: DemoDependencies) {
   const targetId = crypto.randomUUID();
-  const topics = demoTopics(targetId);
-  await questionBank.seed(topics, questionsForDemo(topics, targetId, clock));
+  const { topics, questions, topicIdOf } = demoBank(targetId, clock.now().toISOString());
+  await questionBank.seed(topics, questions);
   // Publish the Target only after its Question bank is ready.
   return targets.create({
     id: targetId,
@@ -199,7 +213,7 @@ async function createDemoTarget({ targets, questionBank, clock }: DemoDependenci
       kind: section.kind,
       gradingCriteria: section.gradingCriteria,
       enabled: true,
-      topicIds: section.topicKeys.map((key) => demoTopicId(topics, key)),
+      topicIds: section.topicKeys.map((key) => topicIdOf(key)),
     })),
   });
 }
@@ -245,6 +259,7 @@ function composeAgents(
     log,
     clock,
   }: FeatureDependencies,
+  tools: SessionToolSets,
 ) {
   const runtime = agentRuntimeModule({
     timer,
@@ -257,7 +272,7 @@ function composeAgents(
     },
   });
   const mcp = mcpGatewayModule({
-    tools: sessionTools,
+    tools,
     origin,
     onError: (error) => {
       log.warn({ err: error }, "An MCP request failed");

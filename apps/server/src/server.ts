@@ -5,7 +5,8 @@ import type { FastifyInstance } from "fastify";
 
 import { registerAgentSessionRoutes } from "./agent-session-routes.ts";
 import { composeFeatures, mcpRoute } from "./composition.ts";
-import type { FeatureDependencies, UserEnvironment } from "./composition.ts";
+import type { FeatureDependencies, Features, UserEnvironment } from "./composition.ts";
+import { registerInterviewRoutes } from "./interview-routes.ts";
 import { prepare } from "./lifecycle.ts";
 import { loopbackOrigin, registerMcpRoute } from "./mcp.ts";
 import { registerTargetRoutes } from "./target-routes.ts";
@@ -49,6 +50,20 @@ export interface ServerDependencies extends Pick<
   allowedOrigins?: readonly string[];
 }
 
+/** The HTTP and WebSocket API under `/api`. */
+function registerApi(server: FastifyInstance, features: Features) {
+  server.get("/api/health", features.health);
+  registerTargetRoutes(server, features);
+  registerInterviewRoutes(server, features);
+  registerAgentSessionRoutes(server, {
+    runtime: features.runtime,
+    sessions: features.sessions,
+    onError: (error) => {
+      server.log.error({ err: error }, "A session command from the browser failed");
+    },
+  });
+}
+
 /**
  * Opens the data directory and builds the HTTP server without listening, so tests call it in
  * process. Closing the server stops the agents, then closes the storage: a final dump, then the
@@ -84,15 +99,7 @@ export async function buildServer({
   });
   registerMcpRoute(server, features.mcp);
   await prepare(server, { features, allowedOrigins, exemptRoutes: [mcpRoute] });
-  server.get("/api/health", features.health);
-  registerTargetRoutes(server, features);
-  registerAgentSessionRoutes(server, {
-    runtime: features.runtime,
-    sessions: features.sessions,
-    onError: (error) => {
-      server.log.error({ err: error }, "A session command from the browser failed");
-    },
-  });
+  registerApi(server, features);
   if (webDirectory !== undefined) {
     await registerWebApp(server, webDirectory);
   }
