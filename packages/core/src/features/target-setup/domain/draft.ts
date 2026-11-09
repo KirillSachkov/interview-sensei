@@ -7,10 +7,8 @@ import { savedPreference } from "./draft-preferences.ts";
 import type { DraftPreference, PreferenceChange } from "./draft-preferences.ts";
 import { namesTopic, renamedTopics, topicKey } from "./draft-topics.ts";
 import type { TopicRename } from "./draft-topics.ts";
+import type { Level, SectionKind, Tone } from "./target-values.ts";
 
-export type Level = "junior" | "middle" | "senior";
-export type Tone = "friendly" | "neutral" | "strict";
-export type SectionKind = "conversation" | "topics" | "design";
 type TargetStatus = "draft" | "active" | "archived";
 
 /** One Section of the Interview plan as the draft sees it: its Topics by name. */

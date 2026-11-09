@@ -1,4 +1,5 @@
-import type { DraftChange, Level, SectionKind, Tone } from "./draft.ts";
+import type { DraftChange } from "./draft.ts";
+import type { Level, SectionKind, Tone } from "./target-values.ts";
 import type { DraftPreference } from "./draft-preferences.ts";
 import type { QuestionRating } from "./draft-questions.ts";
 import type { TopicRename } from "./draft-topics.ts";

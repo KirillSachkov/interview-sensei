@@ -1,5 +1,6 @@
 // The Questions in the draft of changes: new ones, edits of existing ones, and the rule that
 // finds duplicates by text.
+import type { Level } from "./target-values.ts";
 
 /**
  * The key two Question texts match by: the same words, ignoring case, spaces and punctuation.
@@ -37,7 +38,6 @@ export function withoutDuplicates<Candidate extends { readonly text: string }>(
   return { kept, duplicates };
 }
 
-type QuestionLevel = "junior" | "middle" | "senior";
 export type QuestionRating = "useful" | "irrelevant" | "wrong";
 
 /** A new Question in the draft: its Topic by name; `level` null takes the Target's level. */
@@ -48,7 +48,7 @@ export interface NewQuestion {
   readonly format: "open" | "quiz";
   readonly options: readonly { readonly id: string; readonly text: string }[];
   readonly correctOptionIds: readonly string[];
-  readonly level: QuestionLevel | null;
+  readonly level: Level | null;
 }
 
 /** A Question of the Target as the draft sees it. */
@@ -109,7 +109,7 @@ function questionProblem(question: DraftQuestion): string | null {
 /** Why the Questions cannot be stored, for the Candidate and the agent; empty when they can. */
 export function questionProblems(
   questions: readonly DraftQuestion[],
-  targetLevel: QuestionLevel | null,
+  targetLevel: Level | null,
 ): string[] {
   return questions.flatMap((question) => {
     const problems = [questionProblem(question)];

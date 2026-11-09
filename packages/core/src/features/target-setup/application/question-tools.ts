@@ -3,10 +3,10 @@
 import { z } from "zod";
 
 import { sessionTool } from "../../../shared/mcp/index.ts";
+import { levels } from "../domain/target-values.ts";
 import { recordedChange, recordIn, sessionTarget } from "./draft-tools.ts";
 import type { TargetSetup } from "./target-setup.ts";
 
-const levels = ["junior", "middle", "senior"] as const;
 const ratings = ["useful", "irrelevant", "wrong"] as const;
 
 const newQuestion = z.strictObject({

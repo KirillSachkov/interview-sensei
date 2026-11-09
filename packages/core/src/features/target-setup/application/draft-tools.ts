@@ -6,11 +6,8 @@ import { sessionTool } from "../../../shared/mcp/index.ts";
 import type { ToolSession } from "../../../shared/mcp/index.ts";
 import { planProblems } from "../domain/draft.ts";
 import type { DraftOperation } from "../domain/draft.ts";
+import { levels, sectionKinds, tones } from "../domain/target-values.ts";
 import type { RecordOutcome, TargetSetup } from "./target-setup.ts";
-
-const levels = ["junior", "middle", "senior"] as const;
-const tones = ["friendly", "neutral", "strict"] as const;
-const sectionKinds = ["conversation", "topics", "design"] as const;
 
 export function sessionTarget(session: ToolSession): string {
   if (session.targetId === undefined || session.targetId === null) {
