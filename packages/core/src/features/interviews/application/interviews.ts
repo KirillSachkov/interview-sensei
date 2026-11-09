@@ -57,10 +57,7 @@ export interface Interviews {
     page: number;
     filter: HistoryFilter;
   }) => Promise<HistoryPage>;
-  /**
-   * The Attempts of the Target's ended Mock interviews with their Grades after Disputes, the
-   * earliest first; the running one's Attempts count once it ends.
-   */
+  /** The Attempts of the Target's ended Mock interviews, Grades after Disputes, the earliest first. */
   readonly topicAttempts: (targetId: string) => Promise<readonly TopicAttempt[]>;
   /** Marks the Mock interviews that ran when the server last stopped as «прерван». */
   readonly endInterrupted: () => Promise<void>;

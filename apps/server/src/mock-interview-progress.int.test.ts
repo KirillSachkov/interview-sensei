@@ -34,6 +34,7 @@ async function progressOf(api: Api): Promise<unknown> {
 }
 
 const isFinished = (view: Interview) => view.status === "finished";
+const isInterrupted = (view: Interview) => view.status === "interrupted";
 
 /** The Candidate presses «Завершить»; resolves once the agent has finished the Mock interview. */
 async function finished(api: Api, { interview, events }: Run) {
@@ -146,6 +147,19 @@ describe("progress and disputes", () => {
     await expect(api.debrief(interview.id, graded)).resolves.toMatchObject({
       grade: 1,
       dispute: { grade: 2, reason: "Скорее на 2." },
+    });
+  });
+
+  it("counts the Attempts of a Mock interview that became interrupted when the agent crashed", async () => {
+    const api = await interviewApi();
+    const { chat, events } = await gradedAnswer(api, "Ответ [grade:3]");
+
+    chat.send({ type: "prompt", text: "/crash" });
+    await events.waitFor(isInterrupted);
+
+    await expect(progressOf(api)).resolves.toMatchObject({
+      readiness: { confident: 0, shaky: 1, notStarted: 4, total: 5 },
+      focus: [{ name: experience, status: "shaky" }, {}, {}],
     });
   });
 
