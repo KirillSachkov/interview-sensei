@@ -46,9 +46,29 @@ function permissions(profile: LaunchProfile): string {
 }
 
 describe("session profile role and skill in the launch recipe", () => {
-  it("gives Claude Code, Codex and the fake agent the role as an appended ACP system prompt", () => {
-    for (const agent of ["claude", "codex", "fake"] as const) {
+  it("gives Claude Code and the fake agent the role as an appended ACP system prompt", () => {
+    for (const agent of ["claude", "fake"] as const) {
       expect(recipe(agent).systemPrompt).toBe(lockedProfile.role);
+    }
+  });
+
+  it("gives Codex the role at the start of its appended ACP system prompt", () => {
+    expect(recipe("codex").systemPrompt?.startsWith(`${lockedProfile.role}\n\n`)).toBe(true);
+    expect(recipe("codex", {}, openProfile).systemPrompt?.startsWith(lockedProfile.role)).toBe(
+      true,
+    );
+  });
+
+  it("gives Codex the text of the skill's SKILL.md when the profile forbids shell, since nothing else reads files", () => {
+    expect(recipe("codex").systemPrompt).toContain(skillText);
+    expect(recipe("codex", {}, { ...openProfile, web: false }).systemPrompt).not.toContain(
+      skillText,
+    );
+  });
+
+  it("tells Codex that apply_patch asks the Candidate before it writes in the read-only sandbox", () => {
+    for (const profile of [lockedProfile, openProfile]) {
+      expect(recipe("codex", {}, profile).systemPrompt).toMatch(/apply_patch asks the Candidate/u);
     }
   });
 
@@ -122,6 +142,15 @@ describe("session profile bans in the launch recipe", () => {
     expect(codexConfig({ ...openProfile, shell: false })).toBe('{"features":{"shell_tool":false}}');
     expect(codexConfig({ ...openProfile, web: false })).toBe('{"web_search":"disabled"}');
     expect(codexConfig(openProfile)).toBeUndefined();
+  });
+
+  it("turns off the ChatGPT apps and plugins of the Candidate's account in Codex for any profile", () => {
+    for (const profile of [lockedProfile, openProfile]) {
+      const config = recipe("codex", {}, profile).files.find((file) =>
+        file.path.endsWith("/codex-home/config.toml"),
+      );
+      expect(config?.content).toMatch(/\[features\]\napps = false\nplugins = false\n/u);
+    }
   });
 
   it("denies shell and web to the OpenCode 1.x agent only when the profile forbids them", () => {

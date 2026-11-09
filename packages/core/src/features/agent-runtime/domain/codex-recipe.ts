@@ -18,6 +18,39 @@ function codexBans({ shell, web }: LaunchProfile): string | null {
 /** Codex sessions change no files; Codex has no mode between read-only and writes. */
 const codexMode = "read-only";
 
+/**
+ * The read-only sandbox tells the model that it cannot write, so it refuses without a try. Yet
+ * with the mode's `on-request` approvals, Codex asks the Candidate before apply_patch writes.
+ */
+const writeApproval =
+  "File changes: the sandbox is read-only, and apply_patch asks the Candidate's approval before " +
+  "it writes. To change a file, call apply_patch; do not refuse because the sandbox is read-only.";
+
+/**
+ * The role, then the skill's SKILL.md when shell is off: Codex lists the skill but reads its file
+ * only through shell. Then how file changes reach the Candidate.
+ */
+function codexSystemPrompt({ role, shell, skill }: LaunchProfile): string {
+  const main = skill.files.find((file) => file.path === "SKILL.md");
+  const skillText =
+    shell || main === undefined
+      ? []
+      : [
+          `No tool in this session reads files, so the SKILL.md of the ${skill.name} skill ` +
+            "follows; treat it as read.",
+          `<skill name="${skill.name}">\n${main.content}</skill>`,
+        ];
+  return [role, ...skillText, writeApproval].join("\n\n");
+}
+
+/**
+ * No AGENTS.md above `cwd`, no bundled skills, and none of the ChatGPT apps and plugins of the
+ * Candidate's account: they bring their own tools and skills.
+ */
+const codexConfigToml =
+  "project_doc_max_bytes = 0\n\n[features]\napps = false\nplugins = false\n\n" +
+  "[skills.bundled]\nenabled = false\n";
+
 export function codexRecipe({
   host,
   profile,
@@ -39,7 +72,7 @@ export function codexRecipe({
       ...(bans === null ? {} : { CODEX_CONFIG: bans }),
     },
     sessionMeta: null,
-    systemPrompt: profile.role,
+    systemPrompt: codexSystemPrompt(profile),
     additionalDirectories: [skill.root],
     mode: codexMode,
     cwd: sessionDirectory,
@@ -48,8 +81,7 @@ export function codexRecipe({
     files: [
       {
         path: child(codexHome, "config.toml"),
-        // No project AGENTS.md above `cwd` and no bundled skills.
-        content: "project_doc_max_bytes = 0\n\n[skills.bundled]\nenabled = false\n",
+        content: codexConfigToml,
       },
       ...skill.files,
     ],

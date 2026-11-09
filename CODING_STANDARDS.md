@@ -82,11 +82,14 @@ At each start the runtime reads the skill from `skills/`, or from its copy in th
 | Agent | Role | Skill | Shell and web off |
 | --- | --- | --- | --- |
 | Claude Code | ACP `systemPrompt`, `append` | local plugin `interview-sensei` in `agents/claude/skills/<skill>`; `skills` lists only `interview-sensei:<skill>` | `disallowedTools`: `Bash`; `WebFetch`, `WebSearch` |
-| Codex | ACP `systemPrompt`, `append` | `.agents/skills` of the ACP `additionalDirectories` entry `agents/codex/skills/<skill>` | `CODEX_CONFIG`: `features.shell_tool = false`; `web_search = "disabled"` |
+| Codex | ACP `systemPrompt`, `append`, with the note that `apply_patch` asks the Candidate | `.agents/skills` of the ACP `additionalDirectories` entry `agents/codex/skills/<skill>`; with shell off, its `SKILL.md` also in the `systemPrompt` | `CODEX_CONFIG`: `features.shell_tool = false`; `web_search = "disabled"` |
 | OpenCode 1.x | `prompt` of its own primary agent `interview-sensei` in `agent`, selected as the session's mode | `skills.paths` with `agents/opencode/skills/<skill>`; `OPENCODE_DISABLE_EXTERNAL_SKILLS` | that agent's `permission`: `bash`; `webfetch`, `websearch` = `deny` |
 | OpenCode 2.x | `system` of the same agent in `agents`, also `default_agent`, selected as the session's mode | `skills` with the same path; `policies`: `skill.use` only for `<skill>`; `OPENCODE_DISABLE_EXTERNAL_SKILLS` as a backup | that agent's `permissions`: `shell`; `webfetch`, `websearch` = `deny` |
 | fake | ACP `systemPrompt`, `append` | as Codex, in `agents/fake/skills/<skill>` | `_meta.fakeAgent.disallowedTools` |
 
+Codex 0.165 reads a skill file only through shell, so a profile without shell gets the skill's `SKILL.md` in the role.
+Its read-only sandbox makes the model refuse writes, though `apply_patch` asks the Candidate first; the role tells it so.
+Its `config.toml` sets `features.apps` and `features.plugins` to `false`: the Candidate's ChatGPT apps and plugins bring their own tools and skills.
 The OpenCode recipe writes the config keys of the installed version.
 `inspectAgentHost` runs only `opencode --version`: 1.x prints `1.18.30`, 2.x prints `opencode v2.2.6`.
 After 5 seconds on the injected `Timer` it kills the process with SIGKILL and stops reading, so the version is unknown.

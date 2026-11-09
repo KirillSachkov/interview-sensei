@@ -90,7 +90,10 @@ describe("launch recipe", () => {
     const codexHome = `${dataDirectory}/agents/codex/codex-home`;
     const home = `${dataDirectory}/agents/codex/home`;
     const skills = `${dataDirectory}/agents/codex/skills/probe-skill`;
-    expect(recipe("codex")).toStrictEqual({
+    // session-profile-recipe.test.ts checks the system prompt.
+    const { systemPrompt, ...launch } = recipe("codex");
+    expect(systemPrompt?.startsWith(lockedProfile.role)).toBe(true);
+    expect(launch).toStrictEqual({
       command: host.nodeExecutable,
       args: [host.codexAdapter],
       env: {
@@ -100,7 +103,6 @@ describe("launch recipe", () => {
         CODEX_CONFIG: '{"features":{"shell_tool":false},"web_search":"disabled"}',
       },
       sessionMeta: null,
-      systemPrompt: lockedProfile.role,
       additionalDirectories: [skills],
       mode: "read-only",
       cwd: sessionDirectory,
@@ -115,7 +117,9 @@ describe("launch recipe", () => {
       files: [
         {
           path: `${codexHome}/config.toml`,
-          content: "project_doc_max_bytes = 0\n\n[skills.bundled]\nenabled = false\n",
+          content:
+            "project_doc_max_bytes = 0\n\n[features]\napps = false\nplugins = false\n\n" +
+            "[skills.bundled]\nenabled = false\n",
         },
         { path: `${skills}/.agents/skills/probe-skill/SKILL.md`, content: skillText },
         { path: `${skills}/.agents/skills/probe-skill/references/notes.md`, content: notesText },
