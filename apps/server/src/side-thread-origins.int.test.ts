@@ -122,10 +122,9 @@ describe("side thread origins", () => {
     });
 
     expect(response.statusCode).toBe(409);
-    expect(response.json()).toMatchObject({
-      error: "message_before_question",
-      message: expect.stringContaining("до первого вопроса"),
-    });
+    const refusal = response.json<{ error: string; message: string }>();
+    expect(refusal.error).toBe("message_before_question");
+    expect(refusal.message).toMatch(/до первого вопроса/u);
   });
 
   it("sends the text that the Candidate selected as the fragment", async () => {
