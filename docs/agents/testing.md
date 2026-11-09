@@ -93,7 +93,12 @@ Other prompts in a mock interview's chat, such as `/system` or `/tools`, get the
 `interview-flow-test-support.ts` adds `manualTime()`: a clock the test moves and a `Timer` whose tasks run only when the test fires them by delay, such as the reminder 25 minutes into a 30-minute limit.
 `startServer` takes this clock and timer as options.
 A test runs the 2-minute wait for `finish_interview` with that timer; `/wait` in the interviewer chat keeps the message that the Candidate finished from the agent.
-`/crash` in the interviewer chat makes the mock interview «прерван».
+`/crash` in the interviewer chat pauses the mock interview.
+On «The mock interview continues after a pause.» it calls `get_brief` and reads the presented question of its continuation.
+One that waits for an answer gets «Продолжаем после паузы: жду ответа.», which the browser must never get.
+An answered one gets «Продолжаем после паузы.» and the Attempt by the answer's markers; without one it says «Продолжаем после паузы.» and shows the next question, unless the last answer had `[last]`.
+`pause-test-support.ts` posts «Пауза» and «Продолжить».
+A test of an unavailable agent stores Codex as the agent of a paused mock interview through the storage of a stopped server: a test cannot start a mock interview with a real agent.
 
 The fake agent has a side thread mode for Side threads (`fake-agent-side-thread.ts`).
 On «The Candidate opened a side thread from a mock interview.» it calls `get_brief` and replies «Разбираю вопрос кандидата: «<candidateQuestion>»».

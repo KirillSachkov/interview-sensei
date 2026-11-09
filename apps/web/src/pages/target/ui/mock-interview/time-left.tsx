@@ -7,6 +7,19 @@ function clock(ms: number): string {
   return `${String(minutes).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
+/** The time left as it stood when the Mock interview paused; it does not run. */
+export function PausedTimeLeft({ leftMs }: { leftMs: number }) {
+  return leftMs > 0 ? (
+    <span className="time-left" role="timer" aria-label="Осталось времени">
+      осталось {clock(leftMs)}
+    </span>
+  ) : (
+    <span className="time-left overtime" role="timer" aria-label="Перерасход времени">
+      перерасход +{clock(-leftMs)}
+    </span>
+  );
+}
+
 /**
  * The time left before the limit, then the overtime. The limit only guides the interviewer: the
  * interview ends when the Candidate presses «Завершить».

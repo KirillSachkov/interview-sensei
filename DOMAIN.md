@@ -49,10 +49,20 @@ _Avoid_: Task, when the item is not an algorithm problem.
 **Mock interview**:
 The only kind of interview: the agent acts as an interviewer and asks Questions for a Target.
 The Candidate picks its Sections, a time limit and a difficulty: easier, as is or harder. The Target has no difficulty of its own: it is the difficulty of its latest Mock interview, which the next one offers first.
-A Mock interview is running («идёт») until it ends: finished («завершён») when the Candidate ends it, interrupted («прерван») when its agent fails or the server restarts first.
+A Mock interview is running («идёт») until the Candidate finishes it («завершён»).
+«Пауза», a crash of its agent and a server restart make it paused («на паузе»): its Agent session ends, its timer stops and the Presented question stays.
+«Продолжить» starts a new Agent session of the same Mock interview with its agent, or with the Target's agent when its own is unavailable; the Mock interview keeps that agent from then on.
+Its chat shows the journals of all its Agent sessions in order. The time limit counts only the time it runs.
+A Target has at most one Mock interview that runs or is paused. Finishing a paused one gives the summary Debrief without the agent's summary.
+Mock interviews that ended before pauses existed keep the status interrupted («прерван»); a new one never gets it.
 With a time limit, it follows the arc of a real interview, from general Questions to deeper ones. Without a limit, it continues until the Candidate stops it.
 Stopping early keeps every recorded Attempt and still produces a Debrief.
 _Avoid_: Training session; explanations happen in a Side thread instead.
+
+**Continuation summary**:
+What the agent of a continued Mock interview learns of it in its brief: the current Section, the time left, the asked Questions in order with the Candidate's answers, Follow-ups and Grades, and the Presented question with what it waits for.
+The server builds it from its own records, never from the agent's log; the Target, the Sections, the difficulty and the Preferences are in the rest of the brief.
+The agent keeps Grades the Candidate has not opened out of the chat, as before the pause.
 
 **Presented question**:
 The Question that the agent of a Mock interview has shown and whose answer it awaits. A Mock interview has at most one: the next Question can be shown only after the Attempt of this one is recorded.
@@ -84,7 +94,7 @@ A new correction replaces the previous one: the latest correction applies.
 
 **Topic status**:
 How well the Candidate knows a Topic within a Target: not started, shaky or confident.
-Topic status follows from recent Attempts of ended Mock interviews and is never set by hand: a running Mock interview's Attempts count once it ends. Confident needs recent Attempts without hints and at least one confident Deeper question.
+Topic status follows from recent Attempts of ended Mock interviews and is never set by hand: the Attempts of a running or paused Mock interview count once it ends. Confident needs recent Attempts without hints and at least one confident Deeper question.
 
 **Readiness**:
 The share of Topics with the confident Topic status in the enabled Sections of a Target.
@@ -106,7 +116,7 @@ Every Inbox processing and Mock interview for that Target follows the active Pre
 A separate Agent session that branches from a Mock interview at a chosen moment, for clarification and explanation.
 It runs with the agent of its Mock interview; the code calls its kind `side-thread`.
 It starts from a Handoff brief, not from the whole Mock interview history. A Side thread cannot record Attempts or change Grades.
-A Side thread opened before the Candidate answers the current Question marks that Attempt as received with a hint.
+A Side thread opened before the Candidate answers the current Question marks that Attempt as received with a hint, also while the Mock interview is paused.
 After the answer, during Follow-ups, after the end of the Mock interview and on an earlier Question it gives no hint mark.
 The interviewer never sees a Side thread: it learns only that the Candidate discussed the Question in one, at the start of its next message.
 The Candidate opens a Side thread at a question card, at an interviewer message or at a Debrief, also of a past Mock interview, and may select a fragment to discuss.

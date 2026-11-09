@@ -1,7 +1,7 @@
 // The Side thread (#7, #80): a separate AgentSession with the Mock interview's agent that explains.
 // It starts from a Handoff brief (handoff-brief.ts) and never changes Attempts or Grades.
 import type { AskedQuestion, Attempt, MockInterview } from "./interview.ts";
-import { presentedQuestion } from "./interview.ts";
+import { isActive, presentedQuestion } from "./interview.ts";
 
 /**
  * Where the Candidate opened the Side thread (#80):
@@ -35,7 +35,8 @@ export interface SideThread {
 
 /**
  * Whether a Side thread opened now on the asked question gives a hint: the question is the
- * presented one of a running Mock interview and waits for the Candidate's answer. After the answer,
+ * presented one of a running or paused Mock interview and waits for the Candidate's answer: after a
+ * pause the Candidate answers it. After the answer,
  * during Follow-ups, once the Candidate finishes and for an earlier question there is no hint.
  */
 export function givesHint(
@@ -45,7 +46,7 @@ export function givesHint(
 ): boolean {
   const presented = presentedQuestion(asked, attempts);
   return (
-    interview.status === "running" &&
+    isActive(interview.status) &&
     interview.finishRequestedAt === null &&
     presented?.id === askedQuestionId &&
     presented.answer === null

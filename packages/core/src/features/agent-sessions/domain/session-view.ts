@@ -4,9 +4,15 @@ import type { AgentSession, ChatEntry, SessionStatus, SessionView } from "./agen
 import { isLive } from "./agent-session.ts";
 import type { AgentUpdate, RecordedEvent, SessionEvent } from "./session-event.ts";
 
-/** The view of a session before its first journal entry. */
-export function emptyView(session: AgentSession): SessionView {
-  return { ...session, entries: [], failure: null, agentText: "new" };
+/**
+ * The view of a session before its first journal entry. A session that continues an earlier one
+ * starts with the earlier chat: journal ids are unique over every session, so entry ids stay unique.
+ */
+export function emptyView(
+  session: AgentSession,
+  earlierEntries: readonly ChatEntry[] = [],
+): SessionView {
+  return { ...session, entries: earlierEntries, failure: null, agentText: "new" };
 }
 
 /** The status after the event, the same rule for the live session and for the stored one. */
@@ -212,11 +218,18 @@ export function applyEvent(view: SessionView, recorded: RecordedEvent): SessionV
   };
 }
 
-/** Replays a stored journal into the view; `session.status` is the stored status. */
-export function replay(session: AgentSession, journal: readonly RecordedEvent[]): SessionView {
+/**
+ * Replays a stored journal into the view; `session.status` is the stored status. `earlierEntries`
+ * is the chat of the sessions this one continues.
+ */
+export function replay(
+  session: AgentSession,
+  journal: readonly RecordedEvent[],
+  earlierEntries: readonly ChatEntry[] = [],
+): SessionView {
   const view = journal.reduce(
     (current, recorded) => applyEvent(current, recorded),
-    emptyView({ ...session, status: "starting" }),
+    emptyView({ ...session, status: "starting" }, earlierEntries),
   );
   return { ...view, status: session.status };
 }

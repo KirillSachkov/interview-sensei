@@ -214,3 +214,28 @@ describe("session view of the server's prompts", () => {
     expect(agentTextOf([{ type: "agent_text_hidden" }, { type: "session_ended" }])).toBe("new");
   });
 });
+
+describe("session view of a continued session", () => {
+  it("starts with the chat of the session it continues and adds its own after it", () => {
+    const earlier = replay(session, [
+      { id: 1, event: { type: "prompt_sent", text: "Привет" } },
+      { id: 2, event: chunk("Ответ до паузы") },
+    ]).entries;
+
+    const continued = replay(
+      { ...session, id: "session-2", continuesSessionId: "session-1" },
+      [
+        { id: 7, event: { type: "prompt_sent", text: "Продолжим" } },
+        { id: 8, event: chunk("Ответ после паузы") },
+      ],
+      earlier,
+    );
+
+    expect(continued.entries.map((entry) => [entry.id, entryText(entry)])).toStrictEqual([
+      ["candidate-1", "Привет"],
+      ["agent-2", "Ответ до паузы"],
+      ["candidate-7", "Продолжим"],
+      ["agent-8", "Ответ после паузы"],
+    ]);
+  });
+});

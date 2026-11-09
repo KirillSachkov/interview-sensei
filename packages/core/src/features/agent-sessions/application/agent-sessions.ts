@@ -2,9 +2,7 @@ import { rm } from "node:fs/promises";
 import path from "node:path";
 
 import type { AgentSession, SessionView } from "../domain/agent-session.ts";
-import { isLive } from "../domain/agent-session.ts";
 import type { AgentLauncher } from "../domain/ports.ts";
-import { replay } from "../domain/session-view.ts";
 import {
   answerPermission,
   cancelPermissions,
@@ -25,6 +23,7 @@ import {
 import type { PromptOutcome, QueueContext, QueueOutcome } from "./server-prompts.ts";
 import { runningFor, sessionOpener, stopAll, stopNow } from "./open-session.ts";
 import type { OpenSession, StartRequest } from "./open-session.ts";
+import { endInterrupted, sessionView } from "./stored-sessions.ts";
 
 export interface AgentSessionsDependencies extends LiveSessionDependencies {
   readonly launcher: AgentLauncher;
@@ -118,14 +117,17 @@ interface Context {
 /** Creates the session and starts its agent; close ends it when close began meanwhile. */
 async function createAndLaunch(
   context: Context,
-  { kind, agent, targetId, roleAddition, opening }: StartRequest,
+  { kind, agent, targetId, roleAddition, opening, continues }: StartRequest,
 ): Promise<SessionView> {
   const { dependencies } = context;
   const { repository, clock } = dependencies;
+  const earlier =
+    continues === undefined ? undefined : await sessionView(context.live, repository, continues);
   const created = await repository.create({
     kind,
     agent,
     ...(targetId === undefined ? {} : { targetId }),
+    ...(earlier === undefined ? {} : { continuesSessionId: earlier.id }),
     createdAt: clock.now(),
   });
   // A finished session leaves `live`: later reads come from the journal.
@@ -136,6 +138,7 @@ async function createAndLaunch(
     onIdle: () => {
       void drain(context.queue, session);
     },
+    ...(earlier === undefined ? {} : { earlierEntries: earlier.entries }),
   });
   if (context.closing) {
     // Close began during the create: the session ends before its agent ever starts.
@@ -178,16 +181,6 @@ async function start(context: Context, request: StartRequest): Promise<SessionVi
   }
 }
 
-async function view({ dependencies, live }: Context, sessionId: string) {
-  const session = live.get(sessionId);
-  if (session !== undefined) {
-    return session.view;
-  }
-  const { repository } = dependencies;
-  const stored = await repository.load(sessionId);
-  return stored === undefined ? undefined : replay(stored, await repository.journal(sessionId));
-}
-
 async function cancel({ live }: Context, sessionId: string): Promise<void> {
   const session = live.get(sessionId);
   const agent = session?.agent ?? null;
@@ -212,21 +205,6 @@ async function answer(
   }
   await session.written;
   return "accepted";
-}
-
-async function endInterrupted({ dependencies: { repository, clock } }: Context): Promise<void> {
-  const sessions = await repository.list();
-  const interrupted = sessions.filter((session) => isLive(session.status));
-  await Promise.all(
-    interrupted.map(async (session) =>
-      repository.append({
-        sessionId: session.id,
-        event: { type: "session_ended" },
-        status: "ended",
-        recordedAt: clock.now(),
-      }),
-    ),
-  );
 }
 
 /** Stops the session's agent at once and deletes the session, its journal and its directory. */
@@ -269,7 +247,7 @@ export function createAgentSessions(dependencies: AgentSessionsDependencies): Ag
     list: async () => dependencies.repository.list(),
     running: (targetId, except) => runningFor(context.live, targetId, except),
     stopAll: async (targetId, kind) => stopAll(context.live, targetId, kind),
-    view: async (sessionId) => view(context, sessionId),
+    view: async (sessionId) => sessionView(context.live, dependencies.repository, sessionId),
     prompt: async (sessionId, text) => candidatePrompt(context.queue, sessionId, text),
     queuePrompt: async (sessionId, text, options) =>
       queuePrompt(context.queue, { sessionId, text }, options),
@@ -291,7 +269,7 @@ export function createAgentSessions(dependencies: AgentSessionsDependencies): Ag
         listeners?.delete(listener);
       };
     },
-    endInterrupted: async () => endInterrupted(context),
+    endInterrupted: async () => endInterrupted(dependencies),
     close: async () => close(context),
   };
 }

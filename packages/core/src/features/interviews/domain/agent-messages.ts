@@ -9,6 +9,20 @@ export const interviewStarted = [
   "Then end your turn and wait for the Candidate's answer.",
 ].join(" ");
 
+/**
+ * The first message of a new agent session that goes on with the Mock interview after a pause
+ * (#84). The agent knows nothing of the interview before; the continuation summary of `get_brief`
+ * tells it where the interview stopped.
+ */
+export const interviewContinues = [
+  "The mock interview continues after a pause.",
+  "This is a new session of the same interview: call get_brief and read its continuation, which holds the questions asked so far with the Candidate's answers, Follow-ups and Grades, the presented question and the time left.",
+  "Do not greet the Candidate again and do not repeat an asked question.",
+  "If the presented question waits for the Candidate's answer or for the answer to your Follow-up, end your turn without a chat message.",
+  "If it has the Candidate's answer and waits for its Attempt, judge it and call record_attempt, then present the next question.",
+  "Without a presented question, present the next one with next_question_candidates and present_question.",
+].join(" ");
+
 /** The Candidate's free-text answer to the presented question, passed on as written. */
 export function candidateAnswered(answer: string): string {
   return [

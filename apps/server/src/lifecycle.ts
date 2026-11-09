@@ -5,7 +5,7 @@ import type { Features } from "./composition.ts";
 import { acceptLocalRequestsOnly } from "./local-requests.ts";
 
 /**
- * Ends sessions of the last run, marks its running Mock interviews «прерван», and registers the
+ * Ends sessions of the last run, pauses its running Mock interviews, and registers the
  * shutdown order, the WebSocket plugin and the check that only the Candidate's own browser reaches
  * the server.
  */
@@ -23,9 +23,11 @@ export async function prepare(
   },
 ) {
   acceptLocalRequestsOnly(server, { allowedOrigins, exemptRoutes });
-  // Agents stop and their sessions end before the final dump closes the database.
+  // Agents stop and their sessions end before the final dump closes the database. Running Mock
+  // interviews pause first, so their time stops now.
   server.addHook("onClose", async () => {
     try {
+      await interviews.pauseRunning();
       await sessions.close();
     } finally {
       await storage.close();
@@ -33,7 +35,7 @@ export async function prepare(
   });
   try {
     await sessions.endInterrupted();
-    await interviews.endInterrupted();
+    await interviews.pauseInterrupted();
     await server.register(fastifyWebsocket);
   } catch (error) {
     await storage.close();

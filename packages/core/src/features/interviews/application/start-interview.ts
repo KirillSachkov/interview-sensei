@@ -8,7 +8,7 @@ import { interviewerRole } from "../domain/interviewer-role.ts";
 import type { InterviewView } from "../domain/interview-view.ts";
 import type { PlanSection, TargetPlan } from "../domain/ports.ts";
 import { tellInterviewer, viewOf } from "./context.ts";
-import { watchAgent } from "./endings.ts";
+import { watchAgent } from "./pauses.ts";
 import type { Context, InterviewsDependencies } from "./context.ts";
 import { watchTimeLimit } from "./time-limit.ts";
 
@@ -26,10 +26,13 @@ export interface StartRequest {
  * - `agent_unavailable`: the Target's agent cannot run now; `reason` says why, in Russian, when
  *   the runtime knows it.
  * - `interview_running`: the Target already has a running Mock interview.
+ * - `interview_paused`: the Target has a paused Mock interview; the Candidate continues or
+ *   finishes it first (#84).
  */
 export type StartOutcome =
   | { readonly type: "started"; readonly interview: InterviewView }
   | { readonly type: "target_not_found" | "invalid_sections" | "interview_running" }
+  | { readonly type: "interview_paused"; readonly interviewId: string }
   | { readonly type: "agent_unavailable"; readonly reason: string | null };
 
 /** The selected Sections in the plan's order, or null when the selection is invalid. */
@@ -83,21 +86,33 @@ async function difficultyOf(
   return last?.difficulty ?? "as_is";
 }
 
+/** The refusal when the Target has a running or paused Mock interview; null when it has none. */
+async function activeRefusal(
+  { repository }: InterviewsDependencies,
+  targetId: string,
+): Promise<Exclude<StartOutcome, { type: "started" }> | null> {
+  const active = await repository.active(targetId);
+  if (active === undefined) {
+    return null;
+  }
+  return active.status === "paused"
+    ? { type: "interview_paused", interviewId: active.id }
+    : { type: "interview_running" };
+}
+
 /** Checks the start request in the order the Candidate can fix it. */
 async function checkStart(
   dependencies: InterviewsDependencies,
   request: StartRequest,
 ): Promise<StartPlan | Exclude<StartOutcome, { type: "started" }>> {
   const plan = await dependencies.targets.get(request.targetId);
-  if (plan === undefined) {
-    return { type: "target_not_found" };
+  const sections = plan === undefined ? null : selectedSections(plan, request.sectionIds);
+  if (plan === undefined || sections === null) {
+    return { type: plan === undefined ? "target_not_found" : "invalid_sections" };
   }
-  const sections = selectedSections(plan, request.sectionIds);
-  if (sections === null) {
-    return { type: "invalid_sections" };
-  }
-  if ((await dependencies.repository.running(plan.id)) !== undefined) {
-    return { type: "interview_running" };
+  const active = await activeRefusal(dependencies, plan.id);
+  if (active !== null) {
+    return active;
   }
   const agent = await interviewerAgent(dependencies, plan.id);
   return typeof agent === "string"
@@ -124,6 +139,10 @@ function newInterview(
     limitMinutes: request.limitMinutes ?? null,
     difficulty,
     startedAt,
+    pausedAt: null,
+    pausedMs: 0,
+    pauseReason: null,
+    resumedAt: null,
     finishRequestedAt: null,
     finishedAt: null,
     summary: null,

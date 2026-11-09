@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import type { Clock } from "../../../shared/time/index.ts";
-import type { AgentSession, SessionView } from "../domain/agent-session.ts";
+import type { AgentSession, ChatEntry, SessionView } from "../domain/agent-session.ts";
 import { isLive } from "../domain/agent-session.ts";
 import type { AgentLauncher, LiveAgent, McpAddresses, SessionRepository } from "../domain/ports.ts";
 import type { PermissionAnswer, PermissionRequest, SessionEvent } from "../domain/session-event.ts";
@@ -60,10 +60,14 @@ interface PendingPermission {
 export function liveSession(
   session: AgentSession,
   dependencies: LiveSessionDependencies,
-  { onFinished, onIdle }: { onFinished: () => void; onIdle: () => void },
+  {
+    onFinished,
+    onIdle,
+    earlierEntries = [],
+  }: { onFinished: () => void; onIdle: () => void; earlierEntries?: readonly ChatEntry[] },
 ): LiveSession {
   return {
-    view: emptyView(session),
+    view: emptyView(session, earlierEntries),
     agent: null,
     turnActive: false,
     permissions: new Map(),

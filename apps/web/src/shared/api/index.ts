@@ -20,6 +20,7 @@ export {
   startServiceChat,
 } from "./sessions";
 export {
+  AgentUnavailableError,
   answerFollowUp,
   answerQuestion,
   fetchDebrief,
@@ -29,7 +30,9 @@ export {
   finishInterview,
   interviewEventsUrl,
   interviewMessage,
+  pauseInterview,
   recordDebriefOpened,
+  resumeInterview,
   startInterview,
 } from "./interviews";
 export type { AttemptDebrief, Difficulty, InterviewView, QuestionCard } from "./interviews";

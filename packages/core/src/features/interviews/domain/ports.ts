@@ -10,6 +10,7 @@ import type {
   Level,
   MockInterview,
   PastQuestion,
+  PauseReason,
 } from "./interview.ts";
 
 /** One Section of the Target's Interview plan, with its Topics. */
@@ -103,6 +104,8 @@ export interface InterviewSessions {
     agent: string;
     targetId: string;
     roleAddition: string;
+    /** The earlier session that the new one continues after a pause; its chat comes first. */
+    continues?: string;
   }) => Promise<{ readonly id: string }>;
   /**
    * Sends a template message after the agent's current turn; it stays out of the chat. With
@@ -119,6 +122,8 @@ export interface InterviewSessions {
   readonly addNote: (sessionId: string, text: string) => void;
   /** Stops the agent after its current turn. */
   readonly end: (sessionId: string) => Promise<void>;
+  /** Stops the agent at once, even in a turn, and ends the session; false when it is not live. */
+  readonly stop: (sessionId: string) => Promise<boolean>;
   /** Stops the agent at once and deletes the session with its journal for good. */
   readonly remove: (sessionId: string) => Promise<void>;
   /** Calls the listener after each change of a live session; returns the unsubscribe. */
@@ -126,7 +131,10 @@ export interface InterviewSessions {
     sessionId: string,
     listener: (view: { readonly status: string }) => void,
   ) => () => void;
-  /** The session's status and chat; an agent message of the chat has its `text`. */
+  /**
+   * The session's status and chat, with the chat of the sessions it continues first; an agent
+   * message of the chat has its `text`.
+   */
   readonly view: (sessionId: string) => Promise<
     | {
         readonly status: string;
@@ -149,7 +157,7 @@ export interface InterviewProgress {
 
 /** Reads the Target's past Mock interviews for its history, its progress and the brief. */
 export interface HistoryRepository {
-  /** Every running Mock interview of every Target. */
+  /** Every running Mock interview of every Target, not the paused ones. */
   readonly allRunning: () => Promise<readonly MockInterview[]>;
   /** One page of the Target's Mock interviews, the newest first, and how many match. */
   readonly historyPage: (
@@ -206,11 +214,15 @@ export interface SideThreadRepository {
  * schema.
  */
 export interface InterviewRepository extends HistoryRepository, SideThreadRepository {
-  /** `running` when the Target already has a running Mock interview; nothing is stored then. */
+  /**
+   * `running` when the Target already has a running or paused Mock interview; nothing is stored
+   * then.
+   */
   readonly create: (interview: MockInterview) => Promise<"created" | "running">;
   readonly get: (id: string) => Promise<MockInterview | undefined>;
   readonly bySession: (sessionId: string) => Promise<MockInterview | undefined>;
-  readonly running: (targetId: string) => Promise<MockInterview | undefined>;
+  /** The Target's Mock interview that runs or is paused; a Target has at most one. */
+  readonly active: (targetId: string) => Promise<MockInterview | undefined>;
   /** Every Question asked in the Target's Mock interviews, in the order of showing. */
   readonly history: (targetId: string) => Promise<readonly PastQuestion[]>;
   /** The Target's newest Mock interviews first. */
@@ -219,6 +231,12 @@ export interface InterviewRepository extends HistoryRepository, SideThreadReposi
     id: string,
     changes: {
       readonly status?: InterviewStatus;
+      readonly sessionId?: string;
+      readonly agent?: string;
+      readonly pausedAt?: string | null;
+      readonly pausedMs?: number;
+      readonly pauseReason?: PauseReason | null;
+      readonly resumedAt?: string;
       readonly currentSectionId?: string;
       readonly finishRequestedAt?: string;
       readonly finishedAt?: string;

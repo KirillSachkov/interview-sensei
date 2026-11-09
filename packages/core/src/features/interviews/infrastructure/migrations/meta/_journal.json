@@ -43,6 +43,13 @@
       "when": 1794248963802,
       "tag": "0005_side_thread_chat_position",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794264084487,
+      "tag": "0006_mock_pause",
+      "breakpoints": true
     }
   ]
 }

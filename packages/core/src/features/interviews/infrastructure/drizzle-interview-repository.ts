@@ -40,10 +40,12 @@ function interviewQueries(database: Database) {
         .values({
           ...interview,
           startedAt: new Date(interview.startedAt),
+          pausedAt: null,
+          resumedAt: null,
           finishRequestedAt: null,
           finishedAt: null,
         })
-        // The only conflict a new id can meet: the Target's running Mock interview.
+        // The only conflict a new id can meet: the Target's running or paused Mock interview.
         .onConflictDoNothing()
         .returning({ id: interviews.id });
       return rows.length > 0 ? ("created" as const) : ("running" as const);
@@ -51,10 +53,10 @@ function interviewQueries(database: Database) {
     get: async (id: string) => oneInterview(database, eq(interviews.id, id)),
     bySession: async (sessionId: string) =>
       oneInterview(database, eq(interviews.sessionId, sessionId)),
-    running: async (targetId: string) =>
+    active: async (targetId: string) =>
       oneInterview(
         database,
-        and(eq(interviews.targetId, targetId), eq(interviews.status, "running")),
+        and(eq(interviews.targetId, targetId), inArray(interviews.status, ["running", "paused"])),
       ),
     latest: async (targetId: string, limit: number) => {
       const rows = await database
@@ -192,11 +194,15 @@ export function drizzleInterviewRepository(
 ): InterviewRepository & InterviewErasure<Transaction> & InterviewTopicMerge<Transaction> {
   return {
     ...interviewQueries(database),
-    update: async (id, { finishRequestedAt, finishedAt, ...changes }) => {
+    update: async (id, { finishRequestedAt, finishedAt, pausedAt, resumedAt, ...changes }) => {
       await database
         .update(interviews)
         .set({
           ...changes,
+          ...(pausedAt === undefined
+            ? {}
+            : { pausedAt: pausedAt === null ? null : date(pausedAt) }),
+          ...(resumedAt === undefined ? {} : { resumedAt: date(resumedAt) }),
           ...(finishRequestedAt === undefined
             ? {}
             : { finishRequestedAt: date(finishRequestedAt) }),

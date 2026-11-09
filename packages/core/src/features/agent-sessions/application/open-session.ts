@@ -16,6 +16,12 @@ export interface StartRequest {
   readonly roleAddition?: string;
   /** Sent to the agent once it starts, so it speaks first; the chat does not show it. */
   readonly opening?: string;
+  /**
+   * The earlier session, no longer live, that the new one continues with a new agent process,
+   * such as a Mock interview after a pause. Its chat comes first in the new session's chat; the
+   * agent gets none of it, so the caller tells the agent where the conversation stopped.
+   */
+  readonly continues?: string;
 }
 
 /** The kind and Target that have at most one live session. */

@@ -1,3 +1,4 @@
+import type { ContinuationSummary } from "./continuation.ts";
 import type { GradeCorrection } from "./history.ts";
 import { candidateLevel } from "./candidates.ts";
 import type { MockInterview } from "./interview.ts";
@@ -23,9 +24,14 @@ export interface BriefHistory {
 /**
  * The brief of a Mock interview for `get_brief`: the Target, the selected Sections with their
  * criteria and Topics, the tone, the language, the active Preferences, the last Mock interview's
- * summary, the weak Topics and the Candidate's Grade corrections.
+ * summary, the weak Topics and the Candidate's Grade corrections. After a pause it also holds the
+ * continuation summary (#84); a Mock interview never paused has none.
  */
-export function interviewBrief(interview: MockInterview, target: TargetPlan, past: BriefHistory) {
+export function interviewBrief(
+  interview: MockInterview,
+  target: TargetPlan,
+  past: BriefHistory & { readonly continuation?: ContinuationSummary },
+) {
   const selected = interview.sectionIds.flatMap((id) =>
     target.sections.filter((section) => section.id === id),
   );

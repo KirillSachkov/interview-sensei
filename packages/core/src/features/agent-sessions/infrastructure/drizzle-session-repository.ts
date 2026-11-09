@@ -14,6 +14,7 @@ function toSession(row: typeof sessions.$inferSelect): AgentSession {
     kind: row.kind,
     agent: row.agent,
     ...(row.targetId === null ? {} : { targetId: row.targetId }),
+    ...(row.continuesSessionId === null ? {} : { continuesSessionId: row.continuesSessionId }),
     status: row.status,
     createdAt: row.createdAt.toISOString(),
   };
@@ -21,7 +22,13 @@ function toSession(row: typeof sessions.$inferSelect): AgentSession {
 
 async function create(
   database: Database,
-  { kind, agent, targetId, createdAt }: Parameters<SessionRepository["create"]>[0],
+  {
+    kind,
+    agent,
+    targetId,
+    continuesSessionId,
+    createdAt,
+  }: Parameters<SessionRepository["create"]>[0],
 ): Promise<AgentSession> {
   const [row] = await database
     .insert(sessions)
@@ -29,6 +36,7 @@ async function create(
       kind,
       agent,
       ...(targetId === undefined ? {} : { targetId }),
+      ...(continuesSessionId === undefined ? {} : { continuesSessionId }),
       status: "starting",
       createdAt,
     })

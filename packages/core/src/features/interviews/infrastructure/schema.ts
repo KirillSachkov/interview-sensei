@@ -20,6 +20,7 @@ import type {
   FollowUp,
   GradedBy,
   InterviewStatus,
+  PauseReason,
 } from "../domain/interview.ts";
 
 /** The Postgres schema that the interviews slice owns. */
@@ -27,7 +28,7 @@ export const interviewsSchema = pgSchema("interviews");
 
 const moment = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
 
-/** One Mock interview. A Target has at most one running Mock interview. */
+/** One Mock interview. A Target has at most one Mock interview that runs or is paused. */
 export const interviews = interviewsSchema.table(
   "interviews",
   {
@@ -41,15 +42,19 @@ export const interviews = interviewsSchema.table(
     limitMinutes: integer("limit_minutes"),
     difficulty: text("difficulty").$type<Difficulty>().notNull(),
     startedAt: moment("started_at").notNull(),
+    pausedAt: moment("paused_at"),
+    pausedMs: integer("paused_ms").notNull().default(0),
+    pauseReason: text("pause_reason").$type<PauseReason>(),
+    resumedAt: moment("resumed_at"),
     finishRequestedAt: moment("finish_requested_at"),
     finishedAt: moment("finished_at"),
     summary: text("summary"),
     nextStep: text("next_step"),
   },
   (table) => [
-    uniqueIndex("one_running_interview")
+    uniqueIndex("one_active_interview")
       .on(table.targetId)
-      .where(sql`${table.status} = 'running'`),
+      .where(sql`${table.status} in ('running', 'paused')`),
     unique().on(table.sessionId),
   ],
 );

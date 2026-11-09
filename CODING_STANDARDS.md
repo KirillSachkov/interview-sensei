@@ -102,6 +102,9 @@ A finished Mock interview ends its Side threads whose session is `idle` (`closeI
 
 The server talks to the interviewer with template messages in `interviews/domain/agent-messages.ts` (#10): the start, an answer, a quiz result, «Не знаю», a Follow-up answer, five minutes left and the finish.
 They go through `AgentSessions.queuePrompt`, after the agent's current turn, and stay out of the chat.
+The continuation after a pause (#84), `interviewContinues`, is the first message of a new session: the agent finds where the interview stopped in the continuation summary of `get_brief`.
+That session starts with `continues` of `AgentSessions.start`: its view begins with the chat of the session it continues, so the chat and chat positions span every session of the Mock interview.
+A continued session gets the same launch recipe as a new one and never `session/load`: nothing of the earlier conversation goes to the agent's own storage.
 The sixth message of #10, `discussedInSideThread`, tells the interviewer only that the Candidate discussed question N in a Side thread, never its content.
 It is a note, not a prompt: `AgentSessions.addNote` puts it before the next prompt the agent gets, the Candidate's or the server's, so the current turn goes on.
 Several Side threads on one question before that prompt give one note: `addNote` skips a note that already waits.
