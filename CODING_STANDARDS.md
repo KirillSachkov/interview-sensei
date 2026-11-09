@@ -47,6 +47,7 @@ It creates the slice's infrastructure itself and returns the slice's service.
 The slice's `index.ts` exports the factory, its migrations, its MCP tools and the types of its service.
 It also exports the constants, errors and dependency types that the server needs, such as `SessionsClosedError`.
 It does not export application or infrastructure parts.
+`agent-runtime` also exports `opencodeLoginModule` for `interview-sensei login opencode` (#69): that command runs without a server, storage or lock.
 
 `apps/server/src/composition.ts` and its parts `composition-<part>.ts` are the only server files that import core features; `server-composes-features-in-one-module` checks it.
 A part keeps `composition.ts` within the lint limits on lines and imports; only `composition.ts` imports a part.
@@ -189,6 +190,19 @@ It opens the database `immutable` and read-only, so it creates no `-shm` or `-wa
 Without either, every provider gets its key, because OpenCode may then pick any of them.
 An OAuth credential gives no key, because a copied refresh token could rotate.
 An unreadable database gives no keys and a warning in the server log with its path and SQLite's reason, never its content.
+OpenCode 2.2.6 does rotate an OAuth refresh token: each refresh stores the provider's new refresh token (#69).
+So a subscription login needs the application's own login, which the owner chose in #69: `interview-sensei login opencode`.
+It runs `opencode auth login --standalone` in the recipe's OpenCode homes in the data directory; `opencodeLoginCommand` builds it.
+`--standalone` keeps the login off the Candidate's background OpenCode service, which would write the Candidate's database.
+OpenCode keeps the login in its database there, and every session shares that database and refreshes the login itself.
+Sessions refresh it one at a time: OpenCode locks the refresh in `$XDG_STATE_HOME/opencode/locks`, which they share too.
+2.x gets its own data home, `agents/opencode/data-2`, without the link to `auth.json`; 1.x keeps `data` and the link.
+Otherwise 2.x, migrating a database that 1.x left in `data`, would import the Candidate's `auth.json`, refresh token and all.
+A 2.x database that earlier sessions left in `data` stays as it is, which the owner chose in #69: no session refreshes a token in it any more.
+The command refuses OpenCode 1.x: 1.x would write the login through the link to the Candidate's `auth.json`.
+At the start of a 2.x session the server also reads the credentials of that database, in the same way.
+`opencodeLoginsToRepeat` names the session's providers with a subscription login of the Candidate and no login of the application; the runtime warns of each in the server log.
+The README and the OpenCode note of «Проверка агента» give the command.
 The 2.x recipe passes each key in its own variable `INTERVIEW_SENSEI_OPENCODE_KEY_<n>` and names it in `env` of the provider's `providers` entry; the config text holds no key.
 The agent gets the Candidate's env without `OPENCODE_CONFIG`, `OPENCODE_CONFIG_DIR`, `OPENCODE_DB`, `CODEX_HOME` and `INTERVIEW_SENSEI_*`; the recipe's variables go over it.
 `agentEnvironment` in `launch-recipe.ts` filters it. `CLAUDE_CONFIG_DIR` passes unchanged.

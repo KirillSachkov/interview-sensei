@@ -29,6 +29,7 @@ import {
 } from "./composition-targets.ts";
 
 export type { AgentRuntime, UserEnvironment } from "./composition-agents.ts";
+export { opencodeLoginModule } from "./composition-agents.ts";
 export { SessionsClosedError } from "./composition-agents.ts";
 export type { AgentSessions, SessionView } from "./composition-agents.ts";
 export { mcpGatewayModule, mcpRoute } from "./composition-agents.ts";

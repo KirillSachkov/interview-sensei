@@ -84,6 +84,21 @@ function ClaudeWarning({
   );
 }
 
+/**
+ * The OpenCode 2.x login of #69: sessions take the Candidate's API keys as they are, but a
+ * subscription login needs the application's own login, because its refresh token rotates.
+ */
+function OpencodeLoginNote() {
+  return (
+    <p role="note" aria-label="Вход в OpenCode">
+      Вход OpenCode 2.x по API-ключу, например DeepSeek, работает в приложении сразу. Если вы вошли
+      в OpenCode 2.x по подписке, один раз войдите для приложения: выполните в терминале{" "}
+      <code>npx interview-sensei login opencode</code> и начните новый чат. Ваш собственный вход в
+      OpenCode при этом не меняется.
+    </p>
+  );
+}
+
 function AgentSelect({
   agents,
   agent,
@@ -149,6 +164,7 @@ function AgentForm({
           }}
         />
       ) : null}
+      {agent === "opencode" ? <OpencodeLoginNote /> : null}
       {start.isError ? <p role="alert">Чат не начался: {start.error.message}</p> : null}
     </form>
   );

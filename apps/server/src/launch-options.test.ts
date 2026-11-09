@@ -97,3 +97,27 @@ describe("command line", () => {
     expect(() => launchOptions({ args: ["start"], env: {} })).toThrow("Лишний аргумент «start».");
   });
 });
+
+describe("login command", () => {
+  it("serves the app without a command", () => {
+    expect(launchOptions({ args: [], env: {} }).command).toBe("serve");
+  });
+
+  it("logs in to OpenCode for the application with `login opencode` and its flags", () => {
+    const options = launchOptions({ args: ["login", "opencode", "--data-dir", "data"], env: {} });
+
+    expect(options).toMatchObject({ command: "login-opencode", dataDirectory: "data" });
+  });
+
+  it("asks for the agent after login", () => {
+    expect(() => launchOptions({ args: ["login"], env: {} })).toThrow(
+      "Команде login нужен агент: interview-sensei login opencode.",
+    );
+  });
+
+  it("refuses a login to another agent", () => {
+    expect(() => launchOptions({ args: ["login", "claude"], env: {} })).toThrow(
+      "Лишний аргумент «claude».",
+    );
+  });
+});
