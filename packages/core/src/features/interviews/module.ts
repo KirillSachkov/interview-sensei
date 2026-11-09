@@ -9,6 +9,7 @@ import type {
   InterviewQuestions,
   InterviewSessions,
   InterviewTargets,
+  InterviewTopicMerge,
 } from "./domain/ports.ts";
 import { drizzleInterviewRepository } from "./infrastructure/drizzle-interview-repository.ts";
 
@@ -34,15 +35,19 @@ export interface InterviewsModuleDependencies {
 
 /**
  * Mock interviews on the server's database. Deleting a Target erases its Mock interviews with
- * `eraseTarget`.
+ * `eraseTarget`; a Topic merge of the Target setup moves their asked questions with `mergeTopic`.
  */
 export function interviewsModule({
   database,
   ...dependencies
-}: InterviewsModuleDependencies): Interviews & InterviewErasure<Transaction> {
+}: InterviewsModuleDependencies): Interviews &
+  InterviewErasure<Transaction> &
+  InterviewTopicMerge<Transaction> {
   const repository = drizzleInterviewRepository(database);
   return {
     ...createInterviews({ repository, ...dependencies }),
     eraseTarget: async (targetId, transaction) => repository.eraseTarget(targetId, transaction),
+    mergeTopic: async (targetId, topics, transaction) =>
+      repository.mergeTopic(targetId, topics, transaction),
   };
 }

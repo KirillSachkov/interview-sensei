@@ -124,12 +124,15 @@ export interface SetupQuestions<Transaction> {
     targetId: string,
     transaction?: Transaction,
   ) => Promise<readonly SetupQuestion[]>;
-  /** Renames the Topic, or merges it into the Topic named `to`; nothing for an unknown Topic. */
+  /**
+   * Renames the Topic, or merges it into the Topic named `to`; nothing for an unknown Topic.
+   * Resolves with the ids of both Topics of a merge, and with null otherwise.
+   */
   readonly renameTopic: (
     targetId: string,
     rename: TopicRename,
     transaction?: Transaction,
-  ) => Promise<void>;
+  ) => Promise<TopicMerge | null>;
   readonly addQuestions: (
     targetId: string,
     questions: readonly (SetupQuestion & { readonly createdAt: string })[],
@@ -140,5 +143,23 @@ export interface SetupQuestions<Transaction> {
     targetId: string,
     edits: readonly SetupQuestionEdit[],
     transaction?: Transaction,
+  ) => Promise<void>;
+}
+
+/** The Topic `from` merged into the Topic `into`, by ids. */
+export interface TopicMerge {
+  readonly from: string;
+  readonly into: string;
+}
+
+/**
+ * The interviews slice moves the Attempts of a merged Topic to the Topic it merged into, so the
+ * Topic status counts them there; in the transaction of the draft's application.
+ */
+export interface SetupAttempts<Transaction> {
+  readonly mergeTopic: (
+    targetId: string,
+    merge: TopicMerge,
+    transaction: Transaction,
   ) => Promise<void>;
 }

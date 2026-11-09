@@ -69,6 +69,8 @@ The gateway reads a tool set when a session starts, after `composeFeatures` has 
 So a tool set may use services built after the gateway, such as `interviews`: `sessionTools` reads them in a getter, and `bind` hands them over.
 `progress` counts the Attempts of `interviews`, and the brief of `interviews` reads `progress` back.
 `composeInterviews` gives `interviews` a function that calls `progress`, which exists by the first call.
+A Topic merge in a draft of changes moves the merged Topic's Attempts through `interviews` in the same transaction, so Topic status counts them under the Topic that stays.
+`topicMerges` gives `target-setup` this port the same way: `interviews` exists by the first application of a draft.
 
 ### Session profiles
 

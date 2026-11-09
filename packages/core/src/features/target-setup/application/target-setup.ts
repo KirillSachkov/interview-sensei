@@ -10,6 +10,7 @@ import { withoutDuplicates } from "../domain/draft-questions.ts";
 import type { NewQuestion } from "../domain/draft-questions.ts";
 import type {
   DraftRepository,
+  SetupAttempts,
   SetupQuestions,
   SetupTarget,
   SetupTargets,
@@ -22,7 +23,11 @@ export interface TargetSetupDependencies {
   readonly drafts: DraftRepository<Transaction>;
   readonly targets: SetupTargets<Transaction>;
   readonly topics: SetupTopics<Transaction> & SetupQuestions<Transaction>;
-  /** Applying the draft writes targets, question-bank and the draft in this one transaction. */
+  readonly attempts: SetupAttempts<Transaction>;
+  /**
+   * Applying the draft writes targets, question-bank, interviews and the draft in this one
+   * transaction.
+   */
   readonly transaction: RunInTransaction;
   readonly clock: Clock;
 }

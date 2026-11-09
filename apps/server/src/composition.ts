@@ -105,6 +105,17 @@ function composeInterviews(
 }
 
 /**
+ * The Topic merges of a draft move the Attempts of `interviews`, which composeFeatures builds after
+ * target-setup; it exists by the first application of a draft.
+ */
+function topicMerges(interviews: () => ReturnType<typeof interviewsModule>) {
+  return {
+    mergeTopic: async (...merge: Parameters<ReturnType<typeof interviewsModule>["mergeTopic"]>) =>
+      interviews().mergeTopic(...merge),
+  };
+}
+
+/**
  * Opens the storage on the data directory and composes every core feature on it. Rejects with
  * DataDirectoryInUseError when another server holds the data directory.
  */
@@ -118,7 +129,11 @@ export async function composeFeatures(dependencies: FeatureDependencies) {
     onDumpFailed: (error) => log.error({ err: error }, "The periodic database dump failed"),
   });
   const runtime = composeRuntime(dependencies);
-  const slices = composeTargets(storage, { clock, dataDirectory }, runtime);
+  const slices = composeTargets(
+    storage,
+    { clock, dataDirectory, attempts: topicMerges(() => interviews) },
+    runtime,
+  );
   const { targets, questionBank } = slices;
   const tools = sessionTools(slices);
   const { mcp, sessions } = composeSessions(storage, {

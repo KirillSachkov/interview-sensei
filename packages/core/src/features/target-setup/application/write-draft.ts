@@ -6,8 +6,16 @@ import type { Transaction } from "../../../shared/storage/index.ts";
 import type { Clock } from "../../../shared/time/index.ts";
 import type { SetupState } from "../domain/draft.ts";
 import type { DraftQuestion } from "../domain/draft-questions.ts";
-import type { SetupQuestion, SetupQuestionEdit, TargetUpdate } from "../domain/ports.ts";
+import type {
+  SetupAttempts,
+  SetupQuestion,
+  SetupQuestionEdit,
+  TargetUpdate,
+} from "../domain/ports.ts";
 import type { StateSources } from "./setup-state.ts";
+
+/** What writing the draft uses: the slices that keep the Target's data, and the clock. */
+type Writers = StateSources & { clock: Clock; attempts: SetupAttempts<Transaction> };
 
 interface Write {
   readonly targetId: string;
@@ -81,11 +89,21 @@ async function writeQuestions(
   await topics.editQuestions(targetId, edits, transaction);
 }
 
-/** Renames and merges Topics in order: a later rename may use an earlier one's name. */
-async function renameTopics({ topics }: StateSources, { targetId, state, transaction }: Write) {
+/**
+ * Renames and merges Topics in order: a later rename may use an earlier one's name. A merged
+ * Topic's Attempts go to the Topic it merged into.
+ */
+async function renameTopics(
+  { topics, attempts }: Writers,
+  { targetId, state, transaction }: Write,
+) {
   for (const rename of state.topicRenames) {
-    // oxlint-disable-next-line eslint/no-await-in-loop -- the renames run in order in one transaction
-    await topics.renameTopic(targetId, rename, transaction);
+    /* oxlint-disable eslint/no-await-in-loop -- the renames run in order in one transaction */
+    const merge = await topics.renameTopic(targetId, rename, transaction);
+    if (merge !== null) {
+      await attempts.mergeTopic(targetId, merge, transaction);
+    }
+    /* oxlint-enable eslint/no-await-in-loop */
   }
 }
 
@@ -102,7 +120,7 @@ async function topicIdsOf({ topics }: StateSources, { targetId, state, transacti
  * Renames and merges Topics, creates the missing ones, writes the Questions, the Preferences and
  * the Target's new state; resolves with the Target.
  */
-export async function writeDraft(dependencies: StateSources & { clock: Clock }, write: Write) {
+export async function writeDraft(dependencies: Writers, write: Write) {
   const { targets } = dependencies;
   const { targetId, state, transaction } = write;
   await renameTopics(dependencies, write);

@@ -33,14 +33,21 @@ export const targetSliceMigrations: readonly SliceMigrations[] = [
   sourcesMigrations,
 ];
 
+type SetupAttempts = Parameters<typeof targetSetupModule>[0]["attempts"];
+
 /**
  * Targets, their Questions, the drafts of their changes, their materials in the data directory and
  * the application's settings; a Target's agent is one of the agents that `runtime` offers, or the
- * default agent of the settings.
+ * default agent of the settings. A Topic merge of a draft moves the Attempts through `attempts`,
+ * the interviews slice.
  */
 export function composeTargets(
   storage: Storage,
-  { clock, dataDirectory }: { clock: Clock; dataDirectory: string },
+  {
+    clock,
+    dataDirectory,
+    attempts,
+  }: { clock: Clock; dataDirectory: string; attempts: SetupAttempts },
   runtime: AgentRuntime,
 ) {
   const { database } = storage;
@@ -59,6 +66,7 @@ export function composeTargets(
     clock,
     targets,
     topics: questionBank,
+    attempts,
   });
   const sources = sourcesModule({ database, dataDirectory, clock, targets });
   return { questionBank, targets, targetSetup, appSettings, sources };

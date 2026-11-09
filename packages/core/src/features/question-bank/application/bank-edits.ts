@@ -83,20 +83,24 @@ export async function editQuestions(
 
 /**
  * Gives the Topic `from` the name `to`. When another Topic already has that name, `from` merges
- * into it: its Questions move there, and `from` goes away. An unknown `from` changes nothing.
+ * into it: its Questions move there, and `from` goes away; resolves with the ids of both Topics
+ * then, and with null otherwise. An unknown `from` changes nothing.
  */
 export async function renameTopic(
   repository: Repository,
   targetId: string,
   { from, to, transaction }: { from: string; to: string; transaction: Transaction | undefined },
-): Promise<void> {
+): Promise<{ readonly from: string; readonly into: string } | null> {
   const existing = await repository.topics(targetId, transaction);
   const source = existing.find((topic) => topicKey(topic.name) === topicKey(from));
   const target = existing.find((topic) => topicKey(topic.name) === topicKey(to));
   if (source === undefined) {
-    return;
+    return null;
   }
-  await (target === undefined || target.id === source.id
-    ? repository.renameTopic(source.id, to.trim(), transaction)
-    : repository.mergeTopic(source.id, target.id, transaction));
+  if (target === undefined || target.id === source.id) {
+    await repository.renameTopic(source.id, to.trim(), transaction);
+    return null;
+  }
+  await repository.mergeTopic(source.id, target.id, transaction);
+  return { from: source.id, into: target.id };
 }

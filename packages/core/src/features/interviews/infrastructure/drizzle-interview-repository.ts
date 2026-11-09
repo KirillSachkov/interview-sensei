@@ -10,7 +10,11 @@ import type {
   MockInterview,
   PastQuestion,
 } from "../domain/interview.ts";
-import type { InterviewErasure, InterviewRepository } from "../domain/ports.ts";
+import type {
+  InterviewErasure,
+  InterviewRepository,
+  InterviewTopicMerge,
+} from "../domain/ports.ts";
 import { drizzleHistoryQueries } from "./drizzle-history-queries.ts";
 import { toAttempt, toGrade, toInterview } from "./rows.ts";
 import { askedQuestions, attempts, disputes, interviews } from "./schema.ts";
@@ -162,9 +166,25 @@ async function eraseTarget(executor: Executor, targetId: string): Promise<void> 
   await executor.delete(interviews).where(eq(interviews.targetId, targetId));
 }
 
+/** The questions asked in the Target's Mock interviews on the Topic `from` move to `into`. */
+async function mergeTopic(
+  executor: Executor,
+  targetId: string,
+  { from, into }: { readonly from: string; readonly into: string },
+): Promise<void> {
+  const owned = executor
+    .select({ id: interviews.id })
+    .from(interviews)
+    .where(eq(interviews.targetId, targetId));
+  await executor
+    .update(askedQuestions)
+    .set({ topicId: into })
+    .where(and(inArray(askedQuestions.interviewId, owned), eq(askedQuestions.topicId, from)));
+}
+
 export function drizzleInterviewRepository(
   database: Database,
-): InterviewRepository & InterviewErasure<Transaction> {
+): InterviewRepository & InterviewErasure<Transaction> & InterviewTopicMerge<Transaction> {
   return {
     ...interviewQueries(database),
     update: async (id, { finishRequestedAt, finishedAt, ...changes }) => {
@@ -184,5 +204,6 @@ export function drizzleInterviewRepository(
     history: async (targetId) => history(database, targetId),
     ...drizzleHistoryQueries(database),
     eraseTarget: async (targetId, transaction) => eraseTarget(transaction, targetId),
+    mergeTopic: async (targetId, topics, transaction) => mergeTopic(transaction, targetId, topics),
   };
 }
