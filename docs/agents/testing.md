@@ -145,9 +145,7 @@ They run the package with the Node that runs Vitest; CI runs them on Node 22.15.
 `harness-check` (`.github/workflows/check.yml`) runs the structural checker and the whitespace check.
 `app-check`, `app-test` and `app-e2e` (`.github/workflows/app.yml`) run `pnpm check`, `pnpm test` and `pnpm test:e2e`.
 `app-package` builds the package on Node 24 and runs the Vitest project `package` on each Node of its matrix.
-`publish` (`.github/workflows/release.yml`) runs on a tag `v<version>` that matches `apps/server/package.json`.
-It runs `pnpm check`, `pnpm test` and `pnpm test:package`, then `npm publish --provenance` by npm trusted publishing.
-Only the owner pushes a release tag; agents never push one. Repository settings do not enforce this yet.
+`publish` (`.github/workflows/release.yml`) publishes the npm package; [release](#release) describes it.
 `deps-audit` and `secrets-scan` (`.github/workflows/security.yml`) check dependencies and Git history.
 
 - `deps-audit` runs `pnpm audit --audit-level high` on `pnpm-lock.yaml` without an install.
@@ -163,6 +161,31 @@ Only the owner pushes a release tag; agents never push one. Repository settings 
   Run the same scan locally with `gitleaks git --log-opts="--full-history HEAD" --redact`.
 
 Repository protection settings are not implied by these jobs.
+
+## Release
+
+`publish` (`.github/workflows/release.yml`) runs on a tag `v<version>` that matches `apps/server/package.json`.
+It runs `pnpm check`, `pnpm test` and `pnpm test:package`, then `npm publish --provenance` by npm trusted publishing.
+Only the owner pushes a release tag; agents never push one.
+Two repository settings back this rule:
+
+- The environment `npm` runs `publish` only from `v*` tags and waits for the owner's approval.
+- The ruleset «Release tags» (id `26859563`) lets only the admin role create, update or delete `v*` tags.
+
+Agents work under the owner's GitHub account, which has the admin role.
+So these settings stop other collaborators, not agents; the rule above stops agents.
+
+A release takes three steps:
+
+1. A PR raises `version` in `apps/server/package.json`, and the owner merges it.
+2. The owner pushes the tag `v<version>` on that commit of `main`.
+3. The owner approves the `npm` deployment of the `Release` run in GitHub Actions.
+
+npm links a trusted publisher only to a package that already exists.
+So the owner published version `0.1.0` by hand from `apps/server/dist/package` (#67).
+Then `npm trust github` linked the package to `release.yml` and the environment `npm`.
+The first publish left the npm placeholder version `0.0.0-stage`; the tag `latest` points to `0.1.0`.
+npm publishes only from an account with two-factor authentication.
 
 ## Appropriate evidence
 

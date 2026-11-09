@@ -1,7 +1,8 @@
 # Publishes the npm package `interview-sensei` when a tag `v<version>` reaches GitHub. The tag must
 # match the version in apps/server/package.json. npm authenticates the job by trusted publishing
 # (OIDC) and attaches provenance; the repository keeps no npm token. The owner decides each release:
-# only the owner pushes a release tag. Repository settings do not enforce this yet.
+# only the owner pushes a release tag. The ruleset «Release tags» limits `v*` tags to admins;
+# docs/agents/testing.md#release describes the settings and their limits.
 name: Release
 
 on:
@@ -19,7 +20,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # The owner can require approval for this environment in the repository settings; none is set yet.
+    # The environment accepts only `v*` tags and waits for the owner's approval.
     environment: npm
     permissions:
       contents: read
