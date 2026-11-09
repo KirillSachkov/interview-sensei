@@ -19,7 +19,7 @@ export interface CanvasZone {
    * Canvas pixels to the right of the zone that a widget takes beyond `width`, such as an open
    * chat beside a card. The next zones move right by as much, so the widget covers none of them.
    */
-  readonly aside?: number;
+  readonly overhang?: number;
   readonly content: ReactNode;
 }
 
@@ -57,7 +57,7 @@ function zoneNodes(zones: readonly CanvasZone[]): ZoneNode[] {
       // the widgets of a zone take clicks, such as «Настроить цель».
       style: { pointerEvents: "all" },
     };
-    left += zone.width + (zone.aside ?? 0) + zoneGap;
+    left += zone.width + (zone.overhang ?? 0) + zoneGap;
     return node;
   });
 }

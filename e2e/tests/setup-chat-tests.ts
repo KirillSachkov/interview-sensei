@@ -124,10 +124,19 @@ function draftChatTests() {
   });
 }
 
+/** The element's box on the page; an element off the page fails the test. */
+async function box(element: Locator) {
+  const found = await element.boundingBox();
+  if (found === null) {
+    throw new Error("The element has no box on the page");
+  }
+  return found;
+}
+
 /** The left element ends before the right one starts, so it covers no part of it. */
 async function expectLeftOf(left: Locator, right: Locator) {
-  const [leftBox, rightBox] = await Promise.all([left.boundingBox(), right.boundingBox()]);
-  expect((leftBox?.x ?? 0) + (leftBox?.width ?? 0)).toBeLessThan(rightBox?.x ?? 0);
+  const [leftBox, rightBox] = await Promise.all([box(left), box(right)]);
+  expect(leftBox.x + leftBox.width).toBeLessThan(rightBox.x);
 }
 
 // Issue #71: the open setup chat used to cover the left part of the «Сессии» zone.

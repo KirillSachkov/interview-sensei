@@ -55,7 +55,7 @@ function SetupSession({ targetId }: { targetId: string }) {
  * 560px and its 32px gap from the card, less the zone frame's 24px padding and 1px border, rounded
  * up. `.setup-chat` in global.css owns these sizes; change both together.
  */
-export const setupChatReach = 568;
+export const setupChatOverhang = 568;
 
 /**
  * «Настройка цели»: the chat with the Target's setup agent and the draft of changes above its
