@@ -33,7 +33,10 @@ function copiedSkill(dataDirectory: string, name: string): string {
   return path.join(root, ".agents", "skills", name, "SKILL.md");
 }
 
-/** Writes the files of the sensei-check skill into `skillsDirectory`; returns the skill's directory. */
+/**
+ * Writes the files of the sensei-check skill into `skillsDirectory`; returns the skill's
+ * directory.
+ */
 async function writeSkill(skillsDirectory: string, files: Record<string, string>) {
   const skill = path.join(skillsDirectory, "sensei-check");
   for (const [name, content] of Object.entries(files)) {

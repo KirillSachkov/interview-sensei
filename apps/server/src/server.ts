@@ -11,7 +11,9 @@ import { loopbackOrigin, registerMcpRoute } from "./mcp.ts";
 import { registerTargetRoutes } from "./target-routes.ts";
 import { registerWebApp } from "./web-app.ts";
 
-/** The repository's `skills/` for `pnpm dev` and tests; the launch command passes the built ones. */
+/**
+ * The repository's `skills/` for `pnpm dev` and tests; the launch command passes the built ones.
+ */
 const appSkillsDirectory = path.join(import.meta.dirname, "..", "..", "..", "skills");
 
 /** `info` logs every request; `warn` keeps only problems. */

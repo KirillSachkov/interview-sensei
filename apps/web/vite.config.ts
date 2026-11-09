@@ -6,7 +6,8 @@ const serverPort = process.env.SERVER_PORT ?? "4310";
 
 export default defineConfig({
   // The built app: the web build in `dist/web`; the package's build script copies the
-  // application's skills to `dist/skills` beside it, where the `interview-sensei` command finds them.
+  // application's skills to `dist/skills` beside it, where the `interview-sensei` command finds
+  // them.
   build: { outDir: "dist/web", emptyOutDir: true },
   plugins: [
     // File routes live in the FSD app layer and only mount pages; it must precede react().

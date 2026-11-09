@@ -131,6 +131,35 @@ describe("recipe preparation", () => {
     await expect(readFile(path.join(home, "auth.json", "keep.txt"), "utf8")).resolves.toBe("kept");
   });
 
+  it("removes a link inside a synced directory and keeps the file it points to", async () => {
+    const { home, login, recipe } = await setup("the Candidate's own login");
+    const synced = path.join(home, "skill");
+    await mkdir(synced, { recursive: true });
+    await symlink(login, path.join(synced, "auth.json"));
+
+    await prepareRecipe(
+      recipe({
+        directories: [home, synced],
+        files: [{ path: path.join(synced, "SKILL.md"), content: "ours" }],
+        syncedDirectories: [synced],
+      }),
+    );
+
+    await expect(readdir(synced)).resolves.toStrictEqual(["SKILL.md"]);
+    await expect(readFile(login, "utf8")).resolves.toBe("the Candidate's own login");
+  });
+
+  it("refuses a synced directory outside the data directory and keeps what it holds", async () => {
+    const { recipe } = await setup();
+    const elsewhere = await temporaryDirectory();
+    await writeFile(path.join(elsewhere, "keep.txt"), "kept");
+
+    await expect(prepareRecipe(recipe({ syncedDirectories: [elsewhere] }))).rejects.toThrow(
+      /outside the data directory/u,
+    );
+    await expect(readFile(path.join(elsewhere, "keep.txt"), "utf8")).resolves.toBe("kept");
+  });
+
   it("accepts a data directory that is itself a link", async () => {
     const { dataDirectory, recipe } = await setup();
     const linkedData = path.join(await temporaryDirectory(), "data");
