@@ -176,7 +176,6 @@ export interface InboxAgents {
   >;
 }
 
-/** A Question of the bank as Inbox processing reads it. */
 /**
  * The reference answer of a Question as the report shows it: key points, a short sample, where it
  * comes from (`material`, `internet`, `agent` or `candidate`) and the part of the material.
@@ -188,6 +187,7 @@ interface InboxReferenceAnswer {
   readonly part: number | null;
 }
 
+/** A Question of the bank as Inbox processing reads it. */
 export interface InboxBankQuestion {
   readonly id: string;
   readonly topicId: string;
