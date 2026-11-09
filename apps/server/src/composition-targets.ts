@@ -16,7 +16,12 @@ import {
   targetSetupModule,
 } from "@interview-sensei/core/target-setup";
 import { appSettingsMigrations, appSettingsModule } from "@interview-sensei/core/app-settings";
-import { sourceTools, sourcesMigrations, sourcesModule } from "@interview-sensei/core/sources";
+import {
+  getSource,
+  sourceTools,
+  sourcesMigrations,
+  sourcesModule,
+} from "@interview-sensei/core/sources";
 import type { AgentRuntime } from "@interview-sensei/core/agent-runtime";
 import type { SliceMigrations, Storage, StorageOptions } from "@interview-sensei/core/storage";
 
@@ -82,6 +87,7 @@ export function targetTools({ targets, questionBank, targetSetup, sources }: Tar
   };
   return {
     ...reading,
+    getSource: getSource(sources),
     setup: [
       setupBrief(targetSetup),
       reading.getTarget,

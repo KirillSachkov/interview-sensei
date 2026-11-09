@@ -15,6 +15,7 @@ import {
   repliesWith,
   threadAtFirstQuestion,
 } from "./side-thread-test-support.ts";
+import { sources, upload } from "./source-test-support.ts";
 
 const candidateQuestion = "Что здесь значит «вклад»?";
 
@@ -130,13 +131,31 @@ describe("side thread agent", () => {
 
     // `/tool-list` lists the tools of the session's MCP server.
     await expect(ask(chat, "/tool-list", "MCP tools:")).resolves.toBe(
-      'MCP tools: ["get_brief","get_progress","get_target","search_questions"]',
+      'MCP tools: ["get_brief","get_progress","get_source","get_target","search_questions"]',
     );
     // `/tool <name> <json>` calls the tool after the permission that the server allows.
     await expect(ask(chat, "/tool record_attempt {}", "Ошибка record_attempt:")).resolves.toMatch(
       /^Ошибка record_attempt: .*not found/iu,
     );
     await expect(cardNow(api, run.interview.id, 0)).resolves.toMatchObject({ attemptId: null });
+  });
+});
+
+describe("side thread materials", () => {
+  it("reads a material of the Target with get_source", async () => {
+    const api = await interviewApi();
+    await upload(api.server, { targetId: api.target.id, name: "vacancy.txt", body: "Go" });
+    const [source] = await sources(api.server, api.target.id);
+    const { chat } = await threadAtFirstQuestion(api);
+
+    const reply = await ask(
+      chat,
+      `/tool get_source {"id":"${source?.id}"}`,
+      "Результат get_source:",
+    );
+
+    const read: unknown = JSON.parse(reply.slice("Результат get_source: ".length));
+    expect(read).toMatchObject({ id: source?.id, title: "vacancy.txt", path: source?.path });
   });
 });
 

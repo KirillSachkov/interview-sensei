@@ -64,7 +64,7 @@ interface InterviewServices {
  * thread their services once composeFeatures has built them, after the gateway.
  */
 function sessionTools(slices: ReturnType<typeof composeTargets>) {
-  const { getTarget, searchQuestions, setup } = targetTools(slices);
+  const { getTarget, searchQuestions, getSource, setup } = targetTools(slices);
   let services: InterviewServices | null = null;
   const built = () => {
     if (services === null) {
@@ -81,7 +81,13 @@ function sessionTools(slices: ReturnType<typeof composeTargets>) {
     },
     get "side-thread"() {
       const { interviews, progress } = built();
-      return [...sideThreadTools(interviews), getTarget, searchQuestions, getProgress(progress)];
+      return [
+        ...sideThreadTools(interviews),
+        getTarget,
+        searchQuestions,
+        getSource,
+        getProgress(progress),
+      ];
     },
   };
   return {
