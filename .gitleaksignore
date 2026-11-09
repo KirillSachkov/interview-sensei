@@ -1,0 +1,4 @@
+# Findings that gitleaks reports but that are not secrets. Each line is a fingerprint:
+# <commit>:<file>:<rule>:<line>, with the reason above it.
+# RFC 6455 sample nonce ("the sample nonce" in base64), a test WebSocket handshake header.
+abe4e6bb1539a480e2c0de95bc022e1738e43ac4:apps/server/src/local-requests.int.test.ts:generic-api-key:74
