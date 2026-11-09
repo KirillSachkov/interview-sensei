@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { startServer, temporaryDirectory } from "./chat-test-support.ts";
 import {
   inboxOf,
+  processingSession,
   latestReportId,
   manualProcessing,
   sessionEnded,
@@ -16,6 +17,7 @@ import {
   topicOf,
 } from "./inbox-test-support.ts";
 import { reportOf } from "./inbox-report-test-support.ts";
+import { manualTime } from "./interview-flow-test-support.ts";
 import { materialQuestion } from "./material-test-support.ts";
 import { questionsOf, toolResult } from "./setup-test-support.ts";
 import { sources } from "./source-test-support.ts";
@@ -24,11 +26,10 @@ import { sources } from "./source-test-support.ts";
  * A running processing of a vacancy and notes, in which the agent read the whole vacancy and added
  * one Question from it, but never opened the notes.
  */
-async function halfProcessed(dataDirectory?: string) {
-  const processing = await manualProcessing({
-    notes: true,
-    ...(dataDirectory === undefined ? {} : { dataDirectory }),
-  });
+async function halfProcessed(
+  options: { dataDirectory?: string; time?: ReturnType<typeof manualTime> } = {},
+) {
+  const processing = await manualProcessing({ notes: true, ...options });
   const { target, file, events } = processing;
   await toolResult(events, "read_source", { id: file.id, part: 1 });
   await toolResult(events, "add_bank_questions", {
@@ -61,6 +62,9 @@ async function afterEnd(server: FastifyInstance, targetId: string, reportId: str
     keptQuestion: bank.some((question) => question.text === "Что такое канал?"),
   };
 }
+
+/** How long the server waits after the agent's turn ends without the report. */
+const idleWaitMs = 2 * 60 * 1000;
 
 /** The vacancy read to the end is «готов», the unread notes are back in the Inbox. */
 const halfReturned = {
@@ -111,7 +115,7 @@ describe("the end of Inbox processing without the agent's report", () => {
 
   it("a restart of the server leaves no processing running: a partial report remains and a new start goes", async () => {
     const dataDirectory = await temporaryDirectory();
-    const before = await halfProcessed(dataDirectory);
+    const before = await halfProcessed({ dataDirectory });
     await before.stop();
 
     const { server } = await startServer(dataDirectory);
@@ -128,5 +132,42 @@ describe("the end of Inbox processing without the agent's report", () => {
       },
     });
     await expect(startProcessing(server, targetId)).resolves.toMatchObject({ statusCode: 202 });
+  });
+
+  it("an agent that ends its turn without the report ends the processing the same way after the wait, and a new start goes", async () => {
+    const time = manualTime();
+    const { server, target } = await halfProcessed({ time });
+
+    await time.fire(idleWaitMs);
+
+    const reportId = await latestReportId(server, target.id);
+    await expect(afterEnd(server, target.id, reportId)).resolves.toMatchObject({
+      ...halfReturned,
+      report: {
+        partial: true,
+        added: 1,
+        summary:
+          "Агент разбора закончил работу без отчёта. Разобрано полностью: 1 из 2. Вернулись в Inbox: 1.",
+      },
+    });
+    await sessionEnded(server, await processingSession(server, target.id));
+    await expect(startProcessing(server, target.id)).resolves.toMatchObject({ statusCode: 202 });
+  });
+});
+
+describe("the agent's Inbox report", () => {
+  it("makes «готов» only the materials whose every part the agent read; the others go back to the Inbox", async () => {
+    const { server, target, events } = await halfProcessed();
+
+    const written = await toolResult(events, "write_inbox_report", { summary: "Готово." });
+
+    await expect(afterEnd(server, target.id, textOf(written, "reportId"))).resolves.toMatchObject({
+      ...halfReturned,
+      report: {
+        partial: false,
+        added: 1,
+        summary: "Готово. Прочитаны не до конца и вернулись в Inbox: 1.",
+      },
+    });
   });
 });

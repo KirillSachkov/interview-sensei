@@ -102,6 +102,7 @@ A Preference with `[manual]` makes the recheck stop at «Жду команд.» 
 `inbox-test-support.ts` starts a processing, finds its session and waits for the fake processor's first turn; `material-test-support.ts` makes a PDF, a DOCX and a web page on a local HTTP server, so no test needs the network.
 The server reads the texts and starts the agent in the background, so the tests wait for them with `vi.waitFor`.
 `/wait` and `/crash` in the processing session's chat keep its agent in a turn and make it fail, for the tests of «Остановить разбор» and of a failed agent.
+After a turn without the Inbox report the server waits 2 minutes on its `Timer`, then closes the processing: the default timer of `startServer` never runs it, so `/tool` keeps driving a `[manual]` agent, and a test of that close passes `manualTime()` and fires the wait.
 A test of a restart stops the server and starts another one on the same data directory, as the Mock interview tests do.
 The fake agent streams a reply word by word, so a test of a long text uses words without spaces.
 

@@ -1,7 +1,7 @@
 // What every part of Inbox processing shares: its dependencies and its background work.
 import type { ToolSession } from "../../../shared/mcp/index.ts";
 import type { RunInTransaction, Transaction } from "../../../shared/storage/index.ts";
-import type { Clock } from "../../../shared/time/index.ts";
+import type { Clock, Timer } from "../../../shared/time/index.ts";
 import type { InboxRun } from "../domain/inbox.ts";
 import type {
   DuplicateFilter,
@@ -30,6 +30,8 @@ export interface InboxDependencies {
   /** The question bank, the plan and the run change in one transaction. */
   readonly transaction: RunInTransaction;
   readonly clock: Clock;
+  /** Runs the wait after the agent's turn ends without the report. */
+  readonly timer: Timer;
   /** Receives errors of background work. */
   readonly onError: (error: unknown) => void;
 }

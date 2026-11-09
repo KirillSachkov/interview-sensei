@@ -107,8 +107,9 @@ The agent there proposes Inbox processing with a card, and only the Candidate's 
 The background work on Sources of the Inbox: the server reads the text of each Source into numbered parts, then an Agent session of its own reads every part, adds Questions to the Topics of existing Sections and writes an Inbox report.
 It may create a Topic inside a Section, but never changes Sections or the Interview plan: it proposes them in the Inbox report.
 A Target has at most one Inbox processing at a time, a Recheck included; Sources added meanwhile wait for the next one.
-«Остановить разбор», a failed agent or a restart of the server ends it early; so does a start where the server could not read any Source.
+«Остановить разбор», a failed agent, an agent that ended its work without the Inbox report, or a restart of the server ends it early; so does a start where the server could not read any Source.
 Then the Questions already added stay, a Source whose every part the agent read becomes «готов», the other Sources «разбирается» go back to the Inbox, and the server writes a partial Inbox report.
+The agent's own Inbox report moves the Sources by the same rule: a Source the agent did not read to its last part goes back to the Inbox.
 
 **Source status**:
 Where a Source is in Inbox processing: «в Inbox» until processing starts, «разбирается» during it, «готов» after it, or «ошибка» with the reason when the Source could not be read.
@@ -119,6 +120,7 @@ The agent gives «ошибка» with its reason to a Source it cannot read eith
 **Inbox report**:
 The summary of one Inbox processing: the processed Sources, the added Questions by Section and Topic, the number of duplicates the server left out, the Questions the agent doubts, and its proposals of new Sections and Preferences; for a Recheck, the list «скрыть?».
 The server counts the Sources, Questions and duplicates; the agent writes the summary, the doubts and the proposals.
+When the agent did not read every part of some Sources, the server adds to its summary how many went back to the Inbox.
 A partial Inbox report comes from the server when Inbox processing ended without the agent's report: its summary says why and how many Sources were read to the end, and it has no doubts or proposals.
 A Target keeps every Inbox report as its history.
 

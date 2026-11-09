@@ -20,6 +20,8 @@ When the opening says «Recheck of the question bank has started», follow [Rech
 4. **Add.** After each part, add its Questions with `add_bank_questions`; see [Questions](#questions).
    When you cannot read a material at all, see [Unreadable materials](#unreadable-materials) and go on with the next one.
 5. **Report.** After the last part of the last material, call `write_inbox_report` once; it finishes the processing.
+   A material you did not read to its last part goes back to the Inbox, and the report says so.
+   Ending your turn without the report ends the processing the same way, with a partial report.
 
 A step is done when its tool call succeeds. A tool error names the rule it enforces: follow it and call again.
 The Candidate may stop the processing at any time. The Questions you added stay, and only a material you read to its last part counts as processed, so finish one material before the next.

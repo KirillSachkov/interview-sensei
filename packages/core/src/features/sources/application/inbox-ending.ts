@@ -1,5 +1,6 @@
-// How an Inbox processing ends without the agent's report: «Остановить разбор», a failed agent, a
-// restart of the server, an agent that did not start or no readable material. The server closes
+// How an Inbox processing ends without the agent's report: «Остановить разбор», a failed agent, an
+// agent that ended its turn without the report, a restart of the server, an agent that did not
+// start or no readable material. The server closes
 // the run with a partial Inbox report from what the agent wrote; the added Questions stay.
 import { randomUUID } from "node:crypto";
 
@@ -9,13 +10,29 @@ import type { InboxReport, InboxRun, RunEnding } from "../domain/inbox.ts";
 import { inBackground } from "./inbox-context.ts";
 import type { InboxContext } from "./inbox-context.ts";
 
+/** Moves the run's Sources: `ready` to «готов», `back` to the Inbox, in the open transaction. */
+export async function moveSettled(
+  { dependencies }: InboxContext,
+  { targetId, ready, back }: { targetId: string; ready: string[]; back: string[] },
+  opened: Transaction,
+): Promise<void> {
+  const moves = [
+    { ids: ready, status: "ready", from: "processing" },
+    { ids: back, status: "inbox", from: "processing" },
+  ] as const;
+  for (const move of moves) {
+    // oxlint-disable-next-line eslint/no-await-in-loop -- one transaction runs one query at a time
+    await dependencies.repository.setStatus(targetId, move, opened);
+  }
+}
+
 /** Stores the partial report and moves the run's Sources by it, in the open transaction. */
 async function storePartial(
-  { dependencies }: InboxContext,
+  context: InboxContext,
   { run, reason }: { run: InboxRun; reason: RunEnding },
   opened: Transaction,
 ): Promise<InboxReport> {
-  const { repository, inbox, clock } = dependencies;
+  const { repository, inbox, clock } = context.dependencies;
   const createdAt = clock.now().toISOString();
   const { report, ready, back } = partialReport(run, await repository.list(run.targetId, opened), {
     id: randomUUID(),
@@ -23,14 +40,7 @@ async function storePartial(
     createdAt,
   });
   await inbox.addReport(report, opened);
-  const moves = [
-    { ids: ready, status: "ready", from: "processing" },
-    { ids: back, status: "inbox", from: "processing" },
-  ] as const;
-  for (const move of moves) {
-    // oxlint-disable-next-line eslint/no-await-in-loop -- one transaction runs one query at a time
-    await repository.setStatus(run.targetId, move, opened);
-  }
+  await moveSettled(context, { targetId: run.targetId, ready, back }, opened);
   await inbox.finishRun(run.id, createdAt, opened);
   return report;
 }
@@ -79,25 +89,56 @@ export async function stop(context: InboxContext, targetId: string): Promise<Sto
   return { type: "stopped", report };
 }
 
-/** Closes the run with a partial report once its agent fails: its process exited or did not start. */
+/**
+ * How long the server waits after the agent's turn ends without the report. A test's API drives a
+ * `[manual]` fake agent with further prompts in this time; a real agent gets no prompt after the
+ * opening one, as the processing has no chat.
+ */
+const idleWaitMs = 2 * 60 * 1000;
+
+const noWait = () => {};
+
+/**
+ * Closes the run with a partial report once its agent fails: its process exited or did not start.
+ * When the agent's turn ends without the report and the agent stays idle for `idleWaitMs`, it closes
+ * the run the same way and ends the session. The agent's report finishes the run first, so a close
+ * after it finds no running run and does nothing.
+ */
 export function watchAgent(context: InboxContext, run: InboxRun, sessionId: string): void {
-  const { sessions } = context.dependencies;
-  const fail = () => {
+  const { sessions, timer } = context.dependencies;
+  let cancelWait = noWait;
+  const close = (reason: RunEnding) => {
     inBackground(context, async () => {
-      await closeRun(context, run, "agent_failed");
+      const report = await closeRun(context, run, reason);
+      if (report !== null && reason === "agent_finished") {
+        await sessions.end(sessionId);
+      }
+    });
+  };
+  const waitWhileIdle = () => {
+    cancelWait();
+    cancelWait = timer.after(idleWaitMs, () => {
+      unsubscribe();
+      close("agent_finished");
     });
   };
   const unsubscribe = sessions.subscribe(sessionId, (view) => {
     if (view.status === "failed") {
+      cancelWait();
       unsubscribe();
-      fail();
+      close("agent_failed");
+    } else if (view.status === "idle") {
+      waitWhileIdle();
+    } else {
+      cancelWait();
     }
   });
   // The agent may have failed before the subscription.
   inBackground(context, async () => {
     const view = await sessions.view(sessionId);
     if (view?.status === "failed") {
-      fail();
+      cancelWait();
+      close("agent_failed");
     }
   });
 }

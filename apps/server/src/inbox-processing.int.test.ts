@@ -122,8 +122,9 @@ describe("the Questions of Inbox processing", () => {
 });
 
 describe("the Inbox report", () => {
-  it("write_inbox_report marks the materials «готов», ends the session and keeps the plan as it is", async () => {
+  it("write_inbox_report marks the materials read to the end «готов», ends the session and keeps the plan as it is", async () => {
     const { server, target, file, session, events } = await manualProcessing();
+    await toolResult(events, "read_source", { id: file.id, part: 1 });
 
     const written = await toolResult(events, "write_inbox_report", {
       summary: "Разобрана вакансия.",
@@ -149,6 +150,7 @@ describe("the Inbox report", () => {
 
   it("shows the added Questions by Section and Topic, the doubts and the proposals", async () => {
     const { server, target, file, events } = await manualProcessing();
+    await toolResult(events, "read_source", { id: file.id, part: 1 });
     const question = (section: string, text: string) =>
       materialQuestion({ topicId: topicOf(target, section), sourceId: file.id }, text);
     await toolResult(events, "add_bank_questions", {

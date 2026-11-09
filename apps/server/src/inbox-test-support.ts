@@ -1,6 +1,7 @@
 // Helpers of the API tests of Inbox processing (#47): the start by «Запустить разбор», and the
 // processing agent's session, which the fake agent's `/tool` drives when a material's title has
 // `[manual]`. material-test-support.ts makes the materials of each format.
+import type { Clock, Timer } from "@interview-sensei/core/time";
 import type { FastifyInstance } from "fastify";
 import { expect, vi } from "vitest";
 
@@ -176,13 +177,14 @@ export const vacancy = "Вакансия Go\n\nНужно знать горут�
 /**
  * An active Target with the plan of setupPlan, its setup chat, and a running Inbox processing of a
  * `[manual]` vacancy, whose agent waits for `/tool`. With `notes`, a text file of notes is processed
- * after the vacancy.
+ * after the vacancy. With `time`, the server runs on that clock and timer.
  */
 export async function manualProcessing({
   dataDirectory,
   notes = false,
-}: { dataDirectory?: string; notes?: boolean } = {}) {
-  const { server, stop } = await startServer(dataDirectory ?? (await temporaryDirectory()));
+  time,
+}: { dataDirectory?: string; notes?: boolean; time?: { clock: Clock; timer: Timer } } = {}) {
+  const { server, stop } = await startServer(dataDirectory ?? (await temporaryDirectory()), time);
   const { target, events: setup } = await appliedTarget(server);
   const file = await attach(server, {
     targetId: target.id,

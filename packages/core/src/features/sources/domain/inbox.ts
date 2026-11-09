@@ -103,16 +103,23 @@ export interface InboxReport {
  * - `agent_failed`: the agent's process failed;
  * - `interrupted`: the server stopped while the run ran;
  * - `agent_not_started`: the agent did not start;
+ * - `agent_finished`: the agent's turn ended without the report and it did not go on;
  * - `nothing_readable`: the server could not read the text of any material.
  */
 export type RunEnding =
-  "stopped" | "agent_failed" | "interrupted" | "agent_not_started" | "nothing_readable";
+  | "stopped"
+  | "agent_failed"
+  | "interrupted"
+  | "agent_not_started"
+  | "agent_finished"
+  | "nothing_readable";
 
 const endings: Readonly<Record<RunEnding, string>> = {
   stopped: "Разбор остановлен кандидатом.",
   agent_failed: "Агент разбора упал.",
   interrupted: "Разбор прерван: приложение перезапустилось.",
   agent_not_started: "Агент разбора не запустился.",
+  agent_finished: "Агент разбора закончил работу без отчёта.",
   nothing_readable: "Сервер не смог прочитать ни один материал: причина — у каждого материала.",
 };
 
@@ -122,6 +129,7 @@ const recheckEndings: Readonly<Record<RunEnding, string>> = {
   agent_failed: "Агент перепроверки упал.",
   interrupted: "Перепроверка прервана: приложение перезапустилось.",
   agent_not_started: "Агент перепроверки не запустился.",
+  agent_finished: "Агент перепроверки закончил работу без отчёта.",
   nothing_readable: "Перепроверка не началась.",
 };
 
@@ -163,21 +171,40 @@ function readWhole(run: InboxRun, { id, parts }: RunSource): boolean {
 }
 
 /**
+ * Where the run's Sources go when it ends, by the agent's report or without it: of the Sources
+ * still «разбирается», those whose every part the agent read become «готов» (`ready`); the rest
+ * go back to the Inbox (`back`). A Source with «ошибка» keeps it; `failed` counts them.
+ */
+export function settledSources(
+  run: InboxRun,
+  sources: readonly RunSource[],
+): { readonly ready: string[]; readonly back: string[]; readonly failed: number } {
+  const own = sources.filter((source) => run.sourceIds.includes(source.id));
+  const processing = own.filter((source) => source.status === "processing");
+  const ready = processing.filter((source) => readWhole(run, source)).map((source) => source.id);
+  const back = processing.map((source) => source.id).filter((source) => !ready.includes(source));
+  const failed = own.filter((source) => source.status === "failed").length;
+  return { ready, back, failed };
+}
+
+/**
+ * The summary of the agent's report: its own text, and how many materials went back to the Inbox
+ * because the agent did not read every part of them.
+ */
+export function agentSummary(summary: string, back: number): string {
+  return back > 0 ? `${summary} Прочитаны не до конца и вернулись в Inbox: ${back}.` : summary;
+}
+
+/**
  * The partial Inbox report of a run the server closes without the agent's report, from what the
- * agent wrote: its Questions and duplicates stay. Of the Sources still «разбирается», those whose
- * every part the agent read become «готов» (`ready`); the rest go back to the Inbox (`back`). A
- * Source with «ошибка» keeps it.
+ * agent wrote: its Questions and duplicates stay, and the Sources go as settledSources says.
  */
 export function partialReport(
   run: InboxRun,
   sources: readonly RunSource[],
   { id, reason, createdAt }: { id: string; reason: RunEnding; createdAt: string },
 ): { readonly report: InboxReport; readonly ready: string[]; readonly back: string[] } {
-  const own = sources.filter((source) => run.sourceIds.includes(source.id));
-  const processing = own.filter((source) => source.status === "processing");
-  const ready = processing.filter((source) => readWhole(run, source)).map((source) => source.id);
-  const back = processing.map((source) => source.id).filter((source) => !ready.includes(source));
-  const failed = own.filter((source) => source.status === "failed").length;
+  const { ready, back, failed } = settledSources(run, sources);
   const summary = partialSummary(run, {
     reason,
     ready: ready.length,

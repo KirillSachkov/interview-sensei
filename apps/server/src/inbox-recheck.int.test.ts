@@ -2,6 +2,7 @@
 // with a card, only the Candidate's button starts it, the recheck changes nothing itself and writes
 // the list «скрыть?» with reasons, and the Candidate accepts it with a bulk action. A Preference
 // with `[manual]` stops the fake processor at «Жду команд.», so `/tool` drives it.
+import type { Clock, Timer } from "@interview-sensei/core/time";
 import type { FastifyInstance } from "fastify";
 import { describe, expect, it, vi } from "vitest";
 
@@ -19,6 +20,7 @@ import {
   textOf,
   topicOf,
 } from "./inbox-test-support.ts";
+import { manualTime } from "./interview-flow-test-support.ts";
 import {
   api,
   applied,
@@ -42,6 +44,7 @@ async function startRecheck(server: FastifyInstance, targetId: string) {
 interface RecheckReport {
   readonly mode: string;
   readonly partial: boolean;
+  readonly summary: string;
   readonly toHide: readonly {
     readonly questionId: string;
     readonly text: string;
@@ -56,8 +59,8 @@ async function recheckReport(server: FastifyInstance, targetId: string, reportId
 }
 
 /** An active Target with the setup plan and Questions, and an applied Preference. */
-async function targetWithPreference(text = preference) {
-  const { server } = await startServer(await temporaryDirectory());
+async function targetWithPreference(text = preference, time?: { clock: Clock; timer: Timer }) {
+  const { server } = await startServer(await temporaryDirectory(), time);
   const { target, events } = await appliedTarget(server);
   await applied({ server, events, targetId: target.id }, ["save_preference", { text }]);
   return { server, target, setup: events };
@@ -98,8 +101,8 @@ async function finishedRecheck(server: FastifyInstance, targetId: string) {
 }
 
 /** A recheck whose fake agent waits for `/tool` commands. */
-async function manualRecheck() {
-  const { server, target } = await targetWithPreference(`${preference} [manual]`);
+async function manualRecheck(time?: { clock: Clock; timer: Timer }) {
+  const { server, target } = await targetWithPreference(`${preference} [manual]`, time);
   const started = await startRecheck(server, target.id);
   expect(started.statusCode).toBe(202);
   const { events } = await processingEvents(server, target.id);
@@ -209,6 +212,25 @@ describe("the recheck of the bank", () => {
     const report = await recheckReport(server, target.id, textOf(stopped.json(), "reportId"));
     expect(report).toMatchObject({ mode: "recheck", partial: true, toHide: [] });
     await expect(questionsOf(server, target.id)).resolves.toStrictEqual(before);
+  });
+
+  it("an agent that ends its turn without the report ends the recheck after the wait, and a new recheck goes", async () => {
+    const time = manualTime();
+    const { server, target } = await manualRecheck(time);
+    const before = await questionsOf(server, target.id);
+
+    await time.fire(2 * 60 * 1000);
+
+    const reportId = await latestReportId(server, target.id);
+    await expect(recheckReport(server, target.id, reportId)).resolves.toMatchObject({
+      mode: "recheck",
+      partial: true,
+      toHide: [],
+      summary:
+        "Агент перепроверки закончил работу без отчёта. Список «скрыть?» не готов: запустите её снова.",
+    });
+    await expect(questionsOf(server, target.id)).resolves.toStrictEqual(before);
+    await expect(startRecheck(server, target.id)).resolves.toMatchObject({ statusCode: 202 });
   });
 
   it("refuses a recheck of a Target without Questions", async () => {

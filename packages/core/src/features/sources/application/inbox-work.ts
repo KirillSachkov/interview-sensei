@@ -5,11 +5,13 @@ import { randomUUID } from "node:crypto";
 import type { ToolSession } from "../../../shared/mcp/index.ts";
 import type { Transaction } from "../../../shared/storage/index.ts";
 import { inboxBrief } from "../domain/inbox-brief.ts";
+import { agentSummary, settledSources } from "../domain/inbox.ts";
 import type { DoubtfulQuestion, InboxReport, InboxRun, ReportProposals } from "../domain/inbox.ts";
 import type { InboxTarget } from "../domain/ports.ts";
 import type { Source } from "../domain/source.ts";
 import { refuseInRecheck, runOf } from "./inbox-context.ts";
 import type { InboxContext } from "./inbox-context.ts";
+import { moveSettled } from "./inbox-ending.ts";
 
 /** A material of the processing as the agent sees it. */
 function listed(source: Source) {
@@ -155,42 +157,50 @@ async function checkHide(
   }
 }
 
+/** Stores the agent's report, moves the run's Sources and finishes the run, in the transaction. */
+async function storeReport(
+  context: InboxContext,
+  { session, input }: { session: ToolSession; input: ReportInput },
+  opened: Transaction,
+) {
+  const { repository, inbox, clock } = context.dependencies;
+  const { targetId, run } = await runOf(context, session, opened);
+  await checkHide(context, { targetId, input }, opened);
+  const now = clock.now().toISOString();
+  const { ready, back } = settledSources(run, await repository.list(targetId, opened));
+  const report: InboxReport = {
+    id: randomUUID(),
+    targetId,
+    runId: run.id,
+    mode: run.mode,
+    sourceIds: run.sourceIds,
+    questionIds: run.questionIds,
+    duplicates: run.duplicates,
+    ...input,
+    summary: agentSummary(input.summary, back.length),
+    partial: false,
+    createdAt: now,
+  };
+  await inbox.addReport(report, opened);
+  await moveSettled(context, { targetId, ready, back }, opened);
+  await inbox.finishRun(run.id, now, opened);
+  return { report, run };
+}
+
 /**
- * Stores the Inbox report with what the server counted, marks the processed Sources «готов» and
- * finishes the run. The agent stops after its current turn.
+ * Stores the Inbox report with what the server counted and finishes the run. A material becomes
+ * «готов» only when the agent read every part of it; the others go back to the Inbox, and the
+ * summary says how many. The agent stops after its current turn.
  */
 export async function writeReport(
   context: InboxContext,
   session: ToolSession,
   input: ReportInput,
 ): Promise<InboxReport> {
-  const { dependencies } = context;
-  const { repository, inbox, clock, sessions, onError } = dependencies;
-  const { report, run } = await dependencies.transaction(async (opened) => {
-    const found = await runOf(context, session, opened);
-    await checkHide(context, { targetId: found.targetId, input }, opened);
-    const now = clock.now().toISOString();
-    const written: InboxReport = {
-      id: randomUUID(),
-      targetId: found.targetId,
-      runId: found.run.id,
-      mode: found.run.mode,
-      sourceIds: found.run.sourceIds,
-      questionIds: found.run.questionIds,
-      duplicates: found.run.duplicates,
-      ...input,
-      partial: false,
-      createdAt: now,
-    };
-    await inbox.addReport(written, opened);
-    await repository.setStatus(
-      found.targetId,
-      { ids: found.run.sourceIds, status: "ready", from: "processing" },
-      opened,
-    );
-    await inbox.finishRun(found.run.id, now, opened);
-    return { report: written, run: found.run };
-  });
+  const { sessions, onError } = context.dependencies;
+  const { report, run } = await context.dependencies.transaction(async (opened) =>
+    storeReport(context, { session, input }, opened),
+  );
   // The session ends after this turn: the tool call is part of it, so nothing waits for the end.
   void endAfterTurn({ sessions, onError }, run.sessionId ?? session.sessionId);
   return report;
