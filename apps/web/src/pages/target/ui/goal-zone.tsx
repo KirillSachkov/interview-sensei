@@ -7,8 +7,6 @@ import { TargetCard } from "./target-card";
 import { TargetPlan } from "./target-plan";
 import type { QuestionsView } from "./target-plan";
 
-export type { QuestionsView } from "./target-plan";
-
 /** Where the setup chat is open: beside the Target card, beside a Section, or nowhere. */
 export type SetupAnchor = "target" | { readonly sectionId: string } | null;
 

@@ -28,7 +28,7 @@ export interface InboxState {
   readonly unprocessed: number;
 }
 
-export type SectionKind = "conversation" | "topics" | "design";
+type SectionKind = "conversation" | "topics" | "design";
 
 /** The Inbox report as its panel shows it. */
 export interface InboxReport {
