@@ -50,6 +50,14 @@ interface QuestionRecord {
   readonly createdAt: string;
 }
 
+/** The Candidate's review of a Question; a new Question has neither. */
+interface ReviewDetails {
+  /** The Candidate's comment to ⚠, the rating «ошибка». */
+  readonly ratingComment: string | null;
+  /** «новый»: Inbox processing added it, and the Candidate has not seen it yet. */
+  readonly unseen: boolean;
+}
+
 /** What Inbox processing adds to a Question; other writers leave them null. */
 interface InboxDetails {
   /** The part of the first Source that the Question came from, from 1; null when unknown. */
@@ -59,10 +67,16 @@ interface InboxDetails {
   readonly referenceAnswer: ReferenceAnswer | null;
 }
 
-export type Question = QuestionContent & QuestionRecord & InboxDetails;
+export type Question = QuestionContent & QuestionRecord & InboxDetails & ReviewDetails;
 
-/** A Question to store: the Inbox processing's fields it leaves out are null. */
-export type StoredQuestion = QuestionContent & QuestionRecord & Partial<InboxDetails>;
+/**
+ * A Question to store: the Inbox processing's fields it leaves out are null, a comment is null and
+ * the Question is not «новый».
+ */
+export type StoredQuestion = QuestionContent &
+  QuestionRecord &
+  Partial<InboxDetails> &
+  Partial<ReviewDetails>;
 
 export interface Topic {
   readonly id: string;

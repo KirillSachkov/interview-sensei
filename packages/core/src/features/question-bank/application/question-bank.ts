@@ -1,7 +1,14 @@
 import { randomUUID } from "node:crypto";
 
 import type { Transaction } from "../../../shared/storage/index.ts";
-import type { QuestionEdit, QuestionFilter, QuestionRepository } from "../domain/ports.ts";
+import type {
+  QuestionAttempts,
+  QuestionEdit,
+  QuestionFilter,
+  QuestionRepository,
+} from "../domain/ports.ts";
+import { reviewPlan } from "../domain/question-review.ts";
+import type { ReviewAction } from "../domain/question-review.ts";
 import { addQuestions, editQuestions, renameTopic } from "./bank-edits.ts";
 import type { NewQuestion } from "./bank-edits.ts";
 import type { StoredQuestion, Topic } from "../domain/question.ts";
@@ -69,7 +76,40 @@ async function seed(
   await repository.seed(topics, questions);
 }
 
-export function createQuestionBank(repository: QuestionRepository<Transaction>) {
+/** The Candidate's bulk review of the chosen Questions of a Target. */
+export interface Review {
+  readonly action: ReviewAction;
+  readonly questionIds: readonly string[];
+  /** The comment to ⚠. */
+  readonly comment?: string | null;
+}
+
+/**
+ * Applies the bulk review; deleting a Question with Attempts hides it instead. Resolves which
+ * Questions were deleted and which were changed, or `unknown_questions` when a chosen Question is
+ * not the Target's; nothing changes then.
+ */
+async function review(
+  { repository, attempts }: { repository: QuestionRepository<Transaction>; attempts: QuestionAttempts },
+  targetId: string,
+  { action, questionIds, comment = null }: Review,
+) {
+  const own = new Set((await repository.questions(targetId)).map((question) => question.id));
+  const chosen = [...new Set(questionIds)];
+  if (chosen.some((id) => !own.has(id))) {
+    return "unknown_questions" as const;
+  }
+  const attempted =
+    action === "delete" ? new Set(await attempts.attempted(targetId, chosen)) : new Set<string>();
+  const plan = reviewPlan({ action, questionIds: chosen, attempted, comment });
+  await repository.review(targetId, plan);
+  return { deleted: plan.deleted, changed: plan.edits.map((edit) => edit.id) };
+}
+
+export function createQuestionBank(
+  repository: QuestionRepository<Transaction>,
+  attempts: QuestionAttempts,
+) {
   return {
     seed: async (topics: readonly Topic[], questions: readonly StoredQuestion[]) =>
       seed(repository, topics, questions),
@@ -89,6 +129,11 @@ export function createQuestionBank(repository: QuestionRepository<Transaction>) 
       repository.search(targetId, filter),
     rate: repository.rate,
     hide: repository.hide,
+    review: async (targetId: string, request: Review) =>
+      review({ repository, attempts }, targetId, request),
+    /** «просмотрено»: the Questions of the Target are no longer «новый». */
+    markSeen: async (targetId: string, ids: readonly string[]) =>
+      repository.markSeen(targetId, ids),
     /** Erases the Target's Topics and Questions when the Target is deleted for good. */
     eraseTarget: async (targetId: string, transaction: Transaction) =>
       repository.erase(targetId, transaction),

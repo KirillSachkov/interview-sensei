@@ -118,13 +118,15 @@ function inboxSessions(sessions: () => AgentSessions) {
 }
 
 /**
- * The Topic merges of a draft move the Attempts of `interviews`, which composeFeatures builds after
- * target-setup; it exists by the first application of a draft.
+ * The Topic merges of a draft move the Attempts of `interviews`, and the question bank asks it which
+ * Questions have Attempts. composeFeatures builds it after these slices; it exists by the first call.
  */
 function topicMerges(interviews: () => ReturnType<typeof interviewsModule>) {
   return {
     mergeTopic: async (...merge: Parameters<ReturnType<typeof interviewsModule>["mergeTopic"]>) =>
       interviews().mergeTopic(...merge),
+    attempted: async (targetId: string, questionIds: readonly string[]) =>
+      interviews().attempted(targetId, questionIds),
   };
 }
 

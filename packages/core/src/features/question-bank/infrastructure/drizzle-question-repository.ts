@@ -5,6 +5,7 @@ import type { Database, Executor, Transaction } from "../../../shared/storage/in
 import type { QuestionFilter, QuestionRepository } from "../domain/ports.ts";
 import type { Question } from "../domain/question.ts";
 import { questions, topics } from "./schema.ts";
+import { reviewWrites } from "./review-writes.ts";
 import { setupWrites, toQuestion } from "./setup-writes.ts";
 
 async function search(
@@ -83,12 +84,13 @@ export function drizzleQuestionRepository(database: Database): QuestionRepositor
     rate: async (id, rating) => {
       const rows = await database
         .update(questions)
-        .set({ rating })
+        .set({ rating, ratingComment: null, ...(rating === "useful" ? { unconfirmed: false } : {}) })
         .where(eq(questions.id, id))
         .returning({ id: questions.id });
       return rows.length > 0;
     },
     ...setupWrites(database),
+    ...reviewWrites(database),
     hide: async (id, hidden) => {
       const rows = await database
         .update(questions)

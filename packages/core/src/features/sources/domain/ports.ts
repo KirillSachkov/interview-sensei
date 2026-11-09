@@ -177,9 +177,18 @@ export interface InboxBankQuestion {
   readonly level: "junior" | "middle" | "senior";
   readonly sectionKind: SectionKind | null;
   readonly hidden: boolean;
+  /** «не подтверждён»: an agent made it up without a Source, and the Candidate has not confirmed it. */
+  readonly unconfirmed: boolean;
+  /** «новый»: the Candidate has not seen it yet. */
+  readonly unseen: boolean;
+  readonly rating: "useful" | "irrelevant" | "wrong" | null;
+  readonly ratingComment: string | null;
 }
 
-/** A Question from a material, as `add_bank_questions` writes it to the bank. */
+/**
+ * A Question of Inbox processing, as `add_bank_questions` writes it to the bank: «новый», and
+ * unconfirmed when the agent made it up without a Source.
+ */
 export interface InboxNewQuestion {
   readonly id: string;
   readonly topicId: string;
@@ -192,8 +201,10 @@ export interface InboxNewQuestion {
   readonly rating: null;
   readonly createdAt: string;
   readonly sourceIds: readonly string[];
-  readonly sourcePart: number;
+  readonly sourcePart: number | null;
   readonly sectionKind: SectionKind;
+  readonly unconfirmed: boolean;
+  readonly unseen: true;
   readonly referenceAnswer: {
     readonly points: readonly string[];
     readonly sample: string;
@@ -220,6 +231,8 @@ export interface InboxQuestions<Transaction> {
     targetId: string,
     transaction?: Transaction,
   ) => Promise<readonly InboxBankQuestion[]>;
+  /** «просмотрено»: the Candidate has seen these Questions of the Target. */
+  readonly markSeen: (targetId: string, ids: readonly string[]) => Promise<void>;
   /** Rejects a Question whose Topic is not the Target's. */
   readonly addQuestions: (
     targetId: string,

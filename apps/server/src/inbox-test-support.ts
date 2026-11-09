@@ -130,6 +130,8 @@ export interface ReportView {
   readonly summary: string;
   readonly duplicates: number;
   readonly added: number;
+  /** How many of the added Questions the Candidate has not seen. */
+  readonly newQuestions: number;
   readonly sources: readonly { readonly id: string; readonly status: string }[];
   readonly sections: readonly {
     readonly id: string | null;
@@ -137,7 +139,13 @@ export interface ReportView {
     readonly topics: readonly {
       readonly id: string;
       readonly name: string;
-      readonly questions: readonly { readonly id: string; readonly text: string }[];
+      readonly questions: readonly {
+        readonly id: string;
+        readonly text: string;
+        readonly hidden: boolean;
+        readonly unseen: boolean;
+        readonly unconfirmed: boolean;
+      }[];
     }[];
   }[];
   readonly doubtful: readonly { readonly text: string; readonly reason: string }[];

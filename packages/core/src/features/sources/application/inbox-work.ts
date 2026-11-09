@@ -71,19 +71,32 @@ export interface MaterialQuestion {
   readonly correctOptionIds: readonly string[];
   readonly level: "junior" | "middle" | "senior";
   readonly sectionKind: "conversation" | "topics" | "design";
-  readonly sourceId: string;
-  readonly part: number;
+  /** The material; without it the agent made the Question up, and it is unconfirmed. */
+  readonly sourceId?: string | undefined;
+  readonly part?: number | undefined;
   readonly referenceAnswer?:
     { readonly points: readonly string[]; readonly sample: string } | null | undefined;
 }
 
-/** Refuses a Question whose Source is not a material of the run or whose part it lacks. */
+/**
+ * Refuses a Question whose Source is not a material of the run or whose part it lacks. A Question
+ * without a Source has no part and no reference answer: the answer comes only from the material.
+ */
 function checkSources(
   questions: readonly MaterialQuestion[],
   sources: readonly Source[],
   run: InboxRun,
 ): void {
   for (const question of questions) {
+    if (question.sourceId === undefined) {
+      if (question.part !== undefined || (question.referenceAnswer ?? null) !== null) {
+        throw new Error("A Question without a Source has neither a part nor a reference answer");
+      }
+      continue;
+    }
+    if (question.part === undefined) {
+      throw new Error(`Give the part of the Source ${question.sourceId}`);
+    }
     const source = sources.find((candidate) => candidate.id === question.sourceId);
     if (source === undefined || !run.sourceIds.includes(source.id)) {
       throw new Error(`The Source ${question.sourceId} is not a material of this processing`);
@@ -96,6 +109,13 @@ function checkSources(
 
 function bankQuestion(question: MaterialQuestion, createdAt: string): InboxNewQuestion {
   const { referenceAnswer, sourceId, part } = question;
+  const answer =
+    referenceAnswer === undefined ||
+    referenceAnswer === null ||
+    sourceId === undefined ||
+    part === undefined
+      ? null
+      : { ...referenceAnswer, origin: "material" as const, sourceId, part };
   return {
     id: randomUUID(),
     topicId: question.topicId,
@@ -107,13 +127,12 @@ function bankQuestion(question: MaterialQuestion, createdAt: string): InboxNewQu
     hidden: false,
     rating: null,
     createdAt,
-    sourceIds: [sourceId],
-    sourcePart: part,
+    sourceIds: sourceId === undefined ? [] : [sourceId],
+    sourcePart: part ?? null,
     sectionKind: question.sectionKind,
-    referenceAnswer:
-      referenceAnswer === undefined || referenceAnswer === null
-        ? null
-        : { ...referenceAnswer, origin: "material", sourceId, part },
+    referenceAnswer: answer,
+    unconfirmed: sourceId === undefined,
+    unseen: true,
   };
 }
 

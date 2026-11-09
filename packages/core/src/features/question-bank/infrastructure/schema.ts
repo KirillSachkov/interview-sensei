@@ -56,6 +56,8 @@ export const questions = questionBankSchema.table(
     unconfirmed: boolean("unconfirmed").notNull().default(false),
     hidden: boolean("hidden").notNull().default(false),
     rating: text("rating").$type<QuestionRating>(),
+    ratingComment: text("rating_comment"),
+    unseen: boolean("unseen").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull(),
   },
   (table) => [

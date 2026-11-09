@@ -15,7 +15,7 @@ import { topicKey, validateQuestion } from "../domain/question.ts";
 /**
  * A new Question of a Target: its content is checked before it is stored. The Target setup gives
  * no Sources; Inbox processing gives the Source, its part, the Section kind and the reference
- * answer.
+ * answer, marks its Questions «новый», and a Question it made up without a Source unconfirmed.
  */
 export interface NewQuestion {
   readonly id: string;
@@ -32,6 +32,10 @@ export interface NewQuestion {
   readonly sourcePart?: number | null;
   readonly sectionKind?: SectionKind | null;
   readonly referenceAnswer?: ReferenceAnswer | null;
+  /** «не подтверждён»; false without it. */
+  readonly unconfirmed?: boolean;
+  /** «новый»; false without it. */
+  readonly unseen?: boolean;
 }
 
 type Repository = QuestionRepository<Transaction>;
@@ -62,7 +66,8 @@ function stored(targetId: string, question: NewQuestion): StoredQuestion {
     ...content,
     targetId,
     sourceIds: question.sourceIds ?? [],
-    unconfirmed: false,
+    unconfirmed: question.unconfirmed ?? false,
+    unseen: question.unseen ?? false,
   };
 }
 

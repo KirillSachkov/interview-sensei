@@ -43,6 +43,7 @@ export const targetSliceMigrations: readonly SliceMigrations[] = [
 ];
 
 type SetupAttempts = Parameters<typeof targetSetupModule>[0]["attempts"];
+type QuestionAttempts = Parameters<typeof questionBankModule>[0]["attempts"];
 type InboxSessions = Parameters<typeof sourcesModule>[0]["sessions"];
 
 /** What the slices of this module take from the server besides the storage. */
@@ -50,8 +51,11 @@ export interface TargetSliceDependencies {
   readonly clock: Clock;
   readonly timer: Timer;
   readonly dataDirectory: string;
-  /** The interviews slice: a Topic merge of a draft moves the merged Topic's Attempts. */
-  readonly attempts: SetupAttempts;
+  /**
+   * The interviews slice: a Topic merge of a draft moves the merged Topic's Attempts, and a deleted
+   * Question with Attempts is hidden instead.
+   */
+  readonly attempts: SetupAttempts & QuestionAttempts;
   /** The agent-sessions slice, built after these slices: Inbox processing starts its agent there. */
   readonly sessions: InboxSessions;
   /** Receives the failures of background work. */
@@ -70,7 +74,7 @@ export function composeTargets(
   runtime: AgentRuntime,
 ) {
   const { database } = storage;
-  const questionBank = questionBankModule({ database });
+  const questionBank = questionBankModule({ database, attempts });
   const appSettings = appSettingsModule({ database, agents: runtime });
   const targets = targetsModule({
     database,

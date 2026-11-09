@@ -170,6 +170,17 @@ export interface InterviewTopicMerge<Transaction> {
   ) => Promise<void>;
 }
 
+/**
+ * Which of the Target's Questions have Attempts: the question bank hides such a Question instead
+ * of deleting it.
+ */
+export interface InterviewQuestionAttempts {
+  readonly attempted: (
+    targetId: string,
+    questionIds: readonly string[],
+  ) => Promise<readonly string[]>;
+}
+
 /** Stores Mock interviews, their asked questions and Attempts in the `interviews` schema. */
 export interface InterviewRepository extends HistoryRepository {
   /** `running` when the Target already has a running Mock interview; nothing is stored then. */

@@ -74,8 +74,8 @@ const materialQuestion = z.strictObject({
   correctOptionIds: z.array(z.string().trim().min(1)).default([]),
   level: z.enum(levels),
   sectionKind: z.enum(sectionKinds),
-  sourceId: z.uuid(),
-  part: z.number().int().min(1),
+  sourceId: z.uuid().optional(),
+  part: z.number().int().min(1).optional(),
   referenceAnswer: referenceAnswer.nullable().optional(),
 });
 
@@ -83,7 +83,7 @@ function addBankQuestions(inbox: Inbox) {
   return sessionTool({
     name: "add_bank_questions",
     description:
-      "Adds Questions from the materials straight into the Target's bank, each in a Topic by id, with its level, the Section kind it fits, the Source and the number of the part it comes from. Give `referenceAnswer` only when the material itself answers the Question: 3–5 key points and a short sample answer; the app marks it «из материала». A quiz has options with ids and the ids of the correct ones. The tool leaves out duplicates of the Target's Questions by text, ignoring case, spaces and punctuation, returns them in `duplicates` and counts them for the report.",
+      "Adds Questions from the materials straight into the Target's bank, each in a Topic by id, with its level, the Section kind it fits, the Source and the number of the part it comes from. A Question you make up without a material gets no `sourceId`, `part` or `referenceAnswer`; the app marks it «не подтверждён» until the Candidate confirms it. Give `referenceAnswer` only when the material itself answers the Question: 3–5 key points and a short sample answer; the app marks it «из материала». A quiz has options with ids and the ids of the correct ones. The tool leaves out duplicates of the Target's Questions by text, ignoring case, spaces and punctuation, returns them in `duplicates` and counts them for the report.",
     input: z.strictObject({ questions: z.array(materialQuestion).min(1) }),
     run: async ({ questions }, session) =>
       JSON.stringify(await inbox.addBankQuestions(session, questions)),

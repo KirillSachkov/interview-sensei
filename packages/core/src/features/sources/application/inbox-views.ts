@@ -1,7 +1,8 @@
 // What the Candidate sees of Inbox processing: the proposal card in the setup chat, the state for
 // the card «Материалы», and the Inbox report.
-import type { InboxProposal, InboxReport } from "../domain/inbox.ts";
+import type { InboxProposal } from "../domain/inbox.ts";
 import type { InboxBankQuestion, InboxTarget } from "../domain/ports.ts";
+import { reportQuestions } from "../domain/report-questions.ts";
 import type { Source } from "../domain/source.ts";
 import type { InboxContext } from "./inbox-context.ts";
 
@@ -56,9 +57,11 @@ export async function inboxState(context: InboxContext, targetId: string) {
   };
 }
 
-/** A Question of the report under its Topic. */
-function reportQuestion({ id, text, level, sectionKind, hidden }: InboxBankQuestion) {
-  return { id, text, level, sectionKind, hidden };
+/** A Question of the report under its Topic, with the marks the Candidate reviews it by. */
+function reportQuestion(question: InboxBankQuestion) {
+  const { id, text, level, sectionKind, hidden, unconfirmed, unseen, rating, ratingComment } =
+    question;
+  return { id, text, level, sectionKind, hidden, unconfirmed, unseen, rating, ratingComment };
 }
 
 interface TopicGroup {
@@ -103,29 +106,23 @@ function topicGroup(
 }
 
 /**
- * The added Questions by Section and Topic in the order the agent added them. A Topic belongs to
- * the first Section of the plan that has it; a Topic outside the plan goes to «Без секции». A
- * Question deleted since is left out.
+ * The Questions by Section and Topic in their order. A Topic belongs to the first Section of the
+ * plan that has it; a Topic outside the plan goes to «Без секции».
  */
-function addedBySection(
-  report: InboxReport,
+function bySection(
+  questions: readonly InboxBankQuestion[],
   {
     target,
-    questions,
     topics,
   }: {
     target: InboxTarget;
-    questions: readonly InboxBankQuestion[];
     topics: readonly { readonly id: string; readonly name: string }[];
   },
 ): SectionGroup[] {
   const groups: SectionGroup[] = [];
-  for (const id of report.questionIds) {
-    const question = questions.find((candidate) => candidate.id === id);
-    if (question !== undefined) {
-      const group = sectionGroup(groups, target, question.topicId);
-      topicGroup(group, topics, question.topicId).questions.push(reportQuestion(question));
-    }
+  for (const question of questions) {
+    const group = sectionGroup(groups, target, question.topicId);
+    topicGroup(group, topics, question.topicId).questions.push(reportQuestion(question));
   }
   return groups;
 }
@@ -134,8 +131,14 @@ function reportSource({ id, type, title, url, status, failure }: Source) {
   return { id, type, title, url, status, failure };
 }
 
-/** The Target's Inbox report for the panel; null for another Target's report and unknown ones. */
-export async function reportView(context: InboxContext, targetId: string, reportId: string) {
+/**
+ * The Target's Inbox report for the panel; null for another Target's report and unknown ones.
+ * `onlyNew` is the filter «новые с последнего просмотра» of the added Questions.
+ */
+export async function reportView(
+  context: InboxContext,
+  { targetId, reportId, onlyNew }: { targetId: string; reportId: string; onlyNew: boolean },
+) {
   const { inbox, targets, questions, repository } = context.dependencies;
   const report = await inbox.report(targetId, reportId);
   const target = await targets.get(targetId);
@@ -147,7 +150,8 @@ export async function reportView(context: InboxContext, targetId: string, report
     questions.topics(targetId),
     repository.list(targetId),
   ]);
-  const sections = addedBySection(report, { target, questions: bank, topics });
+  const added = reportQuestions(report.questionIds, bank, { onlyNew: false });
+  const shown = onlyNew ? reportQuestions(report.questionIds, bank, { onlyNew }) : added;
   const { id, mode, partial, createdAt, summary, duplicates, doubtful, proposals } = report;
   return {
     id,
@@ -158,14 +162,24 @@ export async function reportView(context: InboxContext, targetId: string, report
     duplicates,
     doubtful,
     proposals,
-    added: sections.reduce(
-      (sum, section) =>
-        sum + section.topics.reduce((topicSum, topic) => topicSum + topic.questions.length, 0),
-      0,
-    ),
+    added: added.length,
+    newQuestions: added.filter((question) => question.unseen).length,
     sources: sources
       .filter((source) => report.sourceIds.includes(source.id))
       .map((source) => reportSource(source)),
-    sections,
+    sections: bySection(shown, { target, topics }),
   };
+}
+
+/** «просмотрено»: the Candidate has seen the report's Questions; false for an unknown report. */
+export async function markReportSeen(
+  { dependencies }: InboxContext,
+  { targetId, reportId }: { targetId: string; reportId: string },
+): Promise<boolean> {
+  const report = await dependencies.inbox.report(targetId, reportId);
+  if (report === undefined) {
+    return false;
+  }
+  await dependencies.questions.markSeen(targetId, report.questionIds);
+  return true;
 }

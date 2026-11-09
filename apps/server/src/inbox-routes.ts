@@ -97,15 +97,37 @@ function registerReads(server: FastifyInstance, { sources }: Dependencies) {
     { schema: { params } },
     async (request, reply) => {
       const state = await sources.inbox.state(request.params.id);
-      return state === undefined ? reply.code(404).send({ error: "target_not_found" }) : state;
+      return state === null ? reply.code(404).send({ error: "target_not_found" }) : state;
     },
   );
-  server.get<{ Params: { id: string; reportId: string } }>(
+  server.get<{
+    Params: { id: string; reportId: string };
+    Querystring: { new?: boolean };
+  }>(
     "/api/targets/:id/inbox-reports/:reportId",
+    {
+      schema: {
+        params: reportParams,
+        querystring: {
+          type: "object",
+          properties: { new: { type: "boolean" } },
+          additionalProperties: false,
+        },
+      },
+    },
+    async (request, reply) => {
+      const report = await sources.inbox.report(request.params.id, request.params.reportId, {
+        onlyNew: request.query.new === true,
+      });
+      return report === null ? reply.code(404).send({ error: "report_not_found" }) : report;
+    },
+  );
+  server.post<{ Params: { id: string; reportId: string } }>(
+    "/api/targets/:id/inbox-reports/:reportId/seen",
     { schema: { params: reportParams } },
     async (request, reply) => {
-      const report = await sources.inbox.report(request.params.id, request.params.reportId);
-      return report === undefined ? reply.code(404).send({ error: "report_not_found" }) : report;
+      const found = await sources.inbox.markSeen(request.params.id, request.params.reportId);
+      return found ? reply.code(204).send() : reply.code(404).send({ error: "report_not_found" });
     },
   );
 }
@@ -120,7 +142,8 @@ function registerReads(server: FastifyInstance, { sources }: Dependencies) {
  *   `agent_unavailable` with a Russian `message`.
  * - `POST /api/targets/:id/inbox/proposal/dismiss`: «Не сейчас»; the materials stay in the Inbox.
  * - `GET /api/targets/:id/inbox-reports/:reportId`: the Inbox report with the added Questions by
- *   Section and Topic.
+ *   Section and Topic; `new=true` keeps the Questions the Candidate has not seen.
+ * - `POST /api/targets/:id/inbox-reports/:reportId/seen`: «просмотрено» of the report's Questions.
  */
 export function registerInboxRoutes(server: FastifyInstance, dependencies: Dependencies) {
   registerStart(server, dependencies);

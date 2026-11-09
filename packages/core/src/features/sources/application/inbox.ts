@@ -16,7 +16,7 @@ import {
   writeReport,
 } from "./inbox-work.ts";
 import type { MaterialQuestion, ReportInput } from "./inbox-work.ts";
-import { inboxState, reportView } from "./inbox-views.ts";
+import { inboxState, markReportSeen, reportView } from "./inbox-views.ts";
 
 /**
  * The setup agent's proposal: the card shows it in the chat. Only Sources of the Target that wait
@@ -56,7 +56,12 @@ export function createInbox(dependencies: InboxDependencies) {
     start: async (request: { targetId: string; sourceIds?: readonly string[] | undefined }) =>
       start(context, request),
     state: async (targetId: string) => inboxState(context, targetId),
-    report: async (targetId: string, reportId: string) => reportView(context, targetId, reportId),
+    /** The report for its panel; `onlyNew` keeps the added Questions the Candidate has not seen. */
+    report: async (targetId: string, reportId: string, { onlyNew = false } = {}) =>
+      reportView(context, { targetId, reportId, onlyNew }),
+    /** «просмотрено» of the report's Questions; false for an unknown report. */
+    markSeen: async (targetId: string, reportId: string) =>
+      markReportSeen(context, { targetId, reportId }),
     brief: async (session: ToolSession) => brief(context, session),
     listInbox: async (session: ToolSession) => listInbox(context, session),
     readSource: async (session: ToolSession, part: { id: string; part: number }) =>
