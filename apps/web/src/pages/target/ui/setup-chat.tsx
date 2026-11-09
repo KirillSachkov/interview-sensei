@@ -2,11 +2,26 @@ import { useQuery } from "@tanstack/react-query";
 
 import { Chat } from "@/features/agent-chat";
 import { openSetupSession } from "@/shared/api";
+import type { SessionView } from "@/shared/api";
 
+import { useSourceAttachments, useSourcesAfterTurn } from "../model/source-attachments";
 import { DraftChanges } from "./draft-changes";
+
+/** Follows the agent's turns for the materials; shows nothing. */
+function SourcesFollower({
+  targetId,
+  status,
+}: {
+  targetId: string;
+  status: SessionView["status"];
+}) {
+  useSourcesAfterTurn(targetId, status);
+  return null;
+}
 
 /** Opens the Target's running setup session, or a new one, and shows its chat. */
 function SetupSession({ targetId }: { targetId: string }) {
+  const attachments = useSourceAttachments(targetId);
   const session = useQuery({
     queryKey: ["targets", targetId, "setup-session"],
     queryFn: async () => openSetupSession(targetId),
@@ -23,7 +38,13 @@ function SetupSession({ targetId }: { targetId: string }) {
     <Chat
       key={session.data.id}
       sessionId={session.data.id}
-      renderAboveInput={(view) => <DraftChanges targetId={targetId} status={view.status} />}
+      renderAboveInput={(view) => (
+        <>
+          <SourcesFollower targetId={targetId} status={view.status} />
+          <DraftChanges targetId={targetId} status={view.status} />
+        </>
+      )}
+      attachments={attachments}
     />
   );
 }

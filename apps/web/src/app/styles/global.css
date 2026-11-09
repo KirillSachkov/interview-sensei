@@ -475,3 +475,67 @@ textarea {
 .plan-topics .tag {
   margin-left: 0;
 }
+
+/* Files of the next message in a chat */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.attach-button {
+  position: relative;
+}
+
+.attached-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  list-style: none;
+}
+
+.attached-file {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-muted);
+  padding: 0 0 0 var(--space-3);
+  font-size: var(--font-size-small);
+}
+
+.attached-file button {
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-small);
+}
+
+/* «Материалы» in the «Цель» zone */
+
+.source-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.source-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.source-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

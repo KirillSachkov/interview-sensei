@@ -3,7 +3,7 @@
 // demo Target, the rest work on it. Later Targets sort after the demo, so `/` still opens it. No
 // other test file creates Targets.
 import { expect, test } from "@playwright/test";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 test.describe.configure({ mode: "serial" });
 
@@ -185,4 +185,64 @@ test("«Настроить цель» returns to the running setup chat", async 
 
   await expect(chat.messages.first()).toContainText("Агент: Фейковый агент получил");
   await expect(chat.messages.last()).toContainText("Агент: Результат set_interview_plan:");
+});
+
+/**
+ * Drops the file onto the element as the Candidate drags it from the desktop. The page builds the
+ * DataTransfer from a string: the tests compile without the DOM types.
+ */
+async function dropFile(page: Page, target: Locator, file: { name: string; text: string }) {
+  const content = JSON.stringify(file.text);
+  const name = JSON.stringify(file.name);
+  const dataTransfer = await page.evaluateHandle(`(() => {
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([${content}], ${name}, { type: "text/plain" }));
+    return transfer;
+  })()`);
+  await target.dispatchEvent("drop", { dataTransfer });
+}
+
+/** «Go-разработчик» with its setup chat, from the canvas of the demo Target. */
+async function openGoSetup(page: Page) {
+  await page.goto("/");
+  await page.getByRole("button", { name: demoName }).click();
+  await page.getByRole("menuitemradio", { name: "Go-разработчик" }).click();
+  const materials = zones(page).goal.getByRole("article", { name: "Материалы" });
+  await expect(materials).toContainText("Материалов пока нет");
+  await zones(page).goal.getByRole("button", { name: "Настроить цель" }).click();
+  const chat = setupChat(page);
+  const attached = chat.panel
+    .getByRole("list", { name: "Прикреплённые файлы" })
+    .getByRole("listitem");
+  return { chat, materials, attached };
+}
+
+/** Attaches two files by 📎, removes one by ✕ and drops a third onto the message input. */
+async function attachFiles({ panel }: ReturnType<typeof setupChat>, page: Page) {
+  await panel.getByLabel("Прикрепить файлы").setInputFiles([
+    { name: "vacancy.txt", mimeType: "text/plain", buffer: Buffer.from("Go-разработчик, Kafka") },
+    { name: "лишний.txt", mimeType: "text/plain", buffer: Buffer.from("Лишнее") },
+  ]);
+  await panel.getByRole("button", { name: "Убрать «лишний.txt»" }).click();
+  await dropFile(page, panel.getByRole("textbox", { name: "Сообщение" }), {
+    name: "resume.txt",
+    text: "Пять лет Go",
+  });
+}
+
+test("files attached in the setup chat go with the message and appear in «Материалы»", async ({
+  page,
+}) => {
+  const { chat, materials, attached } = await openGoSetup(page);
+  await attachFiles(chat, page);
+  await expect(attached).toHaveText([/vacancy\.txt/u, /resume\.txt/u]);
+  await chat.panel.getByLabel("Сообщение").fill("Вот вакансия и резюме");
+
+  await chat.panel.getByRole("button", { name: "Отправить" }).click();
+
+  await expect(chat.messages.last()).toContainText(
+    "Прикреплённые файлы: «vacancy.txt», «resume.txt».",
+  );
+  await expect(attached).toHaveCount(0);
+  await expect(materials.getByRole("listitem")).toHaveText([/vacancy\.txt/u, /resume\.txt/u]);
 });
