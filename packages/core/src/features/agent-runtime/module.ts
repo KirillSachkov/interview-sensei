@@ -46,7 +46,7 @@ export function agentRuntimeModule({
     environment === undefined ? [] : agentKinds.filter((agent) => isRealAgent(agent));
   return createAgentRuntime({
     agents: fakeAgent ? ["fake"] : realAgents,
-    inspectHost: inspectAgentHost(environment ?? { home: dataDirectory, env: {} }),
+    inspectHost: inspectAgentHost(environment ?? { home: dataDirectory, env: {} }, timer),
     dataDirectory,
     readSkill: skillDirectory(skillsDirectory),
     // The fake agent needs none of the Candidate's variables.

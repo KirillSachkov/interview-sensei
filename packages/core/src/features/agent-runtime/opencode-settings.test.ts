@@ -48,9 +48,14 @@ describe("opencode model settings", () => {
     expect(opencodeModelSettings([null, null, null])).toStrictEqual({});
   });
 
-  it("takes nothing from invalid JSON or a model that is not a string", () => {
+  it("takes nothing from invalid JSON or a model that is neither a string nor a 2.x reference", () => {
     expect(
-      opencodeModelSettings(['{"model": "deepseek/', "[]", '{"model": 7, "small_model": null}']),
+      opencodeModelSettings([
+        '{"model": "deepseek/',
+        "[]",
+        '{"model": 7, "small_model": null}',
+        '{"model": {"providerID": "deepseek"}}',
+      ]),
     ).toStrictEqual({});
   });
 
@@ -75,5 +80,41 @@ describe("opencode model settings", () => {
   it("reads a file that starts with a UTF-8 byte order mark, as Windows editors save it", () => {
     const withBom = `\uFEFF${JSON.stringify({ model: "deepseek/deepseek-flash" })}`;
     expect(opencodeModelSettings([withBom])).toStrictEqual({ model: "deepseek/deepseek-flash" });
+  });
+});
+
+describe("opencode model settings in the 2.x keys", () => {
+  const minimax = { options: { apiKey: "minimax-key" } };
+
+  it("takes the model and its entry of the 2.x `providers`", () => {
+    const config = { model: "deepseek/deepseek-flash", providers: { deepseek, minimax } };
+    expect(opencodeModelSettings([JSON.stringify(config)])).toStrictEqual({
+      model: "deepseek/deepseek-flash",
+      providers: { deepseek },
+    });
+  });
+
+  it("takes a model given as a 2.x reference with its provider entry", () => {
+    const model = { providerID: "deepseek", model: "deepseek-flash", variant: "high" };
+    const config = { model, providers: { deepseek, minimax }, agents: { build: { system: "x" } } };
+    expect(opencodeModelSettings([JSON.stringify(config)])).toStrictEqual({
+      model,
+      providers: { deepseek },
+    });
+  });
+
+  it("takes the provider entries of both the 1.x and the 2.x keys", () => {
+    const config = {
+      model: "deepseek/deepseek-flash",
+      small_model: "minimax/m2",
+      provider: { minimax },
+      providers: { deepseek },
+    };
+    expect(opencodeModelSettings([JSON.stringify(config)])).toStrictEqual({
+      model: "deepseek/deepseek-flash",
+      small_model: "minimax/m2",
+      provider: { minimax },
+      providers: { deepseek },
+    });
   });
 });

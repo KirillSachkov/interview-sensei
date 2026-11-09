@@ -18,9 +18,10 @@ function modeOption(session: NewSessionResponse, mode: string) {
 
 /**
  * Sets the recipe's mode, so the Candidate's own mode never applies; for OpenCode the mode is the
- * recipe's own agent. The adapters and OpenCode 1.15 list modes in `modes`; OpenCode 1.17 and
- * later offer them only as the config option `mode`. An agent that does not offer the mode either
- * way does not start.
+ * recipe's own agent. The adapters and OpenCode 1.15 list modes in `modes`. OpenCode 1.17 and
+ * later list them only in `configOptions`, as the option `mode`; they still accept
+ * `session/set_mode`, but the server sets the mode the way the agent listed it. An agent that
+ * lists the mode neither way does not start.
  */
 export async function setMode(
   agent: ClientContext,

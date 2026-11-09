@@ -93,7 +93,7 @@ function opencodeHomes(root: string) {
 
 /**
  * The whole config of the session: the Candidate's model, our limits, the skill and the agent.
- * The model keys are those of 1.x, which 2.x migrates itself.
+ * The Candidate's model keys pass as they are; 2.x migrates the 1.x ones itself.
  */
 function opencodeConfigContent(
   host: AgentHost,
@@ -125,8 +125,8 @@ export function opencodeRecipe({
     env: {
       ...homes,
       OPENCODE_DISABLE_CLAUDE_CODE: "1",
-      // Only 1.x reads this flag; 2.x gets the policies of `configV2` instead.
-      ...(schema === "1.x" ? { OPENCODE_DISABLE_EXTERNAL_SKILLS: "1" } : {}),
+      // 1.x reads this flag; 2.2.6 does not, so 2.x gets the policies of `configV2` as well.
+      OPENCODE_DISABLE_EXTERNAL_SKILLS: "1",
       OPENCODE_DISABLE_PROJECT_CONFIG: "1",
       OPENCODE_CONFIG_CONTENT: opencodeConfigContent(host, { schema, profile, skillsPath }),
     },

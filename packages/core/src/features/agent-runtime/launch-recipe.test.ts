@@ -125,12 +125,9 @@ describe("launch recipe", () => {
     });
   });
 
-  it.each([
-    ["1.x", opencodeVersions.v1, { OPENCODE_DISABLE_EXTERNAL_SKILLS: "1" }],
-    ["2.x", opencodeVersions.v2, {}],
-  ])(
+  it.each(Object.entries(opencodeVersions))(
     "starts OpenCode %s from PATH with its own XDG directories and its own config",
-    (_schema, opencodeVersion, skillFlag) => {
+    (_schema, opencodeVersion) => {
       const root = `${dataDirectory}/agents/opencode`;
       const skills = `${root}/skills/probe-skill`;
       const { env, ...launch } = recipe("opencode", { opencodeVersion });
@@ -145,7 +142,8 @@ describe("launch recipe", () => {
           XDG_STATE_HOME: `${root}/state`,
           XDG_CACHE_HOME: `${root}/cache`,
           OPENCODE_DISABLE_CLAUDE_CODE: "1",
-          ...skillFlag,
+          // 2.2.6 no longer reads this flag; it stays in case a 2.x release reads it again.
+          OPENCODE_DISABLE_EXTERNAL_SKILLS: "1",
           OPENCODE_DISABLE_PROJECT_CONFIG: "1",
         },
         sessionMeta: null,

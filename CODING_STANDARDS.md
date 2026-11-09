@@ -84,13 +84,14 @@ At each start the runtime reads the skill from `skills/`, or from its copy in th
 | Claude Code | ACP `systemPrompt`, `append` | local plugin `interview-sensei` in `agents/claude/skills/<skill>`; `skills` lists only `interview-sensei:<skill>` | `disallowedTools`: `Bash`; `WebFetch`, `WebSearch` |
 | Codex | ACP `systemPrompt`, `append` | `.agents/skills` of the ACP `additionalDirectories` entry `agents/codex/skills/<skill>` | `CODEX_CONFIG`: `features.shell_tool = false`; `web_search = "disabled"` |
 | OpenCode 1.x | `prompt` of its own primary agent `interview-sensei` in `agent`, selected as the session's mode | `skills.paths` with `agents/opencode/skills/<skill>`; `OPENCODE_DISABLE_EXTERNAL_SKILLS` | that agent's `permission`: `bash`; `webfetch`, `websearch` = `deny` |
-| OpenCode 2.x | `system` of the same agent in `agents`, also `default_agent`, selected as the session's mode | `skills` with the same path; `policies`: `skill.use` only for `<skill>` | that agent's `permissions`: `shell`; `webfetch`, `websearch` = `deny` |
+| OpenCode 2.x | `system` of the same agent in `agents`, also `default_agent`, selected as the session's mode | `skills` with the same path; `policies`: `skill.use` only for `<skill>`; `OPENCODE_DISABLE_EXTERNAL_SKILLS` as a backup | that agent's `permissions`: `shell`; `webfetch`, `websearch` = `deny` |
 | fake | ACP `systemPrompt`, `append` | as Codex, in `agents/fake/skills/<skill>` | `_meta.fakeAgent.disallowedTools` |
 
 The OpenCode recipe writes the config keys of the installed version.
 `inspectAgentHost` runs only `opencode --version`: 1.x prints `1.18.30`, 2.x prints `opencode v2.2.6`.
+After 5 seconds on the injected `Timer` it kills the process with SIGKILL and stops reading, so the version is unknown.
 `opencodeConfigSchema` picks 2.x for a major version of 2 or more, and 1.x for any other answer or none: 2.x still reads the 1.x keys, but older 1.x releases do not read the 2.x keys.
-2.x reads `~/.agents/skills` despite every flag, so its `policies` deny every skill except the profile's.
+2.2.6 reads `~/.agents/skills` despite `OPENCODE_DISABLE_EXTERNAL_SKILLS`, so its `policies` deny every skill except the profile's.
 The launcher sets the mode with `session/set_mode` when `session/new` lists it in `modes`.
 Otherwise it sets the config option of category `mode`: OpenCode 1.17 and later offer their agents only there.
 An agent without the ACP capability for the recipe's `systemPrompt` or `additionalDirectories` does not start, and neither does one that does not offer the recipe's mode either way.
@@ -146,12 +147,15 @@ It never writes into the Candidate's agent directories, such as `~/.claude`, `~/
 Claude Code is the exception, approved by the owner in #24.
 It keeps the Candidate's config directory, `CLAUDE_CONFIG_DIR` or `~/.claude`, because it ties the Keychain login to it.
 So Claude Code writes its own state there; the recipe isolates it with `settingSources: []` and `persistSession: false`.
-It reads one thing more there: the OpenCode recipe takes `model`, `small_model` and their `provider` entries from the Candidate's global OpenCode config.
-The recipe passes these 1.x keys as they are; OpenCode 2.x migrates them itself, but `providers` and other 2.x keys of that config stay out.
-`opencodeModelSettings` in `agent-runtime/domain/opencode-settings.ts` picks them; other keys, such as `mcp`, `permission` or `instructions`, never reach the agent.
+It reads one thing more there: the OpenCode recipe takes the Candidate's model from the global OpenCode config.
+It takes `model`, as `provider/model` or as the 2.x reference `{ providerID, model, variant }`, and `small_model`.
+It takes their provider entries from both `provider` (1.x) and `providers` (2.x).
+The recipe passes these keys as they are; OpenCode 2.x migrates the 1.x ones itself.
+The 2.x small model in `agents.title.model` stays out with the rest of `agents`.
+`opencodeModelSettings` in `agent-runtime/domain/opencode-settings.ts` picks them; other keys, such as `mcp`, `permission`, `agents` or `instructions`, never reach the agent.
 The server never logs or journals that config.
 The model comes from `config.json`, `opencode.json` and `opencode.jsonc` in `$XDG_CONFIG_HOME/opencode` or `~/.config/opencode`.
-The recipe passes the copied `provider` entries in `OPENCODE_CONFIG_CONTENT`, which has no file location.
+The recipe passes the copied provider entries in `OPENCODE_CONFIG_CONTENT`, which has no file location.
 So a relative `{file:...}` in such an entry may not resolve; `~/` and absolute paths do.
 The recipe drops `OPENCODE_CONFIG`, so it ignores a model that the Candidate chose only in that file.
 The agent gets the Candidate's env without `OPENCODE_CONFIG`, `OPENCODE_CONFIG_DIR`, `CODEX_HOME` and `INTERVIEW_SENSEI_*`; the recipe's variables go over it.

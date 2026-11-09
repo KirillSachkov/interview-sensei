@@ -111,4 +111,15 @@ describe("opencode recipe with the Candidate's model", () => {
       });
     },
   );
+
+  it("puts the Candidate's model in the 2.x keys as they are into the config of OpenCode 2.x", () => {
+    const native = {
+      model: { providerID: "deepseek", model: "deepseek-flash" },
+      providers: { deepseek },
+    };
+    const opencodeVersion = opencodeVersions.v2;
+    expect(opencodeConfig(lockedProfile, { opencodeModel: native, opencodeVersion })).toMatchObject(
+      native,
+    );
+  });
 });

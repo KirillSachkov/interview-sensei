@@ -1,14 +1,68 @@
 // What the server finds about the agents on a machine. A temporary directory stands for the
 // Candidate's home and PATH, so the test never reads the real ones.
-import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rm, watch, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { describe, expect, it, onTestFinished } from "vitest";
 
+import type { Timer } from "../../../shared/time/index.ts";
 import { agentAvailability } from "../domain/agent.ts";
 import { opencodeConfigSchema } from "../domain/opencode-recipe.ts";
 import { inspectAgentHost } from "./installation.ts";
+
+/** A timer that never runs a task: these inspections answer before any timeout. */
+const idleTimer: Timer = { repeat: () => () => {}, after: () => () => {} };
+
+/** A timer whose one delayed task the test runs by hand, as if its delay had passed. */
+function handTimer() {
+  const scheduled = Promise.withResolvers<() => void>();
+  const timer: Timer = {
+    repeat: () => () => {},
+    after: (_delayMs, task) => {
+      scheduled.resolve(task);
+      return () => {};
+    },
+  };
+  return { timer, scheduled: scheduled.promise };
+}
+
+/** Resolves once the file exists in its directory; waits on file events, never sleeps. */
+async function fileAppears(file: string): Promise<void> {
+  const events = watch(path.dirname(file));
+  if (await exists(file)) {
+    return;
+  }
+  for await (const event of events) {
+    if (event.filename === path.basename(file) && (await exists(file))) {
+      return;
+    }
+  }
+}
+
+async function exists(file: string): Promise<boolean> {
+  try {
+    await readFile(file);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * A stub `opencode` that never answers: it ignores SIGTERM, and `exec` keeps that for the sleep
+ * that holds stdout open. It writes its process id to `pidFile` first.
+ */
+async function hangingOpencode() {
+  const home = await temporaryHome();
+  const bin = path.join(home, "bin");
+  const pidFile = path.join(home, "pid");
+  await mkdir(bin, { recursive: true });
+  const script = path.join(bin, "opencode");
+  await writeFile(script, `#!/bin/sh\ntrap '' TERM\necho $$ > '${pidFile}'\nexec /bin/sleep 600\n`);
+  await chmod(script, 0o700);
+  return { home, bin, pidFile };
+}
 
 async function temporaryHome(): Promise<string> {
   const home = await mkdtemp(path.join(tmpdir(), "interview-sensei-home-"));
@@ -41,14 +95,14 @@ async function stubOpencode(bin: string, { output, code = 0 }: { output: string;
 }
 
 async function availabilityIn(home: string, env: Record<string, string> = {}) {
-  const host = await inspectAgentHost({ home, env })();
+  const host = await inspectAgentHost({ home, env }, idleTimer)();
   const [codex, opencode] = agentAvailability(["codex", "opencode"], host);
   return { codex, opencode };
 }
 
 describe("agent host inspection", () => {
   it("finds both adapters in the installation's dependencies", async () => {
-    const host = await inspectAgentHost({ home: await temporaryHome(), env: {} })();
+    const host = await inspectAgentHost({ home: await temporaryHome(), env: {} }, idleTimer)();
 
     expect(host.claudeAdapter).toMatch(/claude-agent-acp[/\\]dist[/\\]index\.js$/u);
     expect(host.codexAdapter).toMatch(/codex-acp[/\\]dist[/\\]index\.js$/u);
@@ -80,7 +134,7 @@ describe("agent host inspection", () => {
     const codexHome = path.join(home, "elsewhere");
     await placeFile(path.join(codexHome, "auth.json"));
 
-    const host = await inspectAgentHost({ home, env: { CODEX_HOME: codexHome } })();
+    const host = await inspectAgentHost({ home, env: { CODEX_HOME: codexHome } }, idleTimer)();
 
     expect(host.codexAuth).toStrictEqual({ path: path.join(codexHome, "auth.json"), exists: true });
   });
@@ -101,10 +155,8 @@ describe("agent host inspection", () => {
     const second = path.join(home, "second");
     await placeFile(path.join(second, "opencode"), 0o700);
 
-    const host = await inspectAgentHost({
-      home,
-      env: { PATH: [first, second].join(path.delimiter) },
-    })();
+    const env = { PATH: [first, second].join(path.delimiter) };
+    const host = await inspectAgentHost({ home, env }, idleTimer)();
 
     expect(host.opencodeBinary).toBe(path.join(second, "opencode"));
   });
@@ -113,7 +165,7 @@ describe("agent host inspection", () => {
     const home = await temporaryHome();
     await placeFile(path.join(home, ".local", "share", "opencode", "auth.json"));
 
-    const host = await inspectAgentHost({ home, env: {} })();
+    const host = await inspectAgentHost({ home, env: {} }, idleTimer)();
 
     expect(host.opencodeAuth.exists).toBe(true);
   });
@@ -125,7 +177,7 @@ describe("agent host inspection", () => {
     await mkdir(path.dirname(file), { recursive: true });
     await writeFile(file, content);
 
-    const host = await inspectAgentHost({ home, env: {} })();
+    const host = await inspectAgentHost({ home, env: {} }, idleTimer)();
 
     expect(host.opencodeModel).toStrictEqual({ model: "deepseek/deepseek-flash" });
     await expect(readFile(file, "utf8")).resolves.toBe(content);
@@ -137,7 +189,10 @@ describe("agent host inspection", () => {
     await mkdir(path.join(configHome, "opencode"), { recursive: true });
     await writeFile(path.join(configHome, "opencode", "opencode.jsonc"), '{"small_model":"a/b",}');
 
-    const host = await inspectAgentHost({ home, env: { XDG_CONFIG_HOME: configHome } })();
+    const host = await inspectAgentHost(
+      { home, env: { XDG_CONFIG_HOME: configHome } },
+      idleTimer,
+    )();
 
     expect(host.opencodeModel).toStrictEqual({ small_model: "a/b" });
   });
@@ -146,7 +201,7 @@ describe("agent host inspection", () => {
     const home = await temporaryHome();
     await mkdir(path.join(home, ".config", "opencode", "opencode.json"), { recursive: true });
 
-    const host = await inspectAgentHost({ home, env: {} })();
+    const host = await inspectAgentHost({ home, env: {} }, idleTimer)();
 
     expect(host.opencodeModel).toStrictEqual({});
   });
@@ -161,7 +216,7 @@ describe("opencode version inspection", () => {
     const bin = path.join(home, "bin");
     const { calls } = await stubOpencode(bin, { output });
 
-    const host = await inspectAgentHost({ home, env: { PATH: bin } })();
+    const host = await inspectAgentHost({ home, env: { PATH: bin } }, idleTimer)();
 
     expect(host.opencodeVersion).toBe(output);
     expect(opencodeConfigSchema(host.opencodeVersion)).toBe(schema);
@@ -173,10 +228,28 @@ describe("opencode version inspection", () => {
     const bin = path.join(home, "bin");
     await stubOpencode(bin, { output: "opencode v2.2.6", code: 1 });
 
-    const failed = await inspectAgentHost({ home, env: { PATH: bin } })();
-    const missing = await inspectAgentHost({ home, env: { PATH: path.join(home, "none") } })();
+    const failed = await inspectAgentHost({ home, env: { PATH: bin } }, idleTimer)();
+    const missing = await inspectAgentHost(
+      { home, env: { PATH: path.join(home, "none") } },
+      idleTimer,
+    )();
 
     expect(failed.opencodeVersion).toBeNull();
     expect(missing.opencodeVersion).toBeNull();
+  });
+
+  it("gives up on an `opencode --version` that hangs and ignores SIGTERM, and kills it", async () => {
+    const { home, bin, pidFile } = await hangingOpencode();
+    const { timer, scheduled } = handTimer();
+
+    const inspected = inspectAgentHost({ home, env: { PATH: bin } }, timer)();
+    await fileAppears(pidFile);
+    const timeout = await scheduled;
+    timeout();
+    const host = await inspected;
+
+    expect(host.opencodeVersion).toBeNull();
+    const pid = Number(await readFile(pidFile, "utf8"));
+    expect(() => process.kill(pid, 0)).toThrow(/ESRCH/u);
   });
 });

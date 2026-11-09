@@ -75,7 +75,7 @@ async function fakeRecipe(): Promise<LaunchRecipe> {
   return launchRecipe({
     agent: "fake",
     profile,
-    host: await inspectAgentHost({ home: dataDirectory, env: {} })(),
+    host: await inspectAgentHost({ home: dataDirectory, env: {} }, idleTimer)(),
     dataDirectory,
     sessionDirectory: path.join(dataDirectory, "sessions", "1"),
   });
