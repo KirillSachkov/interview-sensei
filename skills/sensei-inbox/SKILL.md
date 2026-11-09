@@ -66,14 +66,16 @@ The server adds what it counted itself: the processed materials, the added Quest
 
 ## Unreadable materials
 
-A material the server could not read is not in this processing's work: `list_inbox` shows it with the status `failed` and the reason, such as «приложите транскрипт» for a video. Skip it.
-When the text of a material is garbled, or a link does not open on the web either, call `mark_source_failed` with its id and a short reason in Russian, such as «страница не открылась».
+A file the server could not read is not in this processing's work: `list_inbox` shows it with the status `failed` and the reason, such as «приложите транскрипт» for a video. Skip it.
+A web page the server could not read stays in the work with `parts` null: see [Web](#web).
+When the text of a material is garbled, or a page does not open on the web either, call `mark_source_failed` with its id and a short reason in Russian, such as «страница не открылась».
 A readable material that is off the topic is not an error: say so in the report's summary.
 
 ## Web
 
-When a material is a link whose text `read_source` lacks, you may open the page on the web and take Questions from it.
-Give such a Question the material's `sourceId` and part 1, and no reference answer unless the page answers it.
+A link with `parts` null is a web page the server could not read. Open its `url` on the web and take Questions from it.
+Give such a Question the material's `sourceId` and no `part`; give a reference answer only when the page answers it.
+The material becomes «готов» by your report; when you stop before the report, it goes back to the Inbox.
 
 ## Recheck
 

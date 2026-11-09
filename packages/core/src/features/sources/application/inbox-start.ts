@@ -105,25 +105,38 @@ async function storeParts({ dependencies }: InboxContext, source: Source): Promi
   await repository.setParts(source.targetId, source.id, parts.length);
 }
 
-/** Reads the Source's text into parts; a Source the server cannot read gets «ошибка». */
+/** Gives the Source the server could not read «ошибка» with the reason. */
+async function markUnreadable({ dependencies }: InboxContext, source: Source, error: unknown) {
+  const failure =
+    error instanceof UnreadableSourceError ? error.message : "материал не удалось прочитать";
+  const change = { ids: [source.id], status: "failed", failure, from: "processing" } as const;
+  await dependencies.repository.setStatus(source.targetId, change);
+}
+
+/**
+ * Reads the Source's text into parts; a Source the server cannot read gets «ошибка». A web page the
+ * server could not read stays «разбирается» without parts: the agent opens it on the web.
+ */
 async function readText(context: InboxContext, source: Source): Promise<boolean> {
-  const { repository, onError } = context.dependencies;
   try {
     await storeParts(context, source);
     return true;
   } catch (error) {
     if (!(error instanceof UnreadableSourceError)) {
-      onError(error);
+      context.dependencies.onError(error);
     }
-    const failure =
-      error instanceof UnreadableSourceError ? error.message : "материал не удалось прочитать";
-    const change = { ids: [source.id], status: "failed", failure, from: "processing" } as const;
-    await repository.setStatus(source.targetId, change);
+    if (textFormat(source) === "web") {
+      return true;
+    }
+    await markUnreadable(context, source, error);
     return false;
   }
 }
 
-/** Reads the texts one at a time: a large file never waits beside another one in memory. */
+/**
+ * Reads the texts one at a time: a large file never waits beside another one in memory. Counts the
+ * materials the agent can process.
+ */
 async function readTexts(context: InboxContext, sources: readonly Source[]): Promise<number> {
   let readable = 0;
   for (const source of sources) {

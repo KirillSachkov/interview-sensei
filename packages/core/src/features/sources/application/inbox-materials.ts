@@ -27,7 +27,9 @@ async function partText(
     throw new Error("Source not found");
   }
   if (source.parts === null) {
-    throw new Error("The server has not read this material's text");
+    throw new Error(
+      "The server could not read this page: open its url on the web and add its Questions without a part, or call mark_source_failed",
+    );
   }
   const text = part <= source.parts ? await dependencies.texts.read(targetId, id, part) : undefined;
   if (text === undefined) {

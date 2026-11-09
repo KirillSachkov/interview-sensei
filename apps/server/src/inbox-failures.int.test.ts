@@ -1,6 +1,7 @@
 // Seam 1 of spec #47: the status «ошибка» of a material with its reason. The agent gives it with
 // mark_source_failed; the server gives it to a format it cannot read, to a material without text
-// and to a video without a transcript.
+// and to a video without a transcript. A web page the server could not read stays for the agent,
+// which opens it on the web.
 import type { FastifyInstance } from "fastify";
 import { describe, expect, it } from "vitest";
 
@@ -14,9 +15,12 @@ import {
   processingEvents,
   readParts,
   startProcessing,
+  stopProcessing,
   textOf,
+  topicOf,
 } from "./inbox-test-support.ts";
 import { reportOf } from "./inbox-report-test-support.ts";
+import { localPage, materialQuestion } from "./material-test-support.ts";
 import { api, appliedTarget, callTool, toolResult } from "./setup-test-support.ts";
 import { sources } from "./source-test-support.ts";
 
@@ -44,6 +48,37 @@ async function ending(server: FastifyInstance, targetId: string) {
     unprocessed,
     report: { partial, added, summary },
     processingSessions: sessions.filter((session) => session.kind === "inbox-processing").length,
+  };
+}
+
+/** A link to a page that answers 404 on a local HTTP server. */
+async function missingPage(): Promise<string> {
+  const page = await localPage("<p>?</p>");
+  return page.replace(/\/page$/u, "/missing");
+}
+
+/** A processing of one link that the server cannot read, with its agent waiting for commands. */
+async function unreadableLink() {
+  const { server, target, setup } = await activeTarget();
+  const url = await missingPage();
+  const link = await addLink(setup, { title: "Статья [manual]", url });
+  await startProcessing(server, target.id);
+  const { events } = await processingEvents(server, target.id);
+  return { server, target, url, link, events };
+}
+
+/** The agent's tool calls for an unread page: list, read, a Question with a part and without. */
+async function webCalls({ target, link, events }: Awaited<ReturnType<typeof unreadableLink>>) {
+  const question = materialQuestion(
+    { topicId: topicOf(target, "Go"), sourceId: link },
+    "Что такое канал?",
+  );
+  const { part: _part, ...withoutPart } = question;
+  return {
+    listed: await toolResult(events, "list_inbox", {}),
+    read: await callTool(events, "read_source", { id: link, part: 1 }),
+    withPart: await callTool(events, "add_bank_questions", { questions: [question] }),
+    added: await toolResult(events, "add_bank_questions", { questions: [withoutPart] }),
   };
 }
 
@@ -135,5 +170,40 @@ describe("the status «ошибка» of a material", () => {
     await expect(readParts(events, transcript.id, 1)).resolves.toStrictEqual([
       "Расскажите про горутины.",
     ]);
+  });
+
+  it("a web page the server could not read stays «разбирается» without parts: the agent adds its Questions without a part, and its report makes the page «готов»", async () => {
+    const processing = await unreadableLink();
+    const { server, target, url, link, events } = processing;
+
+    const replies = await webCalls(processing);
+    const written = await toolResult(events, "write_inbox_report", { summary: "Статья." });
+
+    expect(replies).toMatchObject({
+      listed: [{ id: link, status: "processing", parts: null, url }],
+      read: "Ошибка read_source: The server could not read this page: open its url on the web and add its Questions without a part, or call mark_source_failed",
+      withPart: `Ошибка add_bank_questions: The server could not read the Source ${link}: give no part`,
+      added: { added: [{ text: "Что такое канал?" }], duplicates: [] },
+    });
+    await expect(settled(server, target.id)).resolves.toStrictEqual({
+      "Статья [manual]": { status: "ready", failure: null },
+    });
+    const report = await reportOf(server, target.id, textOf(written, "reportId"));
+    const questions = report.sections.flatMap((section) =>
+      section.topics.flatMap((topic) => topic.questions),
+    );
+    expect(questions).toMatchObject([
+      { source: { id: link, part: null }, referenceAnswer: { origin: "material", part: null } },
+    ]);
+  });
+
+  it("a web page the server could not read goes back to the Inbox when the processing stops before the agent's report", async () => {
+    const { server, target } = await unreadableLink();
+
+    await expect(stopProcessing(server, target.id)).resolves.toMatchObject({ statusCode: 200 });
+
+    await expect(settled(server, target.id)).resolves.toStrictEqual({
+      "Статья [manual]": { status: "inbox", failure: null },
+    });
   });
 });

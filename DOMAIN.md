@@ -115,6 +115,8 @@ The agent's own Inbox report moves the Sources by the same rule: a Source the ag
 Where a Source is in Inbox processing: «в Inbox» until processing starts, «разбирается» during it, «готов» after it, or «ошибка» with the reason when the Source could not be read.
 The server gives «ошибка» to a format it cannot read, archives included, to a Source without text, and to a video file or a video link: «приложите транскрипт».
 The Candidate attaches the video's transcript as a Source of its own, and Inbox processing reads it as text.
+A web page the server could not read stays «разбирается» without parts: the agent opens it on the web, and its Questions have no part.
+It becomes «готов» by the agent's Inbox report and goes back to the Inbox when processing ends without one.
 The agent gives «ошибка» with its reason to a Source it cannot read either.
 
 **Inbox report**:

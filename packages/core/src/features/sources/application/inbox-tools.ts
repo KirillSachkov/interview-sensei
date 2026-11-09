@@ -57,7 +57,7 @@ function listInbox(inbox: Inbox) {
   return sessionTool({
     name: "list_inbox",
     description:
-      "Lists the materials of this Inbox processing: id, type, title, URL, status and `parts`, the number of numbered parts of the text that the server extracted. Read each with read_source.",
+      "Lists the materials of this Inbox processing: id, type, title, URL, status and `parts`, the number of numbered parts of the text that the server extracted. Read each with read_source. `parts` is null for a web page the server could not read: open its URL on the web.",
     input: z.strictObject({}),
     run: async (_input, session) => JSON.stringify(await inbox.listInbox(session)),
   });
@@ -97,7 +97,7 @@ function addBankQuestions(inbox: Inbox) {
   return sessionTool({
     name: "add_bank_questions",
     description:
-      "Adds Questions from the materials straight into the Target's bank, each in a Topic by id, with its level, the Section kind it fits, the Source and the number of the part it comes from. A Question you make up without a material gets no `sourceId`, `part` or `referenceAnswer`; the app marks it «не подтверждён» until the Candidate confirms it. Give `referenceAnswer` only when the material itself answers the Question: 3–5 key points and a short sample answer; the app marks it «из материала». A quiz has options with ids and the ids of the correct ones. The tool leaves out duplicates of the Target's Questions by text, ignoring case, spaces and punctuation, returns them in `duplicates` and counts them for the report.",
+      "Adds Questions from the materials straight into the Target's bank, each in a Topic by id, with its level, the Section kind it fits, the Source and the number of the part it comes from. A Question from a web page the server could not read (`parts` null) gets its `sourceId` and no `part`. A Question you make up without a material gets no `sourceId`, `part` or `referenceAnswer`; the app marks it «не подтверждён» until the Candidate confirms it. Give `referenceAnswer` only when the material itself answers the Question: 3–5 key points and a short sample answer; the app marks it «из материала». A quiz has options with ids and the ids of the correct ones. The tool leaves out duplicates of the Target's Questions by text, ignoring case, spaces and punctuation, returns them in `duplicates` and counts them for the report.",
     input: z.strictObject({ questions: z.array(materialQuestion).min(1) }),
     run: async ({ questions }, session) =>
       JSON.stringify(await inbox.addBankQuestions(session, questions)),

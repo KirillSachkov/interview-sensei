@@ -167,7 +167,9 @@ async function storeReport(
   const { targetId, run } = await runOf(context, session, opened);
   await checkHide(context, { targetId, input }, opened);
   const now = clock.now().toISOString();
-  const { ready, back } = settledSources(run, await repository.list(targetId, opened));
+  const { ready, back } = settledSources(run, await repository.list(targetId, opened), {
+    reported: true,
+  });
   const report: InboxReport = {
     id: randomUUID(),
     targetId,

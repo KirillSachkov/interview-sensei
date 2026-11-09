@@ -34,7 +34,10 @@ export interface BriefSource {
   readonly id: string;
   readonly type: string;
   readonly title: string;
+  /** The link of a web page; null for a file. */
+  readonly url: string | null;
   readonly status: string;
+  /** Null for a web page the server could not read. */
   readonly parts: number | null;
   readonly failure: string | null;
 }
@@ -97,6 +100,7 @@ export function inboxBrief(
   return [
     `Mode: ${mode}. You process the Target's materials in the background; the Candidate does not read your messages.`,
     "Read each material with read_source, part by part, from part 1 to its last part: never skip a part.",
+    "A web page whose parts are null is one the server could not read: open its url on the web and add its Questions without a part, or call mark_source_failed when it does not open.",
     "Add Questions with add_bank_questions into the Topics of the Sections below, with the Source and the part each comes from, its level and the Section kind.",
     "Give a reference answer only from the material itself: 3–5 key points and a short sample answer. Without an answer in the material, give none.",
     "Create a missing Topic with create_topic inside an existing Section. Never change Sections or the plan: propose new Sections and Preferences in the report.",

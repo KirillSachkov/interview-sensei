@@ -171,17 +171,21 @@ function readWhole(run: InboxRun, { id, parts }: RunSource): boolean {
 }
 
 /**
- * Where the run's Sources go when it ends, by the agent's report or without it: of the Sources
- * still «разбирается», those whose every part the agent read become «готов» (`ready`); the rest
- * go back to the Inbox (`back`). A Source with «ошибка» keeps it; `failed` counts them.
+ * Where the run's Sources go when it ends, by the agent's report (`reported`) or without it: of the
+ * Sources still «разбирается», those whose every part the agent read become «готов» (`ready`); the
+ * rest go back to the Inbox (`back`). A web page the server could not read has no parts: the agent
+ * read it on the web, so it becomes «готов» only by the agent's report. A Source with «ошибка»
+ * keeps it; `failed` counts them.
  */
 export function settledSources(
   run: InboxRun,
   sources: readonly RunSource[],
+  { reported }: { reported: boolean },
 ): { readonly ready: string[]; readonly back: string[]; readonly failed: number } {
   const own = sources.filter((source) => run.sourceIds.includes(source.id));
   const processing = own.filter((source) => source.status === "processing");
-  const ready = processing.filter((source) => readWhole(run, source)).map((source) => source.id);
+  const done = (source: RunSource) => (source.parts === null ? reported : readWhole(run, source));
+  const ready = processing.filter((source) => done(source)).map((source) => source.id);
   const back = processing.map((source) => source.id).filter((source) => !ready.includes(source));
   const failed = own.filter((source) => source.status === "failed").length;
   return { ready, back, failed };
@@ -204,7 +208,7 @@ export function partialReport(
   sources: readonly RunSource[],
   { id, reason, createdAt }: { id: string; reason: RunEnding; createdAt: string },
 ): { readonly report: InboxReport; readonly ready: string[]; readonly back: string[] } {
-  const { ready, back, failed } = settledSources(run, sources);
+  const { ready, back, failed } = settledSources(run, sources, { reported: false });
   const summary = partialSummary(run, {
     reason,
     ready: ready.length,

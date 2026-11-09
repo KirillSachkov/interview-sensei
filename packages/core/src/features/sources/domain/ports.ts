@@ -233,7 +233,8 @@ export interface InboxNewQuestion {
     readonly sample: string;
     readonly origin: "material";
     readonly sourceId: string;
-    readonly part: number;
+    /** Null for a web page the server could not read. */
+    readonly part: number | null;
   } | null;
 }
 

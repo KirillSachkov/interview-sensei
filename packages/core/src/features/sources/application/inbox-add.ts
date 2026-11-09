@@ -34,22 +34,33 @@ function checkMadeUp(question: MaterialQuestion): void {
   }
 }
 
-/** Refuses a part the run's material does not have. */
+/** Refuses a part the material lacks; a material without parts takes no part. */
+function checkPartOf(source: Source, part: number | undefined): void {
+  if (source.parts === null) {
+    if (part !== undefined) {
+      throw new Error(`The server could not read the Source ${source.id}: give no part`);
+    }
+  } else if (part === undefined) {
+    throw new Error(`Give the part of the Source ${source.id}`);
+  } else if (part > source.parts) {
+    throw new Error(`The Source ${source.id} has no part ${part}`);
+  }
+}
+
+/**
+ * Refuses a part the run's material does not have. A web page the server could not read has no
+ * parts: the agent read it on the web, so its Questions come without a part.
+ */
 function checkPart(
   { sourceId, part }: { sourceId: string; part: number | undefined },
   sources: readonly Source[],
   run: InboxRun,
 ): void {
-  if (part === undefined) {
-    throw new Error(`Give the part of the Source ${sourceId}`);
-  }
   const source = sources.find((candidate) => candidate.id === sourceId);
   if (source === undefined || !run.sourceIds.includes(source.id)) {
     throw new Error(`The Source ${sourceId} is not a material of this processing`);
   }
-  if (source.parts === null || part > source.parts) {
-    throw new Error(`The Source ${sourceId} has no part ${part}`);
-  }
+  checkPartOf(source, part);
 }
 
 /**
@@ -73,12 +84,9 @@ function checkSources(
 function bankQuestion(question: MaterialQuestion, createdAt: string): InboxNewQuestion {
   const { referenceAnswer, sourceId, part } = question;
   const answer =
-    referenceAnswer === undefined ||
-    referenceAnswer === null ||
-    sourceId === undefined ||
-    part === undefined
+    referenceAnswer === undefined || referenceAnswer === null || sourceId === undefined
       ? null
-      : { ...referenceAnswer, origin: "material" as const, sourceId, part };
+      : { ...referenceAnswer, origin: "material" as const, sourceId, part: part ?? null };
   return {
     id: randomUUID(),
     topicId: question.topicId,
