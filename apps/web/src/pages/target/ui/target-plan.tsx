@@ -94,8 +94,10 @@ function SectionHead({
     <div className="plan-head">
       <span className="plan-number">{number}</span>
       <span className="plan-name">{section.name}</span>
-      <span className="tag">{kindNames[section.kind]}</span>
-      {section.enabled ? null : <span className="tag">выключена</span>}
+      <span className="plan-kinds">
+        <span className="tag">{kindNames[section.kind]}</span>
+        {section.enabled ? null : <span className="tag">выключена</span>}
+      </span>
       <span className="plan-tools">
         <SectionToggle targetId={targetId} section={section} />
         <button

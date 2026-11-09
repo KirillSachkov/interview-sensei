@@ -477,7 +477,17 @@ textarea {
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  margin-left: auto;
+}
+
+/* The kind and «выключена» go under the name, beside the Topics' indent. */
+.plan-kinds {
+  order: 1;
+  flex-basis: 100%;
+  padding-left: 28px;
+}
+
+.plan-kinds .tag:first-child {
+  margin-left: var(--space-2);
 }
 
 .plan-count {
@@ -489,6 +499,7 @@ textarea {
 
 .plan-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
 }
@@ -506,6 +517,7 @@ textarea {
 }
 
 .plan-name {
+  flex: 1;
   font-weight: 600;
 }
 
