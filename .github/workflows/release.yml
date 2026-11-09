@@ -20,7 +20,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # The environment accepts only `v*` tags and waits for the owner's approval.
+    # The environment accepts only `v*` tags and waits for the owner's approval; admins cannot bypass it.
     environment: npm
     permissions:
       contents: read

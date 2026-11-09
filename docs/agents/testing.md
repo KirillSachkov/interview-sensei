@@ -166,14 +166,16 @@ Repository protection settings are not implied by these jobs.
 
 `publish` (`.github/workflows/release.yml`) runs on a tag `v<version>` that matches `apps/server/package.json`.
 It runs `pnpm check`, `pnpm test` and `pnpm test:package`, then `npm publish --provenance` by npm trusted publishing.
-Only the owner pushes a release tag; agents never push one.
+Only the owner pushes a release tag and approves the `npm` deployment.
+Agents never push a release tag and never approve or reject the deployment.
 Two repository settings back this rule:
 
 - The environment `npm` runs `publish` only from `v*` tags and waits for the owner's approval.
+  Admins cannot bypass the approval.
 - The ruleset «Release tags» (id `26859563`) lets only the admin role create, update or delete `v*` tags.
 
 Agents work under the owner's GitHub account, which has the admin role.
-So these settings stop other collaborators, not agents; the rule above stops agents.
+So the settings stop collaborators without the admin role, not agents; the rule above stops agents.
 
 A release takes three steps:
 
@@ -181,11 +183,13 @@ A release takes three steps:
 2. The owner pushes the tag `v<version>` on that commit of `main`.
 3. The owner approves the `npm` deployment of the `Release` run in GitHub Actions.
 
+npm refuses a version that exists. So a tag for the current version, such as `v0.1.0`, passes the checks and fails at `npm publish`.
+
 npm links a trusted publisher only to a package that already exists.
-So the owner published version `0.1.0` by hand from `apps/server/dist/package` (#67).
+So version `0.1.0` was published by hand from `apps/server/dist/package` with the owner's 2FA confirmation (#67).
 Then `npm trust github` linked the package to `release.yml` and the environment `npm`.
 The first publish left the npm placeholder version `0.0.0-stage`; the tag `latest` points to `0.1.0`.
-npm publishes only from an account with two-factor authentication.
+A publish by hand needs two-factor authentication on the owner's npm account; `release.yml` publishes through OIDC instead.
 
 ## Appropriate evidence
 
