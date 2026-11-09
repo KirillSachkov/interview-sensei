@@ -14,7 +14,7 @@ const host: AgentHost = {
   opencodeVersion: null,
   codexAuth: { path: "/home/candidate/.codex/auth.json", exists: true },
   opencodeAuth: { path: "/home/candidate/.local/share/opencode/auth.json", exists: false },
-  opencodeKeys: [],
+  opencodeDatabase: null,
   opencodeModel: {},
 };
 

@@ -43,7 +43,7 @@ const host: AgentHost = {
   opencodeVersion: null,
   codexAuth: { path: "/home/candidate/.codex/auth.json", exists: false },
   opencodeAuth: { path: "/home/candidate/.local/share/opencode/auth.json", exists: false },
-  opencodeKeys: [],
+  opencodeDatabase: null,
   opencodeModel: {},
 };
 
@@ -64,6 +64,7 @@ async function startAgent() {
   const runtime = createAgentRuntime({
     agents: ["fake"],
     inspectHost: () => Promise.resolve(host),
+    readOpencodeCredentials: () => Promise.resolve([]),
     dataDirectory: "/home/candidate/.interview-sensei",
     readSkill: skillReader().readSkill,
     launch: (_recipe, session) => {
@@ -138,12 +139,36 @@ describe("agent runtime permission gate", () => {
 });
 
 /** A runtime offering the agents; `recipes` collects what it hands the launcher. */
-function runtimeOffering(agents: Parameters<typeof createAgentRuntime>[0]["agents"]) {
+function runtimeOffering(
+  agents: Parameters<typeof createAgentRuntime>[0]["agents"],
+  machine: AgentHost = host,
+) {
   const recipes: LaunchRecipe[] = [];
   const { read, readSkill } = skillReader();
+  /** The databases the runtime read the OpenCode 2.x credentials from. */
+  const databases: string[] = [];
   const runtime = createAgentRuntime({
     agents,
-    inspectHost: () => Promise.resolve(host),
+    inspectHost: () => Promise.resolve(machine),
+    readOpencodeCredentials: (database) => {
+      databases.push(database);
+      return Promise.resolve([
+        {
+          id: "cred_1",
+          integration: "deepseek",
+          value: '{"type":"key","key":"sk-deepseek"}',
+          active: null,
+          created: 1,
+        },
+        {
+          id: "cred_2",
+          integration: "minimax",
+          value: '{"type":"key","key":"sk-minimax"}',
+          active: null,
+          created: 1,
+        },
+      ]);
+    },
     dataDirectory: "/home/candidate/.interview-sensei",
     readSkill,
     launch: (recipe) => {
@@ -166,7 +191,7 @@ function runtimeOffering(agents: Parameters<typeof createAgentRuntime>[0]["agent
       onExit: () => {},
       onPermission: () => Promise.resolve(candidateAnswer),
     });
-  return { runtime, start, recipes, read };
+  return { runtime, start, recipes, read, databases };
 }
 
 describe("agent runtime start", () => {
@@ -230,5 +255,45 @@ describe("agent runtime start", () => {
       }),
     ).rejects.toThrow(/no profile/u);
     expect(recipes).toStrictEqual([]);
+  });
+});
+
+describe("agent runtime with the Candidate's OpenCode 2.x keys", () => {
+  const database = "/home/candidate/.local/share/opencode/opencode.db";
+  const opencode: AgentHost = {
+    ...host,
+    opencodeBinary: "/opt/homebrew/bin/opencode",
+    opencodeVersion: "opencode v2.2.6",
+    opencodeDatabase: database,
+    opencodeModel: { model: "deepseek/deepseek-flash" },
+  };
+
+  it("never reads the OpenCode database to list the agents", async () => {
+    const { runtime, databases } = runtimeOffering(["opencode"], opencode);
+
+    await runtime.listAgents();
+
+    expect(databases).toStrictEqual([]);
+  });
+
+  it("reads it at the start of an OpenCode 2.x session and passes the keys of its models only", async () => {
+    const { start, recipes, databases } = runtimeOffering(["opencode"], opencode);
+
+    await start("opencode");
+
+    expect(databases).toStrictEqual([database]);
+    expect(recipes[0]?.env).toMatchObject({ INTERVIEW_SENSEI_OPENCODE_KEY_1: "sk-deepseek" });
+    expect(JSON.stringify(recipes[0]?.env)).not.toContain("sk-minimax");
+  });
+
+  it("never reads it for OpenCode 1.x, which reads the linked auth.json", async () => {
+    const { start, databases } = runtimeOffering(["opencode"], {
+      ...opencode,
+      opencodeVersion: "1.18.30",
+    });
+
+    await start("opencode");
+
+    expect(databases).toStrictEqual([]);
   });
 });

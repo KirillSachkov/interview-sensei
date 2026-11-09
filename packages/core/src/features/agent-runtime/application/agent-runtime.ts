@@ -3,6 +3,9 @@ import type { SessionProfile } from "../../../shared/session-kinds/index.ts";
 import type { AgentAvailability, AgentHost, AgentKind } from "../domain/agent.ts";
 import { agentAvailability, isAgentKind } from "../domain/agent.ts";
 import { launchRecipe } from "../domain/launch-recipe.ts";
+import { opencodeKeys } from "../domain/opencode-credentials.ts";
+import type { OpencodeCredentialRow, OpencodeKey } from "../domain/opencode-credentials.ts";
+import { opencodeConfigSchema } from "../domain/opencode-recipe.ts";
 import type { LaunchProfile, SkillSource } from "../domain/launch-recipe.ts";
 import { automaticAnswer } from "../domain/permissions.ts";
 import type {
@@ -21,6 +24,8 @@ export interface AgentRuntimeDependencies {
    * new login shows after a page reload.
    */
   readonly inspectHost: () => Promise<AgentHost>;
+  /** Reads the `credential` table of the Candidate's OpenCode 2.x database; none when it cannot. */
+  readonly readOpencodeCredentials: (database: string) => Promise<readonly OpencodeCredentialRow[]>;
   /** The data directory: the agents' own homes and configs live in it. */
   readonly dataDirectory: string;
   /** Reads a skill of the application by its directory name, at each start. */
@@ -145,8 +150,28 @@ async function availableHost(
   return { agent, host };
 }
 
+/**
+ * The Candidate's keys for an OpenCode 2.x session, read only now, so listing the agents never
+ * touches the secrets. Other agents and 1.x, which reads the linked `auth.json`, get none.
+ */
+async function sessionKeys(
+  agent: AgentKind,
+  host: AgentHost,
+  read: AgentRuntimeDependencies["readOpencodeCredentials"],
+): Promise<readonly OpencodeKey[]> {
+  if (
+    agent !== "opencode" ||
+    host.opencodeDatabase === null ||
+    opencodeConfigSchema(host.opencodeVersion) !== "2.x"
+  ) {
+    return [];
+  }
+  return opencodeKeys(await read(host.opencodeDatabase), host.opencodeModel);
+}
+
 export function createAgentRuntime(dependencies: AgentRuntimeDependencies): AgentRuntime {
-  const { agents, inspectHost, dataDirectory, readSkill, launch } = dependencies;
+  const { agents, inspectHost, readOpencodeCredentials, dataDirectory, readSkill, launch } =
+    dependencies;
   return {
     listAgents: async () => agentAvailability(agents, await inspectHost()),
     start: async ({ agent: requested, kind, workingDirectory, ...request }) => {
@@ -156,6 +181,7 @@ export function createAgentRuntime(dependencies: AgentRuntimeDependencies): Agen
         agent,
         profile: await launchProfile(sessionProfile, readSkill),
         host,
+        opencodeKeys: await sessionKeys(agent, host, readOpencodeCredentials),
         dataDirectory,
         sessionDirectory: workingDirectory,
       });

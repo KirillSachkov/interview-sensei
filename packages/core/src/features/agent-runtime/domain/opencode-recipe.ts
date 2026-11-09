@@ -135,25 +135,46 @@ function opencodeConfigContent(
     schema,
     profile,
     skillsPath,
-  }: { schema: OpencodeConfigSchema; profile: LaunchProfile; skillsPath: string },
+    keys,
+  }: {
+    schema: OpencodeConfigSchema;
+    profile: LaunchProfile;
+    skillsPath: string;
+    keys: readonly OpencodeKey[];
+  },
 ) {
   if (schema === "1.x") {
     return JSON.stringify({ ...host.opencodeModel, ...configV1(profile, skillsPath) });
   }
-  const keys =
-    host.opencodeKeys.length === 0
-      ? {}
-      : { providers: providersWithKeys(host.opencodeModel.providers, host.opencodeKeys) };
-  return JSON.stringify({ ...host.opencodeModel, ...keys, ...configV2(profile, skillsPath) });
+  const providers =
+    keys.length === 0 ? {} : { providers: providersWithKeys(host.opencodeModel.providers, keys) };
+  return JSON.stringify({ ...host.opencodeModel, ...providers, ...configV2(profile, skillsPath) });
 }
 
-export function opencodeRecipe({
-  host,
-  profile,
-  dataDirectory,
-  sessionDirectory,
-}: LaunchRequest): LaunchRecipe {
+/** The session's variables: OpenCode's own homes, the flags, the config and the 2.x keys. */
+function opencodeEnv(
+  { host, opencodeKeys, profile }: LaunchRequest,
+  { homes, skillsPath }: { homes: Record<string, string>; skillsPath: string },
+): Record<string, string> {
   const schema = opencodeConfigSchema(host.opencodeVersion);
+  return {
+    ...homes,
+    OPENCODE_DISABLE_CLAUDE_CODE: "1",
+    // 1.x reads this flag; 2.2.6 does not, so 2.x gets the policies of `configV2` as well.
+    OPENCODE_DISABLE_EXTERNAL_SKILLS: "1",
+    OPENCODE_DISABLE_PROJECT_CONFIG: "1",
+    OPENCODE_CONFIG_CONTENT: opencodeConfigContent(host, {
+      schema,
+      profile,
+      skillsPath,
+      keys: opencodeKeys,
+    }),
+    ...keyVariables(schema, opencodeKeys),
+  };
+}
+
+export function opencodeRecipe(request: LaunchRequest): LaunchRecipe {
+  const { host, profile, dataDirectory, sessionDirectory } = request;
   const root = child(dataDirectory, "agents", "opencode");
   const skillsPath = child(root, "skills", profile.skill.name);
   const skill = skillCopy(child(skillsPath, profile.skill.name), profile.skill);
@@ -162,15 +183,7 @@ export function opencodeRecipe({
   return {
     command: required(host.opencodeBinary, "opencode"),
     args: ["acp"],
-    env: {
-      ...homes,
-      OPENCODE_DISABLE_CLAUDE_CODE: "1",
-      // 1.x reads this flag; 2.2.6 does not, so 2.x gets the policies of `configV2` as well.
-      OPENCODE_DISABLE_EXTERNAL_SKILLS: "1",
-      OPENCODE_DISABLE_PROJECT_CONFIG: "1",
-      OPENCODE_CONFIG_CONTENT: opencodeConfigContent(host, { schema, profile, skillsPath }),
-      ...keyVariables(schema, host.opencodeKeys),
-    },
+    env: opencodeEnv(request, { homes, skillsPath }),
     sessionMeta: null,
     // OpenCode has no ACP system prompt; its own agent carries the role.
     systemPrompt: null,

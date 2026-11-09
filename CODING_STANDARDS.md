@@ -163,8 +163,12 @@ So a relative `{file:...}` in such an entry may not resolve; `~/` and absolute p
 The recipe drops `OPENCODE_CONFIG`, so it ignores a model that the Candidate chose only in that file.
 OpenCode 2.x keeps provider keys in the `credential` table of its `opencode.db` and ignores `auth.json` in a new database.
 So the server also reads that table, in `$XDG_DATA_HOME/opencode` or `~/.local/share/opencode`, or the file that `OPENCODE_DB` names there.
+It reads the table only at the start of an OpenCode 2.x session, never to list the agents.
 It opens the database `immutable` and read-only, so it creates no `-shm` or `-wal` file; a key still in OpenCode's write-ahead log appears after a checkpoint.
-`opencodeKeys` takes the key of the credential OpenCode would use for each provider; an OAuth credential gives none, because a copied refresh token could rotate.
+`opencodeKeys` takes the key of the credential OpenCode would use, only for the providers of the Candidate's `model` and `small_model`.
+Without either, every provider gets its key, because OpenCode may then pick any of them.
+An OAuth credential gives no key, because a copied refresh token could rotate.
+An unreadable database gives no keys and a warning in the server log with its path and SQLite's reason, never its content.
 The 2.x recipe passes each key in its own variable `INTERVIEW_SENSEI_OPENCODE_KEY_<n>` and names it in `env` of the provider's `providers` entry; the config text holds no key.
 The agent gets the Candidate's env without `OPENCODE_CONFIG`, `OPENCODE_CONFIG_DIR`, `OPENCODE_DB`, `CODEX_HOME` and `INTERVIEW_SENSEI_*`; the recipe's variables go over it.
 `agentEnvironment` in `launch-recipe.ts` filters it. `CLAUDE_CONFIG_DIR` passes unchanged.

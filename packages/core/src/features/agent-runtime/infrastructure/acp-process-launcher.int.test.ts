@@ -76,6 +76,7 @@ async function fakeRecipe(): Promise<LaunchRecipe> {
     agent: "fake",
     profile,
     host: await inspectAgentHost({ home: dataDirectory, env: {} }, idleTimer)(),
+    opencodeKeys: [],
     dataDirectory,
     sessionDirectory: path.join(dataDirectory, "sessions", "1"),
   });

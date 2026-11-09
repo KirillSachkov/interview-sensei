@@ -252,6 +252,9 @@ function composeAgents(
     skillsDirectory,
     fakeAgent,
     userEnvironment,
+    onWarning: (message) => {
+      log.warn(message);
+    },
   });
   const mcp = mcpGatewayModule({
     tools: sessionTools,

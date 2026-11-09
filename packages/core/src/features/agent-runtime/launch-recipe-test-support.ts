@@ -3,6 +3,7 @@
 import path from "node:path";
 
 import type { AgentHost, AgentKind } from "./domain/agent.ts";
+import type { OpencodeKey } from "./domain/opencode-credentials.ts";
 import { launchRecipe } from "./domain/launch-recipe.ts";
 import type { LaunchProfile, LaunchRecipe } from "./domain/launch-recipe.ts";
 
@@ -18,7 +19,7 @@ export const host: AgentHost = {
   opencodeVersion: "opencode v2.2.6",
   codexAuth: { path: "/home/candidate/.codex/auth.json", exists: true },
   opencodeAuth: { path: "/home/candidate/.local/share/opencode/auth.json", exists: true },
-  opencodeKeys: [],
+  opencodeDatabase: "/home/candidate/.local/share/opencode/opencode.db",
   opencodeModel: {},
 };
 
@@ -42,15 +43,19 @@ export const lockedProfile: LaunchProfile = {
 /** The same profile with shell and web allowed. */
 export const openProfile: LaunchProfile = { ...lockedProfile, shell: true, web: true };
 
+/** Changes of the made-up machine, and the OpenCode 2.x keys read at the start. */
+type MachineChanges = Partial<AgentHost> & { opencodeKeys?: readonly OpencodeKey[] };
+
 export function recipe(
   agent: AgentKind,
-  changes: Partial<AgentHost> = {},
+  { opencodeKeys = [], ...changes }: MachineChanges = {},
   profile: LaunchProfile = lockedProfile,
 ) {
   return launchRecipe({
     agent,
     profile,
     host: { ...host, ...changes },
+    opencodeKeys,
     dataDirectory,
     sessionDirectory,
   });
@@ -62,7 +67,7 @@ export const opencodeVersions = { v1: "1.18.30", v2: "opencode v2.2.6" } as cons
 /** The OpenCode config the recipe passes in OPENCODE_CONFIG_CONTENT. */
 export function opencodeConfig(
   profile: LaunchProfile = lockedProfile,
-  changes: Partial<AgentHost> = {},
+  changes: MachineChanges = {},
 ): Record<string, unknown> {
   const config: unknown = JSON.parse(
     String(recipe("opencode", changes, profile).env.OPENCODE_CONFIG_CONTENT),

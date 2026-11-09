@@ -1,5 +1,6 @@
 // Reads the Candidate's OpenCode 2.x credentials for `opencodeKeys` without writing anything
 // beside the database: a plain read-only SQLite open would create `-shm` and `-wal` files there.
+import { stat } from "node:fs/promises";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { pathToFileURL } from "node:url";
@@ -30,33 +31,59 @@ function credentialRow(row: Record<string, unknown>): OpencodeCredentialRow | nu
     : null;
 }
 
+/** The SQLite error's own message: it names the failure, never the database's content. */
+function reason(error: unknown): string {
+  return error instanceof Error ? error.message : "unknown error";
+}
+
+/** The rows of the `credential` table; throws when SQLite cannot read them. */
+function credentialRows(database: string): OpencodeCredentialRow[] {
+  const url = pathToFileURL(database);
+  // `immutable` takes no lock and reads only the database file, so it leaves no -shm or -wal.
+  url.searchParams.set("immutable", "1");
+  const connection = new DatabaseSync(url, { readOnly: true });
+  try {
+    return connection
+      .prepare(
+        "SELECT id, integration_id AS integration, value, active, time_created AS created FROM credential",
+      )
+      .all()
+      .flatMap((row) => {
+        const credential = credentialRow(row);
+        return credential === null ? [] : [credential];
+      });
+  } finally {
+    connection.close();
+  }
+}
+
+async function exists(file: string): Promise<boolean> {
+  try {
+    await stat(file);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
- * The rows of the `credential` table, or none when the database is missing or unreadable. The
- * `immutable` open takes no lock and reads only the database file, so a key that OpenCode still
- * holds in its write-ahead log appears after OpenCode checkpoints it.
+ * The rows of the `credential` table; none without the database. A database it cannot read gives
+ * none and a warning with its path and SQLite's reason, never its content. A key that OpenCode
+ * still holds in its write-ahead log appears after OpenCode checkpoints it.
  */
-export function readOpencodeCredentials(database: string | null): OpencodeCredentialRow[] {
-  if (database === null) {
+export async function readOpencodeCredentials(
+  database: string,
+  onWarning: (message: string) => void,
+): Promise<OpencodeCredentialRow[]> {
+  if (!(await exists(database))) {
     return [];
   }
-  const url = pathToFileURL(database);
-  url.searchParams.set("immutable", "1");
   try {
-    const connection = new DatabaseSync(url, { readOnly: true });
-    try {
-      return connection
-        .prepare(
-          "SELECT id, integration_id AS integration, value, active, time_created AS created FROM credential",
-        )
-        .all()
-        .flatMap((row) => {
-          const credential = credentialRow(row);
-          return credential === null ? [] : [credential];
-        });
-    } finally {
-      connection.close();
-    }
-  } catch {
+    return credentialRows(database);
+  } catch (error) {
+    onWarning(
+      `OpenCode 2.x provider keys are unavailable: cannot read ${database} (${reason(error)})`,
+    );
     return [];
   }
 }

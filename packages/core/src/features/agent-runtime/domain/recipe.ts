@@ -1,6 +1,7 @@
 // The parts every launch recipe shares: what a recipe is, the profile it translates and the
 // helpers that put files into the data directory. The domain uses no Node.js modules.
 import type { AgentHost, AgentKind } from "./agent.ts";
+import type { OpencodeKey } from "./opencode-credentials.ts";
 
 /** A file the server writes before the start; the path is inside the data directory. */
 interface PreparedFile {
@@ -81,6 +82,8 @@ export interface LaunchRequest {
   readonly agent: AgentKind;
   readonly profile: LaunchProfile;
   readonly host: AgentHost;
+  /** The Candidate's OpenCode 2.x keys, read at this start; empty for any other agent. */
+  readonly opencodeKeys: readonly OpencodeKey[];
   readonly dataDirectory: string;
   /** The session's own directory inside the data directory: the agent's `cwd`. */
   readonly sessionDirectory: string;
