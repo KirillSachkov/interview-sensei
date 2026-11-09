@@ -101,10 +101,14 @@ export async function hideAgentText(context: QueueContext, sessionId: string): P
 
 /**
  * Puts the server's note before the next prompt that the agent gets, the Candidate's or the
- * server's; the current turn goes on. Nothing for a session that is not live.
+ * server's; the current turn goes on. A note already waiting for that prompt is not added again,
+ * such as the same question discussed in several Side threads. Nothing for a session not live.
  */
 export function addNote(context: QueueContext, sessionId: string, text: string): void {
-  context.live.get(sessionId)?.notes.push(text);
+  const notes = context.live.get(sessionId)?.notes;
+  if (notes !== undefined && !notes.includes(text)) {
+    notes.push(text);
+  }
 }
 
 /** Sends the Candidate's prompt to the agent; refuses it while the agent works. */

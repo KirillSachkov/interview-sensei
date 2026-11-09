@@ -100,6 +100,7 @@ The server talks to the interviewer with template messages in `interviews/domain
 They go through `AgentSessions.queuePrompt`, after the agent's current turn, and stay out of the chat.
 The sixth message of #10, `discussedInSideThread`, tells the interviewer only that the Candidate discussed question N in a Side thread, never its content.
 It is a note, not a prompt: `AgentSessions.addNote` puts it before the next prompt the agent gets, the Candidate's or the server's, so the current turn goes on.
+Several Side threads on one question before that prompt give one note: `addNote` skips a note that already waits.
 The journal keeps notes in `notes` of that `prompt_sent`; the chat leaves them out.
 
 A slice adds a session kind like this:

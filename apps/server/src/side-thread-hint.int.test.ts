@@ -165,4 +165,18 @@ describe("side thread and the interviewer", () => {
     );
     expect(everyAgentText(run.chat.views).join(" ")).not.toMatch(/Секрет ветки|Сообщение ветки/u);
   });
+
+  it("tells the interviewer once about a question that several side threads discussed", async () => {
+    const api = await interviewApi();
+    const { run, card } = await firstQuestion(api);
+    await keepInterviewerBusy(run);
+
+    await talkInSideThread(api, { run, cardId: card.id });
+    await talkInSideThread(api, { run, cardId: card.id });
+
+    await stopInterviewer(run);
+    await api.answer(run.interview.id, "Ответ [grade:2]");
+    const replied = await run.chat.waitFor(saysWhenIdle("Ответ получен."));
+    expect(agentTextWith(replied, "Ответ получен.").match(/Отметка:/gu)).toHaveLength(1);
+  });
 });
