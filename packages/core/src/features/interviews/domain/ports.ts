@@ -208,6 +208,17 @@ export interface InterviewTopicMerge<Transaction> {
   ) => Promise<void>;
 }
 
+/**
+ * Which of the Target's Questions have Attempts: the question bank hides such a Question instead
+ * of deleting it.
+ */
+export interface InterviewQuestionAttempts {
+  readonly attempted: (
+    targetId: string,
+    questionIds: readonly string[],
+  ) => Promise<readonly string[]>;
+}
+
 /** Stores the Side threads of Mock interviews. */
 export interface SideThreadRepository {
   readonly createSideThread: (thread: SideThread) => Promise<void>;

@@ -10,7 +10,9 @@ export interface SourceView {
   readonly title: string;
   readonly url: string | null;
   readonly path: string | null;
-  readonly status: "inbox";
+  /** «в Inbox», «разбирается», «готов» or «ошибка» with the reason in `failure`. */
+  readonly status: "inbox" | "processing" | "ready" | "failed";
+  readonly failure: string | null;
   readonly createdAt: string;
 }
 

@@ -1,0 +1,213 @@
+{
+  "id": "9a791e59-169d-4830-9987-9228f5d4897d",
+  "prevId": "0a3e8bfb-a86f-432b-95eb-1bada6bf2704",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "question_bank.questions": {
+      "name": "questions",
+      "schema": "question_bank",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "target_id": {
+          "name": "target_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "topic_id": {
+          "name": "topic_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "text": {
+          "name": "text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "format": {
+          "name": "format",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "options": {
+          "name": "options",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "correct_option_ids": {
+          "name": "correct_option_ids",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "level": {
+          "name": "level",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_ids": {
+          "name": "source_ids",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "source_part": {
+          "name": "source_part",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "section_kind": {
+          "name": "section_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reference_answer": {
+          "name": "reference_answer",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "unconfirmed": {
+          "name": "unconfirmed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "hidden": {
+          "name": "hidden",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "rating": {
+          "name": "rating",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rating_comment": {
+          "name": "rating_comment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "unseen": {
+          "name": "unseen",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "questions_target_id_topic_id_topics_target_id_id_fk": {
+          "name": "questions_target_id_topic_id_topics_target_id_id_fk",
+          "tableFrom": "questions",
+          "tableTo": "topics",
+          "schemaTo": "question_bank",
+          "columnsFrom": [
+            "target_id",
+            "topic_id"
+          ],
+          "columnsTo": [
+            "target_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "question_bank.topics": {
+      "name": "topics",
+      "schema": "question_bank",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "target_id": {
+          "name": "target_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "topics_target_id_name_unique": {
+          "name": "topics_target_id_name_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "target_id",
+            "name"
+          ]
+        },
+        "topics_target_id_id_unique": {
+          "name": "topics_target_id_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "target_id",
+            "id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {
+    "question_bank": "question_bank"
+  },
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

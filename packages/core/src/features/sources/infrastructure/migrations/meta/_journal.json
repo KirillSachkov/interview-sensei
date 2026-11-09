@@ -8,6 +8,27 @@
       "when": 1794225632951,
       "tag": "0000_sources",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794247935217,
+      "tag": "0001_inbox_processing",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794251846589,
+      "tag": "0002_inbox_read_parts",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794253009997,
+      "tag": "0003_inbox_recheck",
+      "breakpoints": true
     }
   ]
 }

@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 
 import { UnknownAgentError } from "./composition.ts";
 import type { Features } from "./composition.ts";
+import { registerQuestionReviewRoutes } from "./question-review-routes.ts";
 import { registerSettingsRoutes } from "./settings-routes.ts";
 import { registerTargetArchiveRoutes } from "./target-archive-routes.ts";
 
@@ -60,7 +61,10 @@ function registerQuestions(server: FastifyInstance, { targets, questionBank }: D
   );
 }
 
-function registerQuestionWrites(server: FastifyInstance, { questionBank }: Dependencies) {
+/** The rating and visibility of one Question, and the bulk review of several. */
+function registerQuestionWrites(server: FastifyInstance, dependencies: Dependencies) {
+  const { questionBank } = dependencies;
+  registerQuestionReviewRoutes(server, dependencies);
   server.put<{ Params: { id: string }; Body: unknown }>(
     "/api/questions/:id/rating",
     { schema: { params } },

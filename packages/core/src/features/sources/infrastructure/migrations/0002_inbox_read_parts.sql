@@ -1,0 +1,1 @@
+ALTER TABLE "sources"."inbox_runs" ADD COLUMN "read_parts" jsonb DEFAULT '{}'::jsonb NOT NULL;

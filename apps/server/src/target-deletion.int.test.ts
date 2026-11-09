@@ -18,9 +18,9 @@ import {
   temporaryDirectory,
 } from "./chat-test-support.ts";
 import type { SessionView } from "./chat-test-support.ts";
+import { processedVacancy } from "./inbox-test-support.ts";
 import { demoApi, model } from "./model-test-support.ts";
 import { demoWithSideThread } from "./side-thread-test-support.ts";
-import { upload } from "./source-test-support.ts";
 import { deleteTarget } from "./target-deletion.ts";
 
 const demoName = "Middle backend-разработчик на TypeScript";
@@ -109,12 +109,11 @@ async function targetData(
 
 /**
  * The demo Target with a finished Mock interview and a Side thread from its Debrief, a material
- * file and a draft change of its setup agent; the agents then crash, so no session of the Target
- * runs.
+ * with its proposal, Inbox processing and report, and a draft change of its setup agent; the agents
+ * then crash, so no session of the Target runs.
  */
 async function demoWithData(dataDirectory: string) {
   const api = await demoWithSideThread(dataDirectory);
-  await upload(api.server, { targetId: api.target.id, name: "vacancy.txt", body: "Go" });
   const opened = await request(api.server, {
     method: "POST",
     url: `/api/targets/${api.target.id}/setup-session`,
@@ -123,6 +122,7 @@ async function demoWithData(dataDirectory: string) {
   await events.waitFor(isIdle);
   events.send({ type: "prompt", text: '/tool update_target {"name":"Go"}' });
   await events.waitFor((view) => isIdle(view) && agentTexts(view).length > 0);
+  await processedVacancy(api.server, { setup: events, targetId: api.target.id });
   events.send({ type: "prompt", text: "/crash" });
   await events.waitFor((view) => view.status === "failed");
   return { ...api, sessionId: opened.json<{ id: string }>().id };
@@ -148,14 +148,17 @@ describe("deleting an archived Target", () => {
       files: true,
       sessionFiles: true,
       rows: {
-        "agent_sessions.sessions": 3,
+        "agent_sessions.sessions": 4,
         "interviews.asked_questions": 1,
         "interviews.attempts": 1,
         "interviews.disputes": 1,
         "interviews.interviews": 1,
         "interviews.side_threads": 1,
-        "question_bank.questions": 30,
+        "question_bank.questions": 31,
         "question_bank.topics": 5,
+        "sources.inbox_proposals": 1,
+        "sources.inbox_reports": 1,
+        "sources.inbox_runs": 1,
         "sources.sources": 1,
         "target_setup.changes": 1,
         "targets.preferences": 0,

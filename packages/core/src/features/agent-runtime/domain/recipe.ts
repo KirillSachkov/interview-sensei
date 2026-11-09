@@ -33,6 +33,16 @@ export interface LaunchProfile {
   readonly shell: boolean;
   /** Whether the agent may fetch web pages and search the web. */
   readonly web: boolean;
+  /**
+   * Whether the Candidate answers the agent's permission requests. When not, the server refuses
+   * them, so an allowed web runs without asking.
+   */
+  readonly askCandidate: boolean;
+}
+
+/** Whether the agent fetches pages and searches the web without asking: no Candidate answers. */
+export function webWithoutAsking({ web, askCandidate }: LaunchProfile): boolean {
+  return web && !askCandidate;
 }
 
 /** A link inside the data directory to a file of the Candidate's own agent setup. */

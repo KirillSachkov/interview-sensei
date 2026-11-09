@@ -12,6 +12,7 @@ import type {
 } from "../domain/interview.ts";
 import type {
   InterviewErasure,
+  InterviewQuestionAttempts,
   InterviewRepository,
   InterviewTopicMerge,
 } from "../domain/ports.ts";
@@ -189,9 +190,28 @@ async function mergeTopic(
     .where(and(inArray(askedQuestions.interviewId, owned), eq(askedQuestions.topicId, from)));
 }
 
+/** The Questions among `questionIds` that have an Attempt in the Target's Mock interviews. */
+async function attempted(database: Database, targetId: string, questionIds: readonly string[]) {
+  if (questionIds.length === 0) {
+    return [];
+  }
+  const rows = await database
+    .selectDistinct({ questionId: askedQuestions.questionId })
+    .from(attempts)
+    .innerJoin(askedQuestions, eq(askedQuestions.id, attempts.askedQuestionId))
+    .innerJoin(interviews, eq(interviews.id, attempts.interviewId))
+    .where(
+      and(eq(interviews.targetId, targetId), inArray(askedQuestions.questionId, [...questionIds])),
+    );
+  return rows.map((row) => row.questionId);
+}
+
 export function drizzleInterviewRepository(
   database: Database,
-): InterviewRepository & InterviewErasure<Transaction> & InterviewTopicMerge<Transaction> {
+): InterviewRepository &
+  InterviewErasure<Transaction> &
+  InterviewTopicMerge<Transaction> &
+  InterviewQuestionAttempts {
   return {
     ...interviewQueries(database),
     update: async (id, { finishRequestedAt, finishedAt, pausedAt, resumedAt, ...changes }) => {
@@ -217,5 +237,6 @@ export function drizzleInterviewRepository(
     ...drizzleSideThreadQueries(database),
     eraseTarget: async (targetId, transaction) => eraseTarget(transaction, targetId),
     mergeTopic: async (targetId, topics, transaction) => mergeTopic(transaction, targetId, topics),
+    attempted: async (targetId, questionIds) => attempted(database, targetId, questionIds),
   };
 }

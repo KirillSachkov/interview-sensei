@@ -5,10 +5,13 @@ const sourceTypes = ["vacancy", "resume", "link", "file", "note", "transcript"] 
 export type SourceType = (typeof sourceTypes)[number];
 
 /**
- * Where the Source is in its processing. Every Source waits in the Inbox now; slice 2 adds the
- * statuses of its processing.
+ * Where the Source is in its Inbox processing:
+ * - `inbox`: «в Inbox», it waits for processing;
+ * - `processing`: «разбирается», an Inbox processing reads it now;
+ * - `ready`: «готов», an Inbox processing read it;
+ * - `failed`: «ошибка», the server or the agent could not read it, for the reason in `failure`.
  */
-export type SourceStatus = "inbox";
+export type SourceStatus = "inbox" | "processing" | "ready" | "failed";
 
 /** A Source as the slice stores it: a file in the data directory or a URL. */
 export interface Source {
@@ -21,6 +24,10 @@ export interface Source {
   /** The address of a link; null for a file. */
   readonly url: string | null;
   readonly status: SourceStatus;
+  /** Why the Source has the status `failed`, in Russian; null otherwise. */
+  readonly failure: string | null;
+  /** How many numbered parts the server cut the Source's text into; null before it read it. */
+  readonly parts: number | null;
   readonly createdAt: string;
 }
 

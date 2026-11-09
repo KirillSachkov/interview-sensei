@@ -100,6 +100,18 @@ An answered one gets «Продолжаем после паузы.» and the Att
 `pause-test-support.ts` posts «Пауза» and «Продолжить».
 A test of an unavailable agent stores Codex as the agent of a paused mock interview through the storage of a stopped server: a test cannot start a mock interview with a real agent.
 
+The fake agent also has an Inbox processor mode (`fake-agent-inbox.ts`) for the opening «Inbox processing has started.».
+It reads `get_brief` and `list_inbox`, puts one Question per part into the first Topic of the first Section of kind `topics` (creating «Из материалов» when there is none), and writes the Inbox report.
+A material whose title has `[manual]` makes it stop at «Жду команд.», so an API test drives the processing with `/tool` in the processing session's chat.
+On «Recheck of the question bank has started.» (`fake-agent-recheck.ts`) it reads `get_brief` and writes the Inbox report with every visible Question in `proposals.hide`, the first active Preference in each reason.
+A Preference with `[manual]` makes the recheck stop at «Жду команд.» the same way.
+`inbox-test-support.ts` starts a processing, finds its session and waits for the fake processor's first turn; `material-test-support.ts` makes a PDF, a DOCX and a web page on a local HTTP server, so no test needs the network.
+The server reads the texts and starts the agent in the background, so the tests wait for them with `vi.waitFor`.
+`/wait` and `/crash` in the processing session's chat keep its agent in a turn and make it fail, for the tests of «Остановить разбор» and of a failed agent.
+After a turn without the Inbox report the server waits 2 minutes on its `Timer`, then closes the processing: the default timer of `startServer` never runs it, so `/tool` keeps driving a `[manual]` agent, and a test of that close passes `manualTime()` and fires the wait.
+A test of a restart stops the server and starts another one on the same data directory, as the Mock interview tests do.
+The fake agent streams a reply word by word, so a test of a long text uses words without spaces.
+
 The fake agent has a side thread mode for Side threads (`fake-agent-side-thread.ts`).
 On «The Candidate opened a side thread from a mock interview.» it calls `get_brief` and replies «Разбираю вопрос кандидата: «<candidateQuestion>»».
 A failed step there ends the turn with «Фейковый агент ветки сломался: <error>».

@@ -1,6 +1,6 @@
 // Claude Code through `claude-agent-acp`: isolation by Agent SDK options in `_meta`, the role as
 // an appended ACP system prompt, the skill as a local plugin.
-import { child, applicationName, required, skillCopy } from "./recipe.ts";
+import { child, applicationName, required, skillCopy, webWithoutAsking } from "./recipe.ts";
 import type { LaunchProfile, LaunchRecipe, LaunchRequest } from "./recipe.ts";
 
 /** Claude Code's own tools for shell commands and for the web. */
@@ -15,6 +15,8 @@ function claudeOptions(profile: LaunchProfile, plugin: string) {
     plugins: [{ type: "local", path: plugin }],
     // Plugin skills are named `plugin:skill`; the list hides every other skill.
     skills: [`${applicationName}:${profile.skill.name}`],
+    // Runs the web tools without a permission request when no Candidate answers one.
+    allowedTools: webWithoutAsking(profile) ? claudeWebTools : [],
     // Removes the tools from the model's context in every permission mode.
     disallowedTools: [
       ...(profile.shell ? [] : claudeShellTools),

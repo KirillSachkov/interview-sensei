@@ -1,0 +1,43 @@
+import type { SourceType, SourceView } from "@/shared/api";
+
+/** What the material is, in the words of the screen. */
+export const sourceTypeNames: Record<SourceType, string> = {
+  vacancy: "вакансия",
+  resume: "резюме",
+  link: "ссылка",
+  file: "файл",
+  note: "заметка",
+  transcript: "транскрипт",
+};
+
+/** Where the material is in its Inbox processing, in the words of the screen. */
+export function sourceStatusText({ status, failure }: Pick<SourceView, "status" | "failure">) {
+  switch (status) {
+    case "inbox": {
+      return "в Inbox";
+    }
+    case "processing": {
+      return "разбирается";
+    }
+    case "ready": {
+      return "готов";
+    }
+    case "failed": {
+      return failure === null ? "ошибка" : `ошибка: ${failure}`;
+    }
+    default: {
+      return status satisfies never;
+    }
+  }
+}
+
+/** The size of a file for the Candidate: «850 Б», «12 КБ», «3,4 МБ». */
+export function sizeText(bytes: number): string {
+  if (bytes < 1024) {
+    return `${bytes} Б`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${Math.round(bytes / 1024)} КБ`;
+  }
+  return `${(bytes / (1024 * 1024)).toFixed(1).replace(".", ",")} МБ`;
+}

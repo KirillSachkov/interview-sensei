@@ -6,6 +6,7 @@ import type {
   InterviewAgents,
   InterviewErasure,
   InterviewProgress,
+  InterviewQuestionAttempts,
   InterviewQuestions,
   InterviewSessions,
   InterviewTargets,
@@ -36,18 +37,21 @@ export interface InterviewsModuleDependencies {
 /**
  * Mock interviews on the server's database. Deleting a Target erases its Mock interviews with
  * `eraseTarget`; a Topic merge of the Target setup moves their asked questions with `mergeTopic`.
+ * `attempted` tells the question bank which Questions have Attempts.
  */
 export function interviewsModule({
   database,
   ...dependencies
 }: InterviewsModuleDependencies): Interviews &
   InterviewErasure<Transaction> &
-  InterviewTopicMerge<Transaction> {
+  InterviewTopicMerge<Transaction> &
+  InterviewQuestionAttempts {
   const repository = drizzleInterviewRepository(database);
   return {
     ...createInterviews({ repository, ...dependencies }),
     eraseTarget: async (targetId, transaction) => repository.eraseTarget(targetId, transaction),
     mergeTopic: async (targetId, topics, transaction) =>
       repository.mergeTopic(targetId, topics, transaction),
+    attempted: async (targetId, questionIds) => repository.attempted(targetId, questionIds),
   };
 }

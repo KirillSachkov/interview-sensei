@@ -23,6 +23,7 @@
 // - `/system`, `/skills` and `/tools` reply with the role, skills and bans of the session's
 //   profile; see `fake-agent-profile.ts`.
 // - The template messages of a mock interview get the interviewer's turns of `fake-agent-interviewer.ts`.
+// - The opening of an Inbox processing gets the processor's turn of `fake-agent-inbox.ts`.
 // - The opening message of a Side thread gets the turn of `fake-agent-side-thread.ts`, and the
 //   server's notes before a prompt get «Отметка: <note> » there.
 // - Any other text gets the reply «Фейковый агент получил: «<text>»» in several chunks.
@@ -46,13 +47,13 @@ import {
 } from "@agentclientprotocol/sdk/unstable";
 import type { AgentContext, McpServer } from "@agentclientprotocol/sdk/unstable";
 
+import { sayNotes, splitNotes, templateTurn } from "./fake-agent-templates.ts";
 import { callBrief, callTool, toolCommand, toolList } from "./fake-agent-tool.ts";
 import type { ToolCall } from "./fake-agent-tool.ts";
 import { fakeAgentModes } from "./fake-agent-modes.ts";
 import { askPermission, permissionOptions } from "./fake-agent-permission.ts";
 import { profileReply, profileSettings, sessionCapabilities } from "./fake-agent-profile.ts";
 import type { ProfileSettings } from "./fake-agent-profile.ts";
-import { sayNotes, splitNotes, toolTurn } from "./fake-agent-side-thread.ts";
 import { markdownSample, sendChunk, sendText } from "./fake-agent-text.ts";
 
 /** The MCP servers each session got in `session/new`. */
@@ -244,7 +245,7 @@ const app = agent({ name: "interview-sensei-fake-agent" })
     if (profile !== null) {
       return reply(client, sessionId, await profile);
     }
-    const turn = toolTurn(text);
+    const turn = templateTurn(text);
     if (turn !== null) {
       return turn({ client, sessionId, server: mcpServerOf(sessionId) });
     }
