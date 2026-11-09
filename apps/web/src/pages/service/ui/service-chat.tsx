@@ -20,7 +20,7 @@ export function ServiceChat() {
   };
   return (
     <section aria-labelledby="service-chat-title">
-      <h2 id="service-chat-title">Служебный чат</h2>
+      <h2 id="service-chat-title">Чат с агентом</h2>
       <NewChatForm onStarted={started} />
       {sessionId === null ? (
         <p>Чатов пока нет. Выберите агента и начните новый чат.</p>

@@ -9,6 +9,8 @@ export interface TargetRepository {
   readonly get: (id: string) => Promise<Target | undefined>;
   readonly list: () => Promise<readonly Pick<Target, "id" | "name" | "status" | "level">[]>;
   readonly activeDemo: () => Promise<Target | undefined>;
+  /** Stores the Target's agent; resolves false when the Target does not exist. */
+  readonly setAgent: (id: string, agent: string | null) => Promise<boolean>;
   readonly sections: (targetId: string) => Promise<readonly Section[]>;
   readonly preferences: (targetId: string) => Promise<readonly Preference[]>;
 }

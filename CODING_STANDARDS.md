@@ -159,6 +159,26 @@ Generate migrations with `db:generate`; never write or edit them by hand. Pretti
 The slice exports its `SliceMigrations` from `index.ts`, and `sliceMigrations` in `apps/server/src/composition.ts` lists it.
 A slice queries only its own schema.
 
+### Canvas zones
+
+The web app opens on the canvas of one Target, `pages/target`, built on React Flow (`@xyflow/react`).
+`Canvas` in `shared/ui/canvas` is the frame: it places zones from left to right, moves and scales the view.
+A zone is one React Flow node that groups its widgets; the widgets are plain React inside it, stacked from top to bottom.
+`targetZones` in `pages/target/ui/target-page.tsx` lists the zones «Цель» and «Сессии» and the content of each.
+A slice adds content to a zone like this:
+
+1. Write its widget in `widgets/<name>/` and export it from the slice's `index.ts`.
+2. Add the widget to the zone's `content` in `targetZones`.
+
+The slice leaves `Canvas` and the top bar (`widgets/top-bar`) unchanged.
+A new zone is a new entry in `targetZones` and needs the owner's decision.
+An input or a scrolled list inside a widget gets the React Flow classes `nodrag`, `nopan` and `nowheel` where the canvas must not take its pointer or wheel.
+
+Styles follow the «чистый» style of the UI prototype (#3), light theme, large for a 2K monitor.
+Colors, fonts, font sizes and radii come only from the CSS variables in `apps/web/src/app/styles/tokens.css`, so a dark theme only redefines them.
+Spacing uses the `--space-*` variables where a step fits.
+User-facing text is in Russian.
+
 ### Mechanical rules
 
 `pnpm check` enforces these rules and options. Change a rule only with the owner's agreement.

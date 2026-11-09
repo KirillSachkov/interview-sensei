@@ -47,6 +47,7 @@ export function drizzleTargetRepository(database: Database): TargetRepository {
         .where(and(eq(targets.demo, true), eq(targets.status, "active")));
       return row === undefined ? undefined : toTarget(row);
     },
+    setAgent: async (id, agent) => setAgent(database, id, agent),
     sections: async (id) =>
       database
         .select()
@@ -55,6 +56,15 @@ export function drizzleTargetRepository(database: Database): TargetRepository {
         .orderBy(asc(sections.position)),
     preferences: async (id) => activePreferences(database, id),
   };
+}
+
+async function setAgent(database: Database, id: string, agent: string | null) {
+  const updated = await database
+    .update(targets)
+    .set({ agent })
+    .where(eq(targets.id, id))
+    .returning({ id: targets.id });
+  return updated.length > 0;
 }
 
 async function activePreferences(database: Database, id: string) {
