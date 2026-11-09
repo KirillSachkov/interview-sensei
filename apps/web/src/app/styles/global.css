@@ -759,7 +759,7 @@ button.danger {
   inset: 0;
   z-index: 20;
   display: grid;
-  background: rgb(0 0 0 / 20%);
+  background: var(--color-backdrop);
   place-items: center;
 }
 

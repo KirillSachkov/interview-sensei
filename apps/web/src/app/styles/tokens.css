@@ -18,6 +18,8 @@
   --color-ok: #2f9e44;
   --color-off: #adb5bd;
   --color-danger: #c92a2a;
+  /* The dimmed page behind a dialog. */
+  --color-backdrop: rgb(0 0 0 / 20%);
   /* The colour bar of a Section by its Section kind. */
   --color-kind-conversation: #2f9e44;
   --color-kind-topics: #6965db;
