@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { SubmitEvent } from "react";
+import type { ReactNode, SubmitEvent } from "react";
 
 import type { SessionView } from "@/shared/api";
 
@@ -88,12 +88,17 @@ function ConnectionLost({ text, onReconnect }: { text: string; onReconnect: () =
   );
 }
 
+/** What a chat of a session kind shows between the messages and the message form. */
+type RenderAboveInput = (view: SessionView) => ReactNode;
+
 /** One connection to the chat; the parent mounts a new one to reconnect. */
 function ChatConnection({
   sessionId,
+  renderAboveInput,
   onReconnect,
 }: {
   sessionId: string;
+  renderAboveInput: RenderAboveInput | undefined;
   onReconnect: () => void;
 }) {
   const { view, notice, lost, prompt, cancel, answerPermission } = useSessionEvents(sessionId);
@@ -103,7 +108,7 @@ function ChatConnection({
     return connectionLost ?? <p>Загружаем чат…</p>;
   }
   return (
-    <section aria-label={`Чат с агентом «${agentName(view.agent)}»`}>
+    <section className="chat" aria-label={`Чат с агентом «${agentName(view.agent)}»`}>
       <p>Агент: {agentName(view.agent)}</p>
       <ChatEntries
         entries={view.entries}
@@ -112,18 +117,30 @@ function ChatConnection({
       />
       {connectionLost ?? <SessionState view={view} onCancel={cancel} />}
       {notice === null ? null : <output>{notice}</output>}
+      {renderAboveInput?.(view)}
       <MessageForm status={lost === null ? view.status : null} onSend={prompt} />
     </section>
   );
 }
 
-/** The service chat with one agent: messages, agent state and the message form. */
-export function Chat({ sessionId }: { sessionId: string }) {
+/**
+ * The chat with the agent of one session: messages, agent state and the message form. A session
+ * kind puts its own content above the message form with `renderAboveInput`, such as the draft of
+ * changes of the Target setup.
+ */
+export function Chat({
+  sessionId,
+  renderAboveInput,
+}: {
+  sessionId: string;
+  renderAboveInput?: RenderAboveInput;
+}) {
   const [attempt, setAttempt] = useState(0);
   return (
     <ChatConnection
       key={attempt}
       sessionId={sessionId}
+      renderAboveInput={renderAboveInput}
       onReconnect={() => {
         setAttempt((current) => current + 1);
       }}

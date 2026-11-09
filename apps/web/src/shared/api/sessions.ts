@@ -118,6 +118,21 @@ export async function startServiceChat(agent: string): Promise<SessionView> {
   return body;
 }
 
+/**
+ * Opens the Target's setup chat: the running session, or a new one, which starts the onboarding
+ * of a draft Target. Throws with the server's message when the Target's agent is unavailable.
+ */
+export async function openSetupSession(targetId: string): Promise<SessionView> {
+  const response = await fetch(`/api/targets/${encodeURIComponent(targetId)}/setup-session`, {
+    method: "POST",
+  });
+  const body = await readJson(response);
+  if (!isSessionView(body)) {
+    throw new Error("неожиданный ответ");
+  }
+  return body;
+}
+
 /** The WebSocket address of the session's events, on the page's own host. */
 export function sessionEventsUrl(sessionId: string): string {
   const protocol = globalThis.location.protocol === "https:" ? "wss:" : "ws:";

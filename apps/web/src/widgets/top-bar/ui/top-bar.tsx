@@ -1,13 +1,14 @@
 import { Link } from "@tanstack/react-router";
 
+import { NewTargetButton } from "@/features/new-target";
 import type { TargetSummary } from "@/shared/api";
 
 import { AgentPicker } from "./agent-picker";
 import { TargetSwitcher } from "./target-switcher";
 
 /**
- * The bar over the canvas: the Target switcher on the left; the Target's agent and the link to
- * «Проверка агента» on the right. Without a Target only the link remains.
+ * The bar over the canvas: the Target switcher and «Новая цель» on the left; the Target's agent
+ * and the link to «Проверка агента» on the right. Without a Target only the link remains.
  */
 export function TopBar({ target }: { target: TargetSummary | null }) {
   return (
@@ -17,6 +18,7 @@ export function TopBar({ target }: { target: TargetSummary | null }) {
       ) : (
         <nav className="island top-island" aria-label="Цель">
           <TargetSwitcher target={target} />
+          <NewTargetButton />
         </nav>
       )}
       <div className="island top-island">

@@ -58,7 +58,7 @@ export function ChatEntries({
   ...answering
 }: { entries: readonly ChatEntry[] } & PermissionAnswering) {
   return (
-    <ol aria-label="Сообщения" style={{ listStyle: "none", padding: 0 }}>
+    <ol aria-label="Сообщения" className="chat-entries">
       {entries.map((entry) => (
         <li key={entry.id}>
           <EntryLine entry={entry} answering={answering} />

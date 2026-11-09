@@ -7,12 +7,25 @@ import type { TargetSummary } from "@/shared/api";
 
 import { Menu, MenuChoice } from "./menu";
 
+/** «черновик» beside the name of a draft Target, which the Candidate has not set up yet. */
+function DraftMark({ target }: { target: TargetSummary }) {
+  return target.status === "draft" ? <span className="tag">черновик</span> : null;
+}
+
 /** The current Target's name; the menu opens the canvas of another Target. */
 export function TargetSwitcher({ target }: { target: TargetSummary }) {
   const targets = useQuery({ queryKey: ["targets"], queryFn: fetchTargets });
   const navigate = useNavigate();
   return (
-    <Menu label="Цели" button={<span className="target-name">{targetTitle(target)}</span>}>
+    <Menu
+      label="Цели"
+      button={
+        <span className="target-name">
+          {targetTitle(target)}
+          <DraftMark target={target} />
+        </span>
+      }
+    >
       {(close) =>
         (targets.data ?? [target]).map((option) => (
           <MenuChoice
@@ -23,7 +36,10 @@ export function TargetSwitcher({ target }: { target: TargetSummary }) {
               void navigate({ to: "/targets/$targetId", params: { targetId: option.id } });
             }}
           >
-            {targetTitle(option)}
+            <span>
+              {targetTitle(option)}
+              <DraftMark target={option} />
+            </span>
           </MenuChoice>
         ))
       }

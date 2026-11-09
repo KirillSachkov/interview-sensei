@@ -8,6 +8,31 @@ export interface TargetSummary {
   readonly level: Level | null;
 }
 
+type SectionKind = "conversation" | "topics" | "design";
+
+/** A Topic of a Section with its number of Questions. */
+interface TopicSummary {
+  readonly id: string;
+  readonly name: string;
+  readonly questionCount: number;
+}
+
+/** One Section of the Interview plan with its Topics in order. */
+export interface PlanSection {
+  readonly id: string;
+  readonly position: number;
+  readonly name: string;
+  readonly kind: SectionKind;
+  readonly gradingCriteria: string;
+  readonly enabled: boolean;
+  readonly topics: readonly TopicSummary[];
+}
+
+/** A Target with its Interview plan, from GET /api/targets/:id. */
+export interface TargetView extends TargetSummary {
+  readonly sections: readonly PlanSection[];
+}
+
 /** The Target's agent: the Candidate's choice, or the default agent when `chosen` is false. */
 export interface TargetAgent {
   /** Null when the Target has no choice and no agent is available. */
@@ -25,6 +50,11 @@ function isTargetSummary(value: unknown): value is TargetSummary {
     typeof value.name === "string" &&
     "level" in value
   );
+}
+
+/** The server builds the plan; the web app checks only that it got one. */
+export function isTargetView(value: unknown): value is TargetView {
+  return isTargetSummary(value) && "sections" in value && Array.isArray(value.sections);
 }
 
 function isTargetAgent(value: unknown): value is TargetAgent {
@@ -62,14 +92,20 @@ export async function fetchTargets(): Promise<TargetSummary[]> {
   return checked(await readJson(await fetch("/api/targets")), isTargetList);
 }
 
-/** The Target, or null when the address names no Target. */
-export async function fetchTarget(id: string): Promise<TargetSummary | null> {
+/** The Target with its plan, or null when the address names no Target. */
+export async function fetchTarget(id: string): Promise<TargetView | null> {
   const response = await fetch(`/api/targets/${encodeURIComponent(id)}`);
   // The server answers 400 to an id that is not a UUID and 404 to an unknown one.
   if (response.status === 400 || response.status === 404) {
     return null;
   }
-  return checked(await readJson(response), isTargetSummary);
+  return checked(await readJson(response), isTargetView);
+}
+
+/** Creates a new empty draft Target for «Новая цель». */
+export async function createTarget(): Promise<TargetView> {
+  const response = await fetch("/api/targets", { method: "POST" });
+  return checked(await readJson(response), isTargetView);
 }
 
 /** Creates the demo Target, or returns it when it exists. */

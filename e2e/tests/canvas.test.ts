@@ -1,6 +1,7 @@
-// Spec #42, seam 3: the canvas frame. The tests share the server's data directory and run in
-// order: the first one sees no Targets and opens the demo Target, the rest work on it. No other
-// test file creates Targets.
+// Spec #42, seam 3: the canvas frame; spec #45, seam 3: a new Target and its setup. The tests
+// share the server's data directory and run in order: the first one sees no Targets and opens the
+// demo Target, the rest work on it. Later Targets sort after the demo, so `/` still opens it. No
+// other test file creates Targets.
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
@@ -115,3 +116,73 @@ function unknownTargetTest(address: string) {
 unknownTargetTest("/targets/00000000-0000-4000-8000-000000000099");
 // The server answers 400 to an id that is not a UUID; the page shows the same message.
 unknownTargetTest("/targets/unknown");
+
+/** The setup chat beside the canvas; `/tool <name> <json>` makes the fake agent call our tool. */
+function setupChat(page: Page) {
+  const panel = page.getByRole("complementary", { name: "Настройка цели" });
+  const messages = panel.getByRole("list", { name: "Сообщения" }).getByRole("listitem");
+  const changes = panel.getByRole("list", { name: "Изменения черновика" }).getByRole("listitem");
+  const callTool = async (name: string, args: object) => {
+    const count = await messages.count();
+    await panel.getByLabel("Сообщение").fill(`/tool ${name} ${JSON.stringify(args)}`);
+    await panel.getByRole("button", { name: "Отправить" }).click();
+    await expect(messages).toHaveCount(count + 2);
+    await expect(messages.last()).toContainText(`Агент: Результат ${name}:`);
+  };
+  return { panel, messages, changes, callTool };
+}
+
+const setupPlan = {
+  sections: [
+    { name: "Опыт и резюме", kind: "conversation", topics: [] },
+    { name: "Go и конкурентность", kind: "topics", topics: ["Горутины", "Каналы"] },
+  ],
+};
+
+/** The draft Target's canvas after «Новая цель»: its setup chat starts the onboarding. */
+async function onboarding(page: Page) {
+  await expect(page.getByRole("button", { name: /^Цель без названия\s*черновик/u })).toBeVisible();
+  const chat = setupChat(page);
+  await expect(chat.messages.first()).toContainText("Агент: Фейковый агент получил");
+  return chat;
+}
+
+/** The applied plan in the «Цель» zone, and the Target active under its new name. */
+async function expectAppliedPlan(page: Page) {
+  const plan = zones(page).goal.getByRole("list", { name: "План собеседования" });
+  await expect(plan).toContainText("1Опыт и резюме");
+  await expect(plan).toContainText("2Go и конкурентность");
+  await expect(plan.getByRole("list", { name: "Темы" })).toHaveText("ГорутиныКаналы");
+  await expect(zones(page).goal).toContainText("Уровень: Senior");
+  await expect(page.getByRole("button", { name: "Go-разработчик" })).not.toContainText("черновик");
+}
+
+test("«Новая цель» starts the onboarding, and «Применить» puts the agent's plan on the canvas", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Новая цель" }).click();
+  const chat = await onboarding(page);
+  await chat.callTool("update_target", { name: "Go-разработчик", level: "senior" });
+  await chat.callTool("set_interview_plan", setupPlan);
+  await expect(chat.changes).toHaveCount(2);
+  await expect(zones(page).goal).not.toContainText("Go и конкурентность");
+
+  await chat.panel.getByRole("button", { name: "Применить (2)" }).click();
+
+  await expectAppliedPlan(page);
+  await expect(chat.changes).toHaveCount(0);
+});
+
+test("«Настроить цель» returns to the running setup chat", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: demoName }).click();
+  await page.getByRole("menuitemradio", { name: "Go-разработчик" }).click();
+  const chat = setupChat(page);
+  await expect(chat.panel).toBeHidden();
+
+  await zones(page).goal.getByRole("button", { name: "Настроить цель" }).click();
+
+  await expect(chat.messages.first()).toContainText("Агент: Фейковый агент получил");
+  await expect(chat.messages.last()).toContainText("Агент: Результат set_interview_plan:");
+});
