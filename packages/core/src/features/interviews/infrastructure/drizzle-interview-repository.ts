@@ -6,6 +6,7 @@ import type {
   AskedQuestion,
   Attempt,
   CandidateAnswer,
+  FollowUp,
   Grade,
   MockInterview,
 } from "../domain/interview.ts";
@@ -101,6 +102,12 @@ function askedQueries(database: Database) {
       await database
         .update(askedQuestions)
         .set({ answer })
+        .where(eq(askedQuestions.id, askedQuestionId));
+    },
+    followUps: async (askedQuestionId: string, followUps: readonly FollowUp[]) => {
+      await database
+        .update(askedQuestions)
+        .set({ followUps })
         .where(eq(askedQuestions.id, askedQuestionId));
     },
   } satisfies Partial<InterviewRepository>;

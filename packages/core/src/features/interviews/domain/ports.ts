@@ -2,6 +2,7 @@ import type {
   AskedQuestion,
   Attempt,
   CandidateAnswer,
+  FollowUp,
   InterviewStatus,
   MockInterview,
 } from "./interview.ts";
@@ -108,6 +109,8 @@ export interface InterviewRepository {
   readonly asked: (interviewId: string) => Promise<readonly AskedQuestion[]>;
   readonly ask: (question: AskedQuestion) => Promise<void>;
   readonly answer: (askedQuestionId: string, answer: CandidateAnswer) => Promise<void>;
+  /** Replaces the Follow-ups of the asked question. */
+  readonly followUps: (askedQuestionId: string, followUps: readonly FollowUp[]) => Promise<void>;
   readonly attempts: (interviewId: string) => Promise<readonly Attempt[]>;
   /** `exists` when the asked question already has its Attempt; nothing is stored then. */
   readonly record: (attempt: Attempt) => Promise<"recorded" | "exists">;

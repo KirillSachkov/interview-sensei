@@ -27,3 +27,36 @@ export const candidateFinished = [
   "Call finish_interview with a short summary of the interview and the next step, in the Target's language.",
   "Ask no more questions.",
 ].join(" ");
+
+/** The app graded the Candidate's quiz answer itself; the agent records no Attempt for it. */
+export function quizAnswered(grade: number, attemptId: string): string {
+  return [
+    "The Candidate answered the presented quiz.",
+    `The app graded it by the quiz rule: Grade ${grade} of 3, Attempt ${attemptId}.`,
+    "Do not call record_attempt for it. Keep the Grade out of the chat.",
+    "Then present the next question.",
+  ].join(" ");
+}
+
+/** «Не знаю»: the app recorded the Attempt with Grade 0; the agent records none. */
+export function questionSkipped(attemptId: string): string {
+  return [
+    "The Candidate skipped the presented question with «Не знаю».",
+    `The app recorded its Attempt with Grade 0 of 3, Attempt ${attemptId}.`,
+    "Do not call record_attempt for it, and do not explain the answer in the chat.",
+    "Then present the next question.",
+  ].join(" ");
+}
+
+/** The Candidate's answer to the agent's last Follow-up, passed on as written. */
+export function followUpAnswered(answer: string): string {
+  return [
+    "The Candidate answered your Follow-up.",
+    "Ask one more Follow-up with ask_follow_up if the answer still needs it, at most two per question.",
+    "Otherwise judge the whole answer with its Follow-ups and call record_attempt, then present the next question.",
+    "",
+    "The Candidate's answer to the Follow-up, as written:",
+    "",
+    answer,
+  ].join("\n");
+}

@@ -112,24 +112,86 @@ const answerRefusals = {
   no_question: "Интервьюер ещё не показал вопрос.",
   already_answered: "Ответ на этот вопрос уже записан.",
   not_open: "Этот вопрос — квиз: ответ на него — выбор вариантов.",
+  not_quiz: "На этот вопрос отвечают текстом.",
 } as const;
 
-function registerCandidateActions(server: FastifyInstance, { interviews }: Dependencies) {
+const followUpRefusals = {
+  not_running: answerRefusals.not_running,
+  no_follow_up: "Интервьюер не задал уточняющий вопрос.",
+} as const;
+
+type CandidateReply = Parameters<Features["interviews"]["answer"]>[1];
+
+/** The answer of the body: `{ text }`, `{ optionIds }` or `{ skipped: true }` for «Не знаю». */
+function replyOf(body: unknown): CandidateReply | "empty_answer" | "invalid_options" | undefined {
+  const text = onlyField(body, "text");
+  if (typeof text === "string") {
+    return text.trim() === "" ? "empty_answer" : { text };
+  }
+  const optionIds = onlyField(body, "optionIds");
+  if (optionIds !== undefined) {
+    return Array.isArray(optionIds) && optionIds.every((id: unknown) => typeof id === "string")
+      ? { optionIds: optionIds.filter((id: unknown) => typeof id === "string") }
+      : "invalid_options";
+  }
+  return onlyField(body, "skipped") === true ? { skipped: true } : undefined;
+}
+
+const invalidOptions = {
+  error: "invalid_options",
+  message: "Выберите один или несколько вариантов ответа.",
+} as const;
+
+/** The reply to an answer the Mock interview did not take. */
+function refuseAnswer(
+  reply: FastifyReply,
+  outcome: Exclude<Awaited<ReturnType<Features["interviews"]["answer"]>>, "accepted">,
+) {
+  if (outcome === "not_found") {
+    return reply.code(404).send({ error: "interview_not_found" });
+  }
+  return outcome === "invalid_options"
+    ? reply.code(400).send(invalidOptions)
+    : reply.code(409).send({ error: outcome, message: answerRefusals[outcome] });
+}
+
+/** `POST /api/interviews/:id/answer`: the Candidate's answer to the presented question. */
+function registerAnswer(server: FastifyInstance, { interviews }: Dependencies) {
   server.post<{ Params: { id: string }; Body: unknown }>(
     "/api/interviews/:id/answer",
+    { schema: { params } },
+    async (request, reply) => {
+      const answer = replyOf(request.body);
+      if (answer === undefined || answer === "empty_answer") {
+        return reply.code(400).send({ error: "empty_answer", message: "Напишите ответ." });
+      }
+      if (answer === "invalid_options") {
+        return reply.code(400).send(invalidOptions);
+      }
+      const outcome = await interviews.answer(request.params.id, answer);
+      return outcome === "accepted" ? reply.code(204).send() : refuseAnswer(reply, outcome);
+    },
+  );
+}
+
+function registerCandidateActions(server: FastifyInstance, dependencies: Dependencies) {
+  const { interviews } = dependencies;
+  registerAnswer(server, dependencies);
+  server.post<{ Params: { id: string }; Body: unknown }>(
+    "/api/interviews/:id/follow-up",
     { schema: { params } },
     async (request, reply) => {
       const text = onlyField(request.body, "text");
       if (typeof text !== "string" || text.trim() === "") {
         return reply.code(400).send({ error: "empty_answer", message: "Напишите ответ." });
       }
-      const outcome = await interviews.answer(request.params.id, { text });
+      const outcome = await interviews.answerFollowUp(request.params.id, { text });
       if (outcome === "accepted") {
         return reply.code(204).send();
       }
       return outcome === "not_found"
         ? reply.code(404).send({ error: "interview_not_found" })
-        : reply.code(409).send({ error: outcome, message: answerRefusals[outcome] });
+        : reply.code(409).send({ error: outcome, message: followUpRefusals[outcome] });
     },
   );
   server.post<{ Params: { id: string } }>(
@@ -204,8 +266,10 @@ function registerReads(server: FastifyInstance, dependencies: Dependencies) {
  *   `server_closing`, each with a Russian `message`.
  * - `GET /api/targets/:id/interviews`: the Target's five newest Mock interviews, the newest first.
  * - `GET /api/interviews/:id`: the view. It never holds a Grade.
- * - `POST /api/interviews/:id/answer` `{ text }`: the Candidate's answer to the presented question;
- *   204, or 409 with the reason and a Russian `message`.
+ * - `POST /api/interviews/:id/answer` `{ text }`, `{ optionIds }` or `{ skipped: true }` for
+ *   «Не знаю»: the Candidate's answer to the presented question; 204, or 400 or 409 with the reason
+ *   and a Russian `message`.
+ * - `POST /api/interviews/:id/follow-up` `{ text }`: the answer to the agent's last Follow-up.
  * - `POST /api/interviews/:id/finish`: «Завершить»; 202, then the agent writes its summary.
  * - `GET /api/interviews/:id/attempts/:attemptId`: the Debrief of an Attempt with its Grade.
  * - WebSocket `/api/interviews/:id/events`: `{ type: "interview", interview }` at once and after

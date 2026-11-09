@@ -40,9 +40,18 @@ export function interviewTools({ interviewer }: Interviews): readonly SessionToo
       run: async (input, session) => interviewer.present(session.sessionId, input),
     }),
     sessionTool({
+      name: "ask_follow_up",
+      description:
+        "Shows a Follow-up under the Candidate's answer to the presented question: a clarification such as «what did you mean» or «give an example». At most two per question; they belong to its Attempt. After this call, end your turn and wait for the Candidate's answer.",
+      input: z.strictObject({
+        question: z.string().min(1).describe("The Follow-up, in the Target's language."),
+      }),
+      run: async (input, session) => interviewer.askFollowUp(session.sessionId, input),
+    }),
+    sessionTool({
       name: "record_attempt",
       description:
-        "Records your judgment of the Candidate's answer to the presented question: the Grade from 0 to 3, the gaps, a short justification and an outline of a strong answer. The app records the answer itself. One Attempt per question; it never changes.",
+        "Records your judgment of the Candidate's answer to the presented question, with its Follow-ups: the Grade from 0 to 3, the gaps, a short justification and an outline of a strong answer. The app records the answer itself, and records quizzes and «Не знаю» without you. One Attempt per question; it never changes. Returns the Attempt's id.",
       input: judgment,
       run: async (input, session) => interviewer.record(session.sessionId, input),
     }),

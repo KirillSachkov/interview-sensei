@@ -4,7 +4,7 @@ import type { FastifyInstance } from "fastify";
 import { onTestFinished } from "vitest";
 
 import { agentTexts, browserHeaders, isIdle, openEvents } from "./chat-test-support.ts";
-import type { SessionView } from "./chat-test-support.ts";
+import type { ServerOptions, SessionView } from "./chat-test-support.ts";
 import { demoApi } from "./model-test-support.ts";
 import type { TargetView } from "./model-test-support.ts";
 
@@ -15,7 +15,15 @@ export interface Card {
   readonly sectionId: string;
   readonly text: string;
   readonly format: string;
-  readonly answer: { text: string | null; skipped: boolean; answeredAt: string } | null;
+  readonly options: readonly { id: string; text: string }[];
+  readonly parentAttemptId: string | null;
+  readonly answer: {
+    text: string | null;
+    optionIds: readonly string[];
+    skipped: boolean;
+    answeredAt: string;
+  } | null;
+  readonly followUps: readonly { question: string; answer: string | null; askedAt: string }[];
   readonly attemptId: string | null;
 }
 
@@ -25,6 +33,9 @@ export interface Interview {
   readonly sessionId: string;
   readonly status: string;
   readonly sectionIds: readonly string[];
+  readonly currentSectionId: string | null;
+  readonly limitMinutes: number | null;
+  readonly difficulty: string;
   readonly finishRequestedAt: string | null;
   readonly summary: string | null;
   readonly nextStep: string | null;
@@ -128,6 +139,12 @@ export function sectionNamed(target: TargetView, name: string): TargetView["sect
   return section;
 }
 
+/** The limit and the difficulty of a start; the server's defaults without them. */
+interface StartSettings {
+  readonly limitMinutes?: number | null;
+  readonly difficulty?: string;
+}
+
 /** The Debrief of the card's Attempt. */
 async function debriefOf(server: FastifyInstance, { id, card }: { id: string; card: Card }) {
   const response = await server.inject({
@@ -137,19 +154,26 @@ async function debriefOf(server: FastifyInstance, { id, card }: { id: string; ca
   return response.json<unknown>();
 }
 
-/** The demo Target on a server with the fake agent, and the Mock interview API on it. */
-export async function interviewApi() {
-  const api = await demoApi();
+/**
+ * The demo Target on a server with the fake agent, and the Mock interview API on it. The options
+ * go to startServer, such as a clock and a timer that the test controls.
+ */
+export async function interviewApi(options: ServerOptions = {}) {
+  const api = await demoApi(undefined, options);
   const { server, target } = api;
   const headers = browserHeaders(server);
   const post = async (url: string, payload?: object) =>
     server.inject({ method: "POST", url, headers, ...(payload === undefined ? {} : { payload }) });
-  const start = async (sectionIds: readonly string[]) =>
-    post(`/api/targets/${target.id}/interviews`, { sectionIds });
+  /** Starts a Mock interview; the settings are the limit and the difficulty. */
+  const start = async (sectionIds: readonly string[], settings: StartSettings = {}) =>
+    post(`/api/targets/${target.id}/interviews`, { sectionIds, ...settings });
   const sectionId = (name: string) => sectionNamed(target, name).id;
   /** Starts a Mock interview on the Sections and follows it and its interviewer chat. */
-  const started = async (names: readonly string[]) => {
-    const response = await start(names.map((name) => sectionId(name)));
+  const started = async (names: readonly string[], settings: StartSettings = {}) => {
+    const response = await start(
+      names.map((name) => sectionId(name)),
+      settings,
+    );
     if (response.statusCode !== 201) {
       throw new Error(`The start failed: ${response.statusCode} ${response.body}`);
     }

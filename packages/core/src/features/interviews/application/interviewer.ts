@@ -6,19 +6,20 @@ import { interviewBrief } from "../domain/brief.ts";
 import { questionCandidates } from "../domain/candidates.ts";
 import type { Judgment, MockInterview } from "../domain/interview.ts";
 import { presentedQuestion } from "../domain/interview.ts";
-import type {
-  BankQuestion,
-  InterviewRepository,
-  PlanSection,
-  TargetPlan,
-} from "../domain/ports.ts";
+import type { BankQuestion, InterviewRepository, PlanSection } from "../domain/ports.ts";
 import { change, inBackground } from "./context.ts";
 import type { Context } from "./context.ts";
-
-/** A refused tool call; the agent gets the message as the tool's error. */
-class InterviewToolError extends Error {
-  override name = "InterviewToolError";
-}
+import { askFollowUp } from "./follow-ups.ts";
+import {
+  answeredQuestion,
+  assertNotFinishing,
+  assertRunning,
+  InterviewToolError,
+  interviewOf,
+  planOf,
+  recordedAlready,
+  selected,
+} from "./tool-session.ts";
 
 export interface Interviewer {
   /** The brief as JSON. */
@@ -26,38 +27,12 @@ export interface Interviewer {
   /** Up to `limit` candidates of the current Section as JSON. */
   readonly candidates: (sessionId: string, limit: number) => Promise<string>;
   readonly present: (sessionId: string, request: { questionId: string }) => Promise<string>;
+  readonly askFollowUp: (sessionId: string, request: { question: string }) => Promise<string>;
   readonly record: (sessionId: string, judgment: Judgment) => Promise<string>;
   readonly finish: (
     sessionId: string,
     result: { summary: string; nextStep: string },
   ) => Promise<string>;
-}
-
-async function interviewOf({ dependencies }: Context, sessionId: string): Promise<MockInterview> {
-  const interview = await dependencies.repository.bySession(sessionId);
-  if (interview === undefined) {
-    throw new InterviewToolError("No mock interview belongs to this session.");
-  }
-  return interview;
-}
-
-function assertRunning(interview: MockInterview): void {
-  if (interview.status !== "running") {
-    throw new InterviewToolError("The mock interview has ended.");
-  }
-}
-
-async function planOf({ dependencies }: Context, interview: MockInterview): Promise<TargetPlan> {
-  const plan = await dependencies.targets.get(interview.targetId);
-  if (plan === undefined) {
-    throw new InterviewToolError("The Target of this mock interview no longer exists.");
-  }
-  return plan;
-}
-
-/** The selected Sections of the Mock interview, in its order. */
-function selected(plan: TargetPlan, interview: MockInterview): readonly PlanSection[] {
-  return interview.sectionIds.flatMap((id) => plan.sections.filter((section) => section.id === id));
 }
 
 async function brief(context: Context, sessionId: string): Promise<string> {
@@ -177,11 +152,7 @@ async function present(
   return change(context, found.id, async () => {
     const interview = await interviewOf(context, sessionId);
     assertRunning(interview);
-    if (interview.finishRequestedAt !== null) {
-      throw new InterviewToolError(
-        "The Candidate finished the mock interview: call finish_interview instead.",
-      );
-    }
+    assertNotFinishing(interview);
     const position = await assertNothingPresented(context, interview);
     const { question, section } = await questionToShow(context, interview, questionId);
     await repository.ask({
@@ -206,32 +177,6 @@ async function present(
   });
 }
 
-const recordedAlready =
-  "The last question already has its Attempt; a recorded Attempt never changes.";
-
-/** The presented question with the Candidate's answer, which waits for its Attempt. */
-async function answeredQuestion(context: Context, interview: MockInterview) {
-  const { repository } = context.dependencies;
-  const [asked, attempts] = await Promise.all([
-    repository.asked(interview.id),
-    repository.attempts(interview.id),
-  ]);
-  const presented = presentedQuestion(asked, attempts);
-  if (presented === undefined) {
-    throw new InterviewToolError(
-      asked.length === 0
-        ? "No question is presented: show one with present_question first."
-        : recordedAlready,
-    );
-  }
-  if (presented.answer === null) {
-    throw new InterviewToolError(
-      "The Candidate has not answered the presented question yet: wait for the answer.",
-    );
-  }
-  return presented;
-}
-
 async function record(context: Context, sessionId: string, judgment: Judgment) {
   const found = await interviewOf(context, sessionId);
   const { repository, clock } = context.dependencies;
@@ -239,8 +184,9 @@ async function record(context: Context, sessionId: string, judgment: Judgment) {
     const interview = await interviewOf(context, sessionId);
     assertRunning(interview);
     const presented = await answeredQuestion(context, interview);
+    const id = randomUUID();
     const outcome = await repository.record({
-      id: randomUUID(),
+      id,
       interviewId: interview.id,
       askedQuestionId: presented.id,
       ...judgment,
@@ -251,7 +197,7 @@ async function record(context: Context, sessionId: string, judgment: Judgment) {
     if (outcome === "exists") {
       throw new InterviewToolError(recordedAlready);
     }
-    return "The Attempt is recorded. Present the next question with present_question.";
+    return `The Attempt ${id} is recorded. Present the next question with present_question; a Deeper question names this Attempt as its parent.`;
   });
 }
 
@@ -287,6 +233,7 @@ export function createInterviewer(context: Context): Interviewer {
     brief: async (sessionId) => brief(context, sessionId),
     candidates: async (sessionId, limit) => candidates(context, sessionId, limit),
     present: async (sessionId, request) => present(context, sessionId, request),
+    askFollowUp: async (sessionId, request) => askFollowUp(context, sessionId, request),
     record: async (sessionId, judgment) => record(context, sessionId, judgment),
     finish: async (sessionId, result) => finish(context, sessionId, result),
   };

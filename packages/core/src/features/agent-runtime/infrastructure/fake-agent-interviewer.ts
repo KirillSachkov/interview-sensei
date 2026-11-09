@@ -58,9 +58,13 @@ function candidatesOf(text: string): readonly Candidate[] {
   );
 }
 
-async function presentNext(actions: InterviewerActions): Promise<void> {
+/** Picks the candidate to show: the first one of the format, or the first one. */
+const firstOf = (format: string) => (candidates: readonly Candidate[]) =>
+  candidates.find((candidate) => candidate.format === format) ?? candidates[0];
+
+async function presentNext(actions: InterviewerActions, pick = firstOf("open")): Promise<void> {
   const candidates = candidatesOf(await actions.call("next_question_candidates", {}));
-  const next = candidates.find((candidate) => candidate.format === "open") ?? candidates[0];
+  const next = pick(candidates);
   if (next === undefined) {
     await actions.say("Вопросов больше нет.");
     return;
@@ -82,15 +86,39 @@ const judgment = (grade: number) => ({
   strongAnswer: "Фейковый интервьюер: определение, ограничения и пример из практики.",
 });
 
-async function judge(actions: InterviewerActions, text: string): Promise<void> {
+/** Asks the fake Follow-up; true when the app showed it, so the turn ends. */
+async function followUp(actions: InterviewerActions): Promise<boolean> {
+  const result = await actions.call("ask_follow_up", {
+    question: "Фейковый Follow-up: приведите пример.",
+  });
+  if (result.startsWith("The Follow-up is shown")) {
+    return true;
+  }
+  await actions.say(`Follow-up отклонён: ${result}`);
+  return false;
+}
+
+/** Judges the answer after the note, unless the marker `[followup]` asks a Follow-up first. */
+async function judge(actions: InterviewerActions, text: string, note: string): Promise<void> {
   const grade = Number(/\[grade:(?<grade>[0-3])\]/u.exec(text)?.groups?.grade ?? "2");
-  await actions.say("Ответ получен.");
+  await actions.say(note);
+  if (text.includes("[followup]") && (await followUp(actions))) {
+    return;
+  }
   await actions.call("record_attempt", judgment(grade));
   if (text.includes("[twice]")) {
     await actions.say(`Повторная запись: ${await actions.call("record_attempt", judgment(grade))}`);
   }
+  await presentNext(actions, firstOf(text.includes("[quiz]") ? "quiz" : "open"));
+}
+
+/** The app recorded the Attempt of a quiz or «Не знаю»: a short note, then the next question. */
+async function noteAndGoOn(actions: InterviewerActions, note: string): Promise<void> {
+  await actions.say(note);
   await presentNext(actions);
 }
+
+const gradeIn = (text: string) => /Grade (?<grade>[0-3]) of 3/u.exec(text)?.groups?.grade ?? "?";
 
 async function finish(actions: InterviewerActions): Promise<void> {
   await actions.call("finish_interview", {
@@ -141,7 +169,7 @@ async function say({ client, sessionId }: InterviewerSession, text: string): Pro
 }
 
 /** Runs the turn's steps; a failure becomes the turn's last text. */
-function turnOf(steps: (actions: InterviewerActions) => Promise<void>) {
+function turnOf(steps: Steps) {
   return async (session: InterviewerSession) => {
     try {
       await steps({
@@ -156,16 +184,32 @@ function turnOf(steps: (actions: InterviewerActions) => Promise<void>) {
   };
 }
 
+type Steps = (actions: InterviewerActions) => Promise<void>;
+
+/** The steps for each template message, by its first sentence; each gets the whole message. */
+const turns: readonly (readonly [string, (text: string) => Steps])[] = [
+  ["The mock interview has started.", () => start],
+  [
+    "The Candidate answered the presented question.",
+    (text) => async (actions) => judge(actions, text, "Ответ получен."),
+  ],
+  [
+    "The Candidate answered your Follow-up.",
+    (text) => async (actions) => judge(actions, text, "Уточнение получено."),
+  ],
+  [
+    "The Candidate answered the presented quiz.",
+    (text) => async (actions) => noteAndGoOn(actions, `Квиз оценён: ${gradeIn(text)}.`),
+  ],
+  [
+    "The Candidate skipped the presented question",
+    () => async (actions) => noteAndGoOn(actions, "Вопрос пропущен."),
+  ],
+  ["The Candidate finished the mock interview.", () => finish],
+];
+
 /** The interviewer's turn for a template message, or null for another prompt. */
 export function interviewerTurn(text: string) {
-  if (text.startsWith("The mock interview has started.")) {
-    return turnOf(start);
-  }
-  if (text.startsWith("The Candidate answered the presented question.")) {
-    return turnOf(async (actions) => judge(actions, text));
-  }
-  if (text.startsWith("The Candidate finished the mock interview.")) {
-    return turnOf(finish);
-  }
-  return null;
+  const found = turns.find(([sentence]) => text.startsWith(sentence));
+  return found === undefined ? null : turnOf(found[1](text));
 }

@@ -16,6 +16,7 @@ import type {
   CandidateAnswer,
   Difficulty,
   FollowUp,
+  GradedBy,
   InterviewStatus,
 } from "../domain/interview.ts";
 
@@ -89,7 +90,7 @@ export const attempts = interviewsSchema.table("attempts", {
     .unique()
     .references(() => askedQuestions.id),
   grade: integer("grade").notNull(),
-  gradedBy: text("graded_by").$type<"agent" | "quiz">().notNull(),
+  gradedBy: text("graded_by").$type<GradedBy>().notNull(),
   gaps: text("gaps").notNull(),
   justification: text("justification").notNull(),
   strongAnswer: text("strong_answer").notNull(),

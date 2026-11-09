@@ -8,6 +8,12 @@ export type Difficulty = "easier" | "as_is" | "harder";
 
 export type Grade = 0 | 1 | 2 | 3;
 
+/**
+ * Who graded an Attempt: the agent, the app by the quiz rule, or the app for «Не знаю», which
+ * gives 0.
+ */
+export type GradedBy = "agent" | "quiz" | "skip";
+
 export interface MockInterview {
   readonly id: string;
   readonly targetId: string;
@@ -92,7 +98,7 @@ export interface Attempt extends Judgment {
   readonly id: string;
   readonly interviewId: string;
   readonly askedQuestionId: string;
-  readonly gradedBy: "agent" | "quiz";
+  readonly gradedBy: GradedBy;
   /** Whether the Candidate got a hint before answering; slice 4 sets it. */
   readonly hinted: boolean;
   readonly recordedAt: string;
