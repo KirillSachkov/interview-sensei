@@ -10,12 +10,21 @@ import {
   isGraded,
   saysWhenIdle,
 } from "./interview-test-support.ts";
+import { manualTime } from "./interview-flow-test-support.ts";
 import { promptTool } from "./progress-test-support.ts";
 
-type Api = Awaited<ReturnType<typeof interviewApi>>;
+type Api = Awaited<ReturnType<typeof restApi>>;
+
+/** Distinct start times keep interview recency independent of randomly generated ids. */
+async function restApi() {
+  const time = manualTime();
+  const api = await interviewApi(time);
+  return { ...api, advance: () => time.pass(1000) };
+}
 
 /** Clears a question in another Section, leaving the searched bank question available to show. */
 async function nextRound(api: Api) {
+  api.advance();
   const run = await api.answered(
     ["TypeScript и Node.js", "Опыт и резюме"],
     "Ответ [grade:0] [last]",
@@ -70,7 +79,7 @@ describe("rest between mock interviews on the MCP path", () => {
   ])(
     "enforces $rest interviews of rest after Grade $grade, then permits the question",
     async ({ grade, rest }) => {
-      const api = await interviewApi();
+      const api = await restApi();
       const { questionId } = await gradedQuestion(api, grade);
 
       await restFor(api, questionId, rest);
