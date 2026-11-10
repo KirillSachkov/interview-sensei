@@ -5,6 +5,7 @@ import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 
 import { onboarding, zones } from "./canvas-support.ts";
+import type { setupChat } from "./canvas-support.ts";
 
 const elixirName = "Elixir-разработчик";
 
@@ -25,8 +26,17 @@ async function newElixirTarget(page: Page) {
   });
   await chat.callTool("apply_changes", {});
   await expect(page.getByRole("button", { name: elixirName })).toBeVisible();
-  await chat.panel.getByRole("button", { name: "Скрыть" }).click();
+  await hideAfterTurn(chat);
   return answersCard(page);
+}
+
+/**
+ * Hides the setup chat once the agent's turn ends: the page reloads the Target's views then, and a
+ * hidden chat would miss it. The fake agent streams the long reply of apply_changes word by word.
+ */
+async function hideAfterTurn(chat: ReturnType<typeof setupChat>) {
+  await expect(chat.panel.getByText("Агент работает…")).toBeHidden({ timeout: 20_000 });
+  await chat.panel.getByRole("button", { name: "Скрыть" }).click();
 }
 
 /** «Опорные ответы» of the «Цель» zone, in a view that fits the zone. */
