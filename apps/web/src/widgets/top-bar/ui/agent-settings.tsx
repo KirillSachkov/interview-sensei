@@ -7,6 +7,12 @@ import type { AgentAvailability, AgentModelChoice, AppSettings, OptionChoice } f
 /** The value of «как у агента» in a select: the agent's own default. */
 const agentsOwn = "";
 
+/** The agent's own value after «как у агента», while the Candidate chose none: « (6.1 Sol)». */
+function ownName(choice: OptionChoice, value: string | null): string {
+  const own = choice.values.find((option) => option.value === choice.current);
+  return value === null && own !== undefined ? ` (${own.name})` : "";
+}
+
 /** One select of an agent's default: «как у агента» and the values the agent offers. */
 function DefaultSelect({
   label,
@@ -33,7 +39,7 @@ function DefaultSelect({
           onChange(event.target.value === agentsOwn ? null : event.target.value);
         }}
       >
-        <option value={agentsOwn}>как у агента</option>
+        <option value={agentsOwn}>как у агента{ownName(choice, value)}</option>
         {stale ? <option value={value}>{value} (агент больше не предлагает)</option> : null}
         {choice.values.map((option) => (
           <option key={option.value} value={option.value}>
