@@ -44,7 +44,7 @@ The Candidate may stop the processing at any time. The Questions you added stay,
 - Use `format: "quiz"` only when the material gives clear options; otherwise keep the default open format.
 - Before adding, look for Questions with the same meaning with `search_questions`.
   Match the meaning and scope of the whole Question, not just shared keywords. A narrower or broader Question is distinct.
-  For the same meaning, pass its id as `existingQuestionId` to `add_bank_questions`, with the existing Topic, format and Section kind and this material's `sourceId`, `part` and answer. Keep its text and identity instead of adding a paraphrase.
+  For the same meaning, pass its id as `existingQuestionId` to `add_bank_questions`, with the existing Topic and format and this material's `sourceId`, `part` and answer. Keep its text and identity instead of adding a paraphrase. Use the existing Section kind; when it is null, choose the kind of a suitable Section from the brief for this call. The existing Question keeps its null kind.
   Exact text repeats also match automatically, even within one call. Repeats count in `duplicates`.
   Read `answers`: `attached` saved this material's answer, replacing a web or agent answer if present; `candidate_protected` and `material_preserved` kept the earlier answer.
   Compare a preserved answer with the new material. For a substantive conflict, include the existing `questionId` in `doubtful`, describe the difference and name both sources and parts. Report a successful attachment in the summary. Candidate-checked answers stay protected.
