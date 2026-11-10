@@ -129,7 +129,13 @@ function composeInterviews(
   const interviews: ReturnType<typeof interviewsModule> = interviewsModule({
     database: storage.database,
     ...services,
-    progress: { focus: async (targetId) => progress.focus(targetId) },
+    progress: {
+      focus: async (targetId) => progress.focus(targetId),
+      topicStatuses: async (targetId) => {
+        const found = await progress.target(targetId);
+        return found?.topics ?? [];
+      },
+    },
     onError: (error) => log.error({ err: error }, "A mock interview failed in the background"),
   });
   const progress = progressModule({ plans: services.targets, attempts: interviews });
@@ -193,10 +199,7 @@ function targetDependencies(
   };
 }
 
-/**
- * The slices that run on Agent sessions after the gateway: Mock interviews with their progress, and
- * answer search, which reads both.
- */
+/** After the gateway: Mock interviews with their progress, and answer search, which reads both. */
 function composeSessionWork(
   storage: Storage,
   { clock, timer, log }: FeatureDependencies,

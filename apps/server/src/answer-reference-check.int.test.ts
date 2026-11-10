@@ -33,7 +33,12 @@ async function disputedAgentAnswer() {
     ]);
     await storage.transaction(async (transaction) =>
       questionBank.requestReferenceCheck(
-        { questionId, comment: "Пункты неполные.", requestedAt: "2026-11-10T00:00:00.000Z" },
+        {
+          questionId,
+          reason: "dispute",
+          comment: "Пункты неполные.",
+          requestedAt: "2026-11-10T00:00:00.000Z",
+        },
         transaction,
       ),
     );

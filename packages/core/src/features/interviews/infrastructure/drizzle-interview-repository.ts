@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 
+import { executorOf } from "../../../shared/storage/index.ts";
 import type { Database, Executor, Transaction } from "../../../shared/storage/index.ts";
 import type {
   AskedQuestion,
@@ -147,8 +148,8 @@ function attemptQueries(database: Database) {
         .orderBy(asc(attempts.recordedAt), asc(attempts.id));
       return rows.map((row) => toAttempt(row));
     },
-    record: async (attempt: Attempt) => {
-      const rows = await database
+    record: async (attempt: Attempt, transaction?: Transaction) => {
+      const rows = await executorOf(database, transaction)
         .insert(attempts)
         .values({ ...attempt, recordedAt: new Date(attempt.recordedAt) })
         .onConflictDoNothing({ target: attempts.askedQuestionId })

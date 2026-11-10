@@ -117,7 +117,7 @@ async function dispute(
       );
       if (questionId !== undefined) {
         await dependencies.referenceChecks.requestReferenceCheck(
-          { questionId, comment: reason, requestedAt: disputedAt },
+          { questionId, reason: "dispute", comment: reason, requestedAt: disputedAt },
           transaction,
         );
       }

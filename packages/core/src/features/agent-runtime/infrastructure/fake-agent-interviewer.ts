@@ -2,9 +2,10 @@
 // it knows by their first sentence, by calling our MCP tools, as a real interviewer would.
 // - «The mock interview has started.»: `get_brief`, then the next question (see below).
 // - «The Candidate answered the presented question.»: «Ответ получен.», then `record_attempt` with
-//   the Grade of the marker `[grade:N]` in the answer, 2 without one. With the marker `[twice]` it
-//   calls `record_attempt` once more and replies «Повторная запись: <tool result>». Then the next
-//   question.
+//   the Grade of the marker `[grade:N]` in the answer, 2 without one. For a question with a reference
+//   answer it covers every key point, or those of the marker `[covered:1,3]`; `[disagree]` adds its
+//   disagreement with the reference answer. With the marker `[twice]` it calls `record_attempt` once
+//   more and replies «Повторная запись: <tool result>». Then the next question.
 // - «The Candidate answered your Follow-up.»: «Уточнение получено.», then the same as an answer.
 // - `[followup]` in an answer: `ask_follow_up` instead of `record_attempt`; a refused one gives
 //   «Follow-up отклонён: <tool result>» and the Attempt.
@@ -21,7 +22,12 @@
 // choose a quiz, a Deeper question or a made-up one; then the hint «Подсказка до ответа: …» in the
 // same turn, which the app keeps out of the chat.
 // A failed step ends the turn with «Фейковый интервьюер сломался: <error>».
-import { moveToNextSection, presentNext } from "./fake-agent-interviewer-questions.ts";
+import {
+  moveToNextSection,
+  presentNext,
+  referencePointCount,
+  rememberReferencePoints,
+} from "./fake-agent-interviewer-questions.ts";
 import type { InterviewerActions } from "./fake-agent-interviewer-questions.ts";
 import { sendText } from "./fake-agent-text.ts";
 import { allowedCall } from "./fake-agent-tool.ts";
@@ -33,12 +39,31 @@ async function start(actions: InterviewerActions): Promise<void> {
   await presentNext(actions);
 }
 
-const judgment = (grade: number) => ({
-  grade,
-  gaps: "Фейковый интервьюер: не хватает примера из практики.",
-  justification: `Фейковый интервьюер поставил оценку из метки в ответе: ${grade}.`,
-  strongAnswer: "Фейковый интервьюер: определение, ограничения и пример из практики.",
-});
+/** The covered key points: those of the marker `[covered:…]`, or all of them. */
+function coveredPoints(text: string, count: number): readonly number[] {
+  const marked = /\[covered:(?<list>[0-9,]*)\]/u.exec(text)?.groups?.list;
+  return marked === undefined
+    ? Array.from({ length: count }, (_point, index) => index + 1)
+    : marked
+        .split(",")
+        .filter((number) => number !== "")
+        .map(Number);
+}
+
+/** The judgment of the answer by its markers; `points` of the reference answer, 0 without one. */
+function judgment(text: string, points: number) {
+  const grade = Number(/\[grade:(?<grade>[0-3])\]/u.exec(text)?.groups?.grade ?? "2");
+  return {
+    grade,
+    gaps: "Фейковый интервьюер: не хватает примера из практики.",
+    justification: `Фейковый интервьюер поставил оценку из метки в ответе: ${grade}.`,
+    strongAnswer: "Фейковый интервьюер: определение, ограничения и пример из практики.",
+    ...(points === 0 ? {} : { coveredPoints: coveredPoints(text, points) }),
+    ...(text.includes("[disagree]")
+      ? { disagreement: "Фейковый интервьюер не согласен с опорным ответом." }
+      : {}),
+  };
+}
 
 /** Asks the fake Follow-up; true when the app showed it, so the turn ends. */
 async function followUp(actions: InterviewerActions): Promise<boolean> {
@@ -54,14 +79,14 @@ async function followUp(actions: InterviewerActions): Promise<boolean> {
 
 /** Judges the answer after the note, unless the marker `[followup]` asks a Follow-up first. */
 async function judge(actions: InterviewerActions, text: string, note: string): Promise<void> {
-  const grade = Number(/\[grade:(?<grade>[0-3])\]/u.exec(text)?.groups?.grade ?? "2");
   await actions.say(note);
   if (text.includes("[followup]") && (await followUp(actions))) {
     return;
   }
-  const recorded = await actions.call("record_attempt", judgment(grade));
+  const judged = judgment(text, referencePointCount(actions.sessionId));
+  const recorded = await actions.call("record_attempt", judged);
   if (text.includes("[twice]")) {
-    await actions.say(`Повторная запись: ${await actions.call("record_attempt", judgment(grade))}`);
+    await actions.say(`Повторная запись: ${await actions.call("record_attempt", judged)}`);
   }
   await goOn(actions, text, recorded);
 }
@@ -112,8 +137,10 @@ function continuationOf(brief: string) {
   const presented = fieldOf(continuation, "presentedQuestion");
   const asked = fieldOf(continuation, "askedQuestions");
   const waitingFor = fieldOf(presented, "waitingFor");
+  const points = fieldOf(fieldOf(presented, "referenceAnswer"), "points");
   return {
     waitingFor: typeof waitingFor === "string" ? waitingFor : null,
+    referencePoints: Array.isArray(points) ? points.length : 0,
     answer: answerText(presented),
     lastAnswer: Array.isArray(asked) ? answerText(asked.at(-1)) : "",
   };
@@ -124,7 +151,10 @@ function continuationOf(brief: string) {
  * in the last answer keeps it from showing a next question.
  */
 async function continueAfterPause(actions: InterviewerActions): Promise<void> {
-  const { waitingFor, answer, lastAnswer } = continuationOf(await actions.call("get_brief", {}));
+  const { waitingFor, referencePoints, answer, lastAnswer } = continuationOf(
+    await actions.call("get_brief", {}),
+  );
+  rememberReferencePoints(actions.sessionId, referencePoints);
   const note = "Продолжаем после паузы.";
   if (waitingFor === "attempt") {
     await judge(actions, answer, note);

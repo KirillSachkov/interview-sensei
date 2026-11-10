@@ -12,7 +12,7 @@ type Timing = Pick<
 >;
 
 /** How long the Mock interview has run by `now`, without its pauses. */
-function runningMs({ startedAt, pausedAt, pausedMs }: Timing, now: string): number {
+export function runningMs({ startedAt, pausedAt, pausedMs }: Timing, now: string): number {
   return Date.parse(pausedAt ?? now) - Date.parse(startedAt) - pausedMs;
 }
 

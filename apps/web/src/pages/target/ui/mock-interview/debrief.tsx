@@ -95,6 +95,37 @@ function ReferenceAnswer({ question }: { question: AskedQuestion }) {
   );
 }
 
+/** The key points of the reference answer, ✓ for those the answer covered, and the disagreement. */
+function ReferencePoints({ debrief }: { debrief: AttemptDebrief }) {
+  const { referencePoints, referenceDisagreement } = debrief;
+  if (referencePoints === null) {
+    return null;
+  }
+  const covered = referencePoints.filter((point) => point.covered).length;
+  return (
+    <>
+      <h4>
+        Опорный ответ: раскрыто {covered} из {referencePoints.length}
+      </h4>
+      <ul className="reference-points">
+        {referencePoints.map((point) => (
+          <li key={point.text} className={point.covered ? "covered" : "missed"}>
+            <span aria-hidden="true">{point.covered ? "✓" : "✗"}</span>{" "}
+            <span className="visually-hidden">{point.covered ? "Раскрыт:" : "Не раскрыт:"}</span>{" "}
+            {point.text}
+          </li>
+        ))}
+      </ul>
+      {referenceDisagreement === null ? null : (
+        <p>
+          <span className="muted">Интервьюер не согласен с опорным ответом: </span>
+          {referenceDisagreement}
+        </p>
+      )}
+    </>
+  );
+}
+
 function DebriefBody({
   interviewId,
   attemptId,
@@ -122,6 +153,7 @@ function DebriefBody({
   return (
     <section className="debrief" aria-label="Разбор" data-discuss-scope="">
       <GradeLine debrief={debrief.data} />
+      <ReferencePoints debrief={debrief.data} />
       <h4>Пробелы</h4>
       <p>{gaps.trim() === "" ? "Нет" : gaps}</p>
       <h4>Обоснование</h4>

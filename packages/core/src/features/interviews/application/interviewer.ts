@@ -1,10 +1,6 @@
 // What the interviewer's MCP tools do. Each action finds the Mock interview of the calling
 // session and refuses with a rule the agent can follow. Texts for the agent are in English.
-import { randomUUID } from "node:crypto";
-
 import { interviewBrief } from "../domain/brief.ts";
-import type { Judgment } from "../domain/interview.ts";
-import { change } from "./context.ts";
 import type { Context } from "./context.ts";
 import { setSection } from "./current-section.ts";
 import { askFollowUp } from "./follow-ups.ts";
@@ -12,14 +8,9 @@ import { present } from "./present-question.ts";
 import type { PresentRequest } from "./present-question.ts";
 import { candidates } from "./question-candidates.ts";
 import type { CandidatesRequest } from "./question-candidates.ts";
-import {
-  answeredQuestion,
-  assertRunning,
-  InterviewToolError,
-  interviewOf,
-  planOf,
-  recordedAlready,
-} from "./tool-session.ts";
+import { record } from "./record-attempt.ts";
+import type { RecordRequest } from "./record-attempt.ts";
+import { interviewOf, planOf } from "./tool-session.ts";
 import { briefContinuation, briefHistory } from "./records.ts";
 
 export interface Interviewer {
@@ -30,7 +21,7 @@ export interface Interviewer {
   readonly present: (sessionId: string, request: PresentRequest) => Promise<string>;
   readonly setSection: (sessionId: string, request: { sectionId: string }) => Promise<string>;
   readonly askFollowUp: (sessionId: string, request: { question: string }) => Promise<string>;
-  readonly record: (sessionId: string, judgment: Judgment) => Promise<string>;
+  readonly record: (sessionId: string, judgment: RecordRequest) => Promise<string>;
   readonly finish: (
     sessionId: string,
     result: { summary: string; nextStep: string },
@@ -47,30 +38,6 @@ async function brief(context: Context, sessionId: string): Promise<string> {
   return JSON.stringify(
     interviewBrief(interview, plan, continuation === null ? past : { ...past, continuation }),
   );
-}
-
-async function record(context: Context, sessionId: string, judgment: Judgment) {
-  const found = await interviewOf(context, sessionId);
-  const { repository, clock } = context.dependencies;
-  return change(context, found.id, async () => {
-    const interview = await interviewOf(context, sessionId);
-    assertRunning(interview);
-    const presented = await answeredQuestion(context, interview);
-    const id = randomUUID();
-    const outcome = await repository.record({
-      id,
-      interviewId: interview.id,
-      askedQuestionId: presented.id,
-      ...judgment,
-      gradedBy: "agent",
-      hinted: presented.hinted,
-      recordedAt: clock.now().toISOString(),
-    });
-    if (outcome === "exists") {
-      throw new InterviewToolError(recordedAlready);
-    }
-    return `The Attempt ${id} is recorded. Present the next question with present_question; a Deeper question names this Attempt as its parent.`;
-  });
 }
 
 /** The interviewer's tools but `finish_interview`, which endings.ts owns. */

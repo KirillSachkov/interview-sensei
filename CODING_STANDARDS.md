@@ -86,6 +86,7 @@ A running search whose agent has not started yet goes back to `waiting` instead,
 A background start that does not happen goes to `onBackgroundSkipped`, which the server logs at `info`.
 The Debrief in the web app reads the asked Question's Reference answer from `GET /api/targets/:id/questions` of its Topic, hidden Questions too; the Debrief API of `interviews` stays without it.
 A Dispute in `interviews` puts the disputed Question on the list «Проверить опорный ответ» through its `ReferenceChecks` port, which `question-bank` supplies (#65). The Dispute and this write share one transaction: `composeSessionWork` passes `storage.transaction` to `interviews`.
+`record_attempt` with the interviewer's disagreement with the reference answer does the same (#64): the Attempt and the list entry share one transaction.
 
 ### Session profiles
 

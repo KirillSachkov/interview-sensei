@@ -63,11 +63,12 @@ interface ReviewDetails {
 
 /**
  * Why the Question waits in the list «проверить опорный ответ» of the zone «Цель»: the Candidate
- * disputed the Grade of an Attempt on it, with their reason. «проверен» or a corrected reference
- * answer takes it off the list.
+ * disputed the Grade of an Attempt on it, with their reason (`dispute`), or the interviewer of a
+ * Mock interview disagreed with its reference answer, with why (`interviewer`). «проверен» or a
+ * corrected reference answer takes it off the list.
  */
 export interface ReferenceCheck {
-  readonly reason: "dispute";
+  readonly reason: "dispute" | "interviewer";
   readonly comment: string;
   /** ISO 8601. */
   readonly requestedAt: string;
