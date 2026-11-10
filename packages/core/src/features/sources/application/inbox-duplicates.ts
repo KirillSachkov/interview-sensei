@@ -59,7 +59,7 @@ export async function attachAnswer(
   if (
     match.topicId !== question.topicId ||
     match.format !== question.format ||
-    match.sectionKind !== question.sectionKind
+    (match.sectionKind !== null && match.sectionKind !== question.sectionKind)
   ) {
     throw new Error("A duplicate answer must fit the existing Topic, format and Section kind");
   }
