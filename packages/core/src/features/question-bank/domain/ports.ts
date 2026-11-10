@@ -1,4 +1,11 @@
-import type { Question, QuestionRating, StoredQuestion, Topic, TopicSummary } from "./question.ts";
+import type {
+  Question,
+  QuestionRating,
+  ReferenceAnswer,
+  StoredQuestion,
+  Topic,
+  TopicSummary,
+} from "./question.ts";
 
 export interface QuestionFilter {
   readonly text?: string;
@@ -59,6 +66,8 @@ export interface QuestionEdit {
   readonly unconfirmed?: false;
   /** The Candidate has seen the new Question. */
   readonly unseen?: false;
+  /** A new reference answer, such as one that answer search found. */
+  readonly referenceAnswer?: ReferenceAnswer;
 }
 /** The Questions to delete for good and the edits of the others. */
 export interface ReviewPlan {

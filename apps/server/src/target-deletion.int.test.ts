@@ -18,7 +18,7 @@ import {
   temporaryDirectory,
 } from "./chat-test-support.ts";
 import type { SessionView } from "./chat-test-support.ts";
-import { processedVacancy } from "./inbox-test-support.ts";
+import { backgroundWork } from "./answer-test-support.ts";
 import { demoApi, model } from "./model-test-support.ts";
 import { demoWithSideThread } from "./side-thread-test-support.ts";
 import { deleteTarget } from "./target-deletion.ts";
@@ -109,8 +109,8 @@ async function targetData(
 
 /**
  * The demo Target with a finished Mock interview and a Side thread from its Debrief, a material
- * with its proposal, Inbox processing and report, and a draft change of its setup agent; the agents
- * then crash, so no session of the Target runs.
+ * with its proposal, Inbox processing and report, an answer search with its report, and a draft
+ * change of its setup agent; the agents then crash, so no session of the Target runs.
  */
 async function demoWithData(dataDirectory: string) {
   const api = await demoWithSideThread(dataDirectory);
@@ -122,7 +122,7 @@ async function demoWithData(dataDirectory: string) {
   await events.waitFor(isIdle);
   events.send({ type: "prompt", text: '/tool update_target {"name":"Go"}' });
   await events.waitFor((view) => isIdle(view) && agentTexts(view).length > 0);
-  await processedVacancy(api.server, { setup: events, targetId: api.target.id });
+  await backgroundWork(api.server, { setup: events, targetId: api.target.id });
   events.send({ type: "prompt", text: "/crash" });
   await events.waitFor((view) => view.status === "failed");
   return { ...api, sessionId: opened.json<{ id: string }>().id };
@@ -148,7 +148,9 @@ describe("deleting an archived Target", () => {
       files: true,
       sessionFiles: true,
       rows: {
-        "agent_sessions.sessions": 4,
+        "agent_sessions.sessions": 5,
+        "answer_search.answer_reports": 1,
+        "answer_search.answer_runs": 1,
         "interviews.asked_questions": 1,
         "interviews.attempts": 1,
         "interviews.disputes": 1,

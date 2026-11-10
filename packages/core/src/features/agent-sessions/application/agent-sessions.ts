@@ -4,7 +4,7 @@ import path from "node:path";
 import type { AgentSession, SessionView } from "../domain/agent-session.ts";
 import { isLive } from "../domain/agent-session.ts";
 import type { AgentLauncher } from "../domain/ports.ts";
-import { replay } from "../domain/session-view.ts";
+import type { SessionUsage } from "../domain/session-usage.ts";
 import {
   answerPermission,
   cancelPermissions,
@@ -24,6 +24,7 @@ import {
 } from "./server-prompts.ts";
 import type { PromptOutcome, QueueContext, QueueOutcome } from "./server-prompts.ts";
 import { runningFor, sessionOpener, stopAll, stopNow } from "./open-session.ts";
+import { usageOf, view } from "./session-reads.ts";
 import type { OpenSession, StartRequest } from "./open-session.ts";
 
 export interface AgentSessionsDependencies extends LiveSessionDependencies {
@@ -50,6 +51,8 @@ export interface AgentSessions {
   /** Stops at once, even in a turn, and ends every live session of the kind for the Target. */
   readonly stopAll: (targetId: string, kind: StartRequest["kind"]) => Promise<void>;
   readonly view: (sessionId: string) => Promise<SessionView | undefined>;
+  /** The tokens and cost of the agent's latest ACP `usage_update`; null when it sent none. */
+  readonly usage: (sessionId: string) => Promise<SessionUsage | null>;
   /** Sends the Candidate's prompt to the agent; refuses it while the agent works. */
   readonly prompt: (sessionId: string, text: string) => Promise<PromptOutcome>;
   /**
@@ -178,16 +181,6 @@ async function start(context: Context, request: StartRequest): Promise<SessionVi
   }
 }
 
-async function view({ dependencies, live }: Context, sessionId: string) {
-  const session = live.get(sessionId);
-  if (session !== undefined) {
-    return session.view;
-  }
-  const { repository } = dependencies;
-  const stored = await repository.load(sessionId);
-  return stored === undefined ? undefined : replay(stored, await repository.journal(sessionId));
-}
-
 async function cancel({ live }: Context, sessionId: string): Promise<void> {
   const session = live.get(sessionId);
   const agent = session?.agent ?? null;
@@ -270,6 +263,7 @@ export function createAgentSessions(dependencies: AgentSessionsDependencies): Ag
     running: (targetId, except) => runningFor(context.live, targetId, except),
     stopAll: async (targetId, kind) => stopAll(context.live, targetId, kind),
     view: async (sessionId) => view(context, sessionId),
+    usage: async (sessionId) => usageOf(context, sessionId),
     prompt: async (sessionId, text) => candidatePrompt(context.queue, sessionId, text),
     queuePrompt: async (sessionId, text, options) =>
       queuePrompt(context.queue, { sessionId, text }, options),

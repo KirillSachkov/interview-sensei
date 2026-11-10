@@ -17,7 +17,8 @@
     "./app-settings": "./src/features/app-settings/index.ts",
     "./sources": "./src/features/sources/index.ts",
     "./interviews": "./src/features/interviews/index.ts",
-    "./progress": "./src/features/progress/index.ts"
+    "./progress": "./src/features/progress/index.ts",
+    "./answer-search": "./src/features/answer-search/index.ts"
   },
   "scripts": {
     "lint": "oxlint",

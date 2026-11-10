@@ -226,6 +226,16 @@ describe("web without permission requests in the launch recipe", () => {
     );
   });
 
+  it("gives the answer search agent the web without permission requests and no shell: it has no chat", () => {
+    const { role, shell, web, askCandidate } = sessionProfiles["answer-search"];
+    const profile = { ...lockedProfile, role, shell, web, askCandidate };
+    expect(claudeMeta(profile)).toContain('"allowedTools":["WebFetch","WebSearch"]');
+    expect(claudeMeta(profile)).toContain('"disallowedTools":["Bash"]');
+    expect(permissions(profile)).toContain(
+      '"permissions":[{"action":"shell","resource":"*","effect":"deny"},{"action":"webfetch","resource":"*","effect":"allow"},{"action":"websearch","resource":"*","effect":"allow"}]',
+    );
+  });
+
   it("keeps the Side thread's web behind the Candidate's answer: it has a chat", () => {
     const { role, shell, web, askCandidate } = sessionProfiles["side-thread"];
     const profile = { ...lockedProfile, role, shell, web, askCandidate };

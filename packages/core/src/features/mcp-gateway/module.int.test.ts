@@ -93,6 +93,7 @@ describe("mcp gateway module", () => {
       "mock-interview": [],
       "inbox-processing": [],
       "side-thread": [],
+      "answer-search": [],
     },
     origin: () => origin,
     onError: () => {},

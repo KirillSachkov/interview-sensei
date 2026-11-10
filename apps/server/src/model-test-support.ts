@@ -65,6 +65,7 @@ export function modelClient(features: Features, targetId?: string) {
       "mock-interview": [],
       "inbox-processing": [],
       "side-thread": [],
+      "answer-search": [],
     },
     origin: () => origin,
     onError: () => {},

@@ -9,6 +9,7 @@
 | [`sensei-interview`](sensei-interview/SKILL.md) | `mock-interview`, в UI — мок-собеседование в зоне «Сессии» |
 | [`sensei-inbox`](sensei-inbox/SKILL.md) | `inbox-processing`, в UI — фоновый «Разбор материалов» без чата |
 | [`sensei-explain`](sensei-explain/SKILL.md) | `side-thread`, в UI — ветка «Обсудить отдельно» справа от вопроса мока |
+| [`sensei-answers`](sensei-answers/SKILL.md) | `answer-search`, в UI — фоновое «Наполнение ответов» без чата |
 
 `pnpm build` копирует этот каталог в `apps/web/dist/skills`, рядом с веб-сборкой; оттуда их берёт команда `interview-sensei`. Тот же каталог входит в npm-пакет `interview-sensei`.
 

@@ -29,6 +29,7 @@ const brokenSessions: AgentSessions = {
   running: () => false,
   stopAll: () => Promise.reject(new Error("not used")),
   view: () => Promise.resolve(view),
+  usage: () => Promise.reject(new Error("not used")),
   prompt: () => Promise.reject(new Error("prompt broke")),
   cancel: () => Promise.reject(new Error("cancel broke")),
   answerPermission: () => Promise.reject(new Error("not used")),

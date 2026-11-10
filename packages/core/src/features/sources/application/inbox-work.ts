@@ -199,10 +199,11 @@ export async function writeReport(
   session: ToolSession,
   input: ReportInput,
 ): Promise<InboxReport> {
-  const { sessions, onError } = context.dependencies;
+  const { sessions, onError, onRunFinished } = context.dependencies;
   const { report, run } = await context.dependencies.transaction(async (opened) =>
     storeReport(context, { session, input }, opened),
   );
+  onRunFinished({ targetId: run.targetId, mode: run.mode });
   // The session ends after this turn: the tool call is part of it, so nothing waits for the end.
   void endAfterTurn({ sessions, onError }, run.sessionId ?? session.sessionId);
   return report;

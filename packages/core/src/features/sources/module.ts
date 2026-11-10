@@ -66,4 +66,9 @@ interface SourcesModuleDependencies {
   sessions: InboxSessions;
   /** Receives errors of background work. */
   onError: (error: unknown) => void;
+  /** Hears that an Inbox processing or Recheck of the Target ended. */
+  onRunFinished: (finished: {
+    readonly targetId: string;
+    readonly mode: "processing" | "recheck";
+  }) => void;
 }

@@ -7,7 +7,7 @@ import { randomUUID } from "node:crypto";
 import type { Transaction } from "../../../shared/storage/index.ts";
 import { partialReport } from "../domain/inbox.ts";
 import type { InboxReport, InboxRun, RunEnding } from "../domain/inbox.ts";
-import { watchSession } from "./agent-watch.ts";
+import { watchSession } from "../../../shared/agent-watch/index.ts";
 import { inBackground } from "./inbox-context.ts";
 import type { InboxContext } from "./inbox-context.ts";
 
@@ -56,10 +56,14 @@ export async function closeRun(
   run: InboxRun,
   reason: RunEnding,
 ): Promise<InboxReport | null> {
-  return context.dependencies.transaction(async (opened) => {
+  const report = await context.dependencies.transaction(async (opened) => {
     const current = await context.dependencies.inbox.runningRun(run.targetId, opened);
     return current?.id === run.id ? storePartial(context, { run: current, reason }, opened) : null;
   });
+  if (report !== null) {
+    context.dependencies.onRunFinished({ targetId: run.targetId, mode: run.mode });
+  }
+  return report;
 }
 
 /**

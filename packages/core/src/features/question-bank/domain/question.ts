@@ -11,7 +11,8 @@ type ReferenceOrigin = "material" | "internet" | "agent" | "candidate";
 
 /**
  * The reference answer of a Question: 3–5 key points and a short sample answer, with its origin
- * and, for an answer from a material, the Source and its part.
+ * and, for an answer from a material, the Source and its part; for one from the internet, the links
+ * to its web sources.
  */
 export interface ReferenceAnswer {
   readonly points: readonly string[];
@@ -20,6 +21,8 @@ export interface ReferenceAnswer {
   readonly sourceId: string | null;
   /** The number of the Source's part, from 1; null without a Source. */
   readonly part: number | null;
+  /** The URLs of the web pages behind an answer «из интернета»; absent before answer search. */
+  readonly links?: readonly string[];
 }
 export interface QuizOption {
   readonly id: string;
