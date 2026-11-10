@@ -1,5 +1,5 @@
 import { discardDraft, getDraft, removeDraftChange } from "./draft-change-tools.ts";
-import { applyChanges, setInterviewPlan, updateTarget } from "./draft-tools.ts";
+import { applyChanges, setInterviewPlan, setTopicImportance, updateTarget } from "./draft-tools.ts";
 import { savePreference } from "./preference-tool.ts";
 import { addQuestions, editQuestions } from "./question-tools.ts";
 import type { TargetSetup } from "./target-setup.ts";
@@ -9,6 +9,7 @@ export function draftTools(setup: TargetSetup) {
   return [
     updateTarget(setup),
     setInterviewPlan(setup),
+    setTopicImportance(setup),
     savePreference(setup),
     addQuestions(setup),
     editQuestions(setup),

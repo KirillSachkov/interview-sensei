@@ -1,5 +1,6 @@
 // Topics in the draft of changes. The draft names Topics; a rename gives a Topic a new name, and a
 // rename to the name of another Topic merges the first into the second.
+import type { Importance } from "./target-values.ts";
 
 /** `from` becomes `to`: the Topic gets the new name, or merges into the Topic named `to`. */
 export interface TopicRename {
@@ -23,4 +24,18 @@ export function renamedTopics(names: readonly string[], { from, to }: TopicRenam
 /** Whether one of the names matches the name of the Topic. */
 export function namesTopic(names: readonly string[], name: string): boolean {
   return names.some((other) => topicKey(other) === topicKey(name));
+}
+
+/** The importance the draft gives a Topic, named as in the draft. */
+export interface ImportanceChange {
+  readonly topic: string;
+  readonly importance: Importance;
+}
+
+/** The latest importance of each Topic by topicKey, under the name that the latest change gave. */
+export function latestImportance(
+  changes: readonly ImportanceChange[],
+): readonly ImportanceChange[] {
+  const latest = new Map(changes.map((change) => [topicKey(change.topic), change]));
+  return [...latest.values()];
 }

@@ -33,6 +33,7 @@ function stateOf(
     })),
     topics: topics.map((topic) => topic.name),
     topicRenames: [],
+    importance: [],
     preferences: target.preferences.map(({ id, text, rejectedQuestionIds, active }) => ({
       id,
       text,
@@ -49,6 +50,10 @@ function stateOf(
       level: question.level,
       hidden: question.hidden,
       rating: question.rating,
+      referenceAnswer:
+        question.referenceAnswer === null
+          ? null
+          : { points: question.referenceAnswer.points, sample: question.referenceAnswer.sample },
     })),
     missing: [],
   };

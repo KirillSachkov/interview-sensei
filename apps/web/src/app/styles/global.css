@@ -951,6 +951,26 @@ input.switch:checked::after {
   background: var(--color-accent-soft);
 }
 
+.question-tools {
+  display: flex;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+
+.reference-checks {
+  margin-top: var(--space-2);
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.topic-importance {
+  font-weight: 650;
+}
+
+.topic-importance.high {
+  color: var(--color-accent);
+}
+
 /* Confirmations and the archive */
 
 button.danger {
@@ -1065,21 +1085,21 @@ button.danger {
   font-size: var(--font-size-small);
 }
 
-.report-reference {
+.reference-answer {
   margin-top: var(--space-1);
   font-size: var(--font-size-small);
 }
 
-.report-reference summary {
+.reference-answer summary {
   cursor: pointer;
 }
 
-.report-reference ul {
+.reference-answer ul {
   margin: var(--space-1) 0 0;
   padding-left: var(--space-5);
 }
 
-.report-reference p {
+.reference-answer p {
   margin: var(--space-1) 0 0;
   color: var(--color-muted);
 }

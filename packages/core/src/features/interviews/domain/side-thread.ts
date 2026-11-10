@@ -76,3 +76,23 @@ export function questionAtMessage<Question extends Pick<AskedQuestion, "chatPosi
 ): Question | undefined {
   return asked.findLast((question) => (question.chatPosition ?? 0) <= index);
 }
+
+/** Stores the Side threads of Mock interviews. */
+export interface SideThreadRepository {
+  readonly createSideThread: (thread: SideThread) => Promise<void>;
+  /** The Mock interview's Side threads in the order they were opened. */
+  readonly sideThreads: (interviewId: string) => Promise<readonly SideThread[]>;
+  readonly sideThreadBySession: (sessionId: string) => Promise<SideThread | undefined>;
+  /** Moves the Side thread to the new AgentSession that continues its earlier one. */
+  readonly continueSideThread: (id: string, sessionId: string) => Promise<void>;
+  /** Closes the Side threads for good at the moment; a closed one keeps its first moment. */
+  readonly closeSideThreads: (ids: readonly string[], at: string) => Promise<void>;
+  /** Closes every Side thread of the Target's Mock interviews, as closeSideThreads. */
+  readonly closeTargetSideThreads: (targetId: string, at: string) => Promise<void>;
+  /** Marks the asked question: its Attempt is recorded as received with a hint. */
+  readonly markHinted: (askedQuestionId: string) => Promise<void>;
+  /** Marks the asked question: the Candidate opened the Debrief of its Attempt. */
+  readonly markDebriefOpened: (askedQuestionId: string) => Promise<void>;
+  /** Deletes the Side thread's row; the hint mark of its asked question stays. */
+  readonly deleteSideThread: (id: string) => Promise<void>;
+}

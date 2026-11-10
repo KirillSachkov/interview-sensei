@@ -101,9 +101,11 @@ export async function editQuestions(
     transaction,
   });
   for (const edit of edits) {
+    // A corrected reference answer needs no more checking.
+    const checked = edit.referenceAnswer === undefined ? {} : { referenceCheck: null };
     // One after another: the queries share the transaction.
     // oxlint-disable-next-line eslint/no-await-in-loop -- the edits share one transaction
-    await repository.editQuestion(targetId, edit, transaction);
+    await repository.editQuestion(targetId, { ...edit, ...checked }, transaction);
   }
 }
 

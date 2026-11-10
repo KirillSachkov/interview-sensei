@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, gte, lt, sql } from "drizzle-orm";
 
-import type { Database } from "../../../shared/storage/index.ts";
+import { executorOf } from "../../../shared/storage/index.ts";
+import type { Database, Transaction } from "../../../shared/storage/index.ts";
 import type { Dispute } from "../domain/dispute.ts";
 import type { AttemptRecord, HistoryFilter } from "../domain/history.ts";
 import type { HistoryRepository } from "../domain/ports.ts";
@@ -52,7 +53,7 @@ async function targetDisputes(database: Database, targetId: string) {
 }
 
 /** The queries of the session history, progress and Disputes. */
-export function drizzleHistoryQueries(database: Database): HistoryRepository {
+export function drizzleHistoryQueries(database: Database): HistoryRepository<Transaction> {
   return {
     allRunning: async () => {
       const rows = await database.select().from(interviews).where(eq(interviews.status, "running"));
@@ -73,8 +74,8 @@ export function drizzleHistoryQueries(database: Database): HistoryRepository {
       return { interviews: rows.map((row) => toInterview(row)), total };
     },
     targetAttempts: async (targetId) => targetAttempts(database, targetId),
-    dispute: async (dispute) => {
-      await database
+    dispute: async (dispute, transaction) => {
+      await executorOf(database, transaction)
         .insert(disputes)
         .values({ ...dispute, disputedAt: new Date(dispute.disputedAt) });
     },

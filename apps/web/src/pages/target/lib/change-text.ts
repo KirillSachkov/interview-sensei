@@ -68,9 +68,20 @@ function editsText(operation: Operation<"edit_questions">): string {
     edit.hidden === true ? ["скрыть"] : [],
     edit.hidden === false ? ["вернуть"] : [],
     edit.rating === undefined ? [] : ["оценить"],
+    edit.referenceAnswer === undefined ? [] : ["исправить опорный ответ"],
   ]);
   const questions = counted(operation.edits.length, ["вопрос", "вопроса", "вопросов"]);
   return `Вопросы: изменить ${questions} — ${[...new Set(kinds.flat())].join(", ")}`;
+}
+
+const importanceNames = { high: "высокая", normal: "обычная", low: "низкая" } as const;
+
+/** «Важность тем: «Kafka» — высокая, «SQL» — низкая». */
+function importanceText(operation: Operation<"set_topic_importance">): string {
+  const topics = operation.topics.map(
+    ({ topic, importance }) => `«${topic}» — ${importanceNames[importance]}`,
+  );
+  return `Важность тем: ${topics.join(", ")}`;
 }
 
 /**
@@ -87,6 +98,9 @@ export function changeText(operation: DraftOperation): string {
     }
     case "save_preference": {
       return preferenceText(operation);
+    }
+    case "set_topic_importance": {
+      return importanceText(operation);
     }
     case "add_questions": {
       return `Вопросы: добавить ${counted(operation.questions.length, ["вопрос", "вопроса", "вопросов"])}`;
@@ -111,6 +125,7 @@ export function changeDetails(operation: DraftOperation): readonly string[] {
     }
     case "update_target":
     case "save_preference":
+    case "set_topic_importance":
     case "edit_questions": {
       return [];
     }
