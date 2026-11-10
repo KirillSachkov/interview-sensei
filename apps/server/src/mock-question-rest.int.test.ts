@@ -2,14 +2,7 @@
 // The fake ACP agent calls the real MCP tools after their permission request.
 import { describe, expect, it } from "vitest";
 
-import {
-  ask,
-  cardAt,
-  hasQuestions,
-  interviewApi,
-  isGraded,
-  saysWhenIdle,
-} from "./interview-test-support.ts";
+import { ask, interviewApi, isGraded, saysWhenIdle } from "./interview-test-support.ts";
 import { manualTime } from "./interview-flow-test-support.ts";
 import { promptTool } from "./progress-test-support.ts";
 
@@ -38,8 +31,8 @@ async function nextRound(api: Api) {
 }
 
 /** A finished Mock interview with one known Grade. */
-async function gradedQuestion(api: Api, grade: number) {
-  const run = await api.answered(["TypeScript и Node.js"], `Ответ [grade:${grade}] [last]`);
+async function gradedQuestion(api: Api) {
+  const run = await api.answered(["TypeScript и Node.js"], "Ответ [grade:2] [last]");
   await run.events.waitFor(isGraded(0));
   await run.chat.waitFor(saysWhenIdle("Ответ получен."));
   await finish(api, run);
@@ -51,46 +44,23 @@ async function finish(api: Api, run: Awaited<ReturnType<Api["started"]>>) {
   await run.events.waitFor((view) => view.status === "finished");
 }
 
-/** Completes each resting interview in order; none may show the searched question. */
-async function restFor(api: Api, questionId: string, count: number): Promise<void> {
-  if (count === 0) {
-    return;
-  }
-  const run = await nextRound(api);
-  await expect(promptTool(run.chat, "search_questions")).resolves.toContain(questionId);
-  const reply = await ask(
-    run.chat,
-    `/tool present_question ${JSON.stringify({ questionId })}`,
-    "Ошибка present_question:",
-  );
-  expect(reply).toContain("This question is still resting");
-  const view = await api.get(`/api/interviews/${run.interview.id}`);
-  expect(view.json<{ questions: unknown[] }>().questions).toHaveLength(1);
-  await finish(api, run);
-  await restFor(api, questionId, count - 1);
-}
-
+// Grade 0–3 and the end of rest are covered by core candidates.test.ts. This regression
+// needs only two interviews: a Grade 2, then an attempted bypass through search_questions.
 describe("rest between mock interviews on the MCP path", () => {
-  it.each([
-    { grade: 0, rest: 0 },
-    { grade: 1, rest: 0 },
-    { grade: 2, rest: 1 },
-    { grade: 3, rest: 2 },
-  ])(
-    "enforces $rest interviews of rest after Grade $grade, then permits the question",
-    async ({ grade, rest }) => {
-      const api = await restApi();
-      const { questionId } = await gradedQuestion(api, grade);
+  it("refuses a resting question found through search without adding a card", async () => {
+    const api = await restApi();
+    const { questionId } = await gradedQuestion(api);
+    const run = await nextRound(api);
 
-      await restFor(api, questionId, rest);
-      const run = await nextRound(api);
-      run.chat.send({
-        type: "prompt",
-        text: `/tool present_question ${JSON.stringify({ questionId })}`,
-      });
+    await expect(promptTool(run.chat, "search_questions")).resolves.toContain(questionId);
+    const reply = await ask(
+      run.chat,
+      `/tool present_question ${JSON.stringify({ questionId })}`,
+      "Ошибка present_question:",
+    );
 
-      const shown = cardAt(await run.events.waitFor(hasQuestions(2)), 1);
-      expect(shown.questionId).toBe(questionId);
-    },
-  );
+    expect(reply).toContain("This question is still resting");
+    const view = await api.get(`/api/interviews/${run.interview.id}`);
+    expect(view.json<{ questions: unknown[] }>().questions).toHaveLength(1);
+  });
 });
