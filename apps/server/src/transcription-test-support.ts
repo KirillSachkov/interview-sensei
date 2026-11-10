@@ -17,6 +17,7 @@ import type {
 } from "./composition.ts";
 import { browserHeaders } from "./chat-test-support.ts";
 import { componentServer, newHold } from "./component-server-test-support.ts";
+import { stubLinks } from "./video-link-test-support.ts";
 import { api } from "./setup-test-support.ts";
 
 /** The size of each made-up component file: the models are the larger ones, as in life. */
@@ -24,6 +25,7 @@ const sizes: Readonly<Record<Component["id"], number>> = {
   engine: 3000,
   ffmpeg: 2000,
   vad: 1000,
+  "yt-dlp": 4000,
   "gigaam-v3": 17_000,
   "parakeet-v3": 49_000,
 };
@@ -57,11 +59,12 @@ function servedComponent(base: string, id: Component["id"], broken: boolean): Co
  * `brokenSha` gives that component a wrong SHA-256, as a file changed on the way would have.
  */
 async function catalogOnServer({ brokenSha }: { brokenSha?: Component["id"] } = {}) {
-  const ids = ["engine", "ffmpeg", "vad", "gigaam-v3", "parakeet-v3"] as const;
+  const ids = ["engine", "ffmpeg", "vad", "yt-dlp", "gigaam-v3", "parakeet-v3"] as const;
   const served = await componentServer(new Map(ids.map((id) => [id, contentOf(id)])));
   const component = (id: Component["id"]) => servedComponent(served.base, id, id === brokenSha);
   const catalog: ComponentCatalog = {
     shared: [component("engine"), component("ffmpeg"), component("vad")],
+    ytDlp: component("yt-dlp"),
     models: { "gigaam-v3": component("gigaam-v3"), "parakeet-v3": component("parakeet-v3") },
   };
   return { catalog, served };
@@ -137,16 +140,19 @@ function stubRecognizer() {
 }
 
 /**
- * The stand-ins of a server: the made-up catalog on a local HTTP server, the stub extractor and the
- * stub model. Pass `components` to startServer as `transcription`. `model.waiting()` resolves when
- * the model reaches «[ждать]», and `model.continueSpeech()` lets it go on.
+ * The stand-ins of a server: the made-up catalog on a local HTTP server, the stub extractor, the
+ * stub yt-dlp and the stub model. Pass `components` to startServer as `transcription`.
+ * `model.waiting()` resolves when the model reaches «[ждать]», and `model.continueSpeech()` lets it
+ * go on. `links` holds the videos the stub yt-dlp knows.
  */
 export async function stubTranscription(options: { brokenSha?: Component["id"] } = {}) {
   const { catalog, served } = await catalogOnServer(options);
   const { recognizer, heard, control } = stubRecognizer();
+  const links = await stubLinks();
   return {
-    components: { catalog, extractor: stubExtractor(), recognizer },
+    components: { catalog, extractor: stubExtractor(), recognizer, links: links.links },
     served,
+    links,
     model: {
       heard,
       waiting: async () => control.waiting.reached,
@@ -169,6 +175,7 @@ export interface TranscriptionStatus {
     readonly installed: boolean;
   }[];
   readonly shared: { readonly size: number; readonly installed: boolean };
+  readonly ytDlp: { readonly size: number; readonly installed: boolean };
   readonly installation: {
     readonly models: readonly ModelId[];
     readonly downloaded: number;

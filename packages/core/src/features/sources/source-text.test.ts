@@ -57,6 +57,33 @@ describe(subtitleText, () => {
     expect(subtitleText(srt)).toBe("Расскажите о себе.\nЯ пишу на Go пять лет.");
   });
 
+  it("keeps each line of rolling automatic captions once, as YouTube writes them", () => {
+    const vtt = [
+      "WEBVTT",
+      "Kind: captions",
+      "Language: ru",
+      "",
+      "00:00:00.000 --> 00:00:01.390 align:start position:0%",
+      " ",
+      "Привет.<00:00:00.560><c> В</c><00:00:00.720><c> этом</c><00:00:00.880><c> видео</c>",
+      "",
+      "00:00:01.390 --> 00:00:01.400 align:start position:0%",
+      "Привет. В этом видео",
+      " ",
+      "",
+      "00:00:01.400 --> 00:00:03.430 align:start position:0%",
+      "Привет. В этом видео",
+      "разберём<00:00:02.000><c> горутины.</c>",
+      "",
+      "00:00:03.430 --> 00:00:03.440 align:start position:0%",
+      "разберём горутины.",
+      " ",
+      "",
+    ].join("\n");
+
+    expect(subtitleText(vtt)).toBe("Привет. В этом видео\nразберём горутины.");
+  });
+
   it("drops the WebVTT header, notes, cue settings and repeated captions", () => {
     const vtt = [
       "WEBVTT",

@@ -144,7 +144,7 @@ describe("the status «ошибка» of a material", () => {
     });
   });
 
-  it("a video file without speech recognition installed and a video link get «ошибка» with what to do, and the attached transcript is processed by its text", async () => {
+  it("a video file without speech recognition installed and a video link before yt-dlp is downloaded get «ошибка» with what to do, and the attached transcript is processed by its text", async () => {
     const { server, target, setup } = await activeTarget();
     await attach(server, {
       targetId: target.id,
@@ -169,7 +169,12 @@ describe("the status «ошибка» of a material", () => {
         failure:
           "распознавание речи не установлено: скачайте модель в карточке разбора или приложите транскрипт",
       },
-      { title: "Запись собеседования", status: "failed", failure: "приложите транскрипт" },
+      {
+        title: "Запись собеседования",
+        status: "failed",
+        failure:
+          "ссылки на видео читаются после загрузки компонентов: скачайте их в карточке разбора или приложите транскрипт",
+      },
       { title: "interview [manual].vtt", status: "processing", failure: null },
     ]);
     await expect(readParts(events, transcript.id, 1)).resolves.toStrictEqual([

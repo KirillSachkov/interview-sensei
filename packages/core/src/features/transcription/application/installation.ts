@@ -31,7 +31,7 @@ export interface InstallationState {
 
 /** Every component of the catalog. */
 export function allComponents(catalog: ComponentCatalog): Component[] {
-  return [...catalog.shared, ...modelIds.map((id) => catalog.models[id])];
+  return [...catalog.shared, catalog.ytDlp, ...modelIds.map((id) => catalog.models[id])];
 }
 
 /** The reason of a failed download in Russian; an unexpected failure also goes to onError. */
@@ -143,8 +143,8 @@ const modelNames: Readonly<Record<ModelId, { name: string; languages: string }>>
 
 /**
  * The state of recognition for the processing card and «Распознавание речи»: each model with its
- * size and whether it is installed, the shared components, the running download and the last
- * failure.
+ * size and whether it is installed, the shared components, yt-dlp, the running download and the
+ * last failure.
  */
 export async function status(dependencies: InstallationDependencies, state: InstallationState) {
   const { catalog, store } = dependencies;
@@ -165,6 +165,7 @@ export async function status(dependencies: InstallationDependencies, state: Inst
       size: catalog.shared.reduce((sum, component) => sum + componentSize(component), 0),
       installed: catalog.shared.every((component) => installed.has(component.id)),
     },
+    ytDlp: { size: componentSize(catalog.ytDlp), installed: installed.has(catalog.ytDlp.id) },
     installation: installationView(state),
     failure: state.failure,
   };

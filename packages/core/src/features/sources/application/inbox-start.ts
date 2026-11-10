@@ -3,10 +3,11 @@
 import { randomUUID } from "node:crypto";
 
 import { UnreadableSourceError } from "../domain/inbox.ts";
+import { UnreadableVideoError } from "../domain/unreadable-video.ts";
 import { inboxOpening, recheckOpening } from "../domain/inbox-brief.ts";
 import type { InboxMode, InboxRun } from "../domain/inbox.ts";
 import type { Source } from "../domain/source.ts";
-import { textFormat, textParts } from "../domain/source-text.ts";
+import { textParts } from "../domain/source-text.ts";
 import { inBackground } from "./inbox-context.ts";
 import type { InboxContext, InboxDependencies } from "./inbox-context.ts";
 import { closeRun, watchAgent } from "./inbox-ending.ts";
@@ -112,7 +113,8 @@ async function markUnreadable({ dependencies }: InboxContext, source: Source, er
 
 /**
  * Reads the Source's text into parts; a Source the server cannot read gets «ошибка». A web page the
- * server could not read stays «разбирается» without parts: the agent opens it on the web.
+ * server could not read stays «разбирается» without parts: the agent opens it on the web. A link
+ * to a video without text gets «ошибка» like a file.
  */
 async function readText(context: InboxContext, source: Source): Promise<boolean> {
   try {
@@ -122,7 +124,7 @@ async function readText(context: InboxContext, source: Source): Promise<boolean>
     if (!(error instanceof UnreadableSourceError)) {
       context.dependencies.onError(error);
     }
-    if (textFormat(source) === "web") {
+    if (source.url !== null && source.file === null && !(error instanceof UnreadableVideoError)) {
       return true;
     }
     await markUnreadable(context, source, error);

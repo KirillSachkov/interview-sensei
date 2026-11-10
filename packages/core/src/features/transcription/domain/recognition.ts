@@ -32,7 +32,7 @@ const parakeetLanguages = new Set([
 ]);
 
 /** The language code of a tag such as `ru`, `ru-RU` or `RU`. */
-function languageCode(language: string): string {
+export function languageCode(language: string): string {
   return language.trim().toLowerCase().split(/[-_]/u)[0] ?? "";
 }
 

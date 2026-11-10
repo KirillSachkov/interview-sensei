@@ -10,6 +10,7 @@ function component(id: Component["id"]): Component {
 
 const catalog: ComponentCatalog = {
   shared: [component("engine"), component("ffmpeg"), component("vad")],
+  ytDlp: component("yt-dlp"),
   models: { "gigaam-v3": component("gigaam-v3"), "parakeet-v3": component("parakeet-v3") },
 };
 
@@ -54,11 +55,21 @@ describe(transcriptText, () => {
 });
 
 describe(installPlan, () => {
-  it("downloads the missing shared components and the missing chosen models, each once", () => {
+  it("downloads the missing shared components, yt-dlp and the missing chosen models, each once", () => {
     const plan = installPlan(catalog, {
       models: ["parakeet-v3", "gigaam-v3", "parakeet-v3"],
       installed: new Set(["vad", "gigaam-v3"]),
     });
-    expect(plan.map((planned) => planned.id)).toStrictEqual(["engine", "ffmpeg", "parakeet-v3"]);
+    expect(plan.map((planned) => planned.id)).toStrictEqual([
+      "engine",
+      "ffmpeg",
+      "yt-dlp",
+      "parakeet-v3",
+    ]);
+  });
+
+  it("downloads only yt-dlp without a chosen model: links then give their subtitles", () => {
+    const plan = installPlan(catalog, { models: [], installed: new Set() });
+    expect(plan.map((planned) => planned.id)).toStrictEqual(["yt-dlp"]);
   });
 });

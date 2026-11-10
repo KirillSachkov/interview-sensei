@@ -155,25 +155,33 @@ function isHeaderBlock(first: string): boolean {
   return /^(?:WEBVTT|NOTE|STYLE|REGION)\b/u.test(first);
 }
 
-/** The spoken text of one cue: its lines without numbers, times, tags and references. */
-function cueSpeech(lines: readonly string[]): string {
+/** The spoken lines of one cue: without numbers, times, tags and references. */
+function cueLines(lines: readonly string[]): string[] {
   return lines
     .filter((line, index) => line !== "" && !isCueLine(line, lines[index + 1]))
     .map((line) => withoutEntities(line.replaceAll(/<[^>]*>/gu, "")).trim())
-    .filter((line) => line !== "")
-    .join(" ");
+    .filter((line) => line !== "");
 }
 
-/** The spoken text of each cue in SRT or WebVTT subtitles, one line per cue, repeats dropped. */
+/**
+ * The spoken text of each cue in SRT or WebVTT subtitles, one line per cue. A line that the cue
+ * before already had is dropped: repeated captions and the rolling automatic captions of YouTube,
+ * where each cue repeats the line before the new one.
+ */
 export function subtitleText(subtitles: string): string {
   const cues = subtitles
     .replaceAll(/\r\n?/gu, "\n")
     .split(/\n[ \t]*\n/u)
     .map((block) => block.split("\n").map((line) => line.trim()))
     .filter((lines) => !isHeaderBlock(lines[0] ?? ""))
-    .map((lines) => cueSpeech(lines))
-    .filter((speech) => speech !== "");
-  return cues.filter((speech, index) => cues[index - 1] !== speech).join("\n");
+    .map((lines) => cueLines(lines));
+  return cues
+    .map((lines, index) => {
+      const before = new Set(cues[index - 1]);
+      return lines.filter((line) => !before.has(line)).join(" ");
+    })
+    .filter((speech) => speech !== "")
+    .join("\n");
 }
 
 /** The tags whose end ends a paragraph of the page's text. */

@@ -33,7 +33,7 @@ function reason(log: string): string {
 }
 
 /** The program of the ffmpeg component in the data directory. */
-function ffmpegPath(dataDirectory: string): string {
+export function ffmpegPath(dataDirectory: string): string {
   const name = process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg";
   return path.join(componentsDirectory(dataDirectory), "ffmpeg", name);
 }

@@ -59,13 +59,14 @@ describe("the consent to download speech recognition", () => {
         },
       ],
       shared: { size: 6000, installed: false },
+      ytDlp: { size: 4000, installed: false },
       installation: null,
       failure: null,
     });
     expect(served.requested).toStrictEqual([]);
   });
 
-  it("«Скачать» with GigaAM downloads the shared components and that model with progress, and not the other model", async () => {
+  it("«Скачать» with GigaAM downloads the shared components, yt-dlp and that model with progress, and not the other model", async () => {
     const { server, served } = await serverWith();
 
     const { started, during, again, after } = await heldDownload(server, served);
@@ -73,8 +74,8 @@ describe("the consent to download speech recognition", () => {
     expect({ started, again }).toStrictEqual({ started: 202, again: 409 });
     expect(during.installation).toStrictEqual({
       models: ["gigaam-v3"],
-      downloaded: 6000 + 8500,
-      total: 6000 + 17_000,
+      downloaded: 6000 + 4000 + 8500,
+      total: 6000 + 4000 + 17_000,
     });
     expect(after).toMatchObject({
       models: [
@@ -82,9 +83,10 @@ describe("the consent to download speech recognition", () => {
         { id: "parakeet-v3", installed: false },
       ],
       shared: { installed: true },
+      ytDlp: { installed: true },
       failure: null,
     });
-    expect(served.requested).toStrictEqual(["engine", "ffmpeg", "vad", "gigaam-v3"]);
+    expect(served.requested).toStrictEqual(["engine", "ffmpeg", "vad", "yt-dlp", "gigaam-v3"]);
   });
 
   it("a later «Скачать» of the other model downloads only that model", async () => {
@@ -95,7 +97,14 @@ describe("the consent to download speech recognition", () => {
 
     const both = await installModels(server, ["gigaam-v3", "parakeet-v3"]);
     expect(status.models.every((model) => model.installed)).toBe(true);
-    expect(served.requested).toStrictEqual(["engine", "ffmpeg", "vad", "gigaam-v3", "parakeet-v3"]);
+    expect(served.requested).toStrictEqual([
+      "engine",
+      "ffmpeg",
+      "vad",
+      "yt-dlp",
+      "gigaam-v3",
+      "parakeet-v3",
+    ]);
     expect(both.statusCode).toBe(200);
   });
 

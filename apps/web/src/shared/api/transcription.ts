@@ -6,7 +6,7 @@ export type ModelId = "gigaam-v3" | "parakeet-v3";
 
 /**
  * Speech recognition on this device: each model with its download size and whether it is
- * installed, the components every model needs, the running download and the last failure.
+ * installed, the components every model needs, yt-dlp, the running download and the last failure.
  */
 export type TranscriptionStatus =
   | { readonly available: false }
@@ -22,6 +22,8 @@ export type TranscriptionStatus =
       }[];
       /** sherpa-onnx, ffmpeg and Silero VAD. */
       readonly shared: { readonly size: number; readonly installed: boolean };
+      /** yt-dlp for links to videos; it comes with any model. */
+      readonly ytDlp: { readonly size: number; readonly installed: boolean };
       readonly installation: {
         readonly models: readonly ModelId[];
         readonly downloaded: number;
@@ -44,8 +46,8 @@ export async function fetchTranscription(): Promise<TranscriptionStatus> {
 }
 
 /**
- * «Скачать»: the Candidate's consent to download the chosen models with the shared components into
- * the application's data directory. Throws the server's Russian message during another download.
+ * «Скачать»: the Candidate's consent to download the chosen models with the shared components and
+ * yt-dlp into the application's data directory. Throws the server's Russian message during another download.
  */
 export async function installTranscription(models: readonly ModelId[]): Promise<void> {
   await request("/api/transcription/install", { method: "POST", body: { models } });

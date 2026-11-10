@@ -6,6 +6,8 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { gunzip } from "node:zlib";
 
+import { unzipSync } from "fflate";
+
 import type { Component, ComponentFile } from "../domain/components.ts";
 import type { ComponentStore } from "../domain/ports.ts";
 import { TranscriptionError } from "../domain/recognition.ts";
@@ -31,6 +33,26 @@ async function unpackPackage(downloaded: string, target: string): Promise<void> 
   }
 }
 
+/**
+ * Writes the files of a zip archive into `target`; a program's archive makes every file
+ * executable, because fflate gives no file modes.
+ */
+async function unpackZip(downloaded: string, target: string, executable: boolean): Promise<void> {
+  // oxlint-disable-next-line node/no-sync -- fflate's async unzip runs workers; one archive unpacks once at install
+  const files = unzipSync(new Uint8Array(await readFile(downloaded)));
+  const entries = Object.entries(files).filter(([name]) => !name.endsWith("/"));
+  for (const [name, bytes] of entries) {
+    const place = path.join(target, ...name.split("/"));
+    if (!place.startsWith(`${target}${path.sep}`)) {
+      throw new TranscriptionError(`архив ${path.basename(target)} повреждён: файл вне каталога`);
+    }
+    // oxlint-disable-next-line eslint/no-await-in-loop -- files of one archive in order
+    await mkdir(path.dirname(place), { recursive: true });
+    // oxlint-disable-next-line eslint/no-await-in-loop -- files of one archive in order
+    await writeFile(place, bytes, { mode: executable ? 0o755 : 0o644 });
+  }
+}
+
 /** Puts the checked download in its place in the component's directory. */
 async function unpack(file: ComponentFile, downloaded: string, directory: string): Promise<void> {
   const target = path.join(directory, ...file.path.split("/"));
@@ -39,10 +61,11 @@ async function unpack(file: ComponentFile, downloaded: string, directory: string
     none: async () => rename(downloaded, target),
     gunzip: async () => writeFile(target, await gunzipped(await readFile(downloaded))),
     "npm-package": async () => unpackPackage(downloaded, target),
+    zip: async () => unpackZip(downloaded, target, file.executable === true),
   } as const;
   await unpackers[file.unpack]();
   await rm(downloaded, { force: true });
-  if (file.executable === true) {
+  if (file.executable === true && file.unpack !== "zip") {
     await chmod(target, 0o755);
   }
 }

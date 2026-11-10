@@ -3,16 +3,20 @@
 // agent takes part; the sources slice gets the text through its port.
 import { modelIds } from "../domain/components.ts";
 import type { ModelId } from "../domain/components.ts";
-import type { AudioExtractor, SpeechRecognizer } from "../domain/ports.ts";
+import type { AudioExtractor, SpeechRecognizer, VideoLinks } from "../domain/ports.ts";
 import { modelFor, progressPercent, TranscriptionError } from "../domain/recognition.ts";
 import { allComponents, install, status, stopDownload } from "./installation.ts";
 import type { InstallationDependencies, InstallationState } from "./installation.ts";
+import { transcribeLink } from "./links.ts";
+import type { LinkRequest } from "./links.ts";
 
 export type { InstallOutcome } from "./installation.ts";
+export type { LinkOutcome } from "./links.ts";
 
 export interface TranscriptionDependencies extends InstallationDependencies {
   readonly extractor: AudioExtractor;
   readonly recognizer: SpeechRecognizer;
+  readonly links: VideoLinks;
 }
 
 const notInstalled =
@@ -98,6 +102,17 @@ export function createTranscription(dependencies: TranscriptionDependencies) {
     status: async () => status(dependencies, state),
     install: async (models: readonly ModelId[]) => install(dependencies, state, models),
     transcribe: async (request: TranscriptionRequest) => transcribe(dependencies, request),
+    /** The text of a link to a video: its subtitles or its recognized speech (#76). */
+    transcribeLink: async (request: LinkRequest) =>
+      transcribeLink(
+        {
+          ...dependencies,
+          modelFor: async (language) => chosenModel(dependencies, language),
+          recognize: async ({ file, model, onProgress, signal }) =>
+            recognized(dependencies, { file, language: "", model, onProgress, signal }),
+        },
+        request,
+      ),
     /** Stops a running download and waits for it; the server calls it before it closes. */
     close: async () => stopDownload(state),
   };

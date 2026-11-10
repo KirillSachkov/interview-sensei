@@ -1,4 +1,5 @@
 import type { Component, ModelId } from "./components.ts";
+import type { LinkAnswer } from "./video-link.ts";
 
 /**
  * The components in the data directory. `install` downloads each file of the component, checks its
@@ -41,4 +42,39 @@ export interface SpeechRecognizer {
     readonly onSeconds: (seconds: number) => void;
     readonly signal: AbortSignal;
   }) => Promise<string>;
+}
+
+/** A downloaded audio track of a video in the data directory; `remove` deletes it. */
+export interface DownloadedAudio {
+  readonly file: string;
+  readonly remove: () => Promise<void>;
+}
+
+/**
+ * Links to videos through the application's own yt-dlp, never a system one; yt-dlp solves the
+ * site's JavaScript with the application's Node, without Deno. `json` is yt-dlp's JSON of the video
+ * as `inspect` gave it, so the later calls do not ask the site again.
+ */
+export interface VideoLinks {
+  /** yt-dlp's JSON of the video behind the link, or yt-dlp's log when it failed. */
+  readonly inspect: (url: string, signal: AbortSignal) => Promise<LinkAnswer>;
+  /**
+   * The subtitles of the track in WebVTT or SRT, without downloading the video; TranscriptionError
+   * when they do not come.
+   */
+  readonly subtitles: (request: {
+    readonly json: string;
+    readonly track: string;
+    readonly automatic: boolean;
+    readonly signal: AbortSignal;
+  }) => Promise<string>;
+  /**
+   * Downloads only the audio track `format` into the data directory; for null, the best audio-only
+   * track or else the best file with sound. TranscriptionError when it does not come.
+   */
+  readonly audio: (request: {
+    readonly json: string;
+    readonly format: string | null;
+    readonly signal: AbortSignal;
+  }) => Promise<DownloadedAudio>;
 }

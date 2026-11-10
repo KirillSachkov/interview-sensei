@@ -68,6 +68,48 @@ const ffmpegBuilds: Readonly<Record<Platform, { asset: string; sha256: string; s
   },
 };
 
+const ytDlpVersion = "2026.10.26";
+
+/**
+ * The yt-dlp builds of a release, each a zip of a directory with the program and `_internal`. The
+ * directory build starts in a fraction of a second; the one-file build unpacks itself on every run,
+ * which takes about 7 seconds on macOS. The macOS build is universal.
+ */
+const ytDlpBuilds: Readonly<
+  Record<Platform, { asset: string; program: string; sha256: string; size: number }>
+> = {
+  "darwin-arm64": {
+    asset: "yt-dlp_macos.zip",
+    program: "yt-dlp_macos",
+    sha256: "20d98fa608998eff87d1d35a6e9fb65e4b874639a6cc89addc19da3becde3ef1",
+    size: 54_165_284,
+  },
+  "darwin-x64": {
+    asset: "yt-dlp_macos.zip",
+    program: "yt-dlp_macos",
+    sha256: "20d98fa608998eff87d1d35a6e9fb65e4b874639a6cc89addc19da3becde3ef1",
+    size: 54_165_284,
+  },
+  "linux-x64": {
+    asset: "yt-dlp_linux.zip",
+    program: "yt-dlp_linux",
+    sha256: "f34053415136e55073dd64ba5326d161ecc23ce0e98c081d8752867b37809450",
+    size: 41_236_547,
+  },
+  "linux-arm64": {
+    asset: "yt-dlp_linux_aarch64.zip",
+    program: "yt-dlp_linux_aarch64",
+    sha256: "74708e707e8fa8177c8347e58152337edf320149cd7b225defd453f7cde47822",
+    size: 40_835_009,
+  },
+  "win32-x64": {
+    asset: "yt-dlp_win.zip",
+    program: "yt-dlp.exe",
+    sha256: "fd51b212cf8380c7a52ee08c0d6be7f3c59b2f2c832eaf7b45acfae6eab57419",
+    size: 23_885_596,
+  },
+};
+
 function isPlatform(platform: string): platform is Platform {
   return Object.hasOwn(sherpaPackages, platform);
 }
@@ -112,6 +154,35 @@ function ffmpeg(platform: Platform): Component {
       },
     ],
   };
+}
+
+/** The directory of the yt-dlp build inside its component's directory. */
+const ytDlpDirectory = "yt-dlp";
+
+function ytDlp(platform: Platform): Component {
+  const build = ytDlpBuilds[platform];
+  return {
+    id: "yt-dlp",
+    version: `yt-dlp-${ytDlpVersion}`,
+    files: [
+      {
+        url: `https://github.com/yt-dlp/yt-dlp/releases/download/${ytDlpVersion}/${build.asset}`,
+        sha256: build.sha256,
+        size: build.size,
+        path: ytDlpDirectory,
+        unpack: "zip",
+        executable: true,
+      },
+    ],
+  };
+}
+
+/**
+ * The yt-dlp program inside its component's directory, with `/` between parts; null where the
+ * application does not read links to videos.
+ */
+export function ytDlpProgram(platform: string): string | null {
+  return isPlatform(platform) ? `${ytDlpDirectory}/${ytDlpBuilds[platform].program}` : null;
 }
 
 const vad: Component = {
@@ -213,6 +284,7 @@ export function pinnedCatalog(platform: string): ComponentCatalog | null {
   }
   return {
     shared: [engine(platform), ffmpeg(platform), vad],
+    ytDlp: ytDlp(platform),
     models: { "gigaam-v3": gigaam, "parakeet-v3": parakeet },
   };
 }

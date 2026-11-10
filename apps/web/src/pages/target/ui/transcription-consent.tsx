@@ -79,7 +79,9 @@ function ModelChoice({ status }: { status: Available }) {
   const { chosen, toggle } = useChosenModels();
   const missing = status.models.filter((model) => !model.installed);
   const models = missing.filter((model) => chosen.has(model.id));
-  const shared = status.shared.installed ? 0 : status.shared.size;
+  const shared =
+    (status.shared.installed ? 0 : status.shared.size) +
+    (status.ytDlp.installed ? 0 : status.ytDlp.size);
   const total = models.reduce((sum, model) => sum + model.size, shared);
   return (
     <>
@@ -98,7 +100,8 @@ function ModelChoice({ status }: { status: Available }) {
       </ul>
       {shared === 0 ? null : (
         <p className="muted">
-          Вместе с моделью: движок sherpa-onnx, ffmpeg и Silero VAD — {sizeText(shared)}.
+          Вместе с моделью: движок sherpa-onnx, ffmpeg, Silero VAD и yt-dlp для ссылок на видео —{" "}
+          {sizeText(shared)}.
         </p>
       )}
       {install.error === null ? null : (

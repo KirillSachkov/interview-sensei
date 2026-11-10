@@ -1,7 +1,7 @@
 // Seam 3 of spec #74: the real components on this machine. The module downloads the pinned
-// sherpa-onnx-node, ffmpeg-static, Silero VAD and GigaAM into a data directory, then recognizes a
-// short Russian clip through ffmpeg, VAD and the model. CI runs it on ubuntu-latest and
-// windows-latest with the data directory cached; `pnpm test` never runs it: it downloads 270 MB.
+// sherpa-onnx-node, ffmpeg-static, Silero VAD, yt-dlp and GigaAM into a data directory, then
+// recognizes a short Russian clip through ffmpeg, VAD and the model, and runs yt-dlp. CI runs it on ubuntu-latest and
+// windows-latest with the data directory cached; `pnpm test` never runs it: it downloads 300 MB.
 // INTERVIEW_SENSEI_TRANSCRIPTION_LIVE_DIR names the data directory; a temporary one otherwise.
 import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
@@ -100,5 +100,21 @@ describe("speech recognition with the real components", () => {
     });
     expect(JSON.stringify(outcome)).toMatch(/"text":".*лукоморья дуб зел[её]ный/iu);
     expect(percents.at(-1)).toBeGreaterThan(90);
+  });
+
+  it("runs the downloaded yt-dlp with the application's Node: a link it does not know is a web page", async () => {
+    const directory = await dataDirectory();
+    const transcription = transcriptionModule({ dataDirectory: directory, onError: () => {} });
+    await installGigaam(transcription);
+    const started = performance.now();
+
+    const outcome = await transcription.transcribeLink({
+      url: "https://example.com/vacancy",
+      language: "ru",
+      onProgress: () => {},
+    });
+
+    console.log(`Проверка ссылки через yt-dlp: ${since(started)} с`);
+    expect(outcome).toStrictEqual({ skipped: "not_video" });
   });
 });

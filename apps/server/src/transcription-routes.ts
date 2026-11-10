@@ -9,7 +9,6 @@ const installBody = {
     models: {
       type: "array",
       items: { type: "string", enum: [...modelIds] },
-      minItems: 1,
       maxItems: modelIds.length,
       uniqueItems: true,
     },
@@ -50,9 +49,11 @@ async function installReply(
  * Speech recognition of video and audio files (spec #74):
  * - `GET /api/transcription`: `{ available: false }` on a platform without recognition; otherwise
  *   each model with its size and whether it is installed, the shared components (engine, ffmpeg,
- *   VAD), the running download with its bytes so far and the reason of the last failed download.
+ *   VAD), yt-dlp, the running download with its bytes so far and the reason of the last failed
+ *   download.
  * - `POST /api/transcription/install` `{ models }`: «Скачать», the Candidate's consent to download
- *   the chosen models with the shared components into the data directory; 202 while it downloads
+ *   the chosen models with the shared components and yt-dlp into the data directory; an empty list
+ *   downloads yt-dlp alone, so links give their subtitles without a model. 202 while it downloads
  *   in the background, 200 when everything is installed, 409 `install_running` during another
  *   download, 400 `unavailable` on a platform without recognition.
  */
