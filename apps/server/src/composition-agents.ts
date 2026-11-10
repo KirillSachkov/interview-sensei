@@ -46,10 +46,23 @@ export interface AgentDependencies {
   log: ServerLog;
 }
 
-/** The agents that the Candidate can run. */
-export function composeRuntime(dependencies: AgentDependencies) {
+/** The app-settings slice as the runtime reads it: the stored model and level of an agent. */
+interface ModelSettings {
+  readonly agentModel: (agent: string) => Promise<{ model: string | null; effort: string | null }>;
+}
+
+/**
+ * The agents that the Candidate can run. Each start reads the agent's stored model and reasoning
+ * level (#111) from `settings`, the app-settings slice, which composeFeatures builds after the
+ * runtime.
+ */
+export function composeRuntime(dependencies: AgentDependencies, settings: () => ModelSettings) {
   const { log } = dependencies;
-  return agentRuntimeModule({ ...dependencies, onWarning: (message) => log.warn(message) });
+  return agentRuntimeModule({
+    ...dependencies,
+    onWarning: (message) => log.warn(message),
+    optionDefaults: async (agent) => settings().agentModel(agent),
+  });
 }
 
 /** The MCP addresses with the tool set of each kind, and the AgentSessions that use them. */

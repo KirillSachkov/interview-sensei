@@ -62,9 +62,11 @@ const sliceMigrations: readonly SliceMigrations[] = [
 
 /**
  * The services that composeFeatures builds after the Target slices and the gateway, which call
- * them: the Mock interviews, progress, answer search and the AgentSessions.
+ * them: the Mock interviews, progress, answer search and the AgentSessions; and the settings, which
+ * the runtime, built first, reads at each start of an agent.
  */
 interface LaterServices {
+  readonly settings: ReturnType<typeof composeTargets>["appSettings"];
   readonly interviews: ReturnType<typeof interviewsModule>;
   readonly progress: Progress;
   readonly answers: AnswerSearch;
@@ -210,8 +212,8 @@ export async function composeFeatures(dependencies: FeatureDependencies) {
     migrations: sliceMigrations,
     onDumpFailed: (error) => log.error({ err: error }, "The periodic database dump failed"),
   });
-  const runtime = composeRuntime(dependencies);
   const later = laterServices();
+  const runtime = composeRuntime(dependencies, () => later.get().settings);
   const slices = composeTargets(storage, targetDependencies(dependencies, later.get), runtime);
   const tools = sessionTools(slices, later.get);
   const { mcp, sessions } = composeSessions(storage, {
@@ -224,7 +226,7 @@ export async function composeFeatures(dependencies: FeatureDependencies) {
     runtime,
     sessions,
   });
-  later.bind({ interviews, progress, answers, sessions });
+  later.bind({ interviews, progress, answers, sessions, settings: slices.appSettings });
   return {
     storage,
     runtime,

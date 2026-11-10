@@ -20,6 +20,7 @@ const view: SessionView = {
   failure: null,
   agentText: "new",
   narration: null,
+  options: { model: null, effort: null },
 };
 
 /** AgentSessions whose prompt and cancel reject, as when the database or the agent breaks. */
@@ -36,6 +37,7 @@ const brokenSessions: AgentSessions = {
   lastConversation: async () => {},
   prompt: () => Promise.reject(new Error("prompt broke")),
   cancel: () => Promise.reject(new Error("cancel broke")),
+  setOptions: () => Promise.reject(new Error("not used")),
   answerPermission: () => Promise.reject(new Error("not used")),
   queuePrompt: () => Promise.reject(new Error("not used")),
   hideAgentText: () => Promise.reject(new Error("not used")),
@@ -53,6 +55,7 @@ const brokenSessions: AgentSessions = {
 const runtime: AgentRuntime = {
   listAgents: () => Promise.resolve([]),
   start: () => Promise.reject(new Error("not used")),
+  probeOptions: () => Promise.reject(new Error("not used")),
 };
 
 /** Builds a server on the sessions; `failures` resolves with the first two logged errors. */

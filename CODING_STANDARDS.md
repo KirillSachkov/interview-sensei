@@ -82,6 +82,8 @@ The bulk review of Questions in `question-bank` asks `interviews` which Question
 `onRunStarted` of `sources` goes to `answers.inboxStarted`: a running Answer search closes with a partial report and its agent stops, because Inbox processing goes first.
 A running search whose agent has not started yet goes back to `waiting` instead, and so does a start that finds the processing running only after it stored the run.
 «Наполнять в фоне» (#79) is `fillInBackground` of `app-settings`, which `answer-search` reads through its `AnswerSettings` port.
+The model and the reasoning level of each agent (#111) are the table `agent_models` of `app-settings`; `agent-runtime` reads them at each start through its `optionDefaults` port.
+`composeRuntime` builds the runtime before `app-settings`, which needs the runtime's agents, so `later` hands the settings over, as it does the services built later.
 `answers.inboxFinished` starts a search of 20 Questions with it on, after a processing that `interrupted` (the server's start) did not end; `onFinished` of `interviews`, only for a finished Mock interview (a paused one the Candidate finishes counts; a pause does not), goes to `answers.interviewFinished` the same way.
 A background start that does not happen goes to `onBackgroundSkipped`, which the server logs at `info`.
 The Debrief in the web app reads the asked Question's Reference answer from `GET /api/targets/:id/questions` of its Topic, hidden Questions too; the Debrief API of `interviews` stays without it.
@@ -180,6 +182,16 @@ After 5 seconds on the injected `Timer` it kills the process with SIGKILL and st
 The launcher sets the mode with `session/set_mode` when `session/new` lists it in `modes`.
 Otherwise it sets the config option of category `mode`: OpenCode 1.17 and later offer their agents only there.
 An agent without the ACP capability for the recipe's `systemPrompt` or `additionalDirectories` does not start, and neither does one that does not offer the recipe's mode either way.
+
+The Candidate chooses the model and the reasoning level of each agent (#111).
+Every agent lists them as ACP config options of the type `select`: the model in the category `model`, the level in `thought_level`; the ids differ (`model`; `effort` for Claude Code and OpenCode, `reasoning_effort` for Codex), so the code finds an option by its category.
+The levels depend on the model: an agent leaves the level option out for a model without levels.
+Right after the mode the launcher sets the stored choice of the agent, the model first, then the level, each only when the agent offers that value now; a value that is no longer offered, or that the agent refuses, is skipped and never fails the start (`applyDefaults` in `session-options.ts`).
+The launcher passes the `configOptions` of `session/new` and of every `session/set_config_option` answer to `onUpdate` as the update `config_option_update`, the one an agent may send itself, so the journal keeps them as `agent_update`.
+The reducer folds the latest one into `options` of `SessionView`: `{ model, effort }`, each `{ current, values }` or null; a continued session starts with both null.
+`LiveAgent.setConfigOption` changes an option of a live session; `AgentSessions.setOptions` sets the model, then the level, of an idle session by the option ids of the agent's latest update, and no prompt starts meanwhile.
+`AgentRuntime.probeOptions` reads an agent's options for «Настройки» without an AgentSession: it starts the agent in `probes/<agent>` of the data directory with the profile of `service-chat` and no MCP server, sends no prompt, so it spends no subscription, and stops the agent.
+It keeps each answer in memory by agent and model for the life of the server; the launch timeout on the injected `Timer` bounds it.
 A profile that allows shell or web gets no ban for it. The permission modes stay as [storage](#storage) and #17 set them.
 
 ### Text of Sources

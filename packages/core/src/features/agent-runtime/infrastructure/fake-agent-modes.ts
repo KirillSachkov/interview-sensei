@@ -42,6 +42,9 @@ export function fakeAgentModes(agentMode: string | undefined) {
   const current = new Map<string, string>();
   return {
     current: (sessionId: string) => current.get(sessionId),
+    /** The config option `mode` of the session, when the agent offers its modes that way. */
+    options: (sessionId: string) =>
+      asOptions ? modeConfigOptions(current.get(sessionId) ?? candidateMode) : [],
     /** Starts the session in the Candidate's mode; returns the modes for `session/new`. */
     start(sessionId: string) {
       current.set(sessionId, candidateMode);

@@ -65,7 +65,11 @@ describe("«Наполнять в фоне»", () => {
     const settings = await api(server).get("/api/settings");
     await processedVacancy(server, { setup: events, targetId: target.id });
 
-    expect(settings.json()).toStrictEqual({ defaultAgent: null, fillInBackground: false });
+    expect(settings.json()).toStrictEqual({
+      defaultAgent: null,
+      fillInBackground: false,
+      agentModels: {},
+    });
     await expect(searchAfterClose({ dataDirectory, stop }, target.id)).resolves.toStrictEqual(
       noSearch,
     );
@@ -78,9 +82,21 @@ describe("«Наполнять в фоне»", () => {
     const read = await api(server).get("/api/settings");
     const off = await fillInBackground(server, false);
 
-    expect(on.json()).toStrictEqual({ defaultAgent: null, fillInBackground: true });
-    expect(read.json()).toStrictEqual({ defaultAgent: null, fillInBackground: true });
-    expect(off.json()).toStrictEqual({ defaultAgent: null, fillInBackground: false });
+    expect(on.json()).toStrictEqual({
+      defaultAgent: null,
+      fillInBackground: true,
+      agentModels: {},
+    });
+    expect(read.json()).toStrictEqual({
+      defaultAgent: null,
+      fillInBackground: true,
+      agentModels: {},
+    });
+    expect(off.json()).toStrictEqual({
+      defaultAgent: null,
+      fillInBackground: false,
+      agentModels: {},
+    });
     await expect(
       api(server).put("/api/settings/fill-in-background", { enabled: "yes" }),
     ).resolves.toMatchObject({ statusCode: 400 });

@@ -93,6 +93,7 @@ function launch(recipe: LaunchRecipe, timer: Timer, env: Record<string, string> 
   const launched = acpLauncher({ timer, env })(recipe, {
     // These tests never call the MCP server or answer a permission request.
     mcpServer: { name: "interview-sensei", url: "http://127.0.0.1:9/mcp/unused" },
+    options: { model: null, effort: null },
     onUpdate: (update) => {
       updates.push(update);
     },

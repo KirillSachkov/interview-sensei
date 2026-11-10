@@ -1,6 +1,6 @@
 import type { Timer } from "../../shared/time/index.ts";
 import { createAgentRuntime } from "./application/agent-runtime.ts";
-import type { AgentRuntime } from "./application/agent-runtime.ts";
+import type { AgentRuntime, AgentRuntimeDependencies } from "./application/agent-runtime.ts";
 import { agentKinds } from "./domain/agent.ts";
 import type { AgentKind } from "./domain/agent.ts";
 import { acpLauncher } from "./infrastructure/acp-process-launcher.ts";
@@ -26,6 +26,8 @@ export interface AgentRuntimeModuleDependencies {
   readonly userEnvironment: UserEnvironment | undefined;
   /** Gets a problem the runtime works around, such as an unreadable OpenCode database; no secrets. */
   readonly onWarning: (message: string) => void;
+  /** The Candidate's stored model and reasoning level of an agent (#111): the app-settings slice. */
+  readonly optionDefaults: AgentRuntimeDependencies["optionDefaults"];
 }
 
 /** Every agent kind but the fake one, which only tests and manual checks get. */
@@ -45,6 +47,7 @@ export function agentRuntimeModule({
   fakeAgent,
   userEnvironment,
   onWarning,
+  optionDefaults,
 }: AgentRuntimeModuleDependencies): AgentRuntime {
   // The fake agent never needs the Candidate's home, so tests do not look into the real one.
   const environment = fakeAgent ? undefined : userEnvironment;
@@ -57,6 +60,7 @@ export function agentRuntimeModule({
     onWarning,
     dataDirectory,
     readSkill: skillDirectory(skillsDirectory),
+    optionDefaults,
     // The fake agent needs none of the Candidate's variables.
     launch: acpLauncher({ timer, env: environment?.env ?? {} }),
   });

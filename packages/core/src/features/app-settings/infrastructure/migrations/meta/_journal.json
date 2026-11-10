@@ -15,6 +15,13 @@
       "when": 1794271672938,
       "tag": "0001_fill_in_background",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794301623287,
+      "tag": "0002_agent_models",
+      "breakpoints": true
     }
   ]
 }

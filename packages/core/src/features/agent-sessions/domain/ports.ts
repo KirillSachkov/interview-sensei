@@ -65,6 +65,11 @@ export interface LiveAgent {
   readonly prompt: (text: string) => Promise<TurnOutcome>;
   /** Asks the agent to end the current turn; the pending prompt resolves with `cancelled`. */
   readonly cancel: () => Promise<void>;
+  /**
+   * Sets an ACP config option of the session, such as the model; the agent's new options come to
+   * `onUpdate` as a `config_option_update` before it resolves. Rejects when the agent refuses.
+   */
+  readonly setConfigOption: (configId: string, value: string) => Promise<void>;
   /** Stops the agent process; `onExit` is not called for this stop. */
   readonly stop: () => Promise<void>;
 }

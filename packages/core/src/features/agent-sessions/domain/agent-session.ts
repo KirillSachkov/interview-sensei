@@ -1,3 +1,4 @@
+import type { AgentOptions } from "./agent-options.ts";
 import type { PermissionAnswer, PermissionRequest, SessionFailure } from "./session-event.ts";
 
 /**
@@ -77,4 +78,9 @@ export interface SessionView extends AgentSession {
    * (#88): the tool call drops it, and it joins the chat only when the turn ends without one.
    */
   readonly narration: readonly ChatEntry[] | null;
+  /**
+   * The model and the reasoning level the agent offers and runs with now (#111); both null until
+   * the agent reports its config options, and for an agent that offers none.
+   */
+  readonly options: AgentOptions;
 }

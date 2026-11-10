@@ -1,23 +1,21 @@
+import path from "node:path";
+
 import { isSessionKind, sessionProfiles } from "../../../shared/session-kinds/index.ts";
 import type { SessionProfile } from "../../../shared/session-kinds/index.ts";
 import type { AgentAvailability, AgentHost, AgentKind } from "../domain/agent.ts";
 import { agentAvailability, isAgentKind } from "../domain/agent.ts";
+import { agentOptions } from "../domain/agent-options.ts";
+import type { AgentOptions, OptionDefaults } from "../domain/agent-options.ts";
 import { launchRecipe } from "../domain/launch-recipe.ts";
-import { opencodeKeys, opencodeLoginsToRepeat } from "../domain/opencode-credentials.ts";
-import { opencodeOwnDatabase } from "../domain/opencode-login.ts";
-import type { OpencodeCredentialRow, OpencodeKey } from "../domain/opencode-credentials.ts";
-import { opencodeConfigSchema } from "../domain/opencode-recipe.ts";
-import type { LaunchProfile, SkillSource } from "../domain/launch-recipe.ts";
-import { automaticAnswer, refusal } from "../domain/permissions.ts";
-import type {
-  AcpLauncher,
-  AgentUpdate,
-  LiveAgent,
-  SessionRequest,
-  ToolCallFields,
-} from "../domain/ports.ts";
+import type { LaunchProfile, LaunchRecipe, SkillSource } from "../domain/launch-recipe.ts";
+import type { AcpLauncher, LiveAgent, SessionRequest } from "../domain/ports.ts";
+import { optionProbe } from "./agent-probe.ts";
+import type { HostOutcome, ProbeOutcome, ProbeRequest } from "./agent-probe.ts";
+import { sessionKeys } from "./opencode-session-keys.ts";
+import type { SessionKeyDependencies } from "./opencode-session-keys.ts";
+import { forgettingTurns, permissionGate } from "./permission-gate.ts";
 
-export interface AgentRuntimeDependencies {
+export interface AgentRuntimeDependencies extends SessionKeyDependencies {
   /** The agents this server offers; the fake agent only when the server enables it. */
   readonly agents: readonly AgentKind[];
   /**
@@ -25,14 +23,13 @@ export interface AgentRuntimeDependencies {
    * new login shows after a page reload.
    */
   readonly inspectHost: () => Promise<AgentHost>;
-  /** Reads the `credential` table of the Candidate's OpenCode 2.x database; none when it cannot. */
-  readonly readOpencodeCredentials: (database: string) => Promise<readonly OpencodeCredentialRow[]>;
-  /** Gets a problem the Candidate can fix, such as an OpenCode login the session cannot use; no secrets. */
-  readonly onWarning: (message: string) => void;
-  /** The data directory: the agents' own homes and configs live in it. */
-  readonly dataDirectory: string;
   /** Reads a skill of the application by its directory name, at each start. */
   readonly readSkill: (name: string) => Promise<SkillSource>;
+  /**
+   * The Candidate's stored model and reasoning level of the agent (#111), read at each start; the
+   * app-settings slice supplies it.
+   */
+  readonly optionDefaults: (agent: string) => Promise<OptionDefaults>;
   readonly launch: AcpLauncher;
 }
 
@@ -40,8 +37,8 @@ export interface AgentRuntimeDependencies {
 export interface AgentRuntime {
   readonly listAgents: () => Promise<readonly AgentAvailability[]>;
   /**
-   * Starts the agent with our MCP server. The server allows calls of our MCP tools by itself;
-   * other permission requests go to `onPermission`.
+   * Starts the agent with our MCP server and the Candidate's stored model and reasoning level. The
+   * server allows calls of our MCP tools by itself; other permission requests go to `onPermission`.
    */
   readonly start: (
     request: SessionRequest & {
@@ -52,82 +49,11 @@ export interface AgentRuntime {
       workingDirectory: string;
     },
   ) => Promise<LiveAgent>;
-}
-
-function announcedToolCall(update: AgentUpdate): ToolCallFields | null {
-  const { sessionUpdate, toolCallId } = update;
-  return (sessionUpdate === "tool_call" || sessionUpdate === "tool_call_update") &&
-    typeof toolCallId === "string"
-    ? { ...update, toolCallId }
-    : null;
-}
-
-/** A tool call in these states asks no more permissions. */
-const finishedStatuses = new Set(["completed", "failed"]);
-
-/**
- * Keeps the tool calls the agent announced in the current turn, by `toolCallId`, and answers
- * permission requests for our MCP tools by itself. Other requests go to the Candidate, or get the
- * server's refusal when the profile does not `askCandidate`. A finished tool call and the end of
- * the turn remove the kept tool calls.
- */
-function permissionGate(
-  { agent, askCandidate }: { agent: AgentKind; askCandidate: boolean },
-  request: SessionRequest,
-): { session: SessionRequest; endTurn: () => void } {
-  const announced = new Map<string, ToolCallFields>();
-  const session: SessionRequest = {
-    ...request,
-    onUpdate: (update) => {
-      const toolCall = announcedToolCall(update);
-      if (toolCall !== null) {
-        if (typeof toolCall.status === "string" && finishedStatuses.has(toolCall.status)) {
-          announced.delete(toolCall.toolCallId);
-        } else {
-          const earlier = announced.get(toolCall.toolCallId);
-          announced.set(toolCall.toolCallId, { ...earlier, ...toolCall });
-        }
-      }
-      request.onUpdate(update);
-    },
-    onPermission: async (permission) => {
-      const earlier = announced.get(permission.toolCall.toolCallId);
-      const answer = automaticAnswer({
-        agent,
-        ourServer: request.mcpServer.name,
-        request: permission.toolCall,
-        announced: earlier,
-        options: permission.options,
-      });
-      if (answer !== null) {
-        return answer;
-      }
-      // The Candidate sees the announced tool call too: the request may carry only its id.
-      return askCandidate
-        ? request.onPermission({ ...permission, toolCall: { ...earlier, ...permission.toolCall } })
-        : refusal(permission.options);
-    },
-  };
-  return {
-    session,
-    endTurn: () => {
-      announced.clear();
-    },
-  };
-}
-
-/** The agent whose turns, however they end, forget the tool calls announced in them. */
-function forgettingTurns(agent: LiveAgent, endTurn: () => void): LiveAgent {
-  return {
-    ...agent,
-    prompt: async (text) => {
-      try {
-        return await agent.prompt(text);
-      } finally {
-        endTurn();
-      }
-    },
-  };
+  /**
+   * The model and the reasoning levels the agent offers, read without an AgentSession and without
+   * a prompt; see `optionProbe`.
+   */
+  readonly probeOptions: (agent: string, request: ProbeRequest) => Promise<ProbeOutcome>;
 }
 
 /** The profile of the session kind; throws for an unknown kind. */
@@ -155,71 +81,112 @@ async function launchProfile(
   };
 }
 
-/** The agent's availability on this machine now; throws the reason when it is unavailable. */
-async function availableHost(
+/** Whether the server offers the agent and it can run on this machine now. */
+async function findHost(
   { agents, inspectHost }: Pick<AgentRuntimeDependencies, "agents" | "inspectHost">,
   agent: string,
-): Promise<{ agent: AgentKind; host: AgentHost }> {
+): Promise<HostOutcome> {
   if (!isAgentKind(agent) || !agents.includes(agent)) {
-    throw new Error(`The agent ${agent} is not offered`);
+    return { type: "not_offered" };
   }
   const host = await inspectHost();
   const [availability] = agentAvailability([agent], host);
-  if (availability?.available !== true) {
-    throw new Error(availability?.reason ?? `The agent ${agent} is not available`);
+  return availability?.available === true
+    ? { type: "available", agent, host }
+    : {
+        type: "unavailable",
+        reason: availability?.reason ?? `The agent ${agent} is not available`,
+      };
+}
+
+/** The agent's availability on this machine now; throws the reason when it is unavailable. */
+async function availableHost(
+  dependencies: Pick<AgentRuntimeDependencies, "agents" | "inspectHost">,
+  agent: string,
+): Promise<{ agent: AgentKind; host: AgentHost }> {
+  const found = await findHost(dependencies, agent);
+  if (found.type === "not_offered") {
+    throw new Error(`The agent ${agent} is not offered`);
   }
-  return { agent, host };
+  if (found.type === "unavailable") {
+    throw new Error(found.reason);
+  }
+  return found;
+}
+
+/** The isolated start of the agent on the host with the profile, in the session directory. */
+async function recipeFor(
+  dependencies: AgentRuntimeDependencies,
+  { agent, host }: { agent: AgentKind; host: AgentHost },
+  {
+    profile,
+    roleAddition,
+    sessionDirectory,
+  }: { profile: SessionProfile; roleAddition: string | undefined; sessionDirectory: string },
+): Promise<LaunchRecipe> {
+  const { dataDirectory, readSkill } = dependencies;
+  return launchRecipe({
+    agent,
+    profile: await launchProfile(profile, { roleAddition, readSkill }),
+    host,
+    opencodeKeys: await sessionKeys(agent, host, dependencies),
+    dataDirectory,
+    sessionDirectory,
+  });
 }
 
 /**
- * The Candidate's keys for an OpenCode 2.x session, read only now, so listing the agents never
- * touches the secrets. Other agents and 1.x, which reads the linked `auth.json`, get none.
- * A provider of the session with only a subscription (OAuth) login gets no key (#69); without
- * the application's own login for it, the runtime warns how to log in.
+ * Starts the agent as the agent check does, in its own directory `probes/<agent>` of the data
+ * directory and without an MCP server, chooses the model, reads the options the agent reported and
+ * stops it. No prompt goes to the agent.
  */
-async function sessionKeys(
-  agent: AgentKind,
-  host: AgentHost,
-  {
-    readOpencodeCredentials: read,
-    onWarning,
-    dataDirectory,
-  }: Pick<AgentRuntimeDependencies, "readOpencodeCredentials" | "onWarning" | "dataDirectory">,
-): Promise<readonly OpencodeKey[]> {
-  if (
-    agent !== "opencode" ||
-    host.opencodeDatabase === null ||
-    opencodeConfigSchema(host.opencodeVersion) !== "2.x"
-  ) {
-    return [];
-  }
-  const rows = await read(host.opencodeDatabase);
-  const ownRows = await read(opencodeOwnDatabase(dataDirectory));
-  for (const provider of opencodeLoginsToRepeat(rows, ownRows, host.opencodeModel)) {
-    onWarning(
-      `OpenCode 2.x: ${provider} has only a subscription (OAuth) login, which sessions of the application cannot share; run \`npx interview-sensei login opencode\` once or log in to it with an API key`,
-    );
-  }
-  return opencodeKeys(rows, host.opencodeModel);
+async function readOptions(
+  dependencies: AgentRuntimeDependencies,
+  found: { agent: AgentKind; host: AgentHost },
+  model: string | null,
+): Promise<AgentOptions> {
+  const recipe = await recipeFor(dependencies, found, {
+    profile: sessionProfiles["service-chat"],
+    roleAddition: undefined,
+    sessionDirectory: path.join(dependencies.dataDirectory, "probes", found.agent),
+  });
+  let options: AgentOptions = { model: null, effort: null };
+  const agent = await dependencies.launch(recipe, {
+    mcpServer: null,
+    options: { model, effort: null },
+    onUpdate: (update) => {
+      if (update.sessionUpdate === "config_option_update") {
+        options = agentOptions(update.configOptions);
+      }
+    },
+    onExit: () => {},
+    // The probe sends no prompt, so the agent has nothing to ask permission for.
+    onPermission: () => Promise.resolve({ outcome: "cancelled" }),
+  });
+  await agent.stop();
+  return options;
 }
 
 export function createAgentRuntime(dependencies: AgentRuntimeDependencies): AgentRuntime {
-  const { agents, inspectHost, dataDirectory, readSkill, launch } = dependencies;
+  const { agents, inspectHost, optionDefaults, launch } = dependencies;
   return {
     listAgents: async () => agentAvailability(agents, await inspectHost()),
     start: async ({ agent: requested, kind, roleAddition, workingDirectory, ...request }) => {
-      const sessionProfile = profileOf(kind);
-      const { agent, host } = await availableHost(dependencies, requested);
-      const recipe = launchRecipe({
-        agent,
-        profile: await launchProfile(sessionProfile, { roleAddition, readSkill }),
-        host,
-        opencodeKeys: await sessionKeys(agent, host, dependencies),
-        dataDirectory,
+      const profile = profileOf(kind);
+      const found = await availableHost(dependencies, requested);
+      const recipe = await recipeFor(dependencies, found, {
+        profile,
+        roleAddition,
         sessionDirectory: workingDirectory,
       });
-      const gate = permissionGate({ agent, askCandidate: sessionProfile.askCandidate }, request);
-      return forgettingTurns(await launch(recipe, gate.session), gate.endTurn);
+      const { agent } = found;
+      const gate = permissionGate({ agent, askCandidate: profile.askCandidate }, request);
+      const options = await optionDefaults(agent);
+      return forgettingTurns(await launch(recipe, { ...gate.session, options }), gate.endTurn);
     },
+    probeOptions: optionProbe({
+      findHost: async (agent) => findHost(dependencies, agent),
+      read: async (found, model) => readOptions(dependencies, found, model),
+    }),
   };
 }

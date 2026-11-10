@@ -17,6 +17,8 @@
 // - `/tool-list` replies with the sorted names of the tools of that server: «MCP tools: <json>».
 // - `/mode` replies with the session's permission mode: «Режим: <id>». A new session starts in
 //   `candidate-mode`, which stands for the mode in the Candidate's own settings.
+// - `/options` replies with the session's model and reasoning level: «Модель: <model>, уровень:
+//   <level>»; see `fake-agent-options.ts`.
 // - `/meta` replies with the `_meta` of `session/new` as JSON: «_meta: <json>».
 // - `/env` replies with the sorted names of its environment variables as JSON: «env: <json>».
 // - `/markdown` replies with Markdown: bold, inline code, a list, a code block, a table, a link,
@@ -59,7 +61,7 @@ import {
 } from "./fake-agent-templates.ts";
 import { callBrief, callTool, toolCommand, toolList } from "./fake-agent-tool.ts";
 import type { ToolCall } from "./fake-agent-tool.ts";
-import { fakeAgentModes } from "./fake-agent-modes.ts";
+import { fakeAgentConfig } from "./fake-agent-options.ts";
 import { askPermission, permissionOptions } from "./fake-agent-permission.ts";
 import { profileReply, profileSettings, sessionCapabilities } from "./fake-agent-profile.ts";
 import type { ProfileSettings } from "./fake-agent-profile.ts";
@@ -72,7 +74,7 @@ const sessionMcpServers = new Map<string, McpServer[]>();
 const sessionSettings = new Map<string, ProfileSettings>();
 
 const agentMode = process.env.INTERVIEW_SENSEI_FAKE_AGENT_MODE;
-const modes = fakeAgentModes(agentMode);
+const config = fakeAgentConfig(agentMode);
 
 /** Resolves the waiting `/wait` turn of each session when the client cancels it. */
 const cancelWaiters = new Map<string, () => void>();
@@ -190,8 +192,9 @@ const commands = new Map<
   [
     "/mode",
     async (client, sessionId) =>
-      reply(client, sessionId, `Режим: ${modes.current(sessionId) ?? "нет"}`),
+      reply(client, sessionId, `Режим: ${config.mode(sessionId) ?? "нет"}`),
   ],
+  ["/options", async (client, sessionId) => reply(client, sessionId, config.describe(sessionId))],
   [
     "/meta",
     async (client, sessionId) =>
@@ -246,13 +249,15 @@ const app = agent({ name: "interview-sensei-fake-agent" })
     const sessionId = randomUUID();
     sessionMcpServers.set(sessionId, params.mcpServers);
     sessionSettings.set(sessionId, profileSettings(params));
-    return { sessionId, ...modes.start(sessionId) };
+    return { sessionId, ...config.start(sessionId) };
   })
   .onRequest("session/set_mode", ({ params }) => {
-    modes.set(params);
+    config.setMode(params);
     return {};
   })
-  .onRequest("session/set_config_option", ({ params }) => ({ configOptions: modes.set(params) }))
+  .onRequest("session/set_config_option", ({ params }) => ({
+    configOptions: config.setOption(params),
+  }))
   .onRequest("session/prompt", async ({ params: { sessionId, prompt }, client }) => {
     const { notes, rest: text } = splitNotes(
       prompt.map((block) => (block.type === "text" ? block.text : "")).join(""),

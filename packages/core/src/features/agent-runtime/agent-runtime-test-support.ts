@@ -61,6 +61,7 @@ const idleAgent = {
   acpSessionId: "acp-1",
   prompt: () => Promise.resolve({ type: "ended" as const, stopReason: "end_turn" }),
   cancel: async () => {},
+  setConfigOption: async () => {},
   stop: async () => {},
 };
 
@@ -95,6 +96,7 @@ export function runtimeOffering(
     },
     dataDirectory: "/home/candidate/.interview-sensei",
     readSkill,
+    optionDefaults: () => Promise.resolve({ model: null, effort: null }),
     launch: (recipe) => {
       recipes.push(recipe);
       return Promise.resolve(idleAgent);

@@ -52,7 +52,11 @@ describe("default agent", () => {
     const response = await api.settings();
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toStrictEqual({ defaultAgent: null, fillInBackground: false });
+    expect(response.json()).toStrictEqual({
+      defaultAgent: null,
+      fillInBackground: false,
+      agentModels: {},
+    });
   });
 
   it("gives a Target without its own agent the default agent", async () => {
@@ -61,7 +65,11 @@ describe("default agent", () => {
     const response = await api.setDefault("codex");
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toStrictEqual({ defaultAgent: "codex", fillInBackground: false });
+    expect(response.json()).toStrictEqual({
+      defaultAgent: "codex",
+      fillInBackground: false,
+      agentModels: {},
+    });
     const agent = await api.targetAgent();
     expect(agent.json()).toStrictEqual({ agent: "codex", chosen: false });
   });
@@ -82,7 +90,11 @@ describe("default agent", () => {
 
     const response = await api.setDefault(null);
 
-    expect(response.json()).toStrictEqual({ defaultAgent: null, fillInBackground: false });
+    expect(response.json()).toStrictEqual({
+      defaultAgent: null,
+      fillInBackground: false,
+      agentModels: {},
+    });
     const agent = await api.targetAgent();
     expect(agent.json()).toStrictEqual({ agent: "claude", chosen: false });
   });
@@ -110,6 +122,10 @@ describe("default agent", () => {
     const restarted = await demoApi(directory);
     const response = await restarted.get("/api/settings");
 
-    expect(response.json()).toStrictEqual({ defaultAgent: "fake", fillInBackground: false });
+    expect(response.json()).toStrictEqual({
+      defaultAgent: "fake",
+      fillInBackground: false,
+      agentModels: {},
+    });
   });
 });

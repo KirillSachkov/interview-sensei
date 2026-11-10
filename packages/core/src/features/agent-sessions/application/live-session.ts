@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 
 import type { Clock } from "../../../shared/time/index.ts";
+import { optionsUpdate } from "../domain/agent-options.ts";
+import type { OptionIds } from "../domain/agent-options.ts";
 import type { AgentSession, ChatEntry, SessionView } from "../domain/agent-session.ts";
 import { isLive } from "../domain/agent-session.ts";
 import type { AgentLauncher, LiveAgent, McpAddresses, SessionRepository } from "../domain/ports.ts";
@@ -23,6 +25,8 @@ export interface LiveSession {
   view: SessionView;
   agent: LiveAgent | null;
   turnActive: boolean;
+  /** The ACP ids of the model and level options in the agent's latest `config_option_update`. */
+  optionIds: OptionIds;
   /** Permission requests that wait for the Candidate, by request id. */
   readonly permissions: Map<string, PendingPermission>;
   /** Settles when the agent started or failed to start. */
@@ -70,6 +74,7 @@ export function liveSession(
     view: emptyView(session, earlierEntries),
     agent: null,
     turnActive: false,
+    optionIds: { model: null, effort: null },
     permissions: new Map(),
     started: Promise.resolve(),
     written: Promise.resolve(),
@@ -206,6 +211,7 @@ export async function launch(
         ...(targetId === undefined ? {} : { targetId }),
       }),
       onUpdate: (update) => {
+        session.optionIds = optionsUpdate(update)?.ids ?? session.optionIds;
         void record(session, { type: "agent_update", update });
       },
       onPermission: async (request) => askCandidate(session, request),

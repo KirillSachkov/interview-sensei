@@ -210,6 +210,9 @@ There are five kinds: Target setup, Inbox processing, Mock interview, Side threa
 Inbox processing and Answer search have no chat: the Candidate sees only their status and report.
 The server records every event in the journal; the chat and its history after a restart come from the journal, not from the agent's log.
 The code calls it `AgentSession`. The skeleton's agent check also runs in one, but it is not a domain kind.
+The Candidate chooses the model and the reasoning level of each agent among those the agent offers; the levels depend on the model, and some models have none.
+The choice in «Настройки» is the default: every new Agent session of that agent starts with it, background ones and continuations too. A stored value the agent no longer offers is skipped, and the agent's own default stays.
+A change in the chat of an Agent session that waits for a message lasts for that Agent session only.
 _Avoid_: Session, when the kind of session matters.
 
 **MCP address**:

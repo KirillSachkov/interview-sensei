@@ -1,3 +1,4 @@
+import type { OptionDefaults } from "./agent-options.ts";
 import type { LaunchRecipe } from "./launch-recipe.ts";
 
 /** One ACP `session/update`, passed on whole. */
@@ -61,6 +62,16 @@ export interface SessionRequest extends AgentListeners {
 }
 
 /**
+ * What the launcher opens the ACP session with. Without `mcpServer` the session gets no MCP server:
+ * the probe of an agent's options (#111) sends no prompt, so it needs no tools.
+ */
+export interface LaunchSession extends AgentListeners {
+  readonly mcpServer: McpServerAddress | null;
+  /** The model and the reasoning level to set right after the mode; see `applyDefaults`. */
+  readonly options: OptionDefaults;
+}
+
+/**
  * How a turn ended: with an ACP stop reason, or with the JSON-RPC error the agent answered the
  * prompt with while it kept running.
  */
@@ -75,9 +86,14 @@ export interface LiveAgent {
   readonly prompt: (text: string) => Promise<TurnOutcome>;
   /** Sends `session/cancel`; the pending prompt then resolves with `cancelled`. */
   readonly cancel: () => Promise<void>;
+  /**
+   * Sends `session/set_config_option`, such as the model, and reports the options the agent answers
+   * with to `onUpdate` as a `config_option_update`. Rejects when the agent refuses the value.
+   */
+  readonly setConfigOption: (configId: string, value: string) => Promise<void>;
   /** Stops the process; `onExit` is not called for this stop. */
   readonly stop: () => Promise<void>;
 }
 
-/** Starts a process by the recipe and opens an ACP session with our MCP server in it. */
-export type AcpLauncher = (recipe: LaunchRecipe, session: SessionRequest) => Promise<LiveAgent>;
+/** Starts a process by the recipe and opens an ACP session in it, with our MCP server when given. */
+export type AcpLauncher = (recipe: LaunchRecipe, session: LaunchSession) => Promise<LiveAgent>;

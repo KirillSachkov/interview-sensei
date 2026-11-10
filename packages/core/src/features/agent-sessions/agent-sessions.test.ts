@@ -76,6 +76,7 @@ function countingLauncher(started: Promise<null> = Promise.resolve(null)) {
     acpSessionId: "acp-1",
     prompt: () => Promise.resolve({ type: "ended", stopReason: "end_turn" }),
     cancel: async () => {},
+    setConfigOption: async () => {},
     stop: () => {
       counts.stopped += 1;
       return Promise.resolve();

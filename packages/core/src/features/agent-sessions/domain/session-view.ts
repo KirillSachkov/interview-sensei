@@ -1,5 +1,6 @@
 // The session/update reducer: folds the journal of an AgentSession into what the browser shows.
 // Written for this project; the store of @acp-components/core (MIT) served only as a reference.
+import { noOptions, optionsAfter } from "./agent-options.ts";
 import type { AgentSession, ChatEntry, SessionStatus, SessionView } from "./agent-session.ts";
 import { isLive } from "./agent-session.ts";
 import { endsNarration, narrates, narrationAfter, narrationShown } from "./narration.ts";
@@ -8,6 +9,7 @@ import type { AgentUpdate, RecordedEvent, SessionEvent } from "./session-event.t
 /**
  * The view of a session before its first journal entry. A session that continues an earlier one
  * starts with the earlier chat: journal ids are unique over every session, so entry ids stay unique.
+ * Its options start empty: they belong to the new agent process.
  */
 export function emptyView(
   session: AgentSession,
@@ -19,6 +21,7 @@ export function emptyView(
     failure: null,
     agentText: "new",
     narration: null,
+    options: noOptions,
   };
 }
 
@@ -231,6 +234,7 @@ export function applyEvent(view: SessionView, recorded: RecordedEvent): SessionV
     narration: narrationAfter(current, event, (narration) =>
       entriesAfter({ ...current, entries: narration }, recorded),
     ),
+    options: optionsAfter(current.options, event),
   };
 }
 

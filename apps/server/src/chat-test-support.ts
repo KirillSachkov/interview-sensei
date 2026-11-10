@@ -94,6 +94,13 @@ export interface SessionView {
   readonly failure: object | null;
   /** `hidden` while the agent's text stays out of the chat. */
   readonly agentText?: string;
+  /** The agent's model and reasoning level (#111); each null when the agent offers none. */
+  readonly options?: { readonly model: OptionChoice | null; readonly effort: OptionChoice | null };
+}
+
+interface OptionChoice {
+  readonly current: string;
+  readonly values: readonly { value: string; name: string }[];
 }
 
 /** The test trusts the server's shape of the view; the assertions check its content. */

@@ -13,9 +13,9 @@ import {
 } from "./agent-runtime-test-support.ts";
 import type {
   AgentUpdate,
+  LaunchSession,
   PermissionAnswer,
   PermissionOption,
-  SessionRequest,
 } from "./domain/ports.ts";
 
 const options: PermissionOption[] = [
@@ -37,7 +37,7 @@ const ourToolCall: AgentUpdate = {
 
 /** Starts the fake agent through an in-memory launcher and returns the agent's side of ACP. */
 async function startAgent() {
-  const launched = Promise.withResolvers<SessionRequest>();
+  const launched = Promise.withResolvers<LaunchSession>();
   const turn = Promise.withResolvers<{ type: "ended"; stopReason: string }>();
   const runtime = createAgentRuntime({
     agents: ["fake"],
@@ -46,12 +46,14 @@ async function startAgent() {
     onWarning: () => {},
     dataDirectory: "/home/candidate/.interview-sensei",
     readSkill: skillReader().readSkill,
+    optionDefaults: () => Promise.resolve({ model: null, effort: null }),
     launch: (_recipe, session) => {
       launched.resolve(session);
       return Promise.resolve({
         acpSessionId: "acp-1",
         prompt: async () => turn.promise,
         cancel: async () => {},
+        setConfigOption: async () => {},
         stop: async () => {},
       });
     },

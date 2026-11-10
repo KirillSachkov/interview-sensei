@@ -22,12 +22,13 @@ import type { LaunchRecipe } from "../domain/launch-recipe.ts";
 import type {
   AcpLauncher,
   AgentExit,
+  LaunchSession,
   LiveAgent,
-  SessionRequest,
   TurnOutcome,
 } from "../domain/ports.ts";
 import { prepareRecipe } from "./prepare-recipe.ts";
 import { setMode } from "./session-mode.ts";
+import { applyDefaults, reportOptions, setConfigOption } from "./session-options.ts";
 
 const clientInfo = { name: "interview-sensei", version: "0.0.0" };
 
@@ -99,27 +100,45 @@ function profileFields(
   };
 }
 
-/** Opens the session with our MCP server; an agent without MCP over HTTP cannot have it. */
+/**
+ * Opens the session with our MCP server; an agent without MCP over HTTP cannot have it. Then sets
+ * the recipe's mode and the Candidate's stored model and reasoning level, and reports the
+ * session's config options.
+ */
 async function openAcpSession(
   agent: ClientContext,
-  { recipe, mcpServer }: { recipe: LaunchRecipe; mcpServer: SessionRequest["mcpServer"] },
+  { recipe, session: request }: { recipe: LaunchRecipe; session: LaunchSession },
 ): Promise<string> {
+  const { mcpServer, options, onUpdate } = request;
   const initialized: InitializeResponse = await agent.request("initialize", {
     protocolVersion: PROTOCOL_VERSION,
     clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false },
     clientInfo,
   });
-  if (initialized.agentCapabilities?.mcpCapabilities?.http !== true) {
+  if (mcpServer !== null && initialized.agentCapabilities?.mcpCapabilities?.http !== true) {
     throw new Error("The agent does not support MCP over HTTP");
   }
   const session = await agent.request("session/new", {
     cwd: recipe.cwd,
-    mcpServers: [{ type: "http", name: mcpServer.name, url: mcpServer.url, headers: [] }],
+    mcpServers:
+      mcpServer === null
+        ? []
+        : [{ type: "http", name: mcpServer.name, url: mcpServer.url, headers: [] }],
     ...profileFields(recipe, initialized),
     ...(recipe.sessionMeta === null ? {} : { _meta: { ...recipe.sessionMeta } }),
   });
-  await setMode(agent, { session, mode: recipe.mode });
-  return session.sessionId;
+  const { sessionId } = session;
+  const configOptions = await setMode(agent, { session, mode: recipe.mode });
+  reportOptions(onUpdate, configOptions);
+  await applyDefaults({ agent, sessionId, onUpdate }, configOptions, options);
+  return sessionId;
+}
+
+/** The opened ACP session: its connection, its id and the receiver of its updates. */
+interface Opened {
+  readonly agent: ClientContext;
+  readonly acpSessionId: string;
+  readonly onUpdate: LaunchSession["onUpdate"];
 }
 
 /**
@@ -129,10 +148,10 @@ async function openAcpSession(
  */
 function connect(
   child: AgentProcess,
-  { recipe, session }: { recipe: LaunchRecipe; session: SessionRequest },
+  { recipe, session }: { recipe: LaunchRecipe; session: LaunchSession },
   stopped: Promise<unknown>,
 ) {
-  const opened = Promise.withResolvers<{ agent: ClientContext; acpSessionId: string }>();
+  const opened = Promise.withResolvers<Opened>();
   const app = client({ name: clientInfo.name })
     .onNotification("session/update", ({ params }) => {
       // Called in arrival order; the receiver queues its writes itself.
@@ -147,8 +166,8 @@ function connect(
     });
   const stream = ndJsonStream(Writable.toWeb(child.stdin), Readable.toWeb(child.stdout));
   const connection = app.connectWith(stream, async (agent) => {
-    const acpSessionId = await openAcpSession(agent, { recipe, mcpServer: session.mcpServer });
-    opened.resolve({ agent, acpSessionId });
+    const acpSessionId = await openAcpSession(agent, { recipe, session });
+    opened.resolve({ agent, acpSessionId, onUpdate: session.onUpdate });
     await stopped;
   });
   return { opened: opened.promise, connection };
@@ -228,13 +247,16 @@ async function promptTurn(
 }
 
 function liveAgent(
-  { agent, acpSessionId }: { agent: ClientContext; acpSessionId: string },
+  { agent, acpSessionId, onUpdate }: Opened,
   stop: () => Promise<void>,
 ): LiveAgent {
   return {
     acpSessionId,
     prompt: async (text) => promptTurn(agent, acpSessionId, text),
     cancel: async () => agent.notify("session/cancel", { sessionId: acpSessionId }),
+    setConfigOption: async (configId, value) => {
+      await setConfigOption({ agent, sessionId: acpSessionId, onUpdate }, { configId, value });
+    },
     stop,
   };
 }

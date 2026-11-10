@@ -69,6 +69,11 @@ A new fake session starts in the mode `candidate-mode`, which stands for the Can
 `/system` replies with the role from the ACP `systemPrompt` of `session/new`, `/skills` with the skills in `.agents/skills` of its `additionalDirectories`, and `/tools` with the bans from `_meta.fakeAgent.disallowedTools`.
 `INTERVIEW_SENSEI_FAKE_AGENT_MODE=no-session-capabilities` makes it take neither a system prompt nor additional directories.
 `INTERVIEW_SENSEI_FAKE_AGENT_MODE=mode-config-option` makes it offer its modes only as the config option `mode`, as OpenCode 2.x does.
+Every fake session offers the config option `model` (category `model`) with `fake-small` («Фейковая малая»), its default, and `fake-large` («Фейковая большая») (#111).
+It offers the option `effort` (category `thought_level`) with `low` and `high` only while the model is `fake-large`, and takes both through `session/set_config_option`.
+`/options` replies «Модель: <model>, уровень: <level>», or «уровень: нет» for `fake-small`, so a test checks that a change or a stored default reached the agent.
+`agent-options-test-support.ts` starts such chats and reads their options; `GET /api/agents/fake/options` starts the fake agent without a session.
+A test of a probe that fails gives the server a copy of `skills/` and deletes it: without its skill the agent does not start.
 In-process API tests listen on a free loopback port: the agent reaches the session's MCP address over real HTTP.
 They send the page's `Host` and `Origin` from `browserHeaders` in `chat-test-support.ts`: the server refuses others.
 `INTERVIEW_SENSEI_FAKE_AGENT_MODE=silent` makes it a hung agent; `ignore-sigterm` makes it ignore SIGTERM.

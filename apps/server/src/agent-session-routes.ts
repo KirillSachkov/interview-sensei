@@ -2,6 +2,7 @@ import type { SessionKind } from "@interview-sensei/core/session-kinds";
 import type { FastifyInstance } from "fastify";
 import type { WebSocket } from "ws";
 
+import { registerAgentOptionRoutes } from "./agent-option-routes.ts";
 import { SessionsClosedError } from "./composition.ts";
 import type { AgentRuntime, AgentSessions, SessionView } from "./composition.ts";
 import { params } from "./route-params.ts";
@@ -188,6 +189,7 @@ function registerStartRoute(
  *   each change; takes `{ type: "prompt", text }`, `{ type: "cancel" }` and
  *   `{ type: "permission", requestId, optionId }`, the Candidate's answer to the agent's permission
  *   request. A refused answer gets `{ type: "permission_rejected", reason: "not_found" }`.
+ * - The model and the reasoning level of a session and of an agent: see registerAgentOptionRoutes.
  */
 export function registerAgentSessionRoutes(
   server: FastifyInstance,
@@ -195,6 +197,7 @@ export function registerAgentSessionRoutes(
 ): void {
   server.get("/api/agents", async () => runtime.listAgents());
   registerStartRoute(server, { runtime, sessions });
+  registerAgentOptionRoutes(server, { runtime, sessions });
   server.get("/api/sessions", async () => sessions.list());
   server.get<{ Params: { id: string } }>(
     "/api/sessions/:id",

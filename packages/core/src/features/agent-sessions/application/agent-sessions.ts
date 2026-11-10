@@ -2,14 +2,7 @@ import path from "node:path";
 
 import type { AgentSession, SessionView } from "../domain/agent-session.ts";
 import type { AgentLauncher } from "../domain/ports.ts";
-import {
-  answerPermission,
-  cancelPermissions,
-  end,
-  launch,
-  liveSession,
-  record,
-} from "./live-session.ts";
+import { end, launch, liveSession, record } from "./live-session.ts";
 import type { LiveSession, LiveSessionDependencies, SessionListener } from "./live-session.ts";
 import {
   addNote,
@@ -23,6 +16,8 @@ import type { PromptOutcome, QueueContext, QueueOutcome } from "./server-prompts
 import { liveNow, runningFor, sessionOpener, stopAll, stopNow, subscribe } from "./open-session.ts";
 import type { OpenKey, OpenSession, StartRequest } from "./open-session.ts";
 import type { ConversationMessage } from "../domain/session-view.ts";
+import { answerRequest, cancelTurn, setOptions } from "./session-commands.ts";
+import type { OptionChange, OptionOutcome } from "./session-commands.ts";
 import { removeChain } from "./session-removal.ts";
 import {
   earlierMessages,
@@ -113,6 +108,11 @@ export interface AgentSessions {
   ) => Promise<"accepted" | "not_found">;
   /** Asks the agent to stop the current turn; does nothing when no turn runs. */
   readonly cancel: (sessionId: string) => Promise<void>;
+  /**
+   * Sets the model, then the reasoning level, of an idle session (#111) by the ids of the agent's
+   * config options; see `setOptions` in session-commands.ts.
+   */
+  readonly setOptions: (sessionId: string, change: OptionChange) => Promise<OptionOutcome>;
   /** Calls the listener after each change of a live session; returns the unsubscribe function. */
   readonly subscribe: (sessionId: string, listener: SessionListener) => () => void;
   /** Marks sessions that were live when the server last stopped as ended. Call it at start. */
@@ -209,32 +209,6 @@ async function start(context: Context, request: StartRequest): Promise<SessionVi
   }
 }
 
-async function cancel({ live }: Context, sessionId: string): Promise<void> {
-  const session = live.get(sessionId);
-  const agent = session?.agent ?? null;
-  if (agent !== null && session?.turnActive === true) {
-    // ACP: the client answers its waiting permission requests with `cancelled` on cancel.
-    cancelPermissions(session);
-    await agent.cancel();
-  }
-}
-
-async function answer(
-  { live }: Context,
-  sessionId: string,
-  { requestId, optionId }: { requestId: string; optionId: string },
-): Promise<"accepted" | "not_found"> {
-  const session = live.get(sessionId);
-  if (
-    session === undefined ||
-    !answerPermission(session, requestId, { outcome: "selected", optionId })
-  ) {
-    return "not_found";
-  }
-  await session.written;
-  return "accepted";
-}
-
 async function close(context: Context): Promise<void> {
   context.closing = true;
   // A session being created ends in its start, before the storage closes.
@@ -286,8 +260,9 @@ export function createAgentSessions(dependencies: AgentSessionsDependencies): Ag
     },
     remove: async (sessionId) => removeChain(context, sessionId),
     stop: async (sessionId, options) => stopNow(context.live, sessionId, options),
-    answerPermission: async (sessionId, request) => answer(context, sessionId, request),
-    cancel: async (sessionId) => cancel(context, sessionId),
+    answerPermission: async (sessionId, request) => answerRequest(live, sessionId, request),
+    cancel: async (sessionId) => cancelTurn(live, sessionId),
+    setOptions: async (sessionId, change) => setOptions(context.queue, sessionId, change),
     subscribe: (sessionId, listener) => subscribe(context.live, sessionId, listener),
     endInterrupted: async () => endInterrupted(dependencies),
     close: async () => close(context),
