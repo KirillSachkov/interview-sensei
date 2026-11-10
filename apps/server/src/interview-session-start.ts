@@ -54,14 +54,12 @@ export function continuationRequestOf(body: unknown): ContinuationRequest | unde
   return keys.length === 1 && typeof agent === "string" ? { agent } : undefined;
 }
 
-type AgentOutcome = ContinuationRefusal;
-
 /** What goes on: «мок» or «ветку», as the Russian messages say. */
 type Subject = "мок" | "ветку";
 
 /** Why the Mock interview's agent cannot go on, and what the Candidate can do. */
 function unavailableMessage(
-  { reason, targetAgent }: Extract<AgentOutcome, { type: "agent_unavailable" }>,
+  { reason, targetAgent }: Extract<ContinuationRefusal, { type: "agent_unavailable" }>,
   subject: Subject,
 ): string {
   const why =
@@ -76,7 +74,7 @@ function unavailableMessage(
  * `agent_unavailable` with `agent`, `reason` and `targetAgent`, the Target's agent the Candidate may
  * go on with, or null.
  */
-export function refuseAgent(reply: FastifyReply, outcome: AgentOutcome, subject: Subject) {
+export function refuseAgent(reply: FastifyReply, outcome: ContinuationRefusal, subject: Subject) {
   if (outcome.type === "invalid_agent") {
     return reply.code(400).send({
       error: outcome.type,

@@ -102,7 +102,7 @@ Deleting a Side thread stops its agent at once and deletes its AgentSession, the
 «Продолжить» in a Side thread whose session is no longer live (`continueSideThread`, #85) starts a session with `continues` and moves `side_threads.session_id` to it; its first server prompt is `sideThreadContinues`, and `get_brief` adds `continuation.messages` from `AgentSessions.earlierMessages`.
 A continuation of a Mock interview or of its Side thread picks its agent with `continuingAgent` of `interviews/application/agent-choice.ts`: the Mock interview's agent, or the Target's agent the Candidate chose; both routes answer an unavailable agent with the same 409 `agent_unavailable` of `interview-session-start.ts`.
 A Side thread continued with the Target's agent leaves the Mock interview's agent as it is.
-A finished Mock interview closes its Side threads whose session neither starts nor works (`closeFinishedSideThreads`): idle ones and those that a restart or a crash stopped. It sets `side_threads.closed_at` and ends the live ones; a working one goes on. Migration `0008` closes the threads that #80 already treated as closed: those of ended Mock interviews and of archived Targets.
+A finished Mock interview closes its Side threads whose session neither starts nor works (`closeFinishedSideThreads`): idle ones and those that a restart or a crash stopped. It sets `side_threads.closed_at` and ends the live ones; a working one goes on. Migration `0008` closes the threads that #80 already treated as closed: those of ended Mock interviews opened before their end.
 `POST /api/targets/:id/archive` refuses with `session_running` only for live sessions of other kinds; it closes every Side thread of the Target (`closeTargetSideThreads`), stops the live ones with `AgentSessions.stopAll` and then archives.
 A closed Side thread stays readable and refuses «Продолжить» with 409 `side_thread_closed`, also after the Target returns from the archive.
 
@@ -279,6 +279,7 @@ It removes files and directories only inside the recipe's `syncedDirectories`, t
 A slice that stores data owns a Postgres schema named after it, with its Drizzle tables and drizzle-kit migrations in `infrastructure/`.
 The slice keeps its tables in `infrastructure/schema.ts` and its drizzle-kit config in `infrastructure/drizzle.config.ts`, with the output in `infrastructure/migrations/`.
 Generate migrations with `db:generate`; never write or edit them by hand. Prettier ignores them.
+A data migration is a custom drizzle-kit migration of one slice: `pnpm --filter @interview-sensei/core exec drizzle-kit generate --config src/features/<slice>/infrastructure/drizzle.config.ts --custom --name <name>` writes an empty SQL file with its journal entry and snapshot, and only that file's SQL body is written by hand, on the slice's own schema, such as `interviews` 0008 (`db:generate --custom` would add an empty one to every slice).
 Prettier reads `.prettierignore` only from its working directory, so run it from the root (`pnpm format`) or from `packages/core`, which has its own copy; never from another directory.
 `db:generate` turns the first `CREATE SCHEMA` into `CREATE SCHEMA IF NOT EXISTS`, because the migrator first creates the schema for the history table.
 `schema.ts` exports its `pgSchema`: drizzle-kit reads only exported objects and would otherwise drop the schema.

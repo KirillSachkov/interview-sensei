@@ -163,9 +163,6 @@ export async function deleteSideThread(
   return "deleted";
 }
 
-/** Whether the Side thread's agent is busy: it starts or works on a turn. */
-const busy = (status: string | undefined) => status === "starting" || status === "working";
-
 /**
  * Closes the Side threads of a finished Mock interview for good: those whose agent waits for a
  * message, and those whose agent is gone after a restart or a crash. A thread whose agent works or
@@ -177,7 +174,10 @@ export async function closeFinishedSideThreads(
 ): Promise<void> {
   const threads = await repository.sideThreads(interviewId);
   const views = await Promise.all(threads.map(async ({ sessionId }) => sessions.view(sessionId)));
-  const closing = threads.filter((_thread, index) => !busy(views[index]?.status));
+  // A live agent that does not wait for a message starts or works on a turn: it goes on.
+  const closing = threads.filter(
+    ({ sessionId }, index) => !sessions.isLive(sessionId) || views[index]?.status === "idle",
+  );
   await repository.closeSideThreads(
     closing.map(({ id }) => id),
     clock.now().toISOString(),
