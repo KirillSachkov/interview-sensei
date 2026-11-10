@@ -77,6 +77,14 @@ async function secondProcessing(
   return events;
 }
 
+/** Starts a processing, waits for the fake processor's first turn and stops it; its session. */
+async function stoppedProcessing(server: FastifyInstance, targetId: string) {
+  await startProcessing(server, targetId);
+  const { session } = await processingEvents(server, targetId);
+  await expect(stopProcessing(server, targetId)).resolves.toMatchObject({ statusCode: 200 });
+  return { session };
+}
+
 describe("a running transcription", () => {
   it("«Остановить разбор» cancels it, and the video goes back to the Inbox without a text", async () => {
     const { server, target, model } = await transcriptionTarget();
@@ -134,9 +142,7 @@ describe("a running transcription", () => {
     const url = "https://talks.example.org/go/interview";
     links.add(url, { language: "ru", speech: "Расскажите про горутины.\nЧто такое канал?\n" });
     const link = await addLink(setup, { title: "Доклад [manual]", url });
-    await startProcessing(server, target.id);
-    const first = await processingEvents(server, target.id);
-    await expect(stopProcessing(server, target.id)).resolves.toMatchObject({ statusCode: 200 });
+    const first = await stoppedProcessing(server, target.id);
 
     await startProcessing(server, target.id);
     const events = await secondProcessing(server, { targetId: target.id, first: first.session.id });

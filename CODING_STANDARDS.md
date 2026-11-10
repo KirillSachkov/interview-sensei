@@ -194,8 +194,9 @@ Russian goes to GigaAM v3 when it is installed, otherwise to Parakeet TDT 0.6B v
 `noModelReason` gives the hint of a language without a model; `status` lists `recognitionLanguages` with the model of each.
 A run's reading has an `AbortController` in `reading` of the Inbox context: closing the run, including «Остановить разбор», and `inbox.settle` at the server's close abort it, and the port passes its `signal` on.
 A cancelled reading marks nothing: the run's end has moved the Source, and `endInterrupted` returns it to the Inbox after a restart.
-A recording with stored parts keeps them (`transcribedBefore` in `inbox-reading.ts`), so its speech is never recognized twice.
-`boundTranscript` in `source-text.ts` finds the Bound transcript of a recording: then `sourceText` reads that file instead of calling the port, and the start takes the transcript into the run and makes it «готов».
+A recording or a link with stored parts keeps them (`transcribedBefore` in `inbox-reading.ts`), so the speech of a video on any site is never recognized twice.
+`boundTranscript` in `source-text.ts` finds the Bound transcript of a recording: then `sourceText` reads that file instead of calling the port, and the start takes the transcript into the run.
+`boundInRun` names the run's bound transcripts: the agent's brief and `list_inbox` leave them out, and `settledSources` moves each with its video, to «готов» or back to the Inbox.
 
 `pinnedCatalog` in `transcription/domain/pinned-catalog.ts` pins every component per platform: URL, size and SHA-256.
 They are `engine` (the npm tarballs of `sherpa-onnx-node` and its platform package), `ffmpeg` (the gzipped ffmpeg-static binary), `vad` (Silero VAD) and each model (the `.onnx` files and `tokens.txt` of the sherpa-onnx export on Hugging Face at a pinned commit).
@@ -210,11 +211,14 @@ The server's close stops a running download (`transcription.close`).
 Links to videos (#76) go through the `VideoLinks` port, `ytDlpLinks` in `transcription/infrastructure/yt-dlp.ts`.
 yt-dlp is the component `yt-dlp`: the zipped directory build of a pinned release, unpacked by `fflate`, because the one-file build unpacks itself on every run, about 7 seconds on macOS.
 Any «Скачать» downloads it; `POST /api/transcription/install` with no model downloads it alone, so links give their subtitles without a model.
+The processing card offers that download for a chosen link to a video hosting when no model is ticked, and «Распознавание речи» has «Установить» for yt-dlp.
+The card asks no language for a link: the server takes it from yt-dlp, and a missing model gives «ошибка» with the hint.
 Each run passes `--ignore-config`, `--no-plugin-dirs`, `--no-js-runtimes --js-runtimes node:<process.execPath>`, `--no-remote-components`, `--ffmpeg-location` of the downloaded ffmpeg and `--cache-dir` in the data directory, so yt-dlp never uses Deno, a system ffmpeg or the user's settings.
 The generic extractor reads only links to media files: on another page it would find an embedded video and lose the article.
 `-J` gives the video's JSON; the later runs read it back with `--load-info-json`, so the site is asked once for the data.
 The pure rules in `transcription/domain/video-link.ts` read that JSON and yt-dlp's errors and pick the method: `linkMethod` chooses the subtitles or the speech, `originalAudio` the original audio track of an auto-dubbing, `linkFailure` the reason of a private, deleted or login-only video.
 Subtitles and audio come into `transcription/downloads/<id>/`, deleted after use; the audio goes to `ffmpegExtractor` like a file.
+The server's start deletes `transcription/downloads/` (`removeLeftovers` of `transcriptionModule`), so an interrupted process leaves no audio behind.
 Before yt-dlp is downloaded, a link to a video hosting by `textFormat` gets «ошибка», and another link is a web page.
 
 `transcriptionModule` takes `components` with a catalog, an extractor, a recognizer and `links`; API tests pass stand-ins, the server passes nothing and gets the real ones.

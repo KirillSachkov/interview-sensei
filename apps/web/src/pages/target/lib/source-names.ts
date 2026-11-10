@@ -1,7 +1,5 @@
 import type { SourceType, SourceView } from "@/shared/api";
 
-export { sizeText } from "@/shared/lib";
-
 /** What the material is, in the words of the screen. */
 export const sourceTypeNames: Record<SourceType, string> = {
   vacancy: "вакансия",

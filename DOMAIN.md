@@ -203,7 +203,7 @@ The server reads the text of a Source itself, from PDF, DOCX, plain text, Markdo
 **Bound transcript**:
 A file of subtitles or plain text attached to the same Target with the file name of a video or audio file, in any case, such as `interview.vtt` beside `interview.mp4` (#74, the owner's decision in PR #92).
 The video takes its text instead of recognizing its speech, so it needs no model and no download.
-The transcript goes into the video's Inbox processing and becomes «готов» at its start: the agent reads it as the video's text, never as a Source of its own.
+The transcript goes into the video's Inbox processing and follows the video: it becomes «готов» only with the video and goes back to the Inbox with it. The agent reads it as the video's text, never as a Source of its own.
 
 **Speech recognition**:
 The application's own recognition of speech in video and audio on the Candidate's device (#74), with no agent: ffmpeg-static extracts the sound, Silero VAD cuts it into phrases, and a speech model recognizes them through sherpa-onnx.

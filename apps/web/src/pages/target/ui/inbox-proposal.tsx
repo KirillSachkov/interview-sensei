@@ -1,9 +1,9 @@
-import { useState } from "react";
+import type { AvailableTranscription, InboxState, ProposalItem } from "@/shared/api";
+import { sizeText } from "@/shared/lib";
 
-import { useTranscription } from "@/entities/transcription";
-import type { InboxState, ModelId, ProposalItem, TranscriptionStatus } from "@/shared/api";
-
-import { sizeText, sourceTypeNames } from "../lib/source-names";
+import { sourceTypeNames } from "../lib/source-names";
+import { useCardChoice } from "../model/card-choice";
+import type { CardChoice } from "../model/card-choice";
 import {
   useDismissProposal,
   useInbox,
@@ -12,54 +12,10 @@ import {
 } from "../model/inbox";
 import { ProposalActions } from "./proposal-actions";
 import { RecheckProposal } from "./recheck-proposal";
+import { SpeechLanguage } from "./speech-language";
 import { TranscriptionConsent } from "./transcription-consent";
 
-type Language = Extract<TranscriptionStatus, { available: true }>["languages"][number];
-
-/**
- * The language of a recording for its speech recognition: the languages a model can hear, and the
- * chosen one even when no model hears it, such as the Target's own language.
- */
-function LanguageChoice({
-  item,
-  language,
-  languages,
-  disabled,
-  onChoose,
-}: {
-  item: ProposalItem;
-  language: string;
-  languages: readonly Language[];
-  disabled: boolean;
-  onChoose: (language: string) => void;
-}) {
-  const known = languages.some((option) => option.code === language);
-  return (
-    <label className="proposal-language">
-      <span className="muted">Язык речи</span>
-      <select
-        aria-label={`Язык речи «${item.title}»`}
-        value={language}
-        disabled={disabled}
-        onChange={(event) => {
-          onChoose(event.target.value);
-        }}
-      >
-        {known ? null : <option value={language}>{language}</option>}
-        {languages.map((option) => (
-          <option key={option.code} value={option.code}>
-            {option.name}
-          </option>
-        ))}
-      </select>
-      {known ? null : (
-        <span className="muted">
-          этот язык приложение не распознаёт: приложите транскрипт с тем же именем файла
-        </span>
-      )}
-    </label>
-  );
-}
+type Language = AvailableTranscription["languages"][number];
 
 /**
  * One material of the card: its checkbox, title, type, size and the agent's assessment; the
@@ -98,95 +54,11 @@ function ProposalLine({
         {item.transcript === null ? null : (
           <span className="muted">Текст возьмётся из «{item.transcript}», без распознавания.</span>
         )}
-        {item.video && language.languages.length > 0 ? (
-          <LanguageChoice
-            item={item}
-            language={language.value}
-            languages={language.languages}
-            disabled={disabled}
-            onChoose={(code) => {
-              language.onChoose(code);
-            }}
-          />
-        ) : null}
+        <SpeechLanguage item={item} language={language} disabled={disabled} />
       </span>
     </li>
   );
 }
-
-/** The language the Candidate chose for each recording, the Target's language at first. */
-function useLanguages() {
-  const [chosen, setChosen] = useState<Readonly<Record<string, string>>>({});
-  const languageOf = (item: ProposalItem) => chosen[item.sourceId] ?? item.language ?? "ru";
-  const choose = (sourceId: string, language: string) => {
-    setChosen({ ...chosen, [sourceId]: language });
-  };
-  const forStart = (chosenItems: readonly ProposalItem[]) =>
-    Object.fromEntries(
-      chosenItems.filter((item) => item.video).map((item) => [item.sourceId, languageOf(item)]),
-    );
-  return { languageOf, choose, forStart };
-}
-
-/** The materials the Candidate unticked; the rest go to the processing. */
-function useUnticked() {
-  const [unticked, setUnticked] = useState<ReadonlySet<string>>(new Set());
-  const toggle = (sourceId: string, checked: boolean) => {
-    const next = new Set(unticked);
-    if (checked) {
-      next.delete(sourceId);
-    } else {
-      next.add(sourceId);
-    }
-    setUnticked(next);
-  };
-  return { unticked, toggle };
-}
-
-/**
- * The models the chosen recordings miss for their languages: GigaAM for Russian, Parakeet for the
- * other languages it hears; a language no model hears needs a transcript instead.
- */
-function missingModels(languages: readonly Language[], chosen: readonly string[]): Set<ModelId> {
-  const missing = new Set<ModelId>();
-  for (const code of chosen) {
-    const language = languages.find((option) => option.code === code);
-    if (language?.model === null) {
-      missing.add(code === "ru" ? "gigaam-v3" : "parakeet-v3");
-    }
-  }
-  return missing;
-}
-
-/**
- * What the Candidate chose in the card: the ticked materials, the language of each recording, and
- * the models the ticked recordings miss for their languages.
- */
-function useCardChoice(proposal: NonNullable<InboxState["proposal"]>) {
-  const { unticked, toggle } = useUnticked();
-  const languages = useLanguages();
-  const { data: status } = useTranscription();
-  const available = status?.available === true ? status : null;
-  const chosen = proposal.items.filter((item) => !unticked.has(item.sourceId));
-  const videos = chosen.filter((item) => item.video);
-  const missing = missingModels(
-    available?.languages ?? [],
-    videos.map((item) => languages.languageOf(item)),
-  );
-  return {
-    unticked,
-    toggle,
-    languages,
-    known: available?.languages ?? [],
-    chosen,
-    videos,
-    missing,
-    // A video waits for the download of speech recognition; without it the video gets «ошибка».
-    downloading: available !== null && available.installation !== null,
-  };
-}
-
-type CardChoice = ReturnType<typeof useCardChoice>;
 
 /** The materials of the card with their checkboxes and the languages of recordings. */
 function ProposalList({
@@ -233,13 +105,16 @@ function ProposalCard({
   const dismiss = useDismissProposal(targetId, "processing");
   const choice = useCardChoice(proposal);
   const busy = start.isPending || dismiss.isPending;
-  const { chosen, videos, missing } = choice;
+  const { chosen, videos, needs } = choice;
   return (
     <section className="draft-changes inbox-proposal" aria-label="Разбор материалов">
       <h3>Разбор материалов</h3>
       <ProposalList items={proposal.items} choice={choice} disabled={busy} />
       {videos.length > 0 ? (
-        <TranscriptionConsent key={[...missing].join(",")} missing={missing} />
+        <TranscriptionConsent
+          key={[...needs.missing, needs.links ? "links" : ""].join(",")}
+          needs={needs}
+        />
       ) : null}
       {start.error === null ? null : <p role="alert">Разбор не начался: {start.error.message}</p>}
       <ProposalActions

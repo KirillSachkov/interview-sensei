@@ -1,9 +1,9 @@
 // A link in Inbox processing (spec #74, ticket #76): yt-dlp tells whether it is a video, then the
 // text comes from the manual subtitles, the automatic ones or the speech of the original audio.
-import { modelIds } from "../domain/components.ts";
+import { runnableModels } from "../domain/components.ts";
 import type { ComponentCatalog, ModelId } from "../domain/components.ts";
 import type { ComponentStore, VideoLinks } from "../domain/ports.ts";
-import { TranscriptionError } from "../domain/recognition.ts";
+import { orFailure } from "../domain/recognition.ts";
 import { linkCheck, linkMethod } from "../domain/video-link.ts";
 import type { LinkMethod } from "../domain/video-link.ts";
 import { allComponents } from "./installation.ts";
@@ -49,12 +49,6 @@ export interface LinkDependencies {
 /** The installed components; empty where the application does not read links. */
 async function installedComponents({ catalog, store }: LinkDependencies) {
   return catalog === null ? new Set<string>() : store.installed(allComponents(catalog));
-}
-
-/** The installed models that can run: their shared components are installed too. */
-function runnableModels(catalog: ComponentCatalog, installed: ReadonlySet<string>) {
-  const shared = catalog.shared.every((component) => installed.has(component.id));
-  return new Set(shared ? modelIds.filter((id) => installed.has(id)) : []);
 }
 
 /** Downloads the audio track and recognizes it; the audio is deleted afterwards. */
@@ -154,12 +148,5 @@ export async function transcribeLink(
     return { skipped: "not_installed" };
   }
   const signal = request.signal ?? new AbortController().signal;
-  try {
-    return await videoText(dependencies, { catalog, installed, request, signal });
-  } catch (error) {
-    if (error instanceof TranscriptionError) {
-      return { failure: error.message };
-    }
-    throw error;
-  }
+  return orFailure(async () => videoText(dependencies, { catalog, installed, request, signal }));
 }

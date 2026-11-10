@@ -160,21 +160,26 @@ async function checkHide(
   }
 }
 
+/** Where the run's Sources go by the agent's report; a bound transcript follows its video. */
+async function reportedSources({ dependencies }: InboxContext, run: InboxRun, opened: Transaction) {
+  const sources = await dependencies.repository.list(run.targetId, opened);
+  return settledSources(run, sources, {
+    reported: true,
+    bound: boundInRun(run.sourceIds, sources),
+  });
+}
+
 /** Stores the agent's report, moves the run's Sources and finishes the run, in the transaction. */
 async function storeReport(
   context: InboxContext,
   { session, input }: { session: ToolSession; input: ReportInput },
   opened: Transaction,
 ) {
-  const { repository, inbox, clock } = context.dependencies;
+  const { inbox, clock } = context.dependencies;
   const { targetId, run } = await runOf(context, session, opened);
   await checkHide(context, { targetId, input }, opened);
   const now = clock.now().toISOString();
-  const sources = await repository.list(targetId, opened);
-  const { ready, back } = settledSources(run, sources, {
-    reported: true,
-    bound: boundInRun(run.sourceIds, sources),
-  });
+  const { ready, back } = await reportedSources(context, run, opened);
   const report: InboxReport = {
     id: randomUUID(),
     targetId,

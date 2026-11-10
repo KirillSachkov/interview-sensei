@@ -70,3 +70,12 @@ export function installPlan(
   const shared = wanted.length === 0 ? [] : catalog.shared;
   return [...shared, catalog.ytDlp, ...wanted].filter((component) => !installed.has(component.id));
 }
+
+/** The installed models that can run: the shared components every model needs are installed too. */
+export function runnableModels(
+  catalog: ComponentCatalog,
+  installed: ReadonlySet<string>,
+): Set<ModelId> {
+  const shared = catalog.shared.every((component) => installed.has(component.id));
+  return new Set(shared ? modelIds.filter((id) => installed.has(id)) : []);
+}

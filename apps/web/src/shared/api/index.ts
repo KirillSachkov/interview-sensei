@@ -38,7 +38,7 @@ export {
   installTranscription,
   removeTranscriptionModel,
 } from "./transcription";
-export type { ModelId, TranscriptionStatus } from "./transcription";
+export type { AvailableTranscription, ModelId, TranscriptionStatus } from "./transcription";
 export {
   endSetupSession,
   fetchSessions,

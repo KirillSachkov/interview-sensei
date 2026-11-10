@@ -115,9 +115,9 @@ export function boundTranscript<Material extends BindableSource>(
  * transcript is its video's text: the agent reads only the video, and the transcript follows it to
  * «готов» or back to the Inbox.
  */
-export function boundInRun<Material extends BindableSource & { readonly id: string }>(
+export function boundInRun(
   runIds: readonly string[],
-  materials: readonly Material[],
+  materials: readonly (BindableSource & { readonly id: string })[],
 ): ReadonlyMap<string, string> {
   const bound = new Map<string, string>();
   for (const video of materials.filter((material) => runIds.includes(material.id))) {

@@ -115,3 +115,17 @@ export function transcriptText(phrases: readonly Phrase[]): string {
 export class TranscriptionError extends Error {
   override name = "TranscriptionError";
 }
+
+/** The work's result, or its TranscriptionError as the reason a recording has no text. */
+export async function orFailure<Result>(
+  work: () => Promise<Result>,
+): Promise<Result | { readonly failure: string }> {
+  try {
+    return await work();
+  } catch (error) {
+    if (error instanceof TranscriptionError) {
+      return { failure: error.message };
+    }
+    throw error;
+  }
+}

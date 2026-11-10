@@ -39,6 +39,9 @@ export type TranscriptionStatus =
       }[];
     };
 
+/** Speech recognition on a platform where it works. */
+export type AvailableTranscription = Extract<TranscriptionStatus, { available: true }>;
+
 function isStatus(value: unknown): value is TranscriptionStatus {
   return isObject(value) && typeof value.available === "boolean";
 }

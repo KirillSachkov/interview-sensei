@@ -1,12 +1,13 @@
 // Transcription of recordings (spec #74): the components download after the Candidate's consent,
 // then each video or audio file goes through the extractor, Silero VAD and the chosen model. No
 // agent takes part; the sources slice gets the text through its port.
-import { modelIds } from "../domain/components.ts";
+import { modelIds, runnableModels } from "../domain/components.ts";
 import type { ComponentCatalog, ModelId } from "../domain/components.ts";
 import type { AudioExtractor, SpeechRecognizer, VideoLinks } from "../domain/ports.ts";
 import {
   modelFor,
   noModelReason,
+  orFailure,
   progressPercent,
   TranscriptionError,
 } from "../domain/recognition.ts";
@@ -32,9 +33,7 @@ async function installedModels({
   catalog,
   store,
 }: TranscriptionDependencies & { catalog: ComponentCatalog }): Promise<Set<ModelId>> {
-  const installed = await store.installed(allComponents(catalog));
-  const shared = catalog.shared.every((component) => installed.has(component.id));
-  return new Set(shared ? modelIds.filter((id) => installed.has(id)) : []);
+  return runnableModels(catalog, await store.installed(allComponents(catalog)));
 }
 
 /**
@@ -90,10 +89,18 @@ interface TranscriptionRequest {
   readonly signal?: AbortSignal | undefined;
 }
 
+/** What the model hears: a file of a recording or of a link's audio. */
+interface Recognition {
+  readonly file: string;
+  readonly model: ModelId;
+  readonly onProgress: (percent: number) => void;
+  readonly signal: AbortSignal;
+}
+
 /** The recording's text from the model; the percent follows the seconds heard. */
 async function recognized(
   { extractor, recognizer }: TranscriptionDependencies,
-  request: TranscriptionRequest & { readonly model: ModelId; readonly signal: AbortSignal },
+  request: Recognition,
 ): Promise<string> {
   const audio = extractor.extract(request.file, request.signal);
   const known: { duration: number | null } = { duration: null };
@@ -117,19 +124,15 @@ async function transcribe(
   dependencies: TranscriptionDependencies,
   { request, inUse }: { request: TranscriptionRequest; inUse: ModelsInUse },
 ): Promise<TranscriptionOutcome> {
+  const { file, language, onProgress } = request;
   const signal = request.signal ?? new AbortController().signal;
-  try {
-    const model = await chosenModel(dependencies, request.language);
+  return orFailure(async () => {
+    const model = await chosenModel(dependencies, language);
     const text = await whileInUse(inUse, model, async () =>
-      recognized(dependencies, { ...request, model, signal }),
+      recognized(dependencies, { file, model, onProgress, signal }),
     );
     return { text };
-  } catch (error) {
-    if (error instanceof TranscriptionError) {
-      return { failure: error.message };
-    }
-    throw error;
-  }
+  });
 }
 
 /**
@@ -173,10 +176,8 @@ export function createTranscription(dependencies: TranscriptionDependencies) {
         {
           ...dependencies,
           modelFor: async (language) => chosenModel(dependencies, language),
-          recognize: async ({ file, model, onProgress, signal }) =>
-            whileInUse(inUse, model, async () =>
-              recognized(dependencies, { file, language: "", model, onProgress, signal }),
-            ),
+          recognize: async (recognition) =>
+            whileInUse(inUse, recognition.model, async () => recognized(dependencies, recognition)),
         },
         request,
       ),

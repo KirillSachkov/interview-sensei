@@ -4,10 +4,9 @@ import {
   useRemoveTranscriptionModel,
   useTranscription,
 } from "@/entities/transcription";
-import type { TranscriptionStatus } from "@/shared/api";
+import type { AvailableTranscription as Available, TranscriptionStatus } from "@/shared/api";
 import { sizeText } from "@/shared/lib";
 
-type Available = Extract<TranscriptionStatus, { available: true }>;
 type Model = Available["models"][number];
 
 /** One model: its languages, size and status, with «Установить», «Доустановить» or «Удалить». */
@@ -58,7 +57,38 @@ function ModelRow({
   );
 }
 
-/** The models, the shared components, the running download and why an action failed. */
+/**
+ * yt-dlp for links to videos: it comes with any model, and «Установить» downloads it alone, so links
+ * with manual subtitles are read without a model.
+ */
+function YtDlpRow({
+  status,
+  busy,
+  onInstall,
+}: {
+  status: Available;
+  busy: boolean;
+  onInstall: () => void;
+}) {
+  return (
+    <li className="speech-model">
+      <span className="speech-model-text">
+        <span>yt-dlp</span>
+        <span className="muted">
+          ссылки на видео: субтитры и звук, {sizeText(status.ytDlp.size)} —{" "}
+          {status.ytDlp.installed ? "установлен" : "не установлен"}
+        </span>
+      </span>
+      {status.ytDlp.installed ? null : (
+        <button type="button" aria-label="Установить yt-dlp" disabled={busy} onClick={onInstall}>
+          Установить
+        </button>
+      )}
+    </li>
+  );
+}
+
+/** The models, yt-dlp, the shared components, the running download and why an action failed. */
 function RecognitionBody({ status }: { status: Available }) {
   const install = useInstallTranscription();
   const remove = useRemoveTranscriptionModel();
@@ -81,6 +111,13 @@ function RecognitionBody({ status }: { status: Available }) {
             }}
           />
         ))}
+        <YtDlpRow
+          status={status}
+          busy={busy}
+          onInstall={() => {
+            install.mutate([]);
+          }}
+        />
       </ul>
       <p className="muted">
         Движок sherpa-onnx, ffmpeg и Silero VAD — {sizeText(status.shared.size)}:{" "}
@@ -125,8 +162,9 @@ export function SpeechRecognitionDialog({ onClose }: { onClose: () => void }) {
         <h2 id="speech-recognition-title">Распознавание речи</h2>
         <p className="muted">
           Приложение распознаёт речь видео и аудио на этом устройстве: GigaAM v3 — русскую речь,
-          Parakeet — 25 европейских языков. При обеих моделях русская речь идёт в GigaAM. Модели
-          лежат в каталоге данных приложения, видео и звук не покидают устройство.
+          Parakeet — 25 европейских языков. При обеих моделях русская речь идёт в GigaAM. yt-dlp
+          читает ссылки на видео: без модели они разбираются по ручным субтитрам. Компоненты лежат в
+          каталоге данных приложения, видео и звук не покидают устройство.
         </p>
         {error === null ? null : <p role="alert">Состояние не загрузилось: {error.message}</p>}
         {status === undefined ? null : <RecognitionState status={status} />}

@@ -1,5 +1,5 @@
 # Seam 3 of spec #74: the real components of speech recognition on Linux and Windows. The pinned
-# sherpa-onnx-node, ffmpeg-static, Silero VAD, GigaAM and Parakeet download into a cached data
+# sherpa-onnx-node, ffmpeg-static, Silero VAD, GigaAM, Parakeet and yt-dlp download into a cached data
 # directory, then GigaAM recognizes a short Russian clip and Parakeet a short English one; the log
 # prints the download and recognition times.
 name: Transcription live check
@@ -14,6 +14,7 @@ on:
     branches: [main]
     paths:
       - "packages/core/src/features/transcription/**"
+      - "packages/core/vitest.config.ts"
       - ".github/workflows/transcription.yml"
 
 permissions:

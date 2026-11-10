@@ -109,6 +109,19 @@ describe("the consent to download speech recognition", () => {
     expect(both.statusCode).toBe(200);
   });
 
+  it("«Скачать» without a model downloads only yt-dlp for the subtitles of links", async () => {
+    const { server, served } = await serverWith();
+
+    const status = await installed(server, []);
+
+    expect(served.requested).toStrictEqual(["yt-dlp"]);
+    expect(status).toMatchObject({
+      shared: { installed: false },
+      ytDlp: { installed: true },
+      models: [{ installed: false }, { installed: false }],
+    });
+  });
+
   it("a file whose SHA-256 differs from the pinned one is deleted, and the download fails with the reason", async () => {
     const { server, dataDirectory } = await serverWith({ brokenSha: "gigaam-v3" });
 
