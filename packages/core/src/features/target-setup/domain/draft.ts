@@ -5,6 +5,8 @@ import { editedQuestions, questionProblems } from "./draft-questions.ts";
 import type { DraftQuestion, NewQuestion, QuestionEdit } from "./draft-questions.ts";
 import { savedPreference } from "./draft-preferences.ts";
 import type { DraftPreference, PreferenceChange } from "./draft-preferences.ts";
+import { renamedSections, sectionKey } from "./draft-sections.ts";
+import type { SectionRename } from "./draft-sections.ts";
 import { namesTopic, renamedTopics, topicKey } from "./draft-topics.ts";
 import type { ImportanceChange, TopicRename } from "./draft-topics.ts";
 import type { Level, SectionKind, Tone } from "./target-values.ts";
@@ -31,12 +33,6 @@ interface ProposedSection {
   readonly gradingCriteria?: string | undefined;
   readonly enabled?: boolean | undefined;
   readonly topics?: readonly string[] | undefined;
-}
-
-/** `from` becomes `to`: the Section keeps its id, so its Mock interviews and Attempts stay with it. */
-export interface SectionRename {
-  readonly from: string;
-  readonly to: string;
 }
 
 /** What a draft can change in a Target. */
@@ -95,11 +91,6 @@ export interface DraftChange {
   readonly createdAt: string;
 }
 
-/** The key two Section names match by: the same words, ignoring case and spaces around them. */
-function sectionKey(name: string): string {
-  return name.trim().replaceAll(/\s+/gu, " ").toLowerCase();
-}
-
 /**
  * The new plan replaces the old one. A Section with the name of an old one, or with the new name
  * that `renames` gives an old one, keeps its id and the values that the plan leaves out. A rename
@@ -110,17 +101,7 @@ function withPlan(
   sections: readonly ProposedSection[],
   renames: readonly SectionRename[],
 ): SetupState {
-  const current = new Map(state.sections.map((section) => [sectionKey(section.name), section]));
-  const missing: string[] = [];
-  for (const { from, to } of renames) {
-    const renamed = current.get(sectionKey(from));
-    if (renamed === undefined) {
-      missing.push(`Секции «${from.trim()}» нет в цели.`);
-    } else {
-      current.delete(sectionKey(from));
-      current.set(sectionKey(to), renamed);
-    }
-  }
+  const { current, missing } = renamedSections(state.sections, renames);
   return {
     ...state,
     missing: [...state.missing, ...missing],

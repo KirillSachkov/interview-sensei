@@ -53,7 +53,7 @@ It does not export application or infrastructure parts.
 A part keeps `composition.ts` within the lint limits on lines and imports; only `composition.ts` imports a part.
 `composeFeatures` opens the storage and calls each factory once.
 Routes take composed services and their types from `composition.ts`.
-Shared subpaths, such as `time`, `storage` and `session-kinds`, stay open to every server file.
+Shared subpaths, such as `time`, `storage`, `session-kinds` and `turns`, stay open to every server file.
 
 The session kinds live in `packages/core/src/shared/session-kinds` (`@interview-sensei/core/session-kinds`).
 A request types the kind as `SessionKind` on entry; storage keeps it as a string.
@@ -365,6 +365,7 @@ Each slice that keeps data of a Target gives its service `eraseTarget(targetId, 
 `targetData` in `composeFeatures` lists these slices; a new slice with Target data joins the list.
 `deleteTarget` in `apps/server/src/target-deletion.ts` runs the erasure; files are not in the transaction.
 So a slice with files of a Target also gives `eraseTargetFiles(targetId)`, which runs after the commit, as `sources` does.
+A server that stops between the commit and the files leaves them: at the next start, `removeLeftovers` of `sessions` and `sources` removes the directories without a row (#88).
 The agents of the Target's live sessions stop before the transaction: their journal writes would wait for it.
 `target-deletion.int.test.ts` counts the rows with the Target's `target_id` in every schema, so a new slice is checked too.
 
@@ -386,6 +387,7 @@ The owner approved one exception in #45: the top bar gets «Новая цель�
 Spec #45 also puts «Меню цели» there, with «В архив», and the item «Архив» in the Target switcher.
 Issue #71 adds `overhang` to a zone: the canvas pixels a widget takes to the right of the zone's width, such as the open setup chat.
 `Canvas` moves the next zones right by as much, so the widget covers none of them.
+Issue #88 adds `fitKey`: `Canvas` fits the view when it opens and again when `fitKey` changes; the Target page passes the Target's status, so a new Target's plan fits once it appears.
 A new zone is a new entry in `targetZones` and needs the owner's decision.
 An input or a scrolled list inside a widget gets the React Flow classes `nodrag`, `nopan` and `nowheel` where the canvas must not take its pointer or wheel.
 

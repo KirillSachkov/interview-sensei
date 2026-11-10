@@ -2,7 +2,7 @@
 // Written for this project; the store of @acp-components/core (MIT) served only as a reference.
 import type { AgentSession, ChatEntry, SessionStatus, SessionView } from "./agent-session.ts";
 import { isLive } from "./agent-session.ts";
-import { narrationAfter, withoutNarration } from "./narration.ts";
+import { endsNarration, narrates, narrationAfter, narrationShown } from "./narration.ts";
 import type { AgentUpdate, RecordedEvent, SessionEvent } from "./session-event.ts";
 
 /**
@@ -18,7 +18,7 @@ export function emptyView(
     entries: earlierEntries,
     failure: null,
     agentText: "new",
-    narrationFrom: null,
+    narration: null,
   };
 }
 
@@ -139,15 +139,6 @@ function withAnswer(
   );
 }
 
-/** The entries after the agent's update: its text, or its first tool call after a narration. */
-function entriesAfterUpdate(view: SessionView, update: AgentUpdate, id: number) {
-  if (update.sessionUpdate === "tool_call" && view.narrationFrom !== null) {
-    return withoutNarration(view.entries, view.narrationFrom);
-  }
-  const chunk = messageChunk(update);
-  return chunk === null || view.agentText === "hidden" ? view.entries : withChunk(view, chunk, id);
-}
-
 function entriesAfter(view: SessionView, { id, event }: RecordedEvent): readonly ChatEntry[] {
   switch (event.type) {
     case "prompt_sent": {
@@ -156,7 +147,10 @@ function entriesAfter(view: SessionView, { id, event }: RecordedEvent): readonly
         : [...view.entries, { id: `candidate-${id}`, type: "candidate_message", text: event.text }];
     }
     case "agent_update": {
-      return entriesAfterUpdate(view, event.update, id);
+      const chunk = messageChunk(event.update);
+      return chunk === null || view.agentText === "hidden"
+        ? view.entries
+        : withChunk(view, chunk, id);
     }
     case "turn_ended": {
       return event.stopReason === "end_turn"
@@ -220,15 +214,23 @@ function agentTextAfter(view: SessionView, event: SessionEvent): SessionView["ag
   }
 }
 
-/** Applies one journal entry to the view. */
+/** Applies one journal entry to the view; see narration.ts for the agent's narration. */
 export function applyEvent(view: SessionView, recorded: RecordedEvent): SessionView {
+  const current = narrationShown(view, recorded.event);
+  const { event } = recorded;
   return {
-    ...view,
-    status: statusAfter(view.status, recorded.event),
-    entries: entriesAfter(view, recorded),
-    failure: recorded.event.type === "session_failed" ? recorded.event.failure : view.failure,
-    agentText: agentTextAfter(view, recorded.event),
-    narrationFrom: narrationAfter(view, recorded.event),
+    ...current,
+    status: statusAfter(current.status, event),
+    entries: narrates(current, event) ? current.entries : entriesAfter(current, recorded),
+    failure: event.type === "session_failed" ? event.failure : current.failure,
+    // A dropped narration leaves no message for the agent's next text to continue.
+    agentText:
+      current.narration !== null && endsNarration(event) && current.agentText !== "hidden"
+        ? "new"
+        : agentTextAfter(current, event),
+    narration: narrationAfter(current, event, (narration) =>
+      entriesAfter({ ...current, entries: narration }, recorded),
+    ),
   };
 }
 

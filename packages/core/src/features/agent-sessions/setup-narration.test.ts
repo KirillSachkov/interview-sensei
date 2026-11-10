@@ -36,6 +36,12 @@ function textsOf(session: AgentSession, events: readonly SessionEvent[]) {
   return view.entries.map((entry) => ("text" in entry ? entry.text : entry.type));
 }
 
+const earlierTurn: SessionEvent[] = [
+  { type: "prompt_sent", text: "Привет" },
+  chunk("Здравствуйте."),
+  turnEnded,
+];
+
 describe("the agent's text before its first tool call in a Target setup", () => {
   it("leaves out the text before the first tool call of a turn of the server's prompt", () => {
     expect(
@@ -77,5 +83,15 @@ describe("the agent's text before its first tool call in a Target setup", () => 
         turnEnded,
       ]),
     ).toStrictEqual(["Хороший ответ."]);
+  });
+
+  it("keeps the narration out of the chat while the turn goes on", () => {
+    expect(textsOf(setup, [serverPrompt, chunk("I'll load the setup skill.")])).toStrictEqual([]);
+  });
+
+  it("starts a new message after a dropped narration, not the earlier turn's", () => {
+    expect(
+      textsOf(setup, [...earlierTurn, serverPrompt, chunk("Loading."), toolCall, chunk("Начнём.")]),
+    ).toStrictEqual(["Привет", "Здравствуйте.", "Начнём."]);
   });
 });

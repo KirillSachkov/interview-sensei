@@ -2,7 +2,8 @@
 // holds one plan: the latest one the agent proposed. The Candidate reads «объединить» for a Topic
 // rename of the plan that merges Topics instead of «переименовать».
 import { namedTopics, stateAfter } from "./draft.ts";
-import type { DraftChange, DraftOperation, SectionRename, SetupState } from "./draft.ts";
+import type { DraftChange, DraftOperation, SetupState } from "./draft.ts";
+import type { SectionRename } from "./draft-sections.ts";
 import { namesTopic, renamedTopics, topicKey } from "./draft-topics.ts";
 import type { TopicRename } from "./draft-topics.ts";
 

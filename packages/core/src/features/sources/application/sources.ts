@@ -146,7 +146,7 @@ async function removeLeftovers({ files, targets }: SourcesDependencies): Promise
  * Gives the Target's Source the type, such as a vacancy for an attached file, which is a «файл»
  * until the agent reads it; undefined when the Target has no such Source.
  */
-async function typed(
+async function withType(
   { repository, files }: SourcesDependencies,
   { targetId, id }: { targetId: string; id: string },
   type: SourceView["type"],
@@ -197,7 +197,7 @@ export function createSources(dependencies: SourcesDependencies) {
       return stored;
     },
     setType: async (targetId: string, id: string, type: SourceView["type"]) =>
-      typed(dependencies, { targetId, id }, type),
+      withType(dependencies, { targetId, id }, type),
     /** Saves an attached file of up to 100 MB in the Target's data directory as a Source. */
     saveFile: async (targetId: string, attached: AttachedFile) =>
       saveFile(dependencies, targetId, attached),

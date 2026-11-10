@@ -107,13 +107,16 @@ const fitPadding = { top: "112px", bottom: "96px", left: "48px", right: "48px" }
 function FitOnChange({ fitKey }: { fitKey: string }) {
   const flow = useReactFlow();
   const fitted = useRef(fitKey);
+  // Stays until the fit runs: a cleanup that cancels the frames leaves it for the next run.
+  const pending = useRef(false);
   useEffect(() => {
-    const changed = fitted.current !== fitKey;
+    pending.current ||= fitted.current !== fitKey;
     fitted.current = fitKey;
     let measured = 0;
     const rendered = requestAnimationFrame(() => {
       measured = requestAnimationFrame(() => {
-        if (changed) {
+        if (pending.current) {
+          pending.current = false;
           void flow.fitView({ padding: fitPadding, maxZoom: 1 });
         }
       });
