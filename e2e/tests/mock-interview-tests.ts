@@ -68,6 +68,36 @@ async function finishWithoutGrade(sessions: Locator) {
   await expect(second).toContainText("Без оценки");
 }
 
+interface ScrollSize {
+  clientHeight: number;
+  scrollHeight: number;
+  scrollTop: number;
+}
+
+/** A long answer stays bounded and can be scrolled without moving the canvas. */
+async function expectBoundedAnswer(field: Locator) {
+  const size = await field.evaluate(({ clientHeight, scrollHeight }: ScrollSize) => ({
+    height: clientHeight,
+    content: scrollHeight,
+  }));
+  expect(size.height).toBeLessThanOrEqual(280);
+  expect(size.content).toBeGreaterThan(size.height);
+  await field.evaluate((element: ScrollSize) => {
+    element.scrollTop = 200;
+  });
+  expect(await field.evaluate(({ scrollTop }: ScrollSize) => scrollTop)).toBeGreaterThan(0);
+}
+
+/** Both the input and the saved answer scroll; sending preserves the full text. */
+async function sendLongAnswer(first: Locator) {
+  const text = `${"Я вёл сервис платежей и разбирал причины сбоев. ".repeat(100)}[grade:3]`;
+  const field = first.getByRole("textbox", { name: "Ваш ответ" });
+  await field.fill(text);
+  await expectBoundedAnswer(field);
+  await answer(first, text);
+  await expectBoundedAnswer(first.locator(".answer-text").first());
+}
+
 // Spec #41, ticket #54: a Dispute corrects the Grade at once, and the summary Debrief shows how the
 // Topic status changed.
 
@@ -169,7 +199,7 @@ export function mockInterviewTests() {
     await startMock(sessions);
 
     const first = sessions.getByRole("article", { name: "Вопрос 1" });
-    await answer(first, "Я вёл сервис платежей. [grade:3]");
+    await sendLongAnswer(first);
     await openDebrief(first, "3 из 3");
     await expectInterviewerChat(sessions);
     await finishWithoutGrade(sessions);

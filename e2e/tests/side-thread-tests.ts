@@ -18,6 +18,16 @@ async function discussSeparately(card: Locator, question: string) {
   await writeInThread(thread, question);
 }
 
+/** Model controls stay below the composer and leave most of the space for writing. */
+async function expectWritingSpace(thread: Locator) {
+  const field = thread.getByRole("textbox", { name: "Сообщение в ветку" });
+  const options = thread.getByLabel("Модель и мышление ветки");
+  const inputBox = await field.boundingBox();
+  const optionsBox = await options.boundingBox();
+  expect(inputBox?.height ?? 0).toBeGreaterThan((optionsBox?.height ?? 0) * 2);
+  expect(optionsBox?.y ?? 0).toBeGreaterThan((inputBox?.y ?? 0) + (inputBox?.height ?? 0));
+}
+
 /** Writes in the Side thread and waits for the agent's reply. */
 async function writeInThread(thread: Locator, text: string) {
   await thread.getByRole("textbox", { name: "Сообщение в ветку" }).fill(text);
@@ -89,11 +99,11 @@ async function selectQuestion(card: Locator) {
 /** Ratings remain available on demand, without occupying the card header. */
 async function rateThroughDetails(first: Locator) {
   await expect(first.getByRole("button", { name: "Полезный вопрос" })).toBeHidden();
-  await first.getByText("О вопросе", { exact: true }).click();
+  await first.getByLabel("Сведения и оценка вопроса", { exact: true }).click();
   const useful = first.getByRole("button", { name: "Полезный вопрос" });
   await useful.click();
   await expect(useful).toHaveAttribute("aria-pressed", "true");
-  await first.getByText("О вопросе", { exact: true }).click();
+  await first.getByLabel("Сведения и оценка вопроса", { exact: true }).click();
   await expect(useful).toBeHidden();
 }
 
@@ -110,6 +120,7 @@ function discussTest() {
     await discussSeparately(first, question);
 
     await expectThreadBeside(first, thread, question);
+    await expectWritingSpace(thread);
     await expectGreetingWithoutDiscuss(sessions);
     await writeInThread(thread, "А пример?");
     await finishFromThread(sessions);

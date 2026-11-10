@@ -2,7 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import type { KeyboardEvent, ReactNode, SubmitEvent } from "react";
 
-/** Fits the field's height to its text. */
+/** Fits the height to the text; CSS caps it and longer answers scroll inside the field. */
 function grow(field: HTMLTextAreaElement): void {
   field.style.height = "auto";
   field.style.height = `${field.scrollHeight}px`;

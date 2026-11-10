@@ -215,8 +215,10 @@ export function SideThreadChat({ thread, number }: { thread: SideThread; number:
         onStop={cancel}
         label="Сообщение в ветку"
         placeholder="Спросить ещё"
-        tools={<SessionOptions view={lost === null ? view : null} />}
       />
+      <div className="side-thread-options" aria-label="Модель и мышление ветки">
+        <SessionOptions view={lost === null ? view : null} />
+      </div>
     </aside>
   );
 }

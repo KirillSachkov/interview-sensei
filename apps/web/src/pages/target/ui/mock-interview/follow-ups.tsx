@@ -15,7 +15,7 @@ function FollowUpAnswer({
 }) {
   if (answer !== null) {
     return (
-      <p className="answer-text">
+      <p className="answer-text nodrag nopan nowheel">
         <span className="muted">Ваш ответ: </span>
         {answer}
       </p>

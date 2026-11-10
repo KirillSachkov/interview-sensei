@@ -61,7 +61,12 @@ export function QuestionDetails({
   const marks = useQuestionMarks(targetId, questionId);
   return (
     <details className="question-details nodrag nopan">
-      <summary>О вопросе</summary>
+      <summary aria-label="Сведения и оценка вопроса" title="Сведения и оценка вопроса">
+        <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true">
+          <circle cx="10" cy="10" r="7.5" fill="none" stroke="currentColor" strokeWidth="1.4" />
+          <path d="M10 9v5M10 6v.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+      </summary>
       <div className="question-details-body">
         {marks === undefined ? null : (
           <p>

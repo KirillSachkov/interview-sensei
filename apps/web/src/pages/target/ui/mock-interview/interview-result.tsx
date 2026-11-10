@@ -33,6 +33,7 @@ export function InterviewResult({ interview }: { interview: InterviewView }) {
               stage="ended"
               discuss={
                 <DiscussSeparately
+                  edge
                   interviewId={interview.id}
                   origin={{ kind: "question", id: card.id }}
                 />

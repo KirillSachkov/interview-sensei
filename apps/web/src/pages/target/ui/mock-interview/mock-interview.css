@@ -312,12 +312,17 @@
 .answer-form textarea {
   width: 100%;
   min-height: 96px;
+  max-height: 280px;
   padding: var(--space-3) var(--space-4);
   resize: none;
-  overflow: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .answer-text {
+  max-height: 280px;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
 
@@ -650,7 +655,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
-  width: 400px;
+  width: 560px;
   /* The first thread sits below the arrows' start, so every arrow bends. */
   padding-top: var(--space-6);
 }
@@ -821,4 +826,136 @@
 
 .question-actions button:hover {
   color: var(--color-accent);
+}
+
+/* A port at the card's right edge previews the direction of a new branch. */
+.question-card .branch-trigger {
+  position: absolute;
+  top: 12px;
+  right: -14px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--color-line);
+  border-radius: 50%;
+  background: var(--color-surface);
+  padding: 0;
+  color: var(--color-muted);
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.branch-plus {
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 400;
+}
+
+.branch-trigger::before {
+  content: "";
+  position: absolute;
+  left: 100%;
+  width: 20px;
+  border-top: 1px solid var(--color-accent);
+  opacity: 0;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition:
+    transform 160ms ease,
+    opacity 160ms ease;
+}
+
+.branch-hint {
+  position: absolute;
+  left: calc(100% + 24px);
+  width: max-content;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-small);
+  color: var(--color-ink);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease;
+}
+
+.question-card .branch-trigger:is(:hover, :focus-visible) {
+  transform: translateX(3px);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.branch-trigger:is(:hover, :focus-visible)::before {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.branch-trigger:is(:hover, :focus-visible) .branch-hint {
+  opacity: 1;
+}
+
+/* Information stays available through a quiet icon, without the native disclosure triangle. */
+.question-details summary {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  list-style: none;
+}
+
+.question-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.question-details summary:hover,
+.question-details[open] summary {
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+/* The branch has room for writing; model controls occupy their own line below the composer. */
+.side-thread {
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.side-thread .composer textarea {
+  min-height: 112px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.side-thread .composer-tools:empty {
+  display: none;
+}
+
+.side-thread .composer-bar {
+  justify-content: flex-end;
+}
+
+.side-thread-options .session-options {
+  gap: var(--space-2) var(--space-4);
+}
+
+.side-thread-options .option-pill {
+  border: 0;
+  padding: 0;
+}
+
+.side-thread-options select {
+  max-width: 150px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .question-card .branch-trigger,
+  .branch-trigger::before,
+  .branch-hint {
+    transition: none;
+  }
 }

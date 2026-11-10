@@ -25,13 +25,32 @@ export function FragmentQuote({ fragment }: { fragment: string | null }) {
   );
 }
 
+/** The card's branch port previews the new thread; other origins keep a text action. */
+function DiscussLabel({ edge, pending }: { edge: boolean; pending: boolean }) {
+  if (!edge) {
+    return pending ? "Открываем…" : "Обсудить";
+  }
+  return (
+    <>
+      <span className="branch-plus" aria-hidden="true">
+        +
+      </span>
+      <span className="branch-hint" aria-hidden="true">
+        Открыть ветку справа
+      </span>
+    </>
+  );
+}
+
 /** Opens a chat to the right in one click; the Candidate asks their question there. */
 export function DiscussSeparately({
   interviewId,
   origin,
+  edge = false,
 }: {
   interviewId: string;
   origin: SideThreadOrigin;
+  edge?: boolean;
 }) {
   const fragment = useRef<string | null>(null);
   const refresh = useRefreshSideThreads(interviewId);
@@ -45,9 +64,10 @@ export function DiscussSeparately({
     <>
       <button
         type="button"
-        className="ghost discuss-button"
+        className={edge ? "branch-trigger" : "ghost discuss-button"}
         aria-label="Обсудить отдельно"
-        title="Открыть обсуждение справа"
+        title="Открыть ветку справа"
+        aria-busy={opening.isPending}
         disabled={opening.isPending}
         onPointerDown={(event) => {
           fragment.current = selectedFragment(event.currentTarget);
@@ -58,7 +78,7 @@ export function DiscussSeparately({
           opening.mutate();
         }}
       >
-        {opening.isPending ? "Открываем…" : "Обсудить"}
+        <DiscussLabel edge={edge} pending={opening.isPending} />
       </button>
       {opening.isError ? <p role="alert">Ветка не открылась: {opening.error.message}</p> : null}
     </>

@@ -32,7 +32,11 @@ function QuestionRow({ view, card, number }: { view: InterviewView; card: Card; 
         number={number}
         stage={stageOf(view)}
         discuss={
-          <DiscussSeparately interviewId={view.id} origin={{ kind: "question", id: card.id }} />
+          <DiscussSeparately
+            edge
+            interviewId={view.id}
+            origin={{ kind: "question", id: card.id }}
+          />
         }
       />
       <SideThreads view={view} card={card} number={number} />

@@ -48,13 +48,13 @@ function GivenAnswer({ card }: { card: Card }) {
   }
   if (answer.skipped) {
     return (
-      <p className="answer-text">
+      <p className="answer-text nodrag nopan nowheel">
         <span className="muted">Ваш ответ: </span>не знаю
       </p>
     );
   }
   return card.format === "quiz" ? null : (
-    <p className="answer-text">
+    <p className="answer-text nodrag nopan nowheel">
       <span className="muted">Ваш ответ: </span>
       {answer.text}
     </p>
