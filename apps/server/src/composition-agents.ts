@@ -22,7 +22,7 @@ export type { McpGateway } from "@interview-sensei/core/mcp-gateway";
 export type SessionToolSets = Parameters<typeof mcpGatewayModule>[0]["tools"];
 
 /** What the features write to the server's logger. */
-export interface ServerLog {
+interface ServerLog {
   readonly info: (details: object, message: string) => void;
   readonly warn: (details: object | string, message?: string) => void;
   readonly error: (details: object, message: string) => void;
