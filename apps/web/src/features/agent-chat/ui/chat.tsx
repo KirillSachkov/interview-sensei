@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
 import type { SessionView } from "@/shared/api";
@@ -48,19 +48,56 @@ function ConnectionLost({ text, onReconnect }: { text: string; onReconnect: () =
 /** What a chat of a session kind shows between the messages and the message form. */
 type RenderAboveInput = (view: SessionView) => ReactNode;
 
+/** The message written before the session started; `onSent` forgets it once the agent got it. */
+interface FirstMessage {
+  readonly text: string | undefined;
+  readonly onSent: () => void;
+}
+
+/** Sends the first message once, as soon as the agent waits for a message. */
+function useFirstMessage(
+  { text, onSent }: FirstMessage,
+  { waits, prompt }: { waits: boolean; prompt: (text: string) => void },
+) {
+  useEffect(() => {
+    if (text !== undefined && waits) {
+      onSent();
+      prompt(text);
+    }
+  }, [text, onSent, waits, prompt]);
+}
+
+/** Who answers: the agent's initial in a circle and its name. */
+function ChatAgent({ agent }: { agent: string }) {
+  return (
+    <p className="chat-agent">
+      <span className="agent-avatar" aria-hidden="true">
+        {agentName(agent).slice(0, 1)}
+      </span>
+      <span>
+        <span className="visually-hidden">Агент: </span>
+        <span className="chat-agent-name">{agentName(agent)}</span>
+      </span>
+    </p>
+  );
+}
+
 /** One connection to the chat; the parent mounts a new one to reconnect. */
 function ChatConnection({
   sessionId,
   renderAboveInput,
   attachments,
   onReconnect,
+  first,
 }: {
   sessionId: string;
   renderAboveInput: RenderAboveInput | undefined;
   attachments: ChatAttachments | undefined;
   onReconnect: () => void;
+  first: FirstMessage;
 }) {
   const { view, notice, lost, prompt, cancel, answerPermission } = useSessionEvents(sessionId);
+  useFirstMessage(first, { waits: lost === null && view?.status === "idle", prompt });
   const connectionLost =
     lost === null ? null : <ConnectionLost text={lost} onReconnect={onReconnect} />;
   if (view === null) {
@@ -68,15 +105,7 @@ function ChatConnection({
   }
   return (
     <section className="chat" aria-label={`Чат с агентом «${agentName(view.agent)}»`}>
-      <p className="chat-agent">
-        <span className="agent-avatar" aria-hidden="true">
-          {agentName(view.agent).slice(0, 1)}
-        </span>
-        <span>
-          <span className="visually-hidden">Агент: </span>
-          <span className="chat-agent-name">{agentName(view.agent)}</span>
-        </span>
-      </p>
+      <ChatAgent agent={view.agent} />
       <ChatEntries
         entries={view.entries}
         canAnswer={lost === null && view.status === "working"}
@@ -102,23 +131,33 @@ function ChatConnection({
  * The chat with the agent of one session: messages, agent state and the message form. A session
  * kind puts its own content above the message form with `renderAboveInput`, such as the draft of
  * changes of the Target setup, and takes files with a message through `attachments`.
+ * `firstMessage` goes to the agent once, when it first waits for a message.
  */
 export function Chat({
   sessionId,
   renderAboveInput,
   attachments,
+  firstMessage,
 }: {
   sessionId: string;
   renderAboveInput?: RenderAboveInput;
   attachments?: ChatAttachments;
+  /** A message the Candidate wrote before the session started; the agent gets it once it waits. */
+  firstMessage?: string | undefined;
 }) {
   const [attempt, setAttempt] = useState(0);
+  // Forgotten once sent: a reconnect mounts the connection anew and must not send it again.
+  const [first, setFirst] = useState(firstMessage);
+  const forgetFirst = useCallback(() => {
+    setFirst(undefined);
+  }, []);
   return (
     <ChatConnection
       key={attempt}
       sessionId={sessionId}
       renderAboveInput={renderAboveInput}
       attachments={attachments}
+      first={{ text: first, onSent: forgetFirst }}
       onReconnect={() => {
         setAttempt((current) => current + 1);
       }}

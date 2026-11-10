@@ -1,93 +1,116 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
-import { Chat } from "@/features/agent-chat";
-import { openSetupSession } from "@/shared/api";
-
-import { useSourceAttachments, useSourcesAfterTurn } from "../model/source-attachments";
-import { turnEnd } from "../model/turn-end";
-import { DraftChanges } from "./draft-changes";
+import { isLargest } from "../model/chat-size";
+import type { ChatSize } from "../model/chat-size";
+import { ChatResizeHandle } from "./chat-resize";
 import { FinishSetup } from "./finish-setup";
-import { InboxProposal } from "./inbox-proposal";
+import { SetupBody } from "./setup-session";
+import type { Engagement } from "./setup-session";
 
-/** Follows the agent's turns for the materials; shows nothing. */
-function SourcesFollower({ targetId, turn }: { targetId: string; turn: number | null }) {
-  useSourcesAfterTurn(targetId, turn);
-  return null;
+/** A button of the chat's head that shows only an icon; `label` names it for everyone. */
+function IconButton({
+  label,
+  path,
+  onClick,
+}: {
+  label: string;
+  /** The `d` of the icon's outline in a 20 by 20 box. */
+  path: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="ghost icon-button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+    >
+      <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true">
+        <path
+          d={path}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </button>
+  );
 }
 
-/** Opens the Target's running setup session, or a new one, and shows its chat. */
-function SetupSession({ targetId }: { targetId: string }) {
-  const attachments = useSourceAttachments(targetId);
-  const session = useQuery({
-    queryKey: ["targets", targetId, "setup-session"],
-    queryFn: async () => openSetupSession(targetId),
-    retry: false,
-    refetchOnWindowFocus: false,
-  });
-  if (session.isError) {
-    return <p role="alert">Чат настройки не открылся: {session.error.message}</p>;
-  }
-  if (session.data === undefined) {
-    return <p>Открываем чат настройки…</p>;
-  }
-  return (
-    <Chat
-      key={session.data.id}
-      sessionId={session.data.id}
-      renderAboveInput={(view) => {
-        const turn = turnEnd(view);
-        return (
-          <>
-            <SourcesFollower targetId={targetId} turn={turn} />
-            <InboxProposal targetId={targetId} turn={turn} />
-            <DraftChanges targetId={targetId} turn={turn} />
-          </>
-        );
-      }}
-      attachments={attachments}
-    />
-  );
+const icons = {
+  enlarge: "M12 3h5v5M8 17H3v-5M17 3l-6 6M3 17l6-6",
+  reduce: "M8 3v5H3M12 17v-5h5M8 8 3 3M12 12l5 5",
+  hide: "M5 5l10 10M15 5 5 15",
+} as const;
+
+export interface SetupChatProps {
+  readonly targetId: string;
+  /** A draft Target starts its onboarding at once: the agent speaks first. */
+  readonly draft: boolean;
+  readonly size: ChatSize;
+  readonly onResize: (size: ChatSize) => void;
+  /** «Развернуть» or «Свернуть»: the largest size, or back to the default one. */
+  readonly onToggleSize: () => void;
+  readonly onClose: () => void;
 }
 
 /**
  * «Настройка цели»: the chat with the Target's setup agent in the middle of the «Цель» zone, with
- * the card «Разбор материалов» and the draft of changes above its message box. «Развернуть» makes
- * it larger, «Скрыть» hides it and the session goes on, «Завершить» ends the session.
+ * the card «Разбор материалов» and the draft of changes above its message box. It stands open; its
+ * agent starts with the Candidate's first message, or at once for a draft Target. The corner
+ * resizes it, «Развернуть» makes it the largest, «Скрыть» hides it and the session goes on,
+ * «Завершить» ends the session.
  */
 export function SetupChat({
   targetId,
-  large,
+  draft,
+  size,
   onResize,
+  onToggleSize,
   onClose,
-}: {
-  targetId: string;
-  large: boolean;
-  onResize: () => void;
-  onClose: () => void;
-}) {
+}: SetupChatProps) {
+  const [engagement, setEngagement] = useState<Engagement>("follow");
+  const largest = isLargest(size);
   return (
     <aside
-      className={`card setup-chat nodrag nopan${large ? " setup-chat-large" : ""}`}
+      className="card setup-chat nodrag nopan"
       aria-labelledby="setup-chat-title"
+      style={{ height: size.height }}
     >
       <header className="setup-chat-head">
         <h2 id="setup-chat-title">Настройка цели</h2>
         <div className="setup-chat-actions">
-          <button type="button" className="ghost" onClick={onResize}>
-            {large ? "Свернуть" : "Развернуть"}
-          </button>
-          <FinishSetup targetId={targetId} onFinished={onClose} />
-          <button type="button" className="ghost" onClick={onClose}>
-            Скрыть
-          </button>
+          <IconButton
+            label={largest ? "Свернуть" : "Развернуть"}
+            path={largest ? icons.reduce : icons.enlarge}
+            onClick={onToggleSize}
+          />
+          <FinishSetup
+            targetId={targetId}
+            onFinished={() => {
+              setEngagement("waiting");
+            }}
+          />
+          <IconButton label="Скрыть" path={icons.hide} onClick={onClose} />
         </div>
       </header>
-      <SetupSession targetId={targetId} />
+      <SetupBody
+        targetId={targetId}
+        draft={draft}
+        engagement={engagement}
+        onFirst={(first) => {
+          setEngagement({ first });
+        }}
+      />
+      <ChatResizeHandle size={size} onResize={onResize} />
     </aside>
   );
 }
 
-/** The closed setup chat: what the chat is for, and the button that opens it. */
+/** The hidden setup chat: what the chat is for, and the button that shows it again. */
 export function SetupInvite({ onOpen }: { onOpen: () => void }) {
   return (
     <section className="card setup-invite" aria-label="Чат настройки">

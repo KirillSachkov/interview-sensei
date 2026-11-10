@@ -63,6 +63,29 @@ function DraftQuestion({
   );
 }
 
+/** A square in a circle: the session stops. */
+const finishIcon = (
+  <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true">
+    <circle cx="10" cy="10" r="7" fill="none" stroke="currentColor" strokeWidth="1.8" />
+    <rect x="7.5" y="7.5" width="5" height="5" rx="1" fill="currentColor" />
+  </svg>
+);
+
+function FinishButton({ disabled, onClick }: { disabled: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      className="ghost icon-button"
+      aria-label="Завершить"
+      title="Завершить сессию настройки"
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {finishIcon}
+    </button>
+  );
+}
+
 /**
  * «Завершить»: ends the Target's setup session. With a non-empty draft it first asks what to do
  * with the draft; the next opening starts a new session.
@@ -89,9 +112,7 @@ export function FinishSetup({
   const size = draft.data?.length ?? 0;
   return (
     <>
-      <button
-        type="button"
-        className="ghost"
+      <FinishButton
         disabled={ending.isPending}
         onClick={() => {
           if (size > 0) {
@@ -100,9 +121,7 @@ export function FinishSetup({
             ending.mutate("keep");
           }
         }}
-      >
-        Завершить
-      </button>
+      />
       {asking && size > 0 ? (
         <DraftQuestion
           size={size}

@@ -1,5 +1,5 @@
 import { Panel, ReactFlow, useReactFlow, useViewport } from "@xyflow/react";
-import type { Node, NodeProps } from "@xyflow/react";
+import type { Node, NodeProps, Viewport } from "@xyflow/react";
 import { useEffect, useMemo, useRef } from "react";
 import type { ReactNode } from "react";
 
@@ -96,6 +96,53 @@ function ZoomControls() {
   );
 }
 
+/** How far one wheel step zooms, as React Flow counts it for the wheel over the canvas. */
+function wheelZoomFactor(event: WheelEvent): number {
+  const lines = event.deltaMode === WheelEvent.DOM_DELTA_LINE;
+  // A trackpad pinch comes as a wheel with Ctrl and small steps: it zooms ten times faster.
+  const pinch = event.ctrlKey && !lines ? 10 : 1;
+  return 2 ** (-event.deltaY * (lines ? 0.05 : 0.002) * pinch);
+}
+
+/**
+ * Ctrl or ⌘ with the wheel, and a pinch, zoom the canvas also over a widget that scrolls by
+ * itself, such as the chat: React Flow leaves every wheel over a `nowheel` element to the element,
+ * so the Candidate could not zoom with the pointer over the chat. The zoom keeps the point under
+ * the pointer in place.
+ */
+function ZoomOverWidgets() {
+  const flow = useReactFlow();
+  useEffect(() => {
+    const pane = document.querySelector<HTMLElement>(".canvas .react-flow");
+    const zoom = (event: WheelEvent) => {
+      const overWidget =
+        event.target instanceof Element && event.target.closest(".nowheel") !== null;
+      if (pane !== null && overWidget && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        event.stopPropagation();
+        void flow.setViewport(zoomedAt(flow.getViewport(), event, pane.getBoundingClientRect()));
+      }
+    };
+    pane?.addEventListener("wheel", zoom, { capture: true, passive: false });
+    return () => {
+      pane?.removeEventListener("wheel", zoom, { capture: true });
+    };
+  }, [flow]);
+  return null;
+}
+
+const minZoom = 0.25;
+const maxZoom = 2;
+
+/** The view after the wheel step, with the point under the pointer kept in place. */
+function zoomedAt(view: Viewport, event: WheelEvent, pane: DOMRect): Viewport {
+  const zoom = Math.min(Math.max(view.zoom * wheelZoomFactor(event), minZoom), maxZoom);
+  const scale = zoom / view.zoom;
+  const [left, top] = [event.clientX - pane.left, event.clientY - pane.top];
+  // oxlint-disable-next-line eslint/id-length -- React Flow names the coordinates x and y.
+  return { x: left - (left - view.x) * scale, y: top - (top - view.y) * scale, zoom };
+}
+
 // The top bar islands float over the canvas, so the fitted view starts below them.
 const fitPadding = { top: "112px", bottom: "96px", left: "48px", right: "48px" } as const;
 
@@ -158,12 +205,13 @@ export function Canvas({
         panOnDrag={[1]}
         panActivationKeyCode="Space"
         zoomActivationKeyCode={["Meta", "Control"]}
-        minZoom={0.25}
-        maxZoom={2}
+        minZoom={minZoom}
+        maxZoom={maxZoom}
         fitView
         fitViewOptions={{ padding: fitPadding, maxZoom: 1 }}
       >
         <ZoomControls />
+        <ZoomOverWidgets />
         <FitOnChange fitKey={fitKey} />
       </ReactFlow>
     </section>

@@ -414,13 +414,8 @@ textarea {
 
 .goal-grid {
   display: grid;
-  grid-template-columns: 400px 800px 440px;
   align-items: start;
   gap: var(--space-5);
-}
-
-.goal-grid-large {
-  grid-template-columns: 400px 1160px 440px;
 }
 
 .goal-column {
@@ -466,14 +461,57 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  height: 820px;
   box-shadow: var(--shadow-island);
   padding: var(--space-4) var(--space-5) var(--space-5);
   cursor: auto;
 }
 
-.setup-chat-large {
-  height: 1120px;
+/* The corner the Candidate drags to resize the chat. */
+.chat-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 24px;
+  height: 24px;
+  border-bottom-right-radius: var(--radius-card);
+  background: linear-gradient(
+    135deg,
+    transparent 55%,
+    var(--color-line) 55% 65%,
+    transparent 65% 75%,
+    var(--color-line) 75% 85%,
+    transparent 85%
+  );
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+.icon-button {
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  color: var(--color-muted);
+}
+
+.icon-button:hover {
+  color: var(--color-ink);
+}
+
+/* The chat before its agent starts: what to write, in the middle of the free room. */
+.chat-empty {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 0;
+  text-align: center;
+}
+
+.chat-empty p {
+  max-width: 480px;
 }
 
 .setup-chat-head {
@@ -513,10 +551,6 @@ textarea {
   border-radius: var(--radius-card);
   background: var(--color-surface-muted);
   padding: var(--space-3) var(--space-4);
-}
-
-.setup-chat-large .draft-changes {
-  max-height: 480px;
 }
 
 .draft-changes > :not(.draft-change-list) {
@@ -638,14 +672,16 @@ textarea {
 }
 
 /* The kind and «выключена» go under the name, beside the Topics' indent. */
+/* The kind and «выключена» start at the Section's left edge, as the Topic chips under them. */
 .plan-kinds {
+  display: flex;
   order: 1;
   flex-basis: 100%;
-  padding-left: 28px;
+  gap: var(--space-1);
 }
 
-.plan-kinds .tag:first-child {
-  margin-left: var(--space-2);
+.plan-kinds .tag {
+  margin-left: 0;
 }
 
 .plan-count {
