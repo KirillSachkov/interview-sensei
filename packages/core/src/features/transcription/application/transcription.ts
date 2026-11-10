@@ -2,7 +2,7 @@
 // then each video or audio file goes through the extractor, Silero VAD and the chosen model. No
 // agent takes part; the sources slice gets the text through its port.
 import { modelIds } from "../domain/components.ts";
-import type { ModelId } from "../domain/components.ts";
+import type { ComponentCatalog, ModelId } from "../domain/components.ts";
 import type { AudioExtractor, SpeechRecognizer } from "../domain/ports.ts";
 import {
   modelFor,
@@ -23,23 +23,32 @@ export interface TranscriptionDependencies extends InstallationDependencies {
 const notInstalled =
   "распознавание речи не установлено: скачайте модель в «Настройки» → «Распознавание речи» или приложите транскрипт с тем же именем файла";
 
-/** The model for the language among the installed ones; TranscriptionError without one. */
+/** The installed models, when the shared components every model needs are installed too. */
+async function installedModels({
+  catalog,
+  store,
+}: TranscriptionDependencies & { catalog: ComponentCatalog }): Promise<Set<ModelId>> {
+  const installed = await store.installed(allComponents(catalog));
+  const shared = catalog.shared.every((component) => installed.has(component.id));
+  return new Set(shared ? modelIds.filter((id) => installed.has(id)) : []);
+}
+
+/**
+ * The model for the language among the installed ones; TranscriptionError without one. A language
+ * no model knows needs a transcript, whatever is installed.
+ */
 async function chosenModel(
-  { catalog, store }: TranscriptionDependencies,
+  dependencies: TranscriptionDependencies,
   language: string,
 ): Promise<ModelId> {
+  const { catalog } = dependencies;
   if (catalog === null) {
     throw new TranscriptionError(
       "распознавание речи не работает на этой платформе: приложите транскрипт",
     );
   }
-  // A language no model knows needs a transcript, whatever is installed.
-  if (modelFor(language, new Set(modelIds)) === null) {
-    throw new TranscriptionError(noModelReason(language));
-  }
-  const installed = await store.installed(allComponents(catalog));
-  const models = new Set(modelIds.filter((id) => installed.has(id)));
-  if (models.size === 0 || !catalog.shared.every((component) => installed.has(component.id))) {
+  const models = await installedModels({ ...dependencies, catalog });
+  if (models.size === 0 && modelFor(language, new Set(modelIds)) !== null) {
     throw new TranscriptionError(notInstalled);
   }
   const model = modelFor(language, models);
@@ -53,7 +62,11 @@ async function chosenModel(
 type ModelsInUse = Map<ModelId, number>;
 
 /** Runs the work while the model counts as in use. */
-async function whileInUse<T>(inUse: ModelsInUse, model: ModelId, work: () => Promise<T>): Promise<T> {
+async function whileInUse<Result>(
+  inUse: ModelsInUse,
+  model: ModelId,
+  work: () => Promise<Result>,
+): Promise<Result> {
   inUse.set(model, (inUse.get(model) ?? 0) + 1);
   try {
     return await work();

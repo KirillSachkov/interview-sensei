@@ -15,9 +15,9 @@ import type {
   ModelId,
   TranscriptionComponents,
 } from "./composition.ts";
-import { browserHeaders } from "./chat-test-support.ts";
+import { browserHeaders, startServer, temporaryDirectory } from "./chat-test-support.ts";
 import { componentServer, newHold } from "./component-server-test-support.ts";
-import { api } from "./setup-test-support.ts";
+import { api, appliedTarget } from "./setup-test-support.ts";
 
 /** The size of each made-up component file: the models are the larger ones, as in life. */
 const sizes: Readonly<Record<Component["id"], number>> = {
@@ -130,30 +130,34 @@ async function releasedOrAborted(released: Promise<unknown>, signal: AbortSignal
 function stubRecognizer() {
   const heard: ModelId[] = [];
   const control = { waiting: newHold(), cancelled: 0 };
-  const hear = async (line: string, signal: AbortSignal) => {
-    if (line === waitMark) {
-      control.waiting.reach();
-      await releasedOrAborted(control.waiting.released, signal);
+  /** The lines of the samples in order; at «[ждать]» it waits for the test or the cancel. */
+  const hear = async ({
+    samples,
+    onSeconds,
+    signal,
+  }: Parameters<NonNullable<TranscriptionComponents["recognizer"]>["recognize"]>[0]) => {
+    const lines: string[] = [];
+    for await (const chunk of samples) {
+      const line = lineOf(chunk);
+      if (line === waitMark) {
+        control.waiting.reach();
+        await releasedOrAborted(control.waiting.released, signal);
+      }
+      lines.push(line);
+      onSeconds(lines.length);
     }
+    return lines;
   };
   const recognizer: NonNullable<TranscriptionComponents["recognizer"]> = {
-    recognize: async ({ model, samples, onSeconds, signal }) => {
-      heard.push(model);
-      const lines: string[] = [];
+    recognize: async (request) => {
+      heard.push(request.model);
       try {
-        for await (const chunk of samples) {
-          const line = lineOf(chunk);
-          await hear(line, signal);
-          lines.push(line);
-          onSeconds(lines.length);
-        }
+        const lines = await hear(request);
+        return lines.filter((line) => line !== waitMark).join(" ");
       } catch (error) {
-        if (signal.aborted) {
-          control.cancelled += 1;
-        }
+        control.cancelled += request.signal.aborted ? 1 : 0;
         throw error;
       }
-      return lines.filter((line) => line !== waitMark).join(" ");
     },
   };
   return { recognizer, heard, control };
@@ -252,4 +256,39 @@ export async function installed(server: FastifyInstance, models: readonly ModelI
   const response = await installModels(server, models);
   expect(response.statusCode).toBe(202);
   return afterDownload(server);
+}
+
+/**
+ * An active Target and its setup chat on a server with the stand-ins and a data directory of its
+ * own; the models of `models` are installed.
+ */
+export async function transcriptionTarget(models: readonly ModelId[] = ["gigaam-v3"]) {
+  const dataDirectory = await temporaryDirectory();
+  const stub = await stubTranscription();
+  const { server, stop } = await startServer(dataDirectory, { transcription: stub.components });
+  if (models.length > 0) {
+    await installed(server, models);
+  }
+  const { target, events: setup } = await appliedTarget(server);
+  return { server, stop, dataDirectory, target, setup, ...stub };
+}
+
+/** A stub video whose recognition waits at «[ждать]» until the test lets it go on. */
+export const heldVideo = `Расскажите про горутины.\n${waitMark}\nЧто такое канал?\n`;
+
+/** «Запустить разбор» of the card: the chosen materials and the language of each recording. */
+export async function startWithLanguages(
+  server: FastifyInstance,
+  {
+    targetId,
+    sourceIds,
+    languages,
+  }: { targetId: string; sourceIds?: readonly string[]; languages: Record<string, string> },
+) {
+  return server.inject({
+    method: "POST",
+    url: `/api/targets/${targetId}/inbox/processing`,
+    headers: browserHeaders(server),
+    payload: { ...(sourceIds === undefined ? {} : { sourceIds }), languages },
+  });
 }

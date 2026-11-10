@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 
 import type { ToolSession } from "../../../shared/mcp/index.ts";
 import type { InboxMode, InboxProposal, ProposalItem } from "../domain/inbox.ts";
-import { sessionTarget } from "./inbox-context.ts";
+import { sessionTarget, settle } from "./inbox-context.ts";
 import type { InboxContext, InboxDependencies } from "./inbox-context.ts";
 import { endInterrupted, stop } from "./inbox-ending.ts";
 import { start, startRecheck } from "./inbox-start.ts";
@@ -112,16 +112,8 @@ export function createInbox(dependencies: InboxDependencies) {
       markSourceFailed(context, session, failure),
     writeReport: async (session: ToolSession, report: ReportInput) =>
       writeReport(context, session, report),
-    /**
-     * Cancels the running transcriptions and waits for the background work of started runs; the
-     * server calls it before it closes. The next start returns their videos to the Inbox.
-     */
-    settle: async () => {
-      for (const controller of context.reading.values()) {
-        controller.abort();
-      }
-      await Promise.allSettled(context.pending);
-    },
+    /** Cancels running transcriptions, waits for background work; call it before the close. */
+    settle: async () => settle(context),
   };
 }
 export type Inbox = ReturnType<typeof createInbox>;

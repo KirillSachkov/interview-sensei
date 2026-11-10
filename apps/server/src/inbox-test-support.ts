@@ -58,24 +58,17 @@ export async function inboxOf(server: FastifyInstance, targetId: string): Promis
   return response.json<InboxState>();
 }
 
-/**
- * «Запустить разбор»: the chosen materials, or every material in the Inbox without a choice.
- * `languages` has the language the card chose for a video or audio file, by Source id.
- */
+/** «Запустить разбор»: the chosen materials, or every material in the Inbox without a choice. */
 export async function startProcessing(
   server: FastifyInstance,
   targetId: string,
   sourceIds?: readonly string[],
-  languages?: Readonly<Record<string, string>>,
 ) {
   return server.inject({
     method: "POST",
     url: `/api/targets/${targetId}/inbox/processing`,
     headers: browserHeaders(server),
-    payload: {
-      ...(sourceIds === undefined ? {} : { sourceIds }),
-      ...(languages === undefined ? {} : { languages }),
-    },
+    payload: sourceIds === undefined ? {} : { sourceIds },
   });
 }
 

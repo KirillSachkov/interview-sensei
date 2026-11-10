@@ -50,6 +50,17 @@ export interface InboxContext {
   readonly reading: Map<string, AbortController>;
 }
 
+/**
+ * Cancels every running reading, then waits for the background work of started runs; the server
+ * calls it before it closes.
+ */
+export async function settle(context: InboxContext): Promise<void> {
+  for (const controller of context.reading.values()) {
+    controller.abort();
+  }
+  await Promise.allSettled(context.pending);
+}
+
 /** Cancels the reading of the run's texts, such as its transcription; nothing without one. */
 export function cancelReading(context: InboxContext, runId: string): void {
   context.reading.get(runId)?.abort();

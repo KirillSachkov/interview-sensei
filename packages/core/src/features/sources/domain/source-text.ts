@@ -92,10 +92,10 @@ interface BindableSource {
  * got «ошибка». The video takes its text instead of recognizing its speech. A note, a link and a
  * recording of a link bind nothing.
  */
-export function boundTranscript<S extends BindableSource>(
-  video: S,
-  sources: readonly S[],
-): S | undefined {
+export function boundTranscript<Material extends BindableSource>(
+  video: Material,
+  sources: readonly Material[],
+): Material | undefined {
   if (video.file === null || textFormat(video) !== "video") {
     return undefined;
   }

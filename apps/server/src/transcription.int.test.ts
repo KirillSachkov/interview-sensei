@@ -38,8 +38,9 @@ describe("the consent to download speech recognition", () => {
   it("shows both models with their sizes and downloads nothing before the Candidate's consent", async () => {
     const { server, served } = await serverWith();
 
-    const status = await transcriptionStatus(server);
+    const { languages, ...status } = await transcriptionStatus(server);
 
+    expect(languages).toContainEqual({ code: "ru", name: "русский", model: null });
     expect(status).toStrictEqual({
       available: true,
       models: [
@@ -61,7 +62,6 @@ describe("the consent to download speech recognition", () => {
       shared: { size: 6000, installed: false },
       installation: null,
       failure: null,
-      languages: expect.arrayContaining([{ code: "ru", name: "русский", model: null }]),
     });
     expect(served.requested).toStrictEqual([]);
   });

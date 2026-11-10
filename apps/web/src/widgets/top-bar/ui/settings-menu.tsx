@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 
 import { agentName } from "@/entities/agent";
 import { chooseDefaultAgent, fetchAgents, fetchSettings } from "@/shared/api";
 
-import { Menu, MenuChoice } from "./menu";
+import { Menu, MenuChoice, MenuItem } from "./menu";
+import { SpeechRecognitionDialog } from "./speech-recognition";
 
 /** The settings of the whole app, not of one Target. */
 export function useSettings() {
@@ -51,10 +53,11 @@ function DefaultAgentChoices({
 }
 
 /**
- * «Настройки»: the default agent of every Target without its own agent. Without it a Target
- * takes the first available agent.
+ * «Настройки»: the default agent of every Target without its own agent, and «Распознавание речи».
+ * Without the default agent a Target takes the first available agent.
  */
 export function SettingsMenu() {
+  const [recognition, setRecognition] = useState(false);
   const queryClient = useQueryClient();
   const settings = useSettings();
   const choose = useMutation({
@@ -69,15 +72,34 @@ export function SettingsMenu() {
     <>
       <Menu label="Настройки" button="Настройки">
         {(close) => (
-          <DefaultAgentChoices
-            current={settings.data?.defaultAgent ?? null}
-            onChoose={(agent) => {
-              close();
-              choose.mutate(agent);
-            }}
-          />
+          <>
+            <DefaultAgentChoices
+              current={settings.data?.defaultAgent ?? null}
+              onChoose={(agent) => {
+                close();
+                choose.mutate(agent);
+              }}
+            />
+            <p className="menu-heading">Видео и аудио</p>
+            <MenuItem
+              hint="модели, установка и удаление"
+              onChoose={() => {
+                close();
+                setRecognition(true);
+              }}
+            >
+              Распознавание речи
+            </MenuItem>
+          </>
         )}
       </Menu>
+      {recognition ? (
+        <SpeechRecognitionDialog
+          onClose={() => {
+            setRecognition(false);
+          }}
+        />
+      ) : null}
       {choose.isError ? <p role="alert">Настройка не сохранена: {choose.error.message}</p> : null}
     </>
   );

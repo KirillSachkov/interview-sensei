@@ -57,10 +57,13 @@ export async function closeRun(
   run: InboxRun,
   reason: RunEnding,
 ): Promise<InboxReport | null> {
-  return context.dependencies.transaction(async (opened) => {
+  const report = await context.dependencies.transaction(async (opened) => {
     const current = await context.dependencies.inbox.runningRun(run.targetId, opened);
     return current?.id === run.id ? storePartial(context, { run: current, reason }, opened) : null;
   });
+  // A closed run reads no more texts: its running transcription stops.
+  cancelReading(context, run.id);
+  return report;
 }
 
 /**
@@ -85,7 +88,6 @@ export async function stop(context: InboxContext, targetId: string): Promise<Sto
   if (run === undefined || report === null) {
     return { type: "not_running" };
   }
-  cancelReading(context, run.id);
   if (run.sessionId !== null) {
     await sessions.stop(run.sessionId);
   }

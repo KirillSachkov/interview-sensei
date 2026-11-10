@@ -91,7 +91,7 @@ export async function sourceText(
 ): Promise<string> {
   const { files, extractor } = context.dependencies;
   const transcript = boundTranscript(source, reading.materials);
-  if (transcript?.file != null) {
+  if (transcript !== undefined && transcript.file !== null) {
     const path = files.absolute(transcript.file);
     return extractor.extract({ format: textFormat(transcript), path, url: null });
   }

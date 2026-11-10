@@ -50,9 +50,13 @@ export function useInbox(targetId: string) {
 export function useStartProcessing(targetId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    /** The chosen materials; null for every material in the Inbox. */
-    mutationFn: async (sourceIds: readonly string[] | null) =>
-      startInboxProcessing(targetId, sourceIds ?? undefined),
+    /**
+     * The chosen materials, null for every material in the Inbox, and the language of each chosen
+     * recording.
+     */
+    mutationFn: async (
+      chosen: { sourceIds: readonly string[]; languages: Readonly<Record<string, string>> } | null,
+    ) => startInboxProcessing(targetId, chosen?.sourceIds, chosen?.languages),
     onSettled: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: inboxQueryKey(targetId) }),

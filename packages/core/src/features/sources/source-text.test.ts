@@ -143,16 +143,19 @@ describe(htmlText, () => {
   });
 });
 
-describe(boundTranscript, () => {
-  const material = (id: string, file: string | null, extra: object = {}) => ({
+/** A material of the Candidate: a file by its name, or a link without one. */
+function material(id: string, name: string | null, extra: object = {}) {
+  return {
     id,
-    type: "file" as const,
-    file: file === null ? null : `targets/t/sources/${id}/${file}`,
-    url: file === null ? `https://example.com/${id}` : null,
-    status: "inbox" as const,
+    type: "file",
+    file: name === null ? null : `targets/t/sources/${id}/${name}`,
+    url: name === null ? `https://example.com/${id}` : null,
+    status: "inbox",
     ...extra,
-  });
+  };
+}
 
+describe(boundTranscript, () => {
   it("binds subtitles or a text file with the video's name, in any case, to the video", () => {
     const video = material("v", "Interview 1.mp4");
     const transcript = material("t", "interview 1.VTT");

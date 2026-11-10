@@ -33,7 +33,11 @@ export type {
   ReportSummary,
 } from "./inbox";
 export type { SourceType, SourceView } from "./sources";
-export { fetchTranscription, installTranscription } from "./transcription";
+export {
+  fetchTranscription,
+  installTranscription,
+  removeTranscriptionModel,
+} from "./transcription";
 export type { ModelId, TranscriptionStatus } from "./transcription";
 export {
   endSetupSession,
