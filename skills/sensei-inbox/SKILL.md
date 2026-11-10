@@ -41,6 +41,8 @@ The Candidate may stop the processing at any time. The Questions you added stay,
 - Use `format: "quiz"` only when the material gives clear options; otherwise keep the default open format.
 - Before adding, look for Questions with the same meaning with `search_questions`.
   The tool itself leaves out Questions with the same text and counts them as duplicates for the report.
+  When an existing Question has no reference answer and this part supplies one, keep the existing Question instead of adding a paraphrase.
+  Include its `questionId` in the report's `doubtful`, naming the material and part that answer it and explaining that the add tool cannot attach that answer to the existing Question.
 
 ## Preferences
 

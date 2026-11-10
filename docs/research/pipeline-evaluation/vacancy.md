@@ -1,0 +1,1 @@
+Агент (Codex): Учебная вакансия. Middle backend TypeScript/Node.js. Проверяем безопасное чтение unknown из HTTP JSON и отмену HTTP-запросов через AbortController. Вопросы интервью: Как безопасно прочитать поле у unknown? Как отменить HTTP-запрос через AbortController? Ответов в вакансии нет. Алгоритмы и live coding не нужны.
