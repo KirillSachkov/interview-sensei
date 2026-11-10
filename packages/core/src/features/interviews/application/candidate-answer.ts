@@ -3,6 +3,7 @@
 import { randomUUID } from "node:crypto";
 
 import { candidateAnswered, questionSkipped, quizAnswered } from "../domain/agent-messages.ts";
+import { uncoveredPoints } from "../domain/reference-judgment.ts";
 import { quizJudgment, skippedJudgment } from "../domain/app-judgment.ts";
 import type { AskedQuestion, CandidateAnswer, MockInterview } from "../domain/interview.ts";
 import { presentedQuestion } from "../domain/interview.ts";
@@ -115,10 +116,7 @@ async function recordByApp(
     gradedBy: skipped ? "skip" : "quiz",
     hinted: question.hinted,
     // «Не знаю» covers none of the reference answer's key points; a quiz is graded by its options.
-    referencePoints:
-      skipped && question.referenceAnswer !== null
-        ? question.referenceAnswer.points.map((text) => ({ text, covered: false }))
-        : null,
+    referencePoints: skipped ? uncoveredPoints(question.referenceAnswer) : null,
     referenceDisagreement: null,
     recordedAt: clock.now().toISOString(),
   });

@@ -21,7 +21,7 @@ export function candidateLevel(targetLevel: Level | null, difficulty: Difficulty
 const candidateCount = 5;
 
 /** The Topic's importance for the Target. */
-const importanceWeights: Readonly<Record<TopicImportance, number>> = {
+const importancePriority: Readonly<Record<TopicImportance, number>> = {
   high: 2,
   normal: 0,
   low: -1,
@@ -39,8 +39,11 @@ const staleAfterMs = 7 * 86_400_000;
 const stalenessWeight = 2;
 /** A Topic of the plan not asked in this Mock interview yet: the interview covers the plan. */
 const uncoveredWeight = 1.5;
-/** A Question whose last Grade is 0 or 1 goes above a new Question of the same Topic. */
-const retryWeight = 2;
+/**
+ * A Question whose last Grade is 0 or 1 goes above a new Question of the same Topic: the weight
+ * outweighs the largest level penalty (two steps) together with 👍.
+ */
+const retryWeight = 4;
 /** 👍 lifts a Question a little. */
 const usefulWeight = 0.5;
 /** Per level step between a Question and the wanted level. */
@@ -99,6 +102,14 @@ export interface CandidateTopic {
 
 const plainTopic: CandidateTopic = { importance: "normal", status: "not_started" };
 
+/** The Topic as the selection reads it; normal and not started when the plan does not list it. */
+export function topicOf(
+  topics: ReadonlyMap<string, CandidateTopic>,
+  topicId: string,
+): CandidateTopic {
+  return topics.get(topicId) ?? plainTopic;
+}
+
 /** The priority of a Topic and its reasons. */
 interface TopicScore {
   readonly priority: number;
@@ -130,13 +141,13 @@ function topicScores(request: CandidateRequest) {
     if (known !== undefined) {
       return known;
     }
-    const topic = request.topics.get(topicId) ?? plainTopic;
+    const topic = topicOf(request.topics, topicId);
     const asked = ordered.filter((entry) => entry.topicId === topicId);
     const since = sinceAsked(asked, request.now);
     const covered = asked.some((entry) => entry.interviewId === request.interviewId);
     const score = {
       priority:
-        importanceWeights[topic.importance] +
+        importancePriority[topic.importance] +
         statusWeights[topic.status] +
         weakness(asked) +
         staleness(since) +
@@ -193,7 +204,7 @@ export interface Candidate {
 /** The Topic that had its limit of questions in a row in this Mock interview, if any. */
 function fullTopicOf({ history, interviewId, topics }: CandidateRequest): string | undefined {
   const asked = history.filter((entry) => entry.interviewId === interviewId).toSorted(byTime);
-  return fullTopic(asked, (topicId) => (topics.get(topicId) ?? plainTopic).status);
+  return fullTopic(asked, (topicId) => topicOf(topics, topicId).status);
 }
 
 /**

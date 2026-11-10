@@ -90,6 +90,16 @@ describe("question candidates rank Topics", () => {
 });
 
 describe("question candidates rank Questions", () => {
+  it("a Question last graded 1 two levels away above a new 👍 Question of its Topic", () => {
+    const questions = [
+      question("new", { level: "middle", rating: "useful" }),
+      question("missed", { level: "junior" }),
+    ];
+    const history = [past("missed", { grade: 1, presentedAt: daysAgo(3) })];
+
+    expect(picked({ questions, history, level: "senior" })).toStrictEqual(["missed", "new"]);
+  });
+
   it("a Question last graded 0 above a new Question of its Topic", () => {
     const questions = [question("new"), question("missed")];
     const history = [past("missed", { grade: 0, presentedAt: daysAgo(3) })];

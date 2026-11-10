@@ -10,7 +10,7 @@ import { presentedQuestion } from "../domain/interview.ts";
 import type { BankQuestion, NewBankQuestion, PlanSection, TargetPlan } from "../domain/ports.ts";
 import { change } from "./context.ts";
 import type { Context } from "./context.ts";
-import { planTopics, topicAtLimit, topicLimitRule, topicName } from "./question-candidates.ts";
+import { assertTopicOpen, planTopics } from "./topic-limit.ts";
 import {
   assertNotFinishing,
   assertRunning,
@@ -157,18 +157,6 @@ function choiceOf({ questionId, text, topicId, reason }: PresentRequest): Choice
   );
 }
 
-/** Refuses a question in the Topic that already had its limit of questions in a row. */
-async function assertTopicNotFull(
-  context: Context,
-  { interview, plan }: { interview: MockInterview; plan: TargetPlan },
-  topicId: string,
-): Promise<void> {
-  const topics = await planTopics(context, plan);
-  if ((await topicAtLimit(context, { interview, topics })) === topicId) {
-    throw new InterviewToolError(topicLimitRule(topicName(plan, topicId), topics.get(topicId)));
-  }
-}
-
 /**
  * The selected Section of the Topic; refuses a Topic outside them, one that had its limit of
  * questions in a row, and a Deeper question outside the Topic of its parent Attempt.
@@ -184,7 +172,11 @@ async function placed(
       "This Topic is not in the selected Sections of the mock interview.",
     );
   }
-  await assertTopicNotFull(context, { interview, plan }, topicId);
+  await assertTopicOpen(
+    context,
+    { interview, plan, topics: await planTopics(context, plan) },
+    topicId,
+  );
   const parent = await parentTopic(context, interview, parentAttemptId);
   if (parent !== undefined && parent !== topicId) {
     throw new InterviewToolError(

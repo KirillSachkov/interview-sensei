@@ -75,8 +75,8 @@ The fake agent has an interviewer mode for mock interviews (`fake-agent-intervie
 It knows the server's template messages by their first sentence and answers them with our MCP tools, each after a permission request that the server allows.
 On «The mock interview has started.» it calls `get_brief`, then shows the next question.
 To show a question, it takes the first open candidate of `next_question_candidates`, or the first one, and calls `present_question`.
-When `next_question_candidates` refuses, it replies «Кандидаты не получены: <tool result>» and shows no question.
 Right after that it sends «Подсказка до ответа: …» in the same turn; the browser must never get this hint.
+When `next_question_candidates` refuses, it replies «Кандидаты не получены: <tool result>» and shows no question.
 On «The Candidate answered the presented question.» it replies «Ответ получен.» and calls `record_attempt`.
 The Grade comes from the marker `[grade:N]` in the Candidate's answer, 2 without one; then it shows the next question.
 For a question with a reference answer it counts the key points in the result of `present_question`, or in the brief's `presentedQuestion` after a pause, and covers all of them, or those of the marker `[covered:1,3]`.

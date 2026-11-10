@@ -51,3 +51,8 @@ export function referenceFields(
     },
   };
 }
+
+/** «Не знаю» covers none of the reference answer's key points; null without a reference answer. */
+export function uncoveredPoints(reference: ReferenceAnswer | null): Attempt["referencePoints"] {
+  return reference === null ? null : reference.points.map((text) => ({ text, covered: false }));
+}

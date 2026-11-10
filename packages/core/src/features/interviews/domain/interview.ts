@@ -168,8 +168,8 @@ export interface Attempt extends Judgment {
   /** Whether the Candidate got a hint before answering: a Side thread opened before the answer. */
   readonly hinted: boolean;
   /**
-   * The key points of the reference answer, each with whether the answer covered it; null when the
-   * Question had no reference answer or the app graded the Attempt.
+   * The key points of the reference answer, each with whether the answer covered it: none for
+   * «Не знаю». Null when the Question had no reference answer, and for a quiz.
    */
   readonly referencePoints: readonly ReferencePoint[] | null;
   /** Why the interviewer disagrees with the reference answer; null when it agrees. */

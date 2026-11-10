@@ -1,13 +1,13 @@
 // `next_question_candidates`: the selection rules v2 (#8, #64) on the Target's history of Mock
 // interviews, with the reasons of each candidate and the suggested move to the next Section.
 import { candidateLevel, questionCandidates } from "../domain/candidates.ts";
-import type { Candidate, CandidateTopic } from "../domain/candidates.ts";
+import type { Candidate } from "../domain/candidates.ts";
 import type { MockInterview } from "../domain/interview.ts";
 import type { BankQuestion, PlanSection, TargetPlan } from "../domain/ports.ts";
 import { suggestedSection } from "../domain/section-shares.ts";
 import { runningMs } from "../domain/time-limit.ts";
-import { fullTopic, topicStreakLimit } from "../domain/topic-streak.ts";
 import type { Context } from "./context.ts";
+import { assertTopicOpen, planTopics } from "./topic-limit.ts";
 import {
   assertRunning,
   InterviewToolError,
@@ -40,49 +40,6 @@ function candidateOf({ question, reasons }: Candidate) {
 async function earlierInterviews(context: Context, targetId: string, interviewId: string) {
   const latest = await context.dependencies.repository.latest(targetId, 3);
   return latest.filter((entry) => entry.id !== interviewId).map((entry) => entry.id);
-}
-
-/** The importance of each Topic of the plan with its Topic status. */
-export async function planTopics(
-  context: Context,
-  plan: TargetPlan,
-): Promise<ReadonlyMap<string, CandidateTopic>> {
-  const statuses = await context.dependencies.progress.topicStatuses(plan.id);
-  const statusOf = new Map(statuses.map(({ id, status }) => [id, status]));
-  return new Map(
-    plan.sections.flatMap((section) =>
-      section.topics.map(({ id, importance }) => [
-        id,
-        { importance, status: statusOf.get(id) ?? "not_started" },
-      ]),
-    ),
-  );
-}
-
-/**
- * The Topic that had its limit of questions in a row in this Mock interview; undefined when the
- * last Topic may get one more.
- */
-export async function topicAtLimit(
-  context: Context,
-  { interview, topics }: { interview: MockInterview; topics: ReadonlyMap<string, CandidateTopic> },
-): Promise<string | undefined> {
-  const asked = await context.dependencies.repository.asked(interview.id);
-  return fullTopic(asked, (topicId) => topics.get(topicId)?.status ?? "not_started");
-}
-
-/** The rule a question in the Topic that had its limit of questions in a row breaks. */
-export function topicLimitRule(name: string, topic: CandidateTopic | undefined): string {
-  const limit = topicStreakLimit(topic?.status ?? "not_started");
-  return `The Topic «${name}» already had ${limit} questions in a row, Deeper questions included: move to another Topic.`;
-}
-
-/** The name of the Topic in the plan, or its id. */
-export function topicName(plan: TargetPlan, topicId: string): string {
-  return (
-    plan.sections.flatMap((section) => section.topics).find((topic) => topic.id === topicId)
-      ?.name ?? topicId
-  );
 }
 
 /** The suggested move to another selected Section by the shares, for the agent; null without one. */
@@ -124,8 +81,8 @@ async function scope(
     );
   }
   const topics = await planTopics(context, plan);
-  if (topicId !== undefined && (await topicAtLimit(context, { interview, topics })) === topicId) {
-    throw new InterviewToolError(topicLimitRule(topicName(plan, topicId), topics.get(topicId)));
+  if (topicId !== undefined) {
+    await assertTopicOpen(context, { interview, plan, topics }, topicId);
   }
   return { section, topics };
 }

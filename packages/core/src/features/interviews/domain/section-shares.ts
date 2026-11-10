@@ -5,7 +5,7 @@
 import type { PlanSection, TopicImportance } from "./ports.ts";
 
 /** What a Topic of each importance adds to its Section's weight. */
-const importanceWeights: Readonly<Record<TopicImportance, number>> = {
+const sectionWeights: Readonly<Record<TopicImportance, number>> = {
   high: 2,
   normal: 1,
   low: 0.5,
@@ -20,7 +20,7 @@ type SharedSection = Pick<PlanSection, "id" | "topics">;
 function weight(section: SharedSection): number {
   return section.topics.length === 0
     ? emptySectionWeight
-    : section.topics.reduce((sum, topic) => sum + importanceWeights[topic.importance], 0);
+    : section.topics.reduce((sum, topic) => sum + sectionWeights[topic.importance], 0);
 }
 
 /** The share of each Section, in their order, from 0 to 1; together they make 1. */
