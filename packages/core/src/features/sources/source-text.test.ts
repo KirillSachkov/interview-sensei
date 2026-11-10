@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { htmlText, subtitleText, textFormat, textParts } from "./domain/source-text.ts";
+import {
+  boundTranscript,
+  htmlText,
+  subtitleText,
+  textFormat,
+  textParts,
+} from "./domain/source-text.ts";
 
 describe(textParts, () => {
   it("keeps a short text in one part without the blank lines around it", () => {
@@ -134,5 +140,40 @@ describe(htmlText, () => {
     expect(htmlText(html)).toBe(
       "Go-разработчик\n\nМы ищем middle разработчика.\n\nГорутины\n\nКаналы & select\n\nСтрока\nвторая",
     );
+  });
+});
+
+describe(boundTranscript, () => {
+  const material = (id: string, file: string | null, extra: object = {}) => ({
+    id,
+    type: "file" as const,
+    file: file === null ? null : `targets/t/sources/${id}/${file}`,
+    url: file === null ? `https://example.com/${id}` : null,
+    status: "inbox" as const,
+    ...extra,
+  });
+
+  it("binds subtitles or a text file with the video's name, in any case, to the video", () => {
+    const video = material("v", "Interview 1.mp4");
+    const transcript = material("t", "interview 1.VTT");
+
+    expect(boundTranscript(video, [video, material("o", "other.vtt"), transcript])).toBe(
+      transcript,
+    );
+    expect(boundTranscript(material("a", "talk.m4a"), [material("x", "talk.txt")])?.id).toBe("x");
+  });
+
+  it("binds no PDF, no note, no failed file and nothing to a link or a text file", () => {
+    const video = material("v", "talk.mp4");
+
+    expect(
+      boundTranscript(video, [
+        material("p", "talk.pdf"),
+        material("n", "talk.md", { type: "note" }),
+        material("f", "talk.srt", { status: "failed" }),
+      ]),
+    ).toBeUndefined();
+    expect(boundTranscript(material("l", null), [material("t", "l.vtt")])).toBeUndefined();
+    expect(boundTranscript(material("x", "talk.txt"), [material("y", "talk.vtt")])).toBeUndefined();
   });
 });

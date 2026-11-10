@@ -17,12 +17,13 @@ import {
 } from "./chat-test-support.ts";
 import {
   attach,
+  inboxOf,
   processingEvents,
   readParts,
   startProcessing,
   stopProcessing,
 } from "./inbox-test-support.ts";
-import { api, appliedTarget } from "./setup-test-support.ts";
+import { api, appliedTarget, toolResult } from "./setup-test-support.ts";
 import { sources } from "./source-test-support.ts";
 import {
   installed,
@@ -42,8 +43,8 @@ async function serverWith(models: Parameters<typeof installed>[1] = ["gigaam-v3"
   if (models.length > 0) {
     await installed(server, models);
   }
-  const { target } = await appliedTarget(server);
-  return { server, stop, dataDirectory, target, ...stub };
+  const { target, events: setup } = await appliedTarget(server);
+  return { server, stop, dataDirectory, target, setup, ...stub };
 }
 
 /** The Target's Sources once the first one has the status. */
@@ -289,5 +290,77 @@ describe("«Распознавание речи» in «Настройки»", ()
     model.continueSpeech();
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({ error: "model_in_use" });
+  });
+});
+
+/** Subtitles of a recording as a player exports them. */
+const subtitles = `WEBVTT
+
+00:00:01.000 --> 00:00:03.000
+Расскажите про горутины.
+
+00:00:04.000 --> 00:00:06.000
+Что такое канал?
+`;
+
+describe("a video with its transcript", () => {
+  it("takes the text of the transcript with the same name, without recognition or a download", async () => {
+    const { server, target, model, served } = await serverWith([]);
+    const video = await attach(server, {
+      targetId: target.id,
+      name: "interview [manual].mp4",
+      body: "Неразборчиво.\n",
+    });
+    const transcript = await attach(server, {
+      targetId: target.id,
+      name: "Interview [manual].VTT",
+      body: subtitles,
+    });
+    const other = await attach(server, {
+      targetId: target.id,
+      name: "lecture.srt",
+      body: "1\n00:00:01,000 --> 00:00:02,000\nЛекция.\n",
+    });
+
+    await startProcessing(server, target.id, [video.id]);
+    const { events } = await processingEvents(server, target.id);
+
+    await expect(readParts(events, video.id, 1)).resolves.toStrictEqual([
+      "Расскажите про горутины.\nЧто такое канал?",
+    ]);
+    const list = await sources(server, target.id);
+    expect(list.map(({ id, status, parts }) => ({ id, status, parts }))).toStrictEqual([
+      { id: video.id, status: "processing", parts: 1 },
+      { id: transcript.id, status: "ready", parts: null },
+      { id: other.id, status: "inbox", parts: null },
+    ]);
+    expect(model.heard).toStrictEqual([]);
+    expect(served.requested).toStrictEqual([]);
+  });
+
+  it("needs no speech recognition in the processing card, which names the bound transcript", async () => {
+    const { server, target, setup } = await serverWith([]);
+    const video = await attach(server, { targetId: target.id, name: "talk.mov", body: "A\n" });
+    const transcript = await attach(server, {
+      targetId: target.id,
+      name: "talk.txt",
+      body: "Доклад про Go.",
+    });
+
+    await toolResult(setup, "propose_inbox_processing", {
+      sources: [
+        { id: video.id, assessment: "запись доклада" },
+        { id: transcript.id, assessment: "транскрипт доклада" },
+      ],
+    });
+
+    await expect(inboxOf(server, target.id)).resolves.toMatchObject({
+      proposal: {
+        items: [
+          { title: "talk.mov", video: false, transcript: "talk.txt" },
+          { title: "talk.txt", video: false, transcript: null },
+        ],
+      },
+    });
   });
 });

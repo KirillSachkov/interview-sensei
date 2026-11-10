@@ -2,7 +2,7 @@
 // agent reads it. The Source is «транскрибируется» with the percent meanwhile.
 import { UnreadableSourceError } from "../domain/inbox.ts";
 import type { Source } from "../domain/source.ts";
-import { textFormat } from "../domain/source-text.ts";
+import { boundTranscript, textFormat } from "../domain/source-text.ts";
 import type { InboxContext } from "./inbox-context.ts";
 
 /**
@@ -31,6 +31,8 @@ export interface Reading {
   readonly signal: AbortSignal;
   /** The language of a video or audio file by Source id. */
   readonly languages: Readonly<Record<string, string>>;
+  /** Every Source of the Target when the run started: a video takes its bound transcript. */
+  readonly materials: readonly Source[];
 }
 
 /** The language of the recording: the card's choice, otherwise the Target's language. */
@@ -78,13 +80,21 @@ async function transcribed(
   }
 }
 
-/** The text of the Source: a recording's speech, or the text its format holds. */
+/**
+ * The text of the Source: the text of a recording's bound transcript or its recognized speech, or
+ * the text its format holds.
+ */
 export async function sourceText(
   context: InboxContext,
   source: Source,
   reading: Reading,
 ): Promise<string> {
   const { files, extractor } = context.dependencies;
+  const transcript = boundTranscript(source, reading.materials);
+  if (transcript?.file != null) {
+    const path = files.absolute(transcript.file);
+    return extractor.extract({ format: textFormat(transcript), path, url: null });
+  }
   const format = textFormat(source);
   const path = source.file === null ? null : files.absolute(source.file);
   if (format === "video" && path !== null) {

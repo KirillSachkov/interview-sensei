@@ -4,7 +4,7 @@ import type { InboxProposal, InboxReport } from "../domain/inbox.ts";
 import type { InboxBankQuestion, InboxTarget } from "../domain/ports.ts";
 import { reportQuestions } from "../domain/report-questions.ts";
 import type { Source } from "../domain/source.ts";
-import { textFormat } from "../domain/source-text.ts";
+import { boundTranscript, textFormat } from "../domain/source-text.ts";
 import type { InboxContext } from "./inbox-context.ts";
 
 /**
@@ -21,9 +21,10 @@ async function proposalItems({ dependencies }: InboxContext, proposal: InboxProp
       }
       const size = source.file === null ? null : await dependencies.files.size(source.file);
       const { type, title, url } = source;
-      // A recording needs speech recognition: the card offers its components.
-      const video = textFormat(source) === "video";
-      return [{ sourceId, type, title, url, size, video, assessment }];
+      const transcript = boundTranscript(source, sources)?.title ?? null;
+      // A recording without a bound transcript needs speech recognition: the card offers it.
+      const video = textFormat(source) === "video" && transcript === null;
+      return [{ sourceId, type, title, url, size, video, transcript, assessment }];
     }),
   );
   return items.flat();

@@ -6,7 +6,7 @@ import { UnreadableSourceError } from "../domain/inbox.ts";
 import { inboxOpening, recheckOpening } from "../domain/inbox-brief.ts";
 import type { InboxMode, InboxRun } from "../domain/inbox.ts";
 import type { Source } from "../domain/source.ts";
-import { textFormat, textParts } from "../domain/source-text.ts";
+import { boundTranscript, textFormat, textParts } from "../domain/source-text.ts";
 import { inBackground } from "./inbox-context.ts";
 import type { InboxContext, InboxDependencies } from "./inbox-context.ts";
 import { closeRun, watchAgent } from "./inbox-ending.ts";
@@ -69,7 +69,12 @@ async function chosenSources(
   }
   const wanted = new Set(sourceIds);
   const chosen = inInbox.filter((source) => wanted.has(source.id));
-  return chosen.length === wanted.size ? chosen : { type: "invalid_sources" };
+  if (chosen.length !== wanted.size) {
+    return { type: "invalid_sources" };
+  }
+  // A chosen video brings its bound transcript from the Inbox: the transcript is its text.
+  const bound = new Set(chosen.map((source) => boundTranscript(source, all)?.id));
+  return inInbox.filter((source) => wanted.has(source.id) || bound.has(source.id));
 }
 
 /** Checks the start in the order the Candidate can fix it. */
@@ -154,6 +159,27 @@ async function readText(context: InboxContext, source: Source, reading: Reading)
 }
 
 /**
+ * The run's transcripts bound to a video of the run: the video's text is theirs, so they become
+ * «готов» at once, and the agent reads them as the video.
+ */
+async function settleBoundTranscripts(
+  { dependencies }: InboxContext,
+  { sources, reading }: { sources: readonly Source[]; reading: Reading },
+): Promise<ReadonlySet<string>> {
+  const ids = new Set(sources.map((source) => source.id));
+  const bound = sources.flatMap((source) => {
+    const transcript = boundTranscript(source, reading.materials);
+    return transcript !== undefined && ids.has(transcript.id) ? [transcript.id] : [];
+  });
+  const [first] = sources;
+  if (first !== undefined && bound.length > 0) {
+    const change = { ids: bound, status: "ready", from: "processing" } as const;
+    await dependencies.repository.setStatus(first.targetId, change);
+  }
+  return new Set(bound);
+}
+
+/**
  * Reads the texts one at a time: a large file never waits beside another one in memory. Counts the
  * materials the agent can process; a cancel stops the reading.
  */
@@ -162,8 +188,9 @@ async function readTexts(
   sources: readonly Source[],
   reading: Reading,
 ): Promise<number> {
+  const bound = await settleBoundTranscripts(context, { sources, reading });
   let readable = 0;
-  for (const source of sources) {
+  for (const source of sources.filter((candidate) => !bound.has(candidate.id))) {
     if (reading.signal.aborted) {
       break;
     }
@@ -219,7 +246,9 @@ async function readRun(
   const controller = new AbortController();
   context.reading.set(run.id, controller);
   try {
-    const readable = await readTexts(context, sources, { signal: controller.signal, languages });
+    const materials = await context.dependencies.repository.list(run.targetId);
+    const reading = { signal: controller.signal, languages, materials };
+    const readable = await readTexts(context, sources, reading);
     return { readable, cancelled: controller.signal.aborted };
   } finally {
     context.reading.delete(run.id);
