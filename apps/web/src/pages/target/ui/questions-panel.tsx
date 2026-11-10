@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchQuestions, hideQuestion, rateQuestion } from "@/shared/api";
 import type { Question, QuestionRating } from "@/shared/api";
 
+import { ReferenceAnswerDetails } from "./reference-answer";
 import type { QuestionsView } from "./target-plan";
 
 const ratings: readonly { rating: QuestionRating; mark: string; label: string }[] = [
@@ -39,6 +40,9 @@ function QuestionItem({ targetId, question }: { targetId: string; question: Ques
   return (
     <li className="question" aria-label={question.text}>
       <p>{question.text}</p>
+      {question.referenceAnswer === null ? null : (
+        <ReferenceAnswerDetails answer={question.referenceAnswer} />
+      )}
       <div className="question-actions">
         {question.hidden ? null : (
           <span className="question-rating">

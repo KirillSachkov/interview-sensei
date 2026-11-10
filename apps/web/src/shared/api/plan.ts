@@ -1,3 +1,4 @@
+import type { ReferenceAnswer } from "./inbox";
 import { request } from "./request";
 import { isTargetView } from "./targets";
 import type { TargetView } from "./targets";
@@ -12,6 +13,7 @@ export interface Question {
   readonly text: string;
   readonly hidden: boolean;
   readonly rating: QuestionRating | null;
+  readonly referenceAnswer: ReferenceAnswer | null;
 }
 
 function isQuestion(value: unknown): value is Question {
