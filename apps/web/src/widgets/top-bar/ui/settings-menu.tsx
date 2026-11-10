@@ -1,12 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { agentName } from "@/entities/agent";
-import {
-  chooseDefaultAgent,
-  fetchAgents,
-  fetchSettings,
-  setFillInBackground,
-} from "@/shared/api";
+import { chooseDefaultAgent, fetchAgents, fetchSettings, setFillInBackground } from "@/shared/api";
 
 import { Menu, MenuCheckbox, MenuChoice } from "./menu";
 
