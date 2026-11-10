@@ -10,6 +10,7 @@ import { presentedQuestion } from "../domain/interview.ts";
 import type { BankQuestion, NewBankQuestion, PlanSection, TargetPlan } from "../domain/ports.ts";
 import { change } from "./context.ts";
 import type { Context } from "./context.ts";
+import { assertQuestionRested } from "./question-history.ts";
 import { assertTopicOpen, planTopics } from "./topic-limit.ts";
 import {
   assertNotFinishing,
@@ -108,6 +109,7 @@ async function bankQuestion(
   if (asked.some((entry) => entry.questionId === question.id)) {
     throw new InterviewToolError("This question was already asked in this mock interview.");
   }
+  await assertQuestionRested(context, interview, question.id);
   return question;
 }
 

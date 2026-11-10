@@ -13,7 +13,7 @@ import {
   saysWhenIdle,
   sectionNamed,
 } from "./interview-test-support.ts";
-import { callTool } from "./progress-test-support.ts";
+import { callTool, promptTool } from "./progress-test-support.ts";
 
 type Api = Awaited<ReturnType<typeof interviewApi>>;
 
@@ -52,6 +52,24 @@ describe("the question selection v2", () => {
     for (const candidate of candidates) {
       expect(listIn(candidate, "reasons").length).toBeGreaterThan(0);
     }
+  });
+
+  it("permits the fifth candidate after the interviewer requests another level", async () => {
+    const api = await interviewApi();
+    const run = await quietInterview(api, ["TypeScript и Node.js"]);
+    const found: unknown = JSON.parse(
+      await promptTool(run.chat, "next_question_candidates", { level: "senior" }),
+    );
+    const candidates = listIn(found, "candidates");
+    expect(candidates).toHaveLength(5);
+    const questionId = fieldOf(candidates[4], "id");
+
+    run.chat.send({
+      type: "prompt",
+      text: `/tool present_question ${JSON.stringify({ questionId })}`,
+    });
+    const shown = cardAt(await run.events.waitFor(hasQuestions(2)), 1);
+    expect(shown.questionId).toBe(questionId);
   });
 
   it("gives the share of each Section and the importance of its Topics in the brief", async () => {

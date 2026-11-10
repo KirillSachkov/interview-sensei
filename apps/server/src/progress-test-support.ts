@@ -79,3 +79,10 @@ export async function demoWithMock(dataDirectory?: string) {
   await run.chat.waitFor((view) => view.status === "ended");
   return { ...api, interviewId: run.interview.id, graded };
 }
+
+/** Drives a tool through the fake agent, including ACP permission, and returns its text result. */
+export async function promptTool(chat: Chat, name: string, args: object = {}): Promise<string> {
+  const prefix = `Результат ${name}: `;
+  const reply = await ask(chat, `/tool ${name} ${JSON.stringify(args)}`, prefix);
+  return reply.slice(prefix.length);
+}
