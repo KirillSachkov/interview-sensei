@@ -68,8 +68,12 @@ export type SessionEvent =
   /** The agent's text goes to the chat again, such as after the Candidate's answer. */
   | { readonly type: "agent_text_shown" }
   | { readonly type: "session_failed"; readonly failure: SessionFailure }
-  /** The server stopped while the session was live; its agent process is gone. */
-  | { readonly type: "session_ended" };
+  /**
+   * The session ended while it was live; its agent process is gone. `by: "candidate"` when the
+   * Candidate ended it, such as with «Завершить» of the Target setup; absent when the server
+   * stopped it, at shutdown, after a restart or when its work was done.
+   */
+  | { readonly type: "session_ended"; readonly by?: "candidate" };
 
 /** A journal entry with the id the journal gave it; ids grow in recording order. */
 export interface RecordedEvent {

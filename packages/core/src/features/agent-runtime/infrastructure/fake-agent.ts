@@ -7,7 +7,8 @@
 // - `/fail` answers the prompt with a JSON-RPC error and keeps running.
 // - `/brief` asks permission to call `get_brief` of our MCP server, then calls it over HTTP and
 //   replies «Фейковый агент прочитал brief: <brief>». The server allows the call by itself.
-// - `/tool <name> <json>` calls a tool of our MCP server the same way; see `fake-agent-tool.ts`.
+// - `/tool <name> <json>` calls a tool of our MCP server the same way and sends the result in one
+//   chunk, so a long brief or text costs no pause per word; see `fake-agent-tool.ts`.
 // - `/permission` asks permission for a foreign shell command whose title names the session's MCP
 //   server and tool, then replies with the chosen option: «Фейковый агент получил ответ: «<name>»».
 // - `/late` ends the turn, then asks permission for a foreign command outside any turn and sends
@@ -213,7 +214,10 @@ async function respond(client: AgentContext, sessionId: string, text: string) {
     const command = commands.get(text);
     return command === undefined ? echo(client, sessionId, text) : command(client, sessionId);
   }
-  return reply(client, sessionId, await callTool(tool, toolAccess(client, sessionId)));
+  // A tool's result is data for the test, not a reply to watch grow: one chunk keeps a long brief
+  // from costing a pause per word.
+  await sendChunk(client, sessionId, await callTool(tool, toolAccess(client, sessionId)));
+  return { stopReason: "end_turn" as const };
 }
 
 const app = agent({ name: "interview-sensei-fake-agent" })

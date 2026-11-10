@@ -56,6 +56,7 @@ describe("side thread", () => {
       debrief: null,
       fragment: null,
       candidateQuestion,
+      continuation: null,
     });
   });
 

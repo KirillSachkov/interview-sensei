@@ -57,7 +57,7 @@ Unit tests give `opencodeModelSettings` made-up texts; a missing or invalid file
 The fake agent streams a reply in chunks; the prompt `/wait` waits for a cancel, `/fail` answers with a JSON-RPC error, and `/crash` exits with code 1.
 `/brief` calls `get_brief` on the session's MCP address after a permission request that the server allows by itself.
 `/tool <name> <json>` calls any tool of the session's MCP address the same way, with the JSON object as its arguments.
-It replies «Результат <name>: <text>», or «Ошибка <name>: <text>» when the tool reports an error.
+It replies «Результат <name>: <text>», or «Ошибка <name>: <text>» when the tool reports an error, in one chunk: a long brief costs no pause per word.
 API tests drive an agent's work with our tools this way, such as `/tool update_target {"name":"Go"}` in a Target setup session.
 `/permission` asks permission for a foreign tool and replies with the name of the Candidate's choice.
 It offers one option of each ACP kind, named in English as real agents name them, such as «Allow once»; the page names them by kind.
@@ -95,7 +95,12 @@ Other prompts in a mock interview's chat, such as `/system` or `/tools`, get the
 `interview-flow-test-support.ts` adds `manualTime()`: a clock the test moves and a `Timer` whose tasks run only when the test fires them by delay, such as the reminder 25 minutes into a 30-minute limit.
 `startServer` takes this clock and timer as options.
 A test runs the 2-minute wait for `finish_interview` with that timer; `/wait` in the interviewer chat keeps the message that the Candidate finished from the agent.
-`/crash` in the interviewer chat makes the mock interview «прерван».
+`/crash` in the interviewer chat pauses the mock interview.
+On «The mock interview continues after a pause.» it calls `get_brief` and reads the presented question of its continuation.
+One that waits for an answer gets «Продолжаем после паузы: жду ответа.», which the browser must never get.
+An answered one gets «Продолжаем после паузы.» and the Attempt by the answer's markers; without one it says «Продолжаем после паузы.» and shows the next question, unless the last answer had `[last]`.
+`pause-test-support.ts` posts «Пауза» and «Продолжить».
+A test of an unavailable agent stores Codex as the agent of a paused mock interview through the storage of a stopped server: a test cannot start a mock interview with a real agent.
 
 The fake agent also has an Inbox processor mode (`fake-agent-inbox.ts`) for the opening «Inbox processing has started.».
 It reads `get_brief` and `list_inbox`, puts one Question per part into the first Topic of the first Section of kind `topics` (creating «Из материалов» when there is none), and writes the Inbox report.
@@ -107,7 +112,7 @@ The server reads the texts and starts the agent in the background, so the tests 
 `/wait` and `/crash` in the processing session's chat keep its agent in a turn and make it fail, for the tests of «Остановить разбор» and of a failed agent.
 After a turn without the Inbox report the server waits 2 minutes on its `Timer`, then closes the processing: the default timer of `startServer` never runs it, so `/tool` keeps driving a `[manual]` agent, and a test of that close passes `manualTime()` and fires the wait.
 A test of a restart stops the server and starts another one on the same data directory, as the Mock interview tests do.
-The fake agent streams a reply word by word, so a test of a long text uses words without spaces.
+The fake agent streams a reply word by word, but the result of `/tool` comes in one chunk, so `read_source` gives a long text as it is.
 
 Speech recognition (#74) has stand-ins behind the ports of the `transcription` slice; no API test downloads or runs the real components.
 `transcription-test-support.ts` serves made-up components with their real SHA-256 from a local HTTP server (`component-server-test-support.ts`), which can hold a file halfway so a test sees the download's progress.
@@ -123,6 +128,7 @@ Pass `stubTranscription().components` to `startServer` as `transcription`.
 The fake agent has a side thread mode for Side threads (`fake-agent-side-thread.ts`).
 On «The Candidate opened a side thread from a mock interview.» it calls `get_brief` and replies «Разбираю вопрос кандидата: «<candidateQuestion>»».
 A failed step there ends the turn with «Фейковый агент ветки сломался: <error>».
+On «The side thread continues in a new session.» it calls `get_brief` and replies «Продолжаю ветку: N сообщения до перерыва», where N counts the messages of the brief's `continuation`.
 `/brief` in the Side thread's chat replies with the whole Handoff brief as JSON.
 `/tool-list` replies with the sorted names of the session's MCP tools: «MCP tools: <json>».
 A prompt that starts with the server's note «The Candidate discussed question N in a side thread.» first gets «Отметка: <note>», then the reply to the rest.

@@ -33,12 +33,17 @@ export interface Interview {
   readonly id: string;
   readonly targetId: string;
   readonly sessionId: string;
+  readonly agent: string;
   readonly status: string;
+  /** Why it is paused; null while it runs. */
+  readonly pauseReason: string | null;
   readonly sectionIds: readonly string[];
   readonly currentSectionId: string | null;
   readonly limitMinutes: number | null;
   readonly difficulty: string;
   readonly endsAt: string | null;
+  /** The time left before the limit; it stands still on a pause. */
+  readonly timeLeftMs: number | null;
   readonly overtime: boolean;
   readonly finishRequestedAt: string | null;
   readonly summary: string | null;
@@ -58,7 +63,7 @@ function isInterviewMessage(message: unknown): message is { interview: Interview
 }
 
 /** Opens the Mock interview's socket and keeps every message it sends, as the browser gets them. */
-async function followInterview(server: FastifyInstance, id: string) {
+export async function followInterview(server: FastifyInstance, id: string) {
   const views: Interview[] = [];
   const raw: string[] = [];
   let received = Promise.withResolvers<null>();

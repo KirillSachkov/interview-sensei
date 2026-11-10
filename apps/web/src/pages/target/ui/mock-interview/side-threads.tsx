@@ -103,8 +103,9 @@ export function SideThreads({
       <div className="side-thread-arrows">
         <Arrows layout={layout} />
       </div>
+      {/* A continued Side thread gets a new session: its chat follows that session afresh. */}
       {threads.map((thread) => (
-        <SideThreadChat key={thread.id} thread={thread} number={number} />
+        <SideThreadChat key={thread.sessionId} thread={thread} number={number} />
       ))}
     </div>
   );

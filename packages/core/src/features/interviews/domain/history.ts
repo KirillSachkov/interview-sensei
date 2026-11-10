@@ -2,6 +2,7 @@
 // the ones that apply after the Candidate's Disputes.
 import type { Dispute } from "./dispute.ts";
 import { correctedGrade, latestDisputes } from "./dispute.ts";
+import { isActive } from "./interview.ts";
 import type { AskedQuestion, Attempt, InterviewStatus, MockInterview } from "./interview.ts";
 
 /** A Mock interview as a collapsed card of the session history. */
@@ -13,7 +14,10 @@ export interface SessionSummary {
   readonly sectionIds: readonly string[];
   readonly questionCount: number;
   readonly answeredCount: number;
-  /** The average Grade after Disputes, to one decimal; null while it runs or without Attempts. */
+  /**
+   * The average Grade after Disputes, to one decimal; null while it runs or is paused, or without
+   * Attempts.
+   */
   readonly averageGrade: number | null;
 }
 
@@ -24,7 +28,7 @@ export function sessionSummary(
   const latest = latestDisputes(disputes);
   const grades = attempts.map((attempt) => correctedGrade(attempt, latest));
   const average =
-    interview.status === "running" || grades.length === 0
+    isActive(interview.status) || grades.length === 0
       ? null
       : Math.round((grades.reduce((sum: number, grade) => sum + grade, 0) / grades.length) * 10) /
         10;
@@ -82,17 +86,17 @@ export interface TopicAttempt {
 }
 
 /**
- * The Attempts that progress counts. The Attempts of the running Mock interview count only once it
- * is finished or «прерван»: otherwise the Readiness would reveal their Grades before the Candidate
- * opens the Debrief.
+ * The Attempts that progress counts. The Attempts of the running or paused Mock interview count
+ * only once it ends: otherwise the Readiness would reveal their Grades before the Candidate opens
+ * the Debrief.
  */
 export function topicAttempts(
   records: readonly AttemptRecord[],
   disputes: readonly Dispute[],
-  runningInterviewId: string | undefined,
+  activeInterviewId: string | undefined,
 ): readonly TopicAttempt[] {
   const latest = latestDisputes(disputes);
-  const ended = records.filter(({ attempt }) => attempt.interviewId !== runningInterviewId);
+  const ended = records.filter(({ attempt }) => attempt.interviewId !== activeInterviewId);
   return ended.map(({ attempt, question }) => ({
     topicId: question.topicId,
     interviewId: attempt.interviewId,

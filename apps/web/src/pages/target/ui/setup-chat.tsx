@@ -2,22 +2,16 @@ import { useQuery } from "@tanstack/react-query";
 
 import { Chat } from "@/features/agent-chat";
 import { openSetupSession } from "@/shared/api";
-import type { SessionView } from "@/shared/api";
 
 import { useSourceAttachments, useSourcesAfterTurn } from "../model/source-attachments";
+import { turnEnd } from "../model/turn-end";
 import { DraftChanges } from "./draft-changes";
 import { FinishSetup } from "./finish-setup";
 import { InboxProposal } from "./inbox-proposal";
 
 /** Follows the agent's turns for the materials; shows nothing. */
-function SourcesFollower({
-  targetId,
-  status,
-}: {
-  targetId: string;
-  status: SessionView["status"];
-}) {
-  useSourcesAfterTurn(targetId, status);
+function SourcesFollower({ targetId, turn }: { targetId: string; turn: number | null }) {
+  useSourcesAfterTurn(targetId, turn);
   return null;
 }
 
@@ -40,13 +34,16 @@ function SetupSession({ targetId }: { targetId: string }) {
     <Chat
       key={session.data.id}
       sessionId={session.data.id}
-      renderAboveInput={(view) => (
-        <>
-          <SourcesFollower targetId={targetId} status={view.status} />
-          <InboxProposal targetId={targetId} status={view.status} />
-          <DraftChanges targetId={targetId} status={view.status} />
-        </>
-      )}
+      renderAboveInput={(view) => {
+        const turn = turnEnd(view);
+        return (
+          <>
+            <SourcesFollower targetId={targetId} turn={turn} />
+            <InboxProposal targetId={targetId} turn={turn} />
+            <DraftChanges targetId={targetId} turn={turn} />
+          </>
+        );
+      }}
       attachments={attachments}
     />
   );

@@ -57,7 +57,9 @@ export {
   finishInterview,
   interviewEventsUrl,
   interviewMessage,
+  pauseInterview,
   recordDebriefOpened,
+  resumeInterview,
   startInterview,
 } from "./interviews";
 export type { AttemptDebrief, Difficulty, InterviewView, QuestionCard } from "./interviews";
@@ -72,7 +74,8 @@ export type {
   TopicStatus,
 } from "./progress";
 export { fetchQuestionMarks } from "./questions";
-export { deleteSideThread, openSideThread } from "./side-threads";
+export { continueSideThread, deleteSideThread, openSideThread } from "./side-threads";
+export { AgentUnavailableError } from "./agent-unavailable";
 export type { SideThread, SideThreadOpening, SideThreadOrigin } from "./side-threads";
 export type { ChatEntry, PermissionEntry, SessionView } from "./sessions";
 export {

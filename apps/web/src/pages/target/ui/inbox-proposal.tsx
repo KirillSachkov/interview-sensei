@@ -1,13 +1,7 @@
 import { useState } from "react";
 
 import { useTranscription } from "@/entities/transcription";
-import type {
-  InboxState,
-  ModelId,
-  ProposalItem,
-  SessionView,
-  TranscriptionStatus,
-} from "@/shared/api";
+import type { InboxState, ModelId, ProposalItem, TranscriptionStatus } from "@/shared/api";
 
 import { sizeText, sourceTypeNames } from "../lib/source-names";
 import {
@@ -272,15 +266,9 @@ function ProposalCard({
  * and the card «Перепроверка базы» after `propose_recheck`. Only these buttons start the work;
  * a card goes once the Candidate answers.
  */
-export function InboxProposal({
-  targetId,
-  status,
-}: {
-  targetId: string;
-  status: SessionView["status"];
-}) {
+export function InboxProposal({ targetId, turn }: { targetId: string; turn: number | null }) {
   const { inbox } = useInbox(targetId);
-  useInboxAfterTurn(targetId, status);
+  useInboxAfterTurn(targetId, turn);
   const proposal = inbox.data?.proposal ?? null;
   const recheck = inbox.data?.recheckProposal ?? null;
   return (

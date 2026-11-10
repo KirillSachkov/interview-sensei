@@ -1,5 +1,6 @@
 // The Side thread API of the server (#80). Its chat goes over the session's socket, as the
 // interviewer chat does.
+import { throwIfAgentUnavailable } from "./agent-unavailable";
 import { checked, isObject, path, sent } from "./http";
 
 /**
@@ -27,6 +28,8 @@ export interface SideThread {
   /** Whether the Side thread marked the question's Attempt as received with a hint. */
   readonly hinted: boolean;
   readonly createdAt: string;
+  /** When the server closed the Side thread for good; it stays readable and does not go on. */
+  readonly closedAt: string | null;
 }
 
 function isSideThread(value: unknown): value is SideThread {
@@ -70,4 +73,26 @@ export async function deleteSideThread({ interviewId, id }: SideThread): Promise
     method: "DELETE",
   });
   await sent(response);
+}
+
+/**
+ * «Продолжить» in a Side thread whose agent is gone after a restart or a crash (#85): a new session
+ * continues its chat, with the Mock interview's agent or the chosen `agent` of the Target; resolves
+ * with the Side thread and its new `sessionId`. Throws AgentUnavailableError when the agent cannot
+ * run.
+ */
+export async function continueSideThread(
+  { interviewId, id }: SideThread,
+  agent?: string,
+): Promise<SideThread> {
+  const response = await fetch(
+    `/api/interviews/${path(interviewId)}/side-threads/${path(id)}/continue`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(agent === undefined ? {} : { agent }),
+    },
+  );
+  await throwIfAgentUnavailable(response);
+  return checked(response, isSideThread);
 }

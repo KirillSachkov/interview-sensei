@@ -40,6 +40,7 @@ export function SessionCardBody({
       <span className="muted">{averageText(session.averageGrade)}</span>
       {session.status === "interrupted" ? <span className="tag">прерван</span> : null}
       {session.status === "running" ? <span className="tag accent">идёт</span> : null}
+      {session.status === "paused" ? <span className="tag accent">на паузе</span> : null}
     </>
   );
 }

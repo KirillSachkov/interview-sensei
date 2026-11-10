@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import type { Clock } from "../../../shared/time/index.ts";
-import type { AgentSession, SessionView } from "../domain/agent-session.ts";
+import type { AgentSession, ChatEntry, SessionView } from "../domain/agent-session.ts";
 import { isLive } from "../domain/agent-session.ts";
 import type { AgentLauncher, LiveAgent, McpAddresses, SessionRepository } from "../domain/ports.ts";
 import type { PermissionAnswer, PermissionRequest, SessionEvent } from "../domain/session-event.ts";
@@ -60,10 +60,14 @@ interface PendingPermission {
 export function liveSession(
   session: AgentSession,
   dependencies: LiveSessionDependencies,
-  { onFinished, onIdle }: { onFinished: () => void; onIdle: () => void },
+  {
+    onFinished,
+    onIdle,
+    earlierEntries = [],
+  }: { onFinished: () => void; onIdle: () => void; earlierEntries?: readonly ChatEntry[] },
 ): LiveSession {
   return {
-    view: emptyView(session),
+    view: emptyView(session, earlierEntries),
     agent: null,
     turnActive: false,
     permissions: new Map(),
@@ -265,8 +269,11 @@ async function runTurn(session: LiveSession, agent: LiveAgent, text: string) {
   }
 }
 
-/** Stops the agent and marks the session as ended, once a starting agent has started. */
-export async function end(session: LiveSession): Promise<void> {
+/**
+ * Stops the agent and marks the session as ended, once a starting agent has started; `byCandidate`
+ * when the Candidate ended it.
+ */
+export async function end(session: LiveSession, { byCandidate = false } = {}): Promise<void> {
   // Wait for a starting agent, so its process does not outlive the server.
   await session.started;
   const { agent } = session;
@@ -275,7 +282,10 @@ export async function end(session: LiveSession): Promise<void> {
   await agent?.stop();
   await closeMcp(session);
   if (isLive(session.view.status)) {
-    await record(session, { type: "session_ended" });
+    await record(
+      session,
+      byCandidate ? { type: "session_ended", by: "candidate" } : { type: "session_ended" },
+    );
   }
   await session.written;
 }

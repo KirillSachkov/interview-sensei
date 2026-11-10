@@ -4,7 +4,10 @@ import type { ArchiveGuard } from "./archive-guard.ts";
 import type { Features } from "./composition.ts";
 import { deleteTarget } from "./target-deletion.ts";
 
-type Dependencies = Pick<Features, "targets" | "sessions" | "storage" | "targetData"> & {
+type Dependencies = Pick<
+  Features,
+  "targets" | "sessions" | "storage" | "targetData" | "interviews"
+> & {
   readonly archiveGuard: ArchiveGuard;
 };
 
@@ -29,13 +32,15 @@ function typedName(body: unknown): string | undefined | null {
 
 /**
  * The archived Target; a string names why it cannot go to the archive. Another live session of the
- * Target refuses the archive; its Side threads only read, so the archive stops them itself and
+ * Target refuses the archive; its Side threads only read, so the archive closes them itself and
  * their chats stay readable.
  */
-async function archiveUnlessRunning({ targets, sessions }: Dependencies, id: string) {
+async function archiveUnlessRunning({ targets, sessions, interviews }: Dependencies, id: string) {
   if (sessions.running(id, "side-thread")) {
     return "session_running" as const;
   }
+  // Closed for good (#80): after the Target returns, they stay readable and do not go on.
+  await interviews.closeTargetSideThreads(id);
   await sessions.stopAll(id, "side-thread");
   return targets.archive(id);
 }

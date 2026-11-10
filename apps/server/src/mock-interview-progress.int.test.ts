@@ -34,7 +34,7 @@ async function progressOf(api: Api): Promise<unknown> {
 }
 
 const isFinished = (view: Interview) => view.status === "finished";
-const isInterrupted = (view: Interview) => view.status === "interrupted";
+const isPaused = (view: Interview) => view.status === "paused";
 
 /** The Candidate presses «Завершить»; resolves once the agent has finished the Mock interview. */
 async function finished(api: Api, { interview, events }: Run) {
@@ -150,13 +150,17 @@ describe("progress and disputes", () => {
     });
   });
 
-  it("counts the Attempts of a Mock interview that became interrupted when the agent crashed", async () => {
+  it("counts the Attempts of a Mock interview paused by an agent crash only once it is finished", async () => {
     const api = await interviewApi();
-    const { chat, events } = await gradedAnswer(api, "Ответ [grade:3]");
-
+    const { interview, chat, events } = await gradedAnswer(api, "Ответ [grade:3]");
     chat.send({ type: "prompt", text: "/crash" });
-    await events.waitFor(isInterrupted);
+    await events.waitFor(isPaused);
+    const paused = await progressOf(api);
 
+    await api.finish(interview.id);
+    await events.waitFor(isFinished);
+
+    expect(paused).toMatchObject({ readiness: { shaky: 0, notStarted: 5 } });
     await expect(progressOf(api)).resolves.toMatchObject({
       readiness: { confident: 0, shaky: 1, notStarted: 4, total: 5 },
       focus: [{ name: experience, status: "shaky" }, {}, {}],

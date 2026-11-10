@@ -170,3 +170,15 @@ export interface SetupAttempts<Transaction> {
     transaction: Transaction,
   ) => Promise<void>;
 }
+
+/** One message of the earlier setup conversation. */
+export interface SetupMessage {
+  readonly from: "candidate" | "agent";
+  readonly text: string;
+}
+
+/**
+ * The agent-sessions slice gives the messages of the earlier sessions that a Target setup session
+ * continues (#85); empty when it continues none.
+ */
+export type EarlierMessages = (sessionId: string) => Promise<readonly SetupMessage[]>;

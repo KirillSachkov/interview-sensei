@@ -75,7 +75,6 @@ describe("text extraction for Inbox processing", () => {
 
   it("cuts a long material into parts and gives each by its number, never cutting the text", async () => {
     const { server, target } = await activeTarget();
-    // Words without spaces: the fake agent streams its reply word by word.
     const paragraphs = Array.from(
       { length: 40 },
       (_item, index) => `Абзац-${index + 1}:${"про-горутины-и-каналы-".repeat(18)}`,

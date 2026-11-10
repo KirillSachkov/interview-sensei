@@ -2,7 +2,7 @@
 // per question. They belong to the same Attempt.
 import { followUpAnswered } from "../domain/agent-messages.ts";
 import { maxFollowUps, pendingFollowUp } from "../domain/follow-ups.ts";
-import type { AskedQuestion } from "../domain/interview.ts";
+import type { AskedQuestion, MockInterview } from "../domain/interview.ts";
 import { presentedQuestion } from "../domain/interview.ts";
 import { change, tellAndShowAgentText } from "./context.ts";
 import type { Context } from "./context.ts";
@@ -95,4 +95,24 @@ export async function answerFollowUp(
     tellAndShowAgentText(context, interview.sessionId, followUpAnswered(text));
     return "accepted";
   });
+}
+
+/**
+ * Keeps the agent's text of a continued Mock interview out of the chat while the presented question
+ * or its Follow-up waits for the Candidate's answer, as after `present_question`: it could hint at
+ * the answer.
+ */
+export async function hideWhileWaiting(context: Context, interview: MockInterview): Promise<void> {
+  const { repository, sessions } = context.dependencies;
+  const [asked, attempts] = await Promise.all([
+    repository.asked(interview.id),
+    repository.attempts(interview.id),
+  ]);
+  const presented = presentedQuestion(asked, attempts);
+  const waits =
+    presented !== undefined &&
+    (presented.answer === null || pendingFollowUp(presented) !== undefined);
+  if (waits) {
+    await sessions.hideAgentText(interview.sessionId);
+  }
 }

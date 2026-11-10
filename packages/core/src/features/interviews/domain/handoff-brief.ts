@@ -2,7 +2,7 @@
 // the brief from stored data, never from the agent's log.
 import type { AskedQuestion, Judgment } from "./interview.ts";
 import type { TargetPlan } from "./ports.ts";
-import type { SideThread } from "./side-thread.ts";
+import type { SideThread, ThreadMessage } from "./side-thread.ts";
 
 /** The Section and Topic names of the asked question in the Target's plan. */
 function sectionAndTopicOf(plan: TargetPlan, question: AskedQuestion) {
@@ -42,7 +42,8 @@ function debriefOf(question: AskedQuestion, judgment: Judgment | null) {
  * the Candidate's answer and Follow-ups when there are any, the Debrief once the Candidate opened
  * it, the selected fragment and the Candidate's question. It holds no correct quiz option and no
  * history of the rest of the Mock interview. `judgment` is the Attempt's, with the Grade after the
- * latest Dispute; null without an Attempt.
+ * latest Dispute; null without an Attempt. `continuation` holds the thread's earlier messages once
+ * a new session continues it (#85); null before.
  */
 export function handoffBrief(
   thread: SideThread,
@@ -50,7 +51,13 @@ export function handoffBrief(
     plan,
     question,
     judgment,
-  }: { plan: TargetPlan; question: AskedQuestion; judgment: Judgment | null },
+    earlierMessages,
+  }: {
+    plan: TargetPlan;
+    question: AskedQuestion;
+    judgment: Judgment | null;
+    earlierMessages: readonly ThreadMessage[] | null;
+  },
 ) {
   return {
     origin: thread.origin.kind,
@@ -71,6 +78,7 @@ export function handoffBrief(
     debrief: debriefOf(question, judgment),
     fragment: thread.fragment,
     candidateQuestion: thread.question,
+    continuation: earlierMessages === null ? null : { messages: earlierMessages },
   };
 }
 
@@ -79,6 +87,16 @@ export const sideThreadOpened = [
   "The Candidate opened a side thread from a mock interview.",
   "Call get_brief before you write any text: the Candidate reads every word of this turn, so never announce what you are about to do or which tool or skill you load.",
   "Your first words are the answer to the Candidate's question from the brief, candidateQuestion, in the brief's language.",
+].join(" ");
+
+/**
+ * The server's first message to the agent of a new session that continues a Side thread (#85),
+ * such as after a restart. The agent knows nothing of the thread before; `get_brief` has it.
+ */
+export const sideThreadContinues = [
+  "The side thread continues in a new session.",
+  "Call get_brief before you write any text and read its continuation: it holds the thread's messages so far.",
+  "Then tell the Candidate in one short sentence, in the brief's language, that you are ready to go on; do not repeat earlier answers, and never announce what you are about to do or which tool or skill you load.",
 ].join(" ");
 
 /** The addition to the Side thread agent's role: the Target's language. */

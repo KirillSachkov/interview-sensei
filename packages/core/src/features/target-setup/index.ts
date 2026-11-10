@@ -5,6 +5,7 @@ import type { SliceMigrations } from "../../shared/storage/index.ts";
 export { targetSetupModule } from "./module.ts";
 export type { TargetSetup } from "./application/target-setup.ts";
 export { setupBrief } from "./application/get-brief.ts";
+export type { EarlierMessages } from "./domain/ports.ts";
 export { draftTools } from "./application/setup-tools.ts";
 export { withoutDuplicates } from "./domain/draft-questions.ts";
 
