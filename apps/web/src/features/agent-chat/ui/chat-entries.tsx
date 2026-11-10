@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
 
 import type { ChatEntry } from "@/shared/api";
-import { AgentMarkdown } from "@/shared/ui/markdown";
 
+import { AgentMessage, CandidateMessage, ChatNote } from "./messages";
 import { PermissionRequest } from "./permission-request";
 
 /** How the Candidate answers the agent's permission requests in the chat. */
@@ -25,25 +25,19 @@ function EntryLine({
 }) {
   switch (entry.type) {
     case "candidate_message": {
-      return (
-        <p>
-          <strong>Вы:</strong> {entry.text}
-        </p>
-      );
+      return <CandidateMessage text={entry.text} />;
     }
     case "agent_message": {
-      return (
-        <div className="agent-message">
-          <strong>Агент:</strong> <AgentMarkdown text={entry.text} />
-        </div>
-      );
+      return <AgentMessage text={entry.text} />;
     }
     case "turn_interrupted": {
-      return <p>{interruption(entry.stopReason)}</p>;
+      return <ChatNote>{interruption(entry.stopReason)}</ChatNote>;
     }
     case "turn_failed": {
       return (
-        <p role="alert">Агент не смог ответить: {entry.message}. Отправьте сообщение ещё раз.</p>
+        <ChatNote alert>
+          Агент не смог ответить: {entry.message}. Отправьте сообщение ещё раз.
+        </ChatNote>
       );
     }
     case "permission_request": {
@@ -94,7 +88,7 @@ export function ChatEntries({
   }, [newest]);
   useEffect(() => (list.current === null ? undefined : pinToBottom(list.current)), []);
   return (
-    <ol ref={list} aria-label="Сообщения" className="chat-entries">
+    <ol ref={list} aria-label="Сообщения" className="chat-entries nowheel">
       {entries.map((entry) => (
         <li key={entry.id}>
           <EntryLine entry={entry} answering={answering} />

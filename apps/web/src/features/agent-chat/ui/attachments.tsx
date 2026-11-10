@@ -145,7 +145,16 @@ export function AttachButton({
 }) {
   return (
     <label className="button ghost attach-button" title="Прикрепить файлы">
-      <span aria-hidden="true">📎</span>
+      <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true">
+        <path
+          d="M14.5 9.5 9 15a3.2 3.2 0 0 1-4.5-4.5l6.2-6.2a2.1 2.1 0 0 1 3 3L7.6 13.4a1 1 0 0 1-1.5-1.5L11.5 6.5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
       <input
         type="file"
         multiple

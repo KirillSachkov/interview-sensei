@@ -1,0 +1,240 @@
+/* The chat with an agent: the same messages and message box in the Target setup, the Mock
+   interview, a Side thread and the service chat. */
+
+.chat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+}
+
+.chat p {
+  margin: 0;
+}
+
+/* Who answers: the agent's initial in a circle and its name. */
+.chat-agent {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-small);
+  color: var(--color-muted);
+}
+
+.agent-avatar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-size: var(--font-size-small);
+  font-weight: 650;
+}
+
+.chat-agent-name {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+/* Messages */
+
+.chat-entries {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.message {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  /* React Flow turns text selection off in its nodes; a message is text to select and copy. */
+  user-select: text;
+}
+
+.message-mine {
+  align-items: flex-end;
+}
+
+.message-agent {
+  align-items: flex-start;
+  gap: var(--space-1);
+}
+
+.message-bubble {
+  max-width: 85%;
+  margin: 0;
+  border-radius: var(--radius-island);
+  border-bottom-right-radius: var(--radius-inline);
+  background: var(--color-surface-muted);
+  padding: var(--space-2) var(--space-4);
+  white-space: pre-wrap;
+}
+
+.chat-note {
+  margin: 0;
+  font-size: var(--font-size-small);
+  color: var(--color-muted);
+}
+
+.chat-note[role="alert"] {
+  color: var(--color-danger);
+}
+
+/* «Агент работает…» with three moving dots */
+
+.agent-activity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--font-size-small);
+  color: var(--color-muted);
+}
+
+.typing-dots {
+  display: inline-flex;
+  gap: var(--space-1);
+}
+
+.typing-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  animation: typing-dot 1.2s infinite ease-in-out;
+}
+
+.typing-dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.typing-dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes typing-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .typing-dots span {
+    animation: none;
+  }
+}
+
+/* The message box */
+
+.composer {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--space-2);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-island);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-island);
+  padding: var(--space-3) var(--space-3) var(--space-2) var(--space-4);
+  cursor: text;
+}
+
+.composer:focus-within {
+  border-color: var(--color-accent);
+}
+
+.composer textarea {
+  width: 100%;
+  max-height: 220px;
+  resize: none;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+  line-height: 1.45;
+}
+
+.composer textarea:focus-visible {
+  outline: none;
+}
+
+.composer textarea::placeholder {
+  color: var(--color-muted);
+}
+
+.composer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.composer-tools {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  margin-left: calc(-1 * var(--space-2));
+}
+
+.composer-round {
+  flex: none;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  padding: 0;
+}
+
+.composer-send {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.composer-send:hover {
+  background: var(--color-accent-hover);
+}
+
+.composer-send:disabled {
+  border-color: var(--color-line);
+  background: var(--color-surface-muted);
+  color: var(--color-muted);
+  opacity: 1;
+}
+
+.composer .attach-button {
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  padding: 0;
+  color: var(--color-muted);
+}
+
+.composer .attach-button:hover {
+  color: var(--color-ink);
+}
+
+.composer .attached-files {
+  margin: 0;
+}

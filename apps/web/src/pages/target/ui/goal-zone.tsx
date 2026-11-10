@@ -3,28 +3,27 @@ import type { TargetView } from "@/shared/api";
 import { AnswersCard } from "./answers-card";
 import { Readiness } from "./readiness/readiness";
 import { ReferenceChecks } from "./reference-checks";
-import { SetupChat, setupChatOverhang } from "./setup-chat";
+import { SetupChat, SetupInvite } from "./setup-chat";
 import { SourcesCard } from "./sources-card";
+import { StartTile } from "./start-tile";
 import { TargetCard } from "./target-card";
 import { TargetPlan } from "./target-plan";
 import type { QuestionsView } from "./target-plan";
 
-/** Where the setup chat is open: beside the Target card, beside a Section, or nowhere. */
-export type SetupAnchor = "target" | { readonly sectionId: string } | null;
+/** The setup chat in the middle of the zone: closed, open, or open and enlarged. */
+export type SetupChatState = "closed" | "open" | "large";
 
-/**
- * How far the zone's widgets reach beyond its width: the open setup chat stands to the right of
- * the zone, and the canvas moves «Сессии» aside for it (#71).
- */
-export function goalZoneOverhang(anchor: SetupAnchor): number {
-  return anchor === null ? 0 : setupChatOverhang;
+/** The zone's width in canvas pixels: the enlarged chat takes more room. */
+export function goalZoneWidth(chat: SetupChatState): number {
+  return chat === "large" ? 2120 : 1760;
 }
 
 export interface GoalZoneProps {
   readonly target: TargetView;
-  readonly setupAnchor: SetupAnchor;
-  readonly onSetup: (anchor: Exclude<SetupAnchor, null>) => void;
-  readonly onCloseSetup: () => void;
+  readonly chat: SetupChatState;
+  readonly onChat: (state: SetupChatState) => void;
+  /** «Начать мок-собеседование»: shows the «Сессии» zone and opens its start dialog. */
+  readonly onStartMock: () => void;
   readonly onQuestions: (view: QuestionsView) => void;
   /** Opens the side panel of an Inbox report. */
   readonly onReport: (reportId: string) => void;
@@ -33,50 +32,55 @@ export interface GoalZoneProps {
 }
 
 /**
- * The «Цель» zone: the Target's name and level, «Настроить цель», «Готовность», the Interview plan,
- * the materials, the reference answers and the list «Проверить опорный ответ». The setup chat
- * opens beside the card or the Section where the Candidate opened it.
+ * The «Цель» zone as three columns of widgets. Left: the Target's name and level, «Начать
+ * мок-собеседование» and «Готовность». Middle: the setup chat, or the invitation to open it.
+ * Right: the Interview plan, the list «Проверить опорный ответ», the materials and the reference
+ * answers.
  */
 export function GoalZone({
-  zone: { target, setupAnchor, onSetup, onCloseSetup, onQuestions, onReport, onAnswerReport },
+  zone: { target, chat, onChat, onStartMock, onQuestions, onReport, onAnswerReport },
 }: {
   zone: GoalZoneProps;
 }) {
-  const chat = <SetupChat targetId={target.id} onClose={onCloseSetup} />;
+  const openChat = () => {
+    if (chat === "closed") {
+      onChat("open");
+    }
+  };
   return (
-    <>
-      <div className="setup-anchor">
-        <TargetCard target={target} />
-        <button
-          type="button"
-          onClick={() => {
-            onSetup("target");
-          }}
-        >
-          Настроить цель
-        </button>
-        {setupAnchor === "target" ? chat : null}
+    <div className={`goal-grid${chat === "large" ? " goal-grid-large" : ""}`}>
+      <div className="goal-column">
+        <div className="goal-tile-group">
+          <TargetCard target={target} />
+          <button type="button" onClick={openChat}>
+            Настроить цель
+          </button>
+        </div>
+        <StartTile target={target} onStart={onStartMock} />
+        <Readiness targetId={target.id} />
       </div>
-      <Readiness targetId={target.id} />
-      <TargetPlan
-        target={target}
-        actions={{
-          onSetup: (sectionId) => {
-            onSetup({ sectionId });
-          },
-          onQuestions,
-          renderChat: (sectionId) =>
-            typeof setupAnchor === "object" && setupAnchor?.sectionId === sectionId ? chat : null,
-        }}
-      />
-      <ReferenceChecks
-        targetId={target.id}
-        onFix={() => {
-          onSetup("target");
-        }}
-      />
-      <SourcesCard targetId={target.id} onReport={onReport} />
-      <AnswersCard targetId={target.id} onReport={onAnswerReport} />
-    </>
+      <div className="goal-column">
+        {chat === "closed" ? (
+          <SetupInvite onOpen={openChat} />
+        ) : (
+          <SetupChat
+            targetId={target.id}
+            large={chat === "large"}
+            onResize={() => {
+              onChat(chat === "large" ? "open" : "large");
+            }}
+            onClose={() => {
+              onChat("closed");
+            }}
+          />
+        )}
+      </div>
+      <div className="goal-column">
+        <TargetPlan target={target} actions={{ onSetup: openChat, onQuestions }} />
+        <ReferenceChecks targetId={target.id} onFix={openChat} />
+        <SourcesCard targetId={target.id} onReport={onReport} />
+        <AnswersCard targetId={target.id} onReport={onAnswerReport} />
+      </div>
+    </div>
   );
 }

@@ -1,7 +1,13 @@
 import { useSessionEvents } from "@/entities/session";
+import {
+  AgentActivity,
+  AgentMessage,
+  CandidateMessage,
+  ChatNote,
+  Composer,
+} from "@/features/agent-chat";
 import type { ChatEntry } from "@/shared/api";
 
-import { AgentLine, CandidateLine, ChatForm } from "./chat-parts";
 import { DiscussSeparately } from "./discuss-separately";
 
 /**
@@ -19,23 +25,27 @@ function Line({
 }) {
   switch (entry.type) {
     case "candidate_message": {
-      return <CandidateLine text={entry.text} />;
+      return <CandidateMessage text={entry.text} />;
     }
     case "agent_message": {
       return (
-        <div className="chat-message" data-discuss-scope="">
-          <AgentLine text={entry.text} />
-          {discussable ? (
-            <DiscussSeparately
-              interviewId={interviewId}
-              origin={{ kind: "message", id: entry.id }}
-            />
-          ) : null}
+        <div data-discuss-scope="">
+          <AgentMessage
+            text={entry.text}
+            actions={
+              discussable ? (
+                <DiscussSeparately
+                  interviewId={interviewId}
+                  origin={{ kind: "message", id: entry.id }}
+                />
+              ) : null
+            }
+          />
         </div>
       );
     }
     case "turn_failed": {
-      return <p role="alert">Интервьюер не смог ответить: {entry.message}</p>;
+      return <ChatNote alert>Интервьюер не смог ответить: {entry.message}</ChatNote>;
     }
     case "turn_interrupted":
     case "permission_request": {
@@ -66,7 +76,7 @@ export function InterviewerChat({
   return (
     <aside className="interviewer" aria-label="Интервьюер">
       <h4>Интервьюер</h4>
-      <ol className="interviewer-lines nowheel" aria-label="Сообщения интервьюера">
+      <ol className="chat-entries interviewer-lines nowheel" aria-label="Сообщения интервьюера">
         {(view?.entries ?? []).map((entry, index) => (
           <li key={entry.id}>
             <Line
@@ -81,13 +91,11 @@ export function InterviewerChat({
         <p className="muted">Ответы интервьюера скрыты, пока вы не ответите на вопрос.</p>
       ) : null}
       {status === "working" || status === "starting" ? (
-        <p className="muted" aria-live="polite">
-          Агент работает…
-        </p>
+        <AgentActivity text="Агент работает…" />
       ) : null}
       {lost === null ? null : <p role="alert">{lost}</p>}
       {notice === null ? null : <output>{notice}</output>}
-      <ChatForm
+      <Composer
         status={status}
         onSend={prompt}
         label="Сообщение интервьюеру"

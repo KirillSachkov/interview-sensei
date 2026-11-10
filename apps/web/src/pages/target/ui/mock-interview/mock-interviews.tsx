@@ -59,13 +59,20 @@ function useShownSession(latest: readonly InterviewView[] | undefined) {
   };
 }
 
+interface MockInterviewsProps {
+  targetId: string;
+  /** Grows when the Candidate asks for a Mock interview from the «Цель» zone. */
+  startRequest?: number;
+}
+
 /**
  * The «Сессии» zone: the running or paused Mock interview, and «Начать мок» unless one runs; then
  * the last ended sessions as collapsed cards, and the one the Candidate opened, the newest by
  * default. A Target has at most one Mock interview that runs or is paused: with a paused one,
- * «Начать мок» offers to continue it or to finish it and start a new one.
+ * «Начать мок» offers to continue it or to finish it and start a new one. `startRequest` opens the
+ * same dialog from «Начать мок-собеседование» of the «Цель» zone.
  */
-export function MockInterviews({ targetId }: { targetId: string }) {
+export function MockInterviews({ targetId, startRequest = 0 }: MockInterviewsProps) {
   const { latest, refresh, started } = useLatestInterviews(targetId);
   const shown = useShownSession(latest.data);
   if (latest.isError) {
@@ -86,6 +93,7 @@ export function MockInterviews({ targetId }: { targetId: string }) {
           targetId={targetId}
           difficulty={current?.difficulty ?? "as_is"}
           paused={current?.status === "paused" ? current : null}
+          openRequest={startRequest}
           onFinished={refresh}
           onStarted={(interview) => {
             shown.reset();

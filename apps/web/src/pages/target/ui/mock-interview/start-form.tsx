@@ -176,6 +176,22 @@ function PausedChoice({
   );
 }
 
+/**
+ * Whether the dialog is open: the Candidate pressed the button, or asked from outside with a new
+ * `openRequest` and has not closed that request yet.
+ */
+function useDialogOpen(openRequest: number): [boolean, (open: boolean) => void] {
+  const [pressed, setPressed] = useState(false);
+  const [closedRequest, setClosedRequest] = useState(0);
+  const setOpen = (next: boolean) => {
+    setPressed(next);
+    if (!next) {
+      setClosedRequest(openRequest);
+    }
+  };
+  return [pressed || openRequest > closedRequest, setOpen];
+}
+
 /** The Sections of the Target's plan for the dialog. */
 function usePlanSections(targetId: string) {
   return useQuery({
@@ -193,19 +209,20 @@ export function StartMock({
   targetId,
   difficulty,
   paused,
+  openRequest = 0,
   onFinished,
   onStarted,
 }: {
   targetId: string;
   difficulty: Difficulty;
   paused: InterviewView | null;
+  /** Grows when the Candidate asks for the dialog from outside; each new value opens it. */
+  openRequest?: number;
   onFinished: () => void;
   onStarted: (interview: InterviewView) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const close = () => {
-    setOpen(false);
-  };
+  const [open, setOpen] = useDialogOpen(openRequest);
+  const close = setOpen.bind(null, false);
   const sections = usePlanSections(targetId);
   if (sections.isError) {
     return <p role="alert">План цели не загрузился: {sections.error.message}</p>;

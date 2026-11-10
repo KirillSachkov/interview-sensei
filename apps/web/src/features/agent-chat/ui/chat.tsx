@@ -1,13 +1,14 @@
 import { useState } from "react";
-import type { ReactNode, SubmitEvent } from "react";
+import type { ReactNode } from "react";
 
 import type { SessionView } from "@/shared/api";
 
 import { agentName } from "@/entities/agent";
 import { useSessionEvents } from "@/entities/session";
-import { AttachButton, AttachedFiles, useAttachedFiles } from "./attachments";
 import type { ChatAttachments } from "./attachments";
 import { ChatEntries } from "./chat-entries";
+import { Composer } from "./composer";
+import { AgentActivity } from "./messages";
 
 function failureText(failure: NonNullable<SessionView["failure"]>): string {
   if (failure.reason === "agent_not_started") {
@@ -18,7 +19,7 @@ function failureText(failure: NonNullable<SessionView["failure"]>): string {
 }
 
 /** What the agent does now, or why the chat takes no messages. */
-function SessionState({ view, onCancel }: { view: SessionView; onCancel: () => void }) {
+function SessionState({ view }: { view: SessionView }) {
   if (view.failure !== null) {
     return <p role="alert">{failureText(view.failure)}</p>;
   }
@@ -26,73 +27,9 @@ function SessionState({ view, onCancel }: { view: SessionView; onCancel: () => v
     return <p>Чат закрыт: сервер перезапускался. Начните новый чат, чтобы продолжить.</p>;
   }
   if (view.status === "starting") {
-    return <p aria-live="polite">Агент запускается…</p>;
+    return <AgentActivity text="Агент запускается…" />;
   }
-  if (view.status === "working") {
-    return (
-      <p aria-live="polite">
-        Агент работает…{" "}
-        <button type="button" onClick={onCancel}>
-          Остановить
-        </button>
-      </p>
-    );
-  }
-  return null;
-}
-
-/**
- * The Candidate types while the agent works, and sends once it waits for a prompt. With
- * `attachments`, files attached by 📎 or a drop go with the message.
- */
-function MessageForm({
-  status,
-  onSend,
-  attachments,
-}: {
-  /** The session status, or null when the page lost the connection. */
-  status: SessionView["status"] | null;
-  onSend: (text: string) => void;
-  attachments: ChatAttachments | undefined;
-}) {
-  const canType = status === "idle" || status === "working";
-  const [text, setText] = useState("");
-  const attached = useAttachedFiles(attachments);
-  const empty = text.trim() === "" && attached.files.length === 0;
-  const submit = async (event: SubmitEvent) => {
-    event.preventDefault();
-    const message = empty ? null : await attached.send(text);
-    if (message !== null) {
-      onSend(message);
-      setText("");
-    }
-  };
-  return (
-    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- a drop is a pointer shortcut; 📎 attaches the same files from the keyboard
-    <form
-      onSubmit={(event) => void submit(event)}
-      onDragOver={attached.handleDragOver}
-      onDrop={attached.handleDrop}
-    >
-      <AttachedFiles attached={attached} />
-      <label>
-        Сообщение{" "}
-        <input
-          disabled={!canType}
-          value={text}
-          onChange={(event) => {
-            setText(event.target.value);
-          }}
-        />
-      </label>{" "}
-      {attachments === undefined ? null : (
-        <AttachButton disabled={!canType} onAdd={attached.handleAdd} />
-      )}{" "}
-      <button type="submit" disabled={status !== "idle" || empty || attached.sending}>
-        Отправить
-      </button>
-    </form>
-  );
+  return view.status === "working" ? <AgentActivity text="Агент работает…" /> : null;
 }
 
 /** Why the page stopped following the chat, with a way to connect again. */
@@ -130,18 +67,29 @@ function ChatConnection({
   }
   return (
     <section className="chat" aria-label={`Чат с агентом «${agentName(view.agent)}»`}>
-      <p>Агент: {agentName(view.agent)}</p>
+      <p className="chat-agent">
+        <span className="agent-avatar" aria-hidden="true">
+          {agentName(view.agent).slice(0, 1)}
+        </span>
+        <span>
+          <span className="visually-hidden">Агент: </span>
+          <span className="chat-agent-name">{agentName(view.agent)}</span>
+        </span>
+      </p>
       <ChatEntries
         entries={view.entries}
         canAnswer={lost === null && view.status === "working"}
         onAnswer={answerPermission}
       />
-      {connectionLost ?? <SessionState view={view} onCancel={cancel} />}
+      {connectionLost ?? <SessionState view={view} />}
       {notice === null ? null : <output>{notice}</output>}
       {renderAboveInput?.(view)}
-      <MessageForm
+      <Composer
         status={lost === null ? view.status : null}
         onSend={prompt}
+        onStop={cancel}
+        label="Сообщение"
+        placeholder="Напишите агенту"
         attachments={attachments}
       />
     </section>

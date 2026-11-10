@@ -301,7 +301,6 @@ textarea {
   font-weight: 650;
 }
 
-/* `setupChatOverhang` in setup-chat.tsx counts this padding and border: change them together. */
 .zone-frame {
   display: flex;
   flex-direction: column;
@@ -346,11 +345,6 @@ textarea {
 }
 
 /* Agent chat */
-
-.chat-entries {
-  padding: 0;
-  list-style: none;
-}
 
 /* The agent's Markdown in a chat message */
 .agent-markdown > * + * {
@@ -415,36 +409,71 @@ textarea {
   overflow-wrap: anywhere;
 }
 
-/* «Настройка цели»: the setup chat beside the canvas */
+/* The «Цель» zone: three columns of widgets, the setup chat in the middle. `goalZoneWidth` in
+   goal-zone.tsx owns the zone's width for these columns: change them together. */
 
-.setup-anchor {
+.goal-grid {
+  display: grid;
+  grid-template-columns: 400px 800px 440px;
+  align-items: start;
+  gap: var(--space-5);
+}
+
+.goal-grid-large {
+  grid-template-columns: 400px 1160px 440px;
+}
+
+.goal-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.goal-tile-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.start-tile,
+.setup-invite {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.start-tile {
+  border-color: var(--color-accent-soft);
+  background: var(--color-accent-soft);
+}
+
+.start-tile p,
+.setup-invite p {
+  margin: 0;
+}
+
+.start-tile button {
+  align-self: stretch;
+  justify-content: center;
+}
+
+/* «Настройка цели»: the setup chat in the middle column */
+
+.setup-chat {
   position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-}
-
-/*
- * The chat stands to the right of the card or the Section where the Candidate opened it. The canvas
- * moves «Сессии» aside by `setupChatOverhang` in setup-chat.tsx: change it with the width or the gap.
- */
-.setup-chat {
-  position: absolute;
-  top: 0;
-  left: calc(100% + var(--space-6));
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  width: 560px;
-  height: 720px;
-  padding: var(--space-4) var(--space-5);
+  height: 820px;
+  box-shadow: var(--shadow-island);
+  padding: var(--space-4) var(--space-5) var(--space-5);
   cursor: auto;
 }
 
-/* The zone with the open chat stays above the zones to its right. */
-.react-flow__node:has(.setup-chat) {
-  z-index: 5 !important;
+.setup-chat-large {
+  height: 1120px;
 }
 
 .setup-chat-head {
@@ -460,26 +489,15 @@ textarea {
 }
 
 .setup-chat .chat {
-  display: flex;
   flex: 1;
-  flex-direction: column;
-  gap: var(--space-3);
-  min-height: 0;
-}
-
-.setup-chat .chat p {
-  margin: 0;
 }
 
 /* The messages take the room the draft leaves and scroll; they never shrink out of sight. */
 .setup-chat .chat-entries {
-  display: flex;
   flex: 1 1 0;
-  flex-direction: column;
-  gap: var(--space-2);
   min-height: 160px;
-  margin: 0;
   overflow-y: auto;
+  padding-right: var(--space-2);
 }
 
 /* A long draft scrolls inside its own box, so the message form and «Применить» stay in sight. */
@@ -490,11 +508,15 @@ textarea {
   align-items: flex-start;
   gap: var(--space-2);
   min-height: 0;
-  max-height: 300px;
+  max-height: 340px;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-card);
   background: var(--color-surface-muted);
   padding: var(--space-3) var(--space-4);
+}
+
+.setup-chat-large .draft-changes {
+  max-height: 480px;
 }
 
 .draft-changes > :not(.draft-change-list) {
@@ -605,7 +627,7 @@ textarea {
   border-left-color: var(--color-kind-design);
 }
 
-.plan-off > :not(.setup-chat) {
+.plan-off {
   opacity: 0.55;
 }
 

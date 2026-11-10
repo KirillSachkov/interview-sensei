@@ -1,5 +1,4 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { ReactNode } from "react";
 
 import { setSectionEnabled } from "@/shared/api";
 import type {
@@ -28,11 +27,9 @@ export interface QuestionsView {
 }
 
 export interface PlanActions {
-  /** ✎: opens the setup chat beside the Section. */
+  /** ✎: opens the setup chat. */
   readonly onSetup: (sectionId: string) => void;
   readonly onQuestions: (view: QuestionsView) => void;
-  /** The setup chat when it is open beside this Section. */
-  readonly renderChat: (sectionId: string) => ReactNode;
 }
 
 /** The importance on a Topic chip; «обычная» shows nothing. */
@@ -198,7 +195,6 @@ function SectionBlock({
           {questionCount(count)}
         </button>
       )}
-      {actions.renderChat(section.id)}
     </li>
   );
 }

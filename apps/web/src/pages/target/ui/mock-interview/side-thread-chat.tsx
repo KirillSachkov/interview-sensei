@@ -2,11 +2,17 @@ import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { useSessionEvents } from "@/entities/session";
-import { PermissionRequest } from "@/features/agent-chat";
+import {
+  AgentActivity,
+  AgentMessage,
+  CandidateMessage,
+  ChatNote,
+  Composer,
+  PermissionRequest,
+} from "@/features/agent-chat";
 import { AgentUnavailableError, continueSideThread, deleteSideThread } from "@/shared/api";
 import type { ChatEntry, SessionView, SideThread } from "@/shared/api";
 
-import { AgentLine, CandidateLine, ChatForm } from "./chat-parts";
 import { FragmentQuote } from "./discuss-separately";
 import { OtherAgentChoice } from "./pause-controls";
 import { useRefreshSideThreads } from "./side-thread-refresh";
@@ -30,16 +36,16 @@ function Line({
 }) {
   switch (entry.type) {
     case "candidate_message": {
-      return <CandidateLine text={entry.text} />;
+      return <CandidateMessage text={entry.text} />;
     }
     case "agent_message": {
-      return <AgentLine text={entry.text} />;
+      return <AgentMessage text={entry.text} />;
     }
     case "turn_interrupted": {
-      return <p className="muted">Ход остановлен.</p>;
+      return <ChatNote>Ход остановлен.</ChatNote>;
     }
     case "turn_failed": {
-      return <p role="alert">Агент не смог ответить: {entry.message}</p>;
+      return <ChatNote alert>Агент не смог ответить: {entry.message}</ChatNote>;
     }
     case "permission_request": {
       return <PermissionRequest entry={entry} canAnswer={canAnswer} onAnswer={onAnswer} />;
@@ -92,15 +98,7 @@ function ContinueThread({ thread, text }: { thread: SideThread; text: string }) 
 }
 
 /** What the agent does now, or why the Side thread takes no messages and how to go on. */
-function ThreadState({
-  thread,
-  view,
-  onCancel,
-}: {
-  thread: SideThread;
-  view: SessionView;
-  onCancel: () => void;
-}) {
+function ThreadState({ thread, view }: { thread: SideThread; view: SessionView }) {
   if (thread.closedAt !== null) {
     return <p className="muted">Ветка закрыта: её можно только читать.</p>;
   }
@@ -121,20 +119,9 @@ function ThreadState({
     );
   }
   if (view.status === "starting") {
-    return (
-      <p className="muted" aria-live="polite">
-        Агент запускается…
-      </p>
-    );
+    return <AgentActivity text="Агент запускается…" />;
   }
-  return view.status === "working" ? (
-    <p className="muted" aria-live="polite">
-      Агент работает…{" "}
-      <button type="button" className="ghost" onClick={onCancel}>
-        Остановить
-      </button>
-    </p>
-  ) : null;
+  return view.status === "working" ? <AgentActivity text="Агент работает…" /> : null;
 }
 
 /** ✕ asks first: «Удалить» deletes the Side thread and its chat for good. */
@@ -206,20 +193,21 @@ export function SideThreadChat({ thread, number }: { thread: SideThread; number:
         <DeleteThread thread={thread} />
       </header>
       <FragmentQuote fragment={thread.fragment} />
-      {thread.question === null ? null : <CandidateLine text={thread.question} />}
-      <ol className="interviewer-lines nowheel" aria-label="Сообщения ветки">
+      {thread.question === null ? null : <CandidateMessage text={thread.question} />}
+      <ol className="chat-entries interviewer-lines nowheel" aria-label="Сообщения ветки">
         {(view?.entries ?? []).map((entry) => (
           <li key={entry.id}>
             <Line entry={entry} canAnswer={status === "working"} onAnswer={answerPermission} />
           </li>
         ))}
       </ol>
-      {view === null ? null : <ThreadState thread={thread} view={view} onCancel={cancel} />}
+      {view === null ? null : <ThreadState thread={thread} view={view} />}
       {lost === null ? null : <p role="alert">{lost}</p>}
       {notice === null ? null : <output>{notice}</output>}
-      <ChatForm
+      <Composer
         status={status}
         onSend={prompt}
+        onStop={cancel}
         label="Сообщение в ветку"
         placeholder="Спросить ещё"
       />

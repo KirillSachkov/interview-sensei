@@ -100,8 +100,8 @@ function ZoomControls() {
 const fitPadding = { top: "112px", bottom: "96px", left: "48px", right: "48px" } as const;
 
 /**
- * Fits the view again when `fitKey` changes, such as when a new Target gets its plan: the canvas
- * fits only when it opens, and the zone that grew would go under the zoom island. The zones measure
+ * Fits the view again when `fitKey` changes, such as when the «Сессии» zone appears: the canvas
+ * fits only when it opens, and a new zone would stay out of sight. The zones measure
  * their new content in the next frame, so the fit waits for the frame after it.
  */
 function FitOnChange({ fitKey }: { fitKey: string }) {

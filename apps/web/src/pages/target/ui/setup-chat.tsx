@@ -50,23 +50,32 @@ function SetupSession({ targetId }: { targetId: string }) {
 }
 
 /**
- * How far the open chat reaches beyond the right edge of its zone, in canvas pixels: the chat's
- * 560px and its 32px gap from the card, less the zone frame's 24px padding and 1px border, rounded
- * up. `.setup-chat` and `.zone-frame` in global.css own these sizes; change them together.
+ * «Настройка цели»: the chat with the Target's setup agent in the middle of the «Цель» zone, with
+ * the card «Разбор материалов» and the draft of changes above its message box. «Развернуть» makes
+ * it larger, «Скрыть» hides it and the session goes on, «Завершить» ends the session.
  */
-export const setupChatOverhang = 568;
-
-/**
- * «Настройка цели»: the chat with the Target's setup agent, and the card «Разбор материалов» and the
- * draft of changes above its message form. The page places it beside the card where the Candidate opened it; «Скрыть» hides
- * it and the session goes on, «Завершить» ends the session.
- */
-export function SetupChat({ targetId, onClose }: { targetId: string; onClose: () => void }) {
+export function SetupChat({
+  targetId,
+  large,
+  onResize,
+  onClose,
+}: {
+  targetId: string;
+  large: boolean;
+  onResize: () => void;
+  onClose: () => void;
+}) {
   return (
-    <aside className="island setup-chat nodrag nopan nowheel" aria-labelledby="setup-chat-title">
+    <aside
+      className={`card setup-chat nodrag nopan${large ? " setup-chat-large" : ""}`}
+      aria-labelledby="setup-chat-title"
+    >
       <header className="setup-chat-head">
         <h2 id="setup-chat-title">Настройка цели</h2>
         <div className="setup-chat-actions">
+          <button type="button" className="ghost" onClick={onResize}>
+            {large ? "Свернуть" : "Развернуть"}
+          </button>
           <FinishSetup targetId={targetId} onFinished={onClose} />
           <button type="button" className="ghost" onClick={onClose}>
             Скрыть
@@ -75,5 +84,21 @@ export function SetupChat({ targetId, onClose }: { targetId: string; onClose: ()
       </header>
       <SetupSession targetId={targetId} />
     </aside>
+  );
+}
+
+/** The closed setup chat: what the chat is for, and the button that opens it. */
+export function SetupInvite({ onOpen }: { onOpen: () => void }) {
+  return (
+    <section className="card setup-invite" aria-label="Чат настройки">
+      <h3 className="card-title">Чат с агентом настройки</h3>
+      <p className="muted">
+        Агент меняет план, темы и вопросы, принимает вакансию, резюме и другие материалы. Все правки
+        вы применяете сами.
+      </p>
+      <button type="button" className="primary" onClick={onOpen}>
+        Открыть чат
+      </button>
+    </section>
   );
 }

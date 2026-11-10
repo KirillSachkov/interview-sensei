@@ -64,7 +64,9 @@ function ReadinessBody({ progress }: { progress: TargetProgress }) {
       <ReadinessBar readiness={readiness} />
       <h4>Подтянуть в первую очередь</h4>
       {focus.length === 0 ? (
-        <p className="muted">Все темы уверенно.</p>
+        <p className="muted">
+          {readiness.total === 0 ? "Тем пока нет: их соберёт агент." : "Все темы уверенно."}
+        </p>
       ) : (
         <ol className="focus-topics" aria-label="Подтянуть в первую очередь">
           {focus.map((topic) => (
