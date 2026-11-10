@@ -225,7 +225,7 @@ export function drizzleInterviewRepository(
           ...(resumedAt === undefined ? {} : { resumedAt: date(resumedAt) }),
           ...(finishRequestedAt === undefined
             ? {}
-            : { finishRequestedAt: date(finishRequestedAt) }),
+            : { finishRequestedAt: finishRequestedAt === null ? null : date(finishRequestedAt) }),
           ...(finishedAt === undefined ? {} : { finishedAt: date(finishedAt) }),
         })
         .where(eq(interviews.id, id));

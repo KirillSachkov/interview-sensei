@@ -2,25 +2,31 @@
 // running Mock interview: its agent session ends and its time stops. «Продолжить» is in resume.ts.
 import type { MockInterview, PauseReason } from "../domain/interview.ts";
 import { lastActivityAt } from "../domain/time-limit.ts";
-import { change, inBackground } from "./context.ts";
+import { change, inBackground, runningWith } from "./context.ts";
 import type { Context } from "./context.ts";
 
 /**
  * Pauses the Mock interview while it runs with the session, from the moment `at`; null when it no
- * longer does. The caller stops the agent.
+ * longer does. The caller stops the agent. A request for the summary ends with the agent: a paused
+ * Mock interview finishes at once on «Завершить», and a continued one runs as before it.
  */
 async function markPaused(
   context: Context,
-  { id, sessionId }: Pick<MockInterview, "id" | "sessionId">,
+  watched: Pick<MockInterview, "id" | "sessionId">,
   { reason, at }: { reason: PauseReason; at: string },
 ): Promise<MockInterview | null> {
   const { repository } = context.dependencies;
-  return change(context, id, async () => {
-    const interview = await repository.get(id);
-    if (interview?.status !== "running" || interview.sessionId !== sessionId) {
+  return change(context, watched.id, async () => {
+    const interview = await runningWith(context.dependencies, watched);
+    if (interview === undefined) {
       return null;
     }
-    await repository.update(id, { status: "paused", pausedAt: at, pauseReason: reason });
+    await repository.update(interview.id, {
+      status: "paused",
+      pausedAt: at,
+      pauseReason: reason,
+      finishRequestedAt: null,
+    });
     return interview;
   });
 }

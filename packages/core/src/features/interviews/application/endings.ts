@@ -5,7 +5,7 @@
 // A crash of the agent or a server restart pauses it instead: pauses.ts.
 import { candidateFinished } from "../domain/agent-messages.ts";
 import type { MockInterview } from "../domain/interview.ts";
-import { change, inBackground, tellAndShowAgentText } from "./context.ts";
+import { change, inBackground, runningWith, tellAndShowAgentText } from "./context.ts";
 import type { Context } from "./context.ts";
 import { closeIdleSideThreads } from "./side-threads.ts";
 import { assertRunning, InterviewToolError, interviewOf } from "./tool-session.ts";
@@ -13,15 +13,20 @@ import { assertRunning, InterviewToolError, interviewOf } from "./tool-session.t
 /** How long the server waits for `finish_interview` after the Candidate presses «Завершить». */
 const finishWaitMs = 2 * 60 * 1000;
 
-/** Finishes a running Mock interview without the agent's summary; false when it no longer runs. */
-async function end(context: Context, id: string): Promise<boolean> {
+/**
+ * Finishes the Mock interview without the agent's summary while it runs with the session; false
+ * once a pause or a continuation took it from that session.
+ */
+async function end(context: Context, watched: MockInterview): Promise<boolean> {
   const { repository, clock } = context.dependencies;
-  return change(context, id, async () => {
-    const interview = await repository.get(id);
-    if (interview?.status !== "running") {
+  return change(context, watched.id, async () => {
+    if ((await runningWith(context.dependencies, watched)) === undefined) {
       return false;
     }
-    await repository.update(id, { status: "finished", finishedAt: clock.now().toISOString() });
+    await repository.update(watched.id, {
+      status: "finished",
+      finishedAt: clock.now().toISOString(),
+    });
     return true;
   });
 }
@@ -30,12 +35,15 @@ async function end(context: Context, id: string): Promise<boolean> {
  * Finishes the Mock interview without the agent's summary unless the agent finishes it within
  * the wait; the summary Debrief then shows only the Topic status changes.
  */
-function awaitFinish(context: Context, { id, sessionId }: MockInterview): void {
+function awaitFinish(context: Context, interview: MockInterview): void {
   const { timer, sessions } = context.dependencies;
   timer.after(finishWaitMs, () => {
     inBackground(context, async () => {
-      if (await end(context, id)) {
-        await Promise.all([sessions.end(sessionId), closeIdleSideThreads(context, id)]);
+      if (await end(context, interview)) {
+        await Promise.all([
+          sessions.end(interview.sessionId),
+          closeIdleSideThreads(context, interview.id),
+        ]);
       }
     });
   });

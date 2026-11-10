@@ -74,6 +74,34 @@ async function codexMockAfterRestart() {
   return { interview, pauses: pauseApi(await interviewApi({ dataDirectory })) };
 }
 
+/**
+ * A mock interview whose agent is in a turn when the Candidate presses «Завершить», so it has not
+ * written its summary yet, paused by a server restart; resolves with the API of the new server.
+ */
+async function finishingBeforeRestart() {
+  const { dataDirectory, before, interview } = await pausedBeforeRestart();
+  const chat = await openEvents(before.server, interview.sessionId);
+  await chat.waitFor(isIdle);
+  chat.send({ type: "prompt", text: "/wait" });
+  await chat.waitFor((view) => view.status === "working");
+  await before.finish(interview.id);
+  const finishing = await pauseApi(before).stored(interview.id);
+  await before.stop();
+  const after = await interviewApi({ dataDirectory });
+  return { interview, finishing, after, pauses: pauseApi(after) };
+}
+
+/** «Продолжить», then «Завершить»; resolves with the summary once the agent finished. */
+async function finishedAfterResume(api: Api, interviewId: string) {
+  const pauses = pauseApi(api);
+  await pauses.resumed(interviewId);
+  const events = await pauses.follow(interviewId);
+  await api.finish(interviewId);
+  await events.waitFor(hasStatus("finished"));
+  const summary = await api.get(`/api/interviews/${interviewId}/summary`);
+  return summary.json<{ summary: string | null }>();
+}
+
 describe("mock interview pause", () => {
   it("stops the time and ends the agent session on «Пауза»", async () => {
     const { time, api, pauses } = await timedApi();
@@ -228,5 +256,18 @@ describe("mock interview pause", () => {
     expect(otherAgent.statusCode).toBe(400);
     expect(view).toMatchObject({ status: "running", agent: "fake" });
     await expect(pauses.stored(interview.id)).resolves.toMatchObject({ agent: "fake" });
+  });
+
+  it("goes on with a mock interview paused while its agent wrote the summary as a running one: «Пауза» and «Завершить» work again", async () => {
+    const { interview, finishing, after, pauses } = await finishingBeforeRestart();
+
+    const continued = await pauses.resumed(interview.id);
+    const paused = await pauses.pause(interview.id);
+    const finished = await finishedAfterResume(after, interview.id);
+
+    expect(finishing.finishRequestedAt).not.toBeNull();
+    expect(continued).toMatchObject({ status: "running", finishRequestedAt: null });
+    expect(paused.statusCode).toBe(204);
+    expect(finished.summary).not.toBeNull();
   });
 });

@@ -5,21 +5,13 @@
 import { fiveMinutesLeft } from "../domain/agent-messages.ts";
 import type { MockInterview } from "../domain/interview.ts";
 import { reminderBeforeEndMs, timeLeftMs } from "../domain/time-limit.ts";
-import { change, inBackground, tellInterviewer } from "./context.ts";
+import { change, inBackground, runningWith, tellInterviewer } from "./context.ts";
 import type { Context } from "./context.ts";
-
-/** The Mock interview while it still runs with the agent session of the task. */
-async function stillRunning(context: Context, { id, sessionId }: MockInterview) {
-  const interview = await context.dependencies.repository.get(id);
-  return interview?.status === "running" && interview.sessionId === sessionId
-    ? interview
-    : undefined;
-}
 
 /** Tells the agent that 5 minutes are left, while the Candidate has not finished. */
 async function remind(context: Context, watched: MockInterview): Promise<void> {
   await change(context, watched.id, async () => {
-    const interview = await stillRunning(context, watched);
+    const interview = await runningWith(context.dependencies, watched);
     if (interview?.finishRequestedAt === null) {
       tellInterviewer(context, interview.sessionId, fiveMinutesLeft);
     }
@@ -45,7 +37,7 @@ export function watchTimeLimit(context: Context, interview: MockInterview): void
     // The listeners get the view again: now it shows the overtime.
     timer.after(leftMs, () => {
       inBackground(context, async () =>
-        change(context, interview.id, async () => stillRunning(context, interview)),
+        change(context, interview.id, async () => runningWith(context.dependencies, interview)),
       );
     });
   }

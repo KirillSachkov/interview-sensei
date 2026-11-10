@@ -264,7 +264,7 @@ export interface InterviewRepository extends HistoryRepository, SideThreadReposi
       readonly pauseReason?: PauseReason | null;
       readonly resumedAt?: string;
       readonly currentSectionId?: string;
-      readonly finishRequestedAt?: string;
+      readonly finishRequestedAt?: string | null;
       readonly finishedAt?: string;
       readonly summary?: string;
       readonly nextStep?: string;
