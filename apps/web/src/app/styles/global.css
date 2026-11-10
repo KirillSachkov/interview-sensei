@@ -453,6 +453,8 @@ textarea {
 
 /* The corner the Candidate drags to resize the chat. */
 .chat-resize {
+  border: 0;
+  padding: 0;
   position: absolute;
   right: 0;
   bottom: 0;

@@ -21,7 +21,7 @@ async function discussSeparately(card: Locator, question: string) {
 /** Model controls stay below the composer and leave most of the space for writing. */
 async function expectWritingSpace(thread: Locator) {
   const field = thread.getByRole("textbox", { name: "Сообщение в ветку" });
-  const options = thread.getByLabel("Модель и мышление ветки");
+  const options = thread.locator(".composer-options");
   const inputBox = await field.boundingBox();
   const optionsBox = await options.boundingBox();
   expect(inputBox?.height ?? 0).toBeGreaterThan((optionsBox?.height ?? 0) * 2);

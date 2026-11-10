@@ -38,6 +38,7 @@ import { answerTests } from "./answer-tests.ts";
 import { inboxTests } from "./inbox-tests.ts";
 import { mockInterviewTests } from "./mock-interview-tests.ts";
 import { setupChatTests } from "./setup-chat-tests.ts";
+import { sessionWindowTests } from "./session-window-tests.ts";
 import { sideThreadTests } from "./side-thread-tests.ts";
 
 test.describe.configure({ mode: "serial" });
@@ -290,3 +291,4 @@ inboxTests();
 answerTests();
 mockInterviewTests();
 sideThreadTests();
+sessionWindowTests();

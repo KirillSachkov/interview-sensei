@@ -13,7 +13,11 @@ export const sessionsZoneId = "sessions";
  * The zones of the Target's canvas. A slice adds its widget to a zone's `content` here and leaves
  * the canvas itself unchanged. «Сессии» stands to the right once the Target has a Mock interview.
  */
-export function targetZones(goal: GoalZoneProps, sessionsShown: boolean): CanvasZone[] {
+export function targetZones(
+  goal: GoalZoneProps,
+  sessionsShown: boolean,
+  sessionsWidth: number,
+): CanvasZone[] {
   const { target } = goal;
   const goalZone: CanvasZone = {
     id: "goal",
@@ -30,7 +34,7 @@ export function targetZones(goal: GoalZoneProps, sessionsShown: boolean): Canvas
       id: sessionsZoneId,
       title: "Сессии",
       hint: "моки по этой цели",
-      width: 1080,
+      width: sessionsWidth,
       minHeight: 640,
       content: <MockInterviews targetId={target.id} />,
     },

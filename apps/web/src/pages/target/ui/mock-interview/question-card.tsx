@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { answerQuestion } from "@/shared/api";
 import type { QuestionCard as Card } from "@/shared/api";
 
+import { SessionWindow } from "../session-window";
+
 import { AnswerForm } from "./answer-form";
 import { Debrief } from "./debrief";
 import { FollowUps } from "./follow-ups";
@@ -175,20 +177,23 @@ export function QuestionCard({
 }) {
   const answering = stage === "answering" && card.answer === null;
   return (
-    <article
+    <SessionWindow
+      kind="question"
+      id={card.id}
+      label={`Вопрос ${number}`}
       className={`card question-card${answering ? " current" : ""}`}
-      aria-label={`Вопрос ${number}`}
-      data-discuss-scope=""
     >
-      <CardMarks targetId={targetId} card={card} number={number} />
-      <p className="question-text">{card.text}</p>
-      {card.format === "quiz" && !answering ? <QuizOptions card={card} /> : null}
-      <AnswerPart interviewId={interviewId} card={card} stage={stage} />
-      <div className="question-actions">
-        <AttemptPart interviewId={interviewId} targetId={targetId} card={card} stage={stage} />
-        {discuss}
-        <QuestionDetails targetId={targetId} questionId={card.questionId} />
+      <div className="question-body nowheel">
+        <CardMarks targetId={targetId} card={card} number={number} />
+        <p className="question-text">{card.text}</p>
+        {card.format === "quiz" && !answering ? <QuizOptions card={card} /> : null}
+        <AnswerPart interviewId={interviewId} card={card} stage={stage} />
+        <div className="question-actions">
+          <AttemptPart interviewId={interviewId} targetId={targetId} card={card} stage={stage} />
+          <QuestionDetails targetId={targetId} questionId={card.questionId} />
+        </div>
       </div>
-    </article>
+      {discuss}
+    </SessionWindow>
   );
 }

@@ -309,16 +309,6 @@
   margin: 0;
 }
 
-.answer-form textarea {
-  width: 100%;
-  min-height: 96px;
-  max-height: 280px;
-  padding: var(--space-3) var(--space-4);
-  resize: none;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
-}
-
 .answer-text {
   max-height: 280px;
   overflow-y: auto;
@@ -649,13 +639,13 @@
 .side-threads {
   --side-thread-gutter: 72px;
 
-  position: absolute;
-  top: 0;
-  left: calc(100% + var(--side-thread-gutter));
+  position: relative;
+  grid-column: 3;
+  margin-left: calc(var(--side-thread-gutter) - var(--space-5));
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
-  width: 560px;
+  width: max-content;
   /* The first thread sits below the arrows' start, so every arrow bends. */
   padding-top: var(--space-6);
 }
@@ -804,7 +794,7 @@
 
 .question-details-body {
   position: absolute;
-  top: calc(100% + var(--space-2));
+  bottom: calc(100% + var(--space-2));
   right: 0;
   z-index: 2;
   width: 280px;
@@ -831,13 +821,13 @@
 /* A port at the card's right edge previews the direction of a new branch. */
 .question-card .branch-trigger {
   position: absolute;
-  top: 12px;
-  right: -14px;
+  bottom: 16px;
+  right: -20px;
   z-index: 1;
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 40px;
+  height: 40px;
   border: 1px solid var(--color-line);
   border-radius: 50%;
   background: var(--color-surface);
@@ -850,9 +840,9 @@
 }
 
 .branch-plus {
-  font-size: 22px;
-  line-height: 1;
-  font-weight: 400;
+  display: block;
+  width: 24px;
+  height: 24px;
 }
 
 .branch-trigger::before {
@@ -919,43 +909,54 @@
   background: var(--color-accent-soft);
 }
 
-/* The branch has room for writing; model controls occupy their own line below the composer. */
-.side-thread {
-  gap: var(--space-3);
-  padding: var(--space-4);
-}
-
-.side-thread .composer textarea {
-  min-height: 112px;
-  max-height: 220px;
-  overflow-y: auto;
-}
-
-.side-thread .composer-tools:empty {
-  display: none;
-}
-
-.side-thread .composer-bar {
-  justify-content: flex-end;
-}
-
-.side-thread-options .session-options {
-  gap: var(--space-2) var(--space-4);
-}
-
-.side-thread-options .option-pill {
-  border: 0;
-  padding: 0;
-}
-
-.side-thread-options select {
-  max-width: 150px;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .question-card .branch-trigger,
   .branch-trigger::before,
   .branch-hint {
     transition: none;
   }
+}
+
+/* All session windows share the same resize handle and composer. Rows grow around their sizes. */
+.resizable-window {
+  position: relative;
+  flex: none;
+  min-width: 0;
+  padding-bottom: var(--space-5);
+}
+
+.resizable-window > .interviewer-lines {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+
+.question-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.question-body > p {
+  margin: 0;
+}
+
+.result-row {
+  display: grid;
+  gap: 72px;
+  align-items: start;
+}
+
+.result-row > .side-threads {
+  grid-column: 2;
+  margin-left: 0;
+}
+
+.resizable-window .chat-resize {
+  border: 0;
+  padding: 0;
 }

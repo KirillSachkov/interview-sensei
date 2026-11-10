@@ -4,14 +4,14 @@ import type { InterviewView, QuestionCard } from "@/shared/api";
 
 import { SideThreadChat } from "./side-thread-chat";
 
-/** Where the arrows leave the question card: this far below its top, in canvas pixels. */
-const cardAnchor = 24;
 /** Where an arrow enters its Side thread: this far below the thread's top, at its title. */
 const threadAnchor = 20;
 
 interface ArrowLayout {
   readonly width: number;
   readonly height: number;
+  /** Center of the question card's branch port, from the top of the row. */
+  readonly start: number;
   /** The y of each Side thread's entry, from the top of the column. */
   readonly entries: readonly number[];
 }
@@ -19,16 +19,18 @@ interface ArrowLayout {
 /** The arrows' layout in the column now. Layout sizes ignore the canvas zoom: canvas pixels. */
 function measure(column: HTMLElement): ArrowLayout {
   const threads = [...column.querySelectorAll<HTMLElement>(":scope > .side-thread")];
+  const port = column.parentElement?.querySelector<HTMLElement>(".question-card .branch-trigger");
   return {
     width: column.querySelector(".side-thread-arrows")?.clientWidth ?? 0,
     height: column.scrollHeight,
+    start: port === null || port === undefined ? 24 : port.offsetTop + port.offsetHeight / 2,
     entries: threads.map((thread) => thread.offsetTop + threadAnchor),
   };
 }
 
 /**
  * The column's ref and the arrows' layout, measured again whenever the column changes size: a
- * thread is added, deleted or grows with its chat.
+ * thread is added, deleted or grows with its chat, or the question card changes height.
  */
 function useArrowLayout() {
   const [layout, setLayout] = useState<ArrowLayout | null>(null);
@@ -38,6 +40,10 @@ function useArrowLayout() {
       setLayout(measure(element));
     });
     observer.observe(element);
+    const card = element.parentElement?.querySelector(":scope > .question-card");
+    if (card !== null && card !== undefined) {
+      observer.observe(card);
+    }
     return () => {
       observer.disconnect();
     };
@@ -46,7 +52,7 @@ function useArrowLayout() {
 }
 
 /**
- * The arrows from the question to its Side threads: each goes right from the card, bends down at
+ * The arrows from the question to its Side threads: each goes right from the card, bends at
  * the middle of the gutter and enters its thread at the title. They carry no label.
  */
 function Arrows({ layout }: { layout: ArrowLayout | null }) {
@@ -54,7 +60,7 @@ function Arrows({ layout }: { layout: ArrowLayout | null }) {
   if (layout === null) {
     return null;
   }
-  const { width, height, entries } = layout;
+  const { width, height, entries, start } = layout;
   const bend = width / 2;
   return (
     <svg width={width} height={height} aria-hidden="true">
@@ -75,7 +81,7 @@ function Arrows({ layout }: { layout: ArrowLayout | null }) {
         <path
           key={entry}
           className="side-thread-arrow"
-          d={`M 0 ${cardAnchor} H ${bend} V ${entry} H ${width - 1}`}
+          d={`M 0 ${start} H ${bend} V ${entry} H ${width - 1}`}
           markerEnd={`url(#${marker})`}
         />
       ))}

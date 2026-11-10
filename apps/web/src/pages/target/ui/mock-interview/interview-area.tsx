@@ -1,7 +1,9 @@
 import { useEffect } from "react";
+import type { ReactNode } from "react";
 
 import type { InterviewView, QuestionCard as Card } from "@/shared/api";
 
+import { useSessionWindow } from "../../model/session-windows";
 import { useInterviewEvents } from "../../model/use-interview-events";
 import { DiscussSeparately } from "./discuss-separately";
 import { InterviewerChat } from "./interviewer-chat";
@@ -22,9 +24,27 @@ function stageOf(view: InterviewView) {
 }
 
 /** The question card with «Обсудить отдельно», and its Side threads to the right. */
-function QuestionRow({ view, card, number }: { view: InterviewView; card: Card; number: number }) {
+function QuestionRow({
+  view,
+  card,
+  number,
+  chat,
+}: {
+  view: InterviewView;
+  card: Card;
+  number: number;
+  chat: ReactNode;
+}) {
+  const interviewer = useSessionWindow("interviewer", view.id);
+  const question = useSessionWindow("question", card.id);
   return (
-    <>
+    <li
+      className="mock-row"
+      style={{
+        gridTemplateColumns: `${interviewer.size.width}px ${question.size.width}px max-content`,
+      }}
+    >
+      {chat}
       <QuestionCard
         interviewId={view.id}
         targetId={view.targetId}
@@ -40,7 +60,32 @@ function QuestionRow({ view, card, number }: { view: InterviewView; card: Card; 
         }
       />
       <SideThreads view={view} card={card} number={number} />
-    </>
+    </li>
+  );
+}
+
+/** The interviewer follows the current question; every row keeps its own question size. */
+function Questions({ view, chat }: { view: InterviewView; chat: ReactNode }) {
+  const last = view.questions.length - 1;
+  return view.questions.length === 0 ? (
+    <div className="mock-row">
+      {chat}
+      <p className="muted" aria-live="polite">
+        Интервьюер готовит первый вопрос…
+      </p>
+    </div>
+  ) : (
+    <ol className="mock-questions" aria-label="Вопросы">
+      {view.questions.map((card, index) => (
+        <QuestionRow
+          key={card.id}
+          view={view}
+          card={card}
+          number={index + 1}
+          chat={index === last ? chat : <div />}
+        />
+      ))}
+    </ol>
   );
 }
 
@@ -72,7 +117,6 @@ export function InterviewArea({
       discussFrom={first === undefined ? null : (first.chatPosition ?? 0)}
     />
   );
-  const last = view.questions.length - 1;
   return (
     <section className="mock" aria-label="Мок-собеседование">
       <InterviewHeader view={view} />
@@ -80,23 +124,7 @@ export function InterviewArea({
         <p className="paused-note">{pauseText(view.pauseReason)}</p>
       ) : null}
       {lost ? <p role="alert">Соединение с сервером потеряно. Обновите страницу.</p> : null}
-      {view.questions.length === 0 ? (
-        <div className="mock-row">
-          {chat}
-          <p className="muted" aria-live="polite">
-            Интервьюер готовит первый вопрос…
-          </p>
-        </div>
-      ) : (
-        <ol className="mock-questions" aria-label="Вопросы">
-          {view.questions.map((card, index) => (
-            <li key={card.id} className="mock-row">
-              {index === last ? chat : <div />}
-              <QuestionRow view={view} card={card} number={index + 1} />
-            </li>
-          ))}
-        </ol>
-      )}
+      <Questions view={view} chat={chat} />
     </section>
   );
 }

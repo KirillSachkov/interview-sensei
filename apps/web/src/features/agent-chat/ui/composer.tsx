@@ -48,10 +48,12 @@ function ComposerButtons({
   working,
   canSend,
   onStop,
+  sendLabel,
 }: {
   working: boolean;
   canSend: boolean;
   onStop: (() => void) | undefined;
+  sendLabel: string;
 }) {
   return (
     <>
@@ -69,7 +71,7 @@ function ComposerButtons({
       <button
         type="submit"
         className="composer-round composer-send"
-        aria-label="Отправить"
+        aria-label={sendLabel}
         title="Отправить (Enter)"
         disabled={!canSend}
       >
@@ -82,13 +84,54 @@ function ComposerButtons({
 interface ComposerProps {
   /** The session status, or null when the page lost the connection. */
   status: SessionView["status"] | null;
-  onSend: (text: string) => void;
+  onSend: (text: string) => void | Promise<void>;
   onStop?: () => void;
   /** The accessible name of the field, such as «Сообщение». */
   label: string;
   placeholder: string;
   attachments?: ChatAttachments | undefined;
   tools?: ReactNode;
+  actions?: ReactNode;
+  sendLabel?: string;
+}
+
+/** Keep failed answers in the field; the caller owns the error message. */
+async function deliver(onSend: ComposerProps["onSend"], message: string): Promise<boolean> {
+  try {
+    await onSend(message);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function MessageField({
+  label,
+  placeholder,
+  disabled,
+  value,
+  onText,
+}: {
+  label: string;
+  placeholder: string;
+  disabled: boolean;
+  value: string;
+  onText: (text: string) => void;
+}) {
+  return (
+    <textarea
+      aria-label={label}
+      placeholder={placeholder}
+      rows={1}
+      disabled={disabled}
+      value={value}
+      onChange={(event) => {
+        onText(event.target.value);
+        grow(event.target);
+      }}
+      onKeyDown={sendOnEnter}
+    />
+  );
 }
 
 /** The text and files of the next message, and the submit that sends them once the agent waits. */
@@ -104,8 +147,7 @@ function useMessage({ status, onSend, attachments }: ComposerProps) {
       return;
     }
     const message = await attached.send(text);
-    if (message !== null) {
-      onSend(message);
+    if (message !== null && (await deliver(onSend, message))) {
       setText("");
       if (field !== null) {
         field.style.height = "auto";
@@ -119,42 +161,49 @@ function useMessage({ status, onSend, attachments }: ComposerProps) {
  * The message box of every chat with an agent: a field that grows with the text, 📎 for files when
  * the chat takes them, and the round send button. Enter sends, Shift+Enter starts a line. The
  * Candidate types while the agent works and sends once it waits for a message; `onStop` adds
- * «Остановить» for the agent's turn. `tools` stand at the bottom left, such as the model choice.
+ * «Остановить» for the agent's turn. `tools` stand below the field, such as the model choice.
  */
 export function Composer(props: ComposerProps) {
-  const { status, onStop, label, placeholder, attachments, tools = null } = props;
+  const { status, onStop, label, placeholder, attachments } = props;
+  const { tools = null, actions = null, sendLabel = "Отправить" } = props;
   const canType = status === "idle" || status === "working";
   const { text, setText, attached, canSend, submit } = useMessage(props);
   return (
-    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- a drop is a pointer shortcut; 📎 attaches the same files from the keyboard
-    <form
-      className="composer nodrag nopan nowheel"
-      onSubmit={(event) => void submit(event)}
-      onDragOver={attached.handleDragOver}
-      onDrop={attached.handleDrop}
-    >
-      <AttachedFiles attached={attached} />
-      <textarea
-        aria-label={label}
-        placeholder={placeholder}
-        rows={1}
-        disabled={!canType}
-        value={text}
-        onChange={(event) => {
-          setText(event.target.value);
-          grow(event.target);
-        }}
-        onKeyDown={sendOnEnter}
-      />
-      <div className="composer-bar">
-        <div className="composer-tools">
-          {attachments === undefined ? null : (
-            <AttachButton disabled={!canType} onAdd={attached.handleAdd} />
-          )}
-          {tools}
+    <>
+      {/* Models belong below the message box, never inside the writing area. */}
+      {/* oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- a drop is a pointer shortcut; 📎 attaches the same files from the keyboard */}
+      <form
+        className="composer nodrag nopan nowheel"
+        onSubmit={(event) => void submit(event)}
+        onDragOver={attached.handleDragOver}
+        onDrop={attached.handleDrop}
+      >
+        <AttachedFiles attached={attached} />
+        <MessageField
+          label={label}
+          placeholder={placeholder}
+          disabled={!canType}
+          value={text}
+          onText={(next) => {
+            setText(next);
+          }}
+        />
+        <div className="composer-bar">
+          <div className="composer-tools">
+            {attachments === undefined ? null : (
+              <AttachButton disabled={!canType} onAdd={attached.handleAdd} />
+            )}
+            {actions}
+          </div>
+          <ComposerButtons
+            working={status === "working"}
+            canSend={canSend}
+            onStop={onStop}
+            sendLabel={sendLabel}
+          />
         </div>
-        <ComposerButtons working={status === "working"} canSend={canSend} onStop={onStop} />
-      </div>
-    </form>
+      </form>
+      {tools === null ? null : <div className="composer-options">{tools}</div>}
+    </>
   );
 }

@@ -11,6 +11,8 @@ import {
 } from "@/features/agent-chat";
 import type { ChatEntry } from "@/shared/api";
 
+import { SessionWindow } from "../session-window";
+
 import { DiscussSeparately } from "./discuss-separately";
 
 /**
@@ -77,7 +79,7 @@ export function InterviewerChat({
   const { view, notice, lost, prompt } = useSessionEvents(sessionId);
   const status = lost === null ? (view?.status ?? null) : null;
   return (
-    <aside className="interviewer" aria-label="Интервьюер">
+    <SessionWindow kind="interviewer" id={interviewId} label="Интервьюер" className="interviewer">
       <h4>
         Интервьюер
         {view === null
@@ -110,6 +112,6 @@ export function InterviewerChat({
         placeholder="Уточнить вопрос"
         tools={<SessionOptions view={lost === null ? view : null} />}
       />
-    </aside>
+    </SessionWindow>
   );
 }

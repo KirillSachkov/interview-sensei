@@ -14,6 +14,8 @@ import {
 import { AgentUnavailableError, continueSideThread, deleteSideThread } from "@/shared/api";
 import type { ChatEntry, SessionView, SideThread } from "@/shared/api";
 
+import { SessionWindow } from "../session-window";
+
 import { FragmentQuote } from "./discuss-separately";
 import { OtherAgentChoice } from "./pause-controls";
 import { useRefreshSideThreads } from "./side-thread-refresh";
@@ -188,10 +190,11 @@ export function SideThreadChat({ thread, number }: { thread: SideThread; number:
   );
   const status = lost === null ? (view?.status ?? null) : null;
   return (
-    <aside
+    <SessionWindow
+      kind="thread"
+      id={thread.id}
+      label={`Ветка к вопросу ${number}`}
       className="side-thread"
-      data-side-thread={thread.id}
-      aria-label={`Ветка к вопросу ${number}`}
     >
       <header className="side-thread-head">
         <h4>{originTitles[thread.origin.kind]}</h4>
@@ -215,10 +218,8 @@ export function SideThreadChat({ thread, number }: { thread: SideThread; number:
         onStop={cancel}
         label="Сообщение в ветку"
         placeholder="Спросить ещё"
+        tools={<SessionOptions view={lost === null ? view : null} />}
       />
-      <div className="side-thread-options" aria-label="Модель и мышление ветки">
-        <SessionOptions view={lost === null ? view : null} />
-      </div>
-    </aside>
+    </SessionWindow>
   );
 }
