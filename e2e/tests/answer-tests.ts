@@ -4,7 +4,8 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 
-import { onboarding, zones } from "./canvas-support.ts";
+import { answerDebriefTests } from "./answer-debrief-tests.ts";
+import { answersCard, onboarding } from "./canvas-support.ts";
 import type { setupChat } from "./canvas-support.ts";
 
 const elixirName = "Elixir-разработчик";
@@ -39,12 +40,6 @@ async function hideAfterTurn(chat: ReturnType<typeof setupChat>) {
   await chat.panel.getByRole("button", { name: "Скрыть" }).click();
 }
 
-/** «Опорные ответы» of the «Цель» zone, in a view that fits the zone. */
-async function answersCard(page: Page) {
-  await page.getByRole("button", { name: "Показать всё" }).click();
-  return zones(page).goal.getByRole("article", { name: "Опорные ответы" });
-}
-
 /** Opens the start window and checks its count, its default choice and its warning. */
 async function openStartWindow(card: Locator) {
   await expect(card).toContainText("Без опорного ответа: 2");
@@ -66,6 +61,21 @@ async function expectReport(page: Page, card: Locator) {
   await expect(report).toContainText(/Расход: 4\s321 токенов/u);
 }
 
+/** «Наполнять в фоне» in the open «Настройки». */
+async function fillInBackground(page: Page) {
+  await page.getByRole("button", { name: "Настройки" }).click();
+  return page
+    .getByRole("menu", { name: "Настройки" })
+    .getByRole("menuitemcheckbox", { name: /Наполнять в фоне/u });
+}
+
+/** Clicks «Наполнять в фоне» from the other state and waits for the stored one. */
+async function switchFill(toggle: Locator, to: "true" | "false") {
+  await expect(toggle).toHaveAttribute("aria-checked", to === "true" ? "false" : "true");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-checked", to);
+}
+
 export function answerTests() {
   test.describe("answer search from the «Цель» zone", () => {
     test.use({ viewport: { width: 1600, height: 1000 } });
@@ -81,5 +91,23 @@ export function answerTests() {
       await expect(card).toContainText("Без опорного ответа: 0");
       await expectReport(page, card);
     });
+
+    test("«Наполнять в фоне» in «Настройки» is off by default and stays on once turned on", async ({
+      page,
+    }) => {
+      await page.goto("/");
+      const toggle = await fillInBackground(page);
+      await expect(toggle).toContainText("расходует лимиты подписки агента");
+
+      await switchFill(toggle, "true");
+      await page.reload();
+
+      const reloaded = await fillInBackground(page);
+      await expect(reloaded).toHaveAttribute("aria-checked", "true");
+      // The tests after this one expect no answer search after their Inbox processings and mocks.
+      await switchFill(reloaded, "false");
+    });
+
+    answerDebriefTests();
   });
 }

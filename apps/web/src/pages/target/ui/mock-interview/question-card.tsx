@@ -66,10 +66,12 @@ type Stage = "answering" | "finishing" | "ended";
 /** What the card shows below the question: the answer form, or the answer and what follows it. */
 function AnswerPart({
   interviewId,
+  targetId,
   card,
   stage,
 }: {
   interviewId: string;
+  targetId: string;
   card: Card;
   stage: Stage;
 }) {
@@ -85,7 +87,12 @@ function AnswerPart({
     <>
       <GivenAnswer card={card} />
       <FollowUps interviewId={interviewId} card={card} canAnswer={canAnswer} />
-      <AttemptPart interviewId={interviewId} card={card} ended={stage === "ended"} />
+      <AttemptPart
+        interviewId={interviewId}
+        targetId={targetId}
+        card={card}
+        ended={stage === "ended"}
+      />
     </>
   );
 }
@@ -96,15 +103,23 @@ function AnswerPart({
  */
 function AttemptPart({
   interviewId,
+  targetId,
   card,
   ended,
 }: {
   interviewId: string;
+  targetId: string;
   card: Card;
   ended: boolean;
 }) {
   if (card.attemptId !== null) {
-    return <Debrief interviewId={interviewId} attemptId={card.attemptId} />;
+    return (
+      <Debrief
+        interviewId={interviewId}
+        attemptId={card.attemptId}
+        question={{ targetId, questionId: card.questionId, topicId: card.topicId }}
+      />
+    );
   }
   if (ended) {
     return <p className="muted">Без оценки</p>;
@@ -158,7 +173,7 @@ export function QuestionCard({
       <CardMarks targetId={targetId} card={card} />
       <p className="question-text">{card.text}</p>
       {card.format === "quiz" && !answering ? <QuizOptions card={card} /> : null}
-      <AnswerPart interviewId={interviewId} card={card} stage={stage} />
+      <AnswerPart interviewId={interviewId} targetId={targetId} card={card} stage={stage} />
       {discuss}
     </article>
   );
