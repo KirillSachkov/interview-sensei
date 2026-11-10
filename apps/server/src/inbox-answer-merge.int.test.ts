@@ -117,6 +117,22 @@ describe("inbox duplicate reference answers", () => {
     });
   });
 
+  it("keeps the article answer when the vacancy arrives second", async () => {
+    const { server, target, question, send, article } = await mergeContext();
+    const fresh = { ...question, text: "Что такое растущий стек?", sourceId: article };
+    await send([fresh]);
+    await expect(
+      send([{ ...fresh, sourceId: question.sourceId, referenceAnswer: null }]),
+    ).resolves.toMatchObject({ added: [], duplicates: [fresh.text], answers: [] });
+    const bank = await questionsOf(server, target.id);
+    const matching = bank.filter((stored) => stored.text === fresh.text);
+    expect(matching).toHaveLength(1);
+    expect(first(matching)).toMatchObject({
+      sourceIds: [article],
+      referenceAnswer: { ...fresh.referenceAnswer, origin: "material", sourceId: article, part: 1 },
+    });
+  });
+
   it("rejects an unknown existing id and a foreign Source atomically", async () => {
     const { server, target, question, events } = await mergeContext();
     const before = await questionsOf(server, target.id);
