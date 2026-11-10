@@ -7,9 +7,8 @@
 import { expect, test } from "@playwright/test";
 
 import {
-  agentButton,
+  agentSelect,
   attachFiles,
-  chooseAgent,
   demoName,
   expectAppliedPlan,
   greetFakeAgent,
@@ -68,32 +67,27 @@ test("the app opens on the canvas of the Target", async ({ page }) => {
   await expect(zones(page).goal).toContainText(demoName);
 });
 
-test("the agent menu shows the default agent and whether each agent is available", async ({
-  page,
-}) => {
+test("the setup chat shows the Target's default agent in its agent list", async ({ page }) => {
   await page.goto("/");
-  await expect(agentButton(page)).toHaveText(/Фейковый агент\s*по умолчанию/u);
 
-  await agentButton(page).click();
+  const agent = agentSelect(page);
 
-  const menu = page.getByRole("menu", { name: "Агент цели" });
-  await expect(menu.getByRole("menuitemradio", { checked: true })).toContainText("По умолчанию");
-  await expect(menu.getByRole("menuitemradio", { name: /Фейковый агент/u })).toContainText(
-    "доступен",
-  );
+  await expect(agent).toHaveValue("");
+  await expect(agent.locator("option:checked")).toHaveText("Фейковый агент, по умолчанию");
+  await expect(agent.locator('option[value="fake"]')).toBeEnabled();
 });
 
 test("the chosen agent of the Target stays after a reload", async ({ page }) => {
   await page.goto("/");
 
-  await chooseAgent(page, /Фейковый агент/u);
-  await expect(agentButton(page)).not.toContainText("по умолчанию");
+  await agentSelect(page).selectOption("fake");
+  await expect(agentSelect(page)).toHaveValue("fake");
   await page.reload();
 
-  await expect(agentButton(page)).toHaveText(/^Агент:\s*Фейковый агент\s*▾$/u);
-  await chooseAgent(page, /По умолчанию/u);
+  await expect(agentSelect(page)).toHaveValue("fake");
+  await agentSelect(page).selectOption("");
   await page.reload();
-  await expect(agentButton(page)).toContainText("по умолчанию");
+  await expect(agentSelect(page)).toHaveValue("");
 });
 
 test("the service page /agent-check has a chat where the fake agent answers", async ({ page }) => {
@@ -281,7 +275,7 @@ test("a draft Target is deleted at once after the confirmation", async ({ page }
   await page.goto("/");
   await page.getByRole("button", { name: "Новая цель" }).click();
   await onboarding(page);
-  await page.getByRole("button", { name: "Меню цели" }).click();
+  await page.getByRole("button", { name: "Действия" }).click();
   await page.getByRole("menuitem", { name: "Удалить черновик" }).click();
 
   await page.getByRole("alertdialog").getByRole("button", { name: "Удалить" }).click();

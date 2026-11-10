@@ -112,7 +112,7 @@ function TargetActions({
 }
 
 /**
- * «Меню цели»: «В архив» for an active Target, «Удалить черновик» for a draft, «Вернуть из архива»
+ * «Действия», the Target's menu: «В архив» for an active Target, «Удалить черновик» for a draft, «Вернуть из архива»
  * for an archived one. An archived or deleted Target leaves the canvas for the start page.
  */
 export function TargetMenu({ target }: { target: TargetSummary }) {
@@ -135,7 +135,7 @@ export function TargetMenu({ target }: { target: TargetSummary }) {
   });
   return (
     <>
-      <Menu label="Меню цели" buttonLabel="Меню цели" button={<span aria-hidden="true">⋯</span>}>
+      <Menu label="Меню цели" button="Действия">
         {(close) => (
           <TargetActions
             target={target}

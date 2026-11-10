@@ -14,15 +14,11 @@ export function zones(page: Page) {
   };
 }
 
-/** The agent button of the top bar. */
-export function agentButton(page: Page) {
-  return page.getByRole("button", { name: /^Агент:/u });
-}
-
-/** Opens the agent menu of the top bar and chooses the item with the name. */
-export async function chooseAgent(page: Page, name: RegExp) {
-  await agentButton(page).click();
-  await page.getByRole("menu", { name: "Агент цели" }).getByRole("menuitemradio", { name }).click();
+/** The agent list in the message box of the setup chat, before its session starts. */
+export function agentSelect(page: Page) {
+  return page
+    .getByRole("complementary", { name: "Настройка цели" })
+    .getByRole("combobox", { name: "Агент" });
 }
 
 /** The setup chat beside the canvas; `/tool <name> <json>` makes the fake agent call our tool. */

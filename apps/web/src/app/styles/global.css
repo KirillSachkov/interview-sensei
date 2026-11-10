@@ -188,13 +188,6 @@ textarea {
   font-size: var(--font-size-card-title);
 }
 
-.agent-current {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-weight: 500;
-}
-
 .caret {
   color: var(--color-muted);
   font-size: var(--font-size-small);

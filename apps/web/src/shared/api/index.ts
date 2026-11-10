@@ -97,7 +97,6 @@ export {
 } from "./targets";
 export type {
   PlanSection,
-  TargetAgent,
   TargetSummary,
   TargetView,
   TopicImportance,

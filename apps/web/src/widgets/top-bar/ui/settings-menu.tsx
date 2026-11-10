@@ -7,7 +7,7 @@ import { AgentSettings } from "./agent-settings";
 import { SpeechRecognitionSettings } from "./speech-recognition";
 
 /** The settings of the whole app, not of one Target. */
-export function useSettings() {
+function useSettings() {
   return useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
 }
 

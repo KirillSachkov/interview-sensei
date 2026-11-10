@@ -3,14 +3,14 @@ import { Link } from "@tanstack/react-router";
 import { NewTargetButton } from "@/features/new-target";
 import type { TargetSummary } from "@/shared/api";
 
-import { AgentPicker } from "./agent-picker";
 import { SettingsMenu } from "./settings-menu";
 import { TargetMenu } from "./target-menu";
 import { TargetSwitcher } from "./target-switcher";
 
 /**
  * The bar over the canvas: the Target switcher, «Меню цели» and «Новая цель» on the left; the
- * Target's agent and «Настройки» on the right. Without a Target only «Настройки» remains.
+ * «Настройки» on the right. Without a Target only «Настройки» remains. The Target's agent is chosen
+ * in the setup chat.
  */
 export function TopBar({ target }: { target: TargetSummary | null }) {
   return (
@@ -25,7 +25,6 @@ export function TopBar({ target }: { target: TargetSummary | null }) {
         </nav>
       )}
       <div className="island top-island">
-        {target === null ? null : <AgentPicker targetId={target.id} />}
         <SettingsMenu />
       </div>
     </header>

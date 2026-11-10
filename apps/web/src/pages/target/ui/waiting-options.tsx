@@ -5,6 +5,8 @@ import type { OptionChange } from "@/features/agent-chat";
 import { fetchAgentOptions, fetchSettings, fetchTargetAgent } from "@/shared/api";
 import type { AgentOptions } from "@/shared/api";
 
+import { AgentSelect } from "./agent-select";
+
 type Choice = AgentOptions["model"];
 
 /** The list with the value as the current one, when the list offers it. */
@@ -23,7 +25,7 @@ function chosen(options: AgentOptions, choice: OptionChange): AgentOptions {
 }
 
 /**
- * The model and the reasoning level of the session that the first message starts. They begin as
+ * The agent, the model and the reasoning level of the session that the first message starts. They begin as
  * the defaults of the Target's agent from «Настройки», or the agent's own; the server reads the
  * lists from the agent without a prompt. `choice` holds what the Candidate changed here.
  */
@@ -52,21 +54,24 @@ export function WaitingOptions({
     retry: false,
   });
   if (options.data === undefined) {
-    return null;
+    return <AgentSelect targetId={targetId} />;
   }
   const effort =
     choice.effort ?? (choice.model === undefined ? (preset?.effort ?? undefined) : undefined);
   return (
-    <OptionPills
-      options={chosen(options.data, {
-        ...(model === null ? {} : { model }),
-        ...(effort === undefined ? {} : { effort }),
-      })}
-      disabled={false}
-      onChange={(change) => {
-        // The levels belong to the model: a new model starts from its own level.
-        onChange(change.model === undefined ? { ...choice, ...change } : { model: change.model });
-      }}
-    />
+    <>
+      <AgentSelect targetId={targetId} />
+      <OptionPills
+        options={chosen(options.data, {
+          ...(model === null ? {} : { model }),
+          ...(effort === undefined ? {} : { effort }),
+        })}
+        disabled={false}
+        onChange={(change) => {
+          // The levels belong to the model: a new model starts from its own level.
+          onChange(change.model === undefined ? { ...choice, ...change } : { model: change.model });
+        }}
+      />
+    </>
   );
 }

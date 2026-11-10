@@ -64,7 +64,7 @@ export async function demoQuestions(page: Page) {
 
 /** Opens «Меню цели» in the top bar and returns its «В архив». */
 async function archiveItem(page: Page) {
-  await page.getByRole("button", { name: "Меню цели" }).click();
+  await page.getByRole("button", { name: "Действия" }).click();
   return page.getByRole("menu", { name: "Меню цели" }).getByRole("menuitem", { name: /В архив/u });
 }
 
