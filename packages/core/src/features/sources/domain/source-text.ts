@@ -5,8 +5,9 @@
 const partLength = 8000;
 
 /**
- * How the server reads a Source's text. A `video` has no text the server can read: the Candidate
- * attaches its transcript as a material of its own (#36 decides on transcription).
+ * How the server reads a Source's text. A `video` is a recording: a video or audio file, whose
+ * speech the server recognizes (#74), or a link to a video hosting, which needs its transcript as a
+ * material of its own until #76.
  */
 export type TextFormat =
   "pdf" | "docx" | "text" | "subtitles" | "html" | "web" | "video" | "unsupported";
@@ -28,6 +29,14 @@ const formatsByExtension: Readonly<Record<string, TextFormat>> = {
   webm: "video",
   avi: "video",
   m4v: "video",
+  mp3: "video",
+  m4a: "video",
+  wav: "video",
+  ogg: "video",
+  oga: "video",
+  opus: "video",
+  flac: "video",
+  aac: "video",
 };
 
 /** Video hostings: a link to one of them is a video, not a page with text. */

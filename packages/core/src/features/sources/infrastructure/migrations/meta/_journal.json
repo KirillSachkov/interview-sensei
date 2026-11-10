@@ -29,6 +29,13 @@
       "when": 1794253009997,
       "tag": "0003_inbox_recheck",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794269433432,
+      "tag": "0004_source_progress",
+      "breakpoints": true
     }
   ]
 }

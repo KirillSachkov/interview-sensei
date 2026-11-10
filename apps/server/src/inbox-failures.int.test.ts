@@ -1,7 +1,7 @@
 // Seam 1 of spec #47: the status «ошибка» of a material with its reason. The agent gives it with
-// mark_source_failed; the server gives it to a format it cannot read, to a material without text
-// and to a video without a transcript. A web page the server could not read stays for the agent,
-// which opens it on the web.
+// mark_source_failed; the server gives it to a format it cannot read, to a material without text,
+// to a video file without speech recognition installed and to a video link without a transcript.
+// A web page the server could not read stays for the agent, which opens it on the web.
 import type { FastifyInstance } from "fastify";
 import { describe, expect, it } from "vitest";
 
@@ -144,7 +144,7 @@ describe("the status «ошибка» of a material", () => {
     });
   });
 
-  it("a video file and a video link without a transcript get «ошибка» «приложите транскрипт», and the attached transcript is processed by its text", async () => {
+  it("a video file without speech recognition installed and a video link get «ошибка» with what to do, and the attached transcript is processed by its text", async () => {
     const { server, target, setup } = await activeTarget();
     await attach(server, {
       targetId: target.id,
@@ -163,7 +163,12 @@ describe("the status «ошибка» of a material", () => {
     const { events } = await processingEvents(server, target.id);
     const list = await sources(server, target.id);
     expect(list.map(({ title, status, failure }) => ({ title, status, failure }))).toStrictEqual([
-      { title: "interview.mp4", status: "failed", failure: "приложите транскрипт" },
+      {
+        title: "interview.mp4",
+        status: "failed",
+        failure:
+          "распознавание речи не установлено: скачайте модель в карточке разбора или приложите транскрипт",
+      },
       { title: "Запись собеседования", status: "failed", failure: "приложите транскрипт" },
       { title: "interview [manual].vtt", status: "processing", failure: null },
     ]);

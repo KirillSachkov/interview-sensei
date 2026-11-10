@@ -183,7 +183,9 @@ export function settledSources(
   { reported }: { reported: boolean },
 ): { readonly ready: string[]; readonly back: string[]; readonly failed: number } {
   const own = sources.filter((source) => run.sourceIds.includes(source.id));
-  const processing = own.filter((source) => source.status === "processing");
+  const processing = own.filter(
+    (source) => source.status === "processing" || source.status === "transcribing",
+  );
   const done = (source: RunSource) => (source.parts === null ? reported : readWhole(run, source));
   const ready = processing.filter((source) => done(source)).map((source) => source.id);
   const back = processing.map((source) => source.id).filter((source) => !ready.includes(source));

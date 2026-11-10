@@ -64,6 +64,8 @@ interface SourcesModuleDependencies {
   duplicates: DuplicateFilter;
   /** The agent-sessions slice. */
   sessions: InboxSessions;
+  /** The transcription slice: the text of video and audio files. */
+  transcription: Parameters<typeof createInbox>[0]["transcription"];
   /** Receives errors of background work. */
   onError: (error: unknown) => void;
 }

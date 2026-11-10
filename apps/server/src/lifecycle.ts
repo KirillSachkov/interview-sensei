@@ -13,11 +13,11 @@ import { acceptLocalRequestsOnly } from "./local-requests.ts";
 export async function prepare(
   server: FastifyInstance,
   {
-    features: { storage, sessions, interviews, sources },
+    features: { storage, sessions, interviews, sources, transcription },
     allowedOrigins,
     exemptRoutes,
   }: {
-    features: Pick<Features, "storage" | "sessions" | "interviews" | "sources">;
+    features: Pick<Features, "storage" | "sessions" | "interviews" | "sources" | "transcription">;
     allowedOrigins: readonly string[];
     /** Routes with their own Host and Origin checks; see acceptLocalRequestsOnly. */
     exemptRoutes: readonly string[];
@@ -28,6 +28,7 @@ export async function prepare(
   // processing first finishes reading its texts and hands its agent to the sessions.
   server.addHook("onClose", async () => {
     try {
+      await transcription.close();
       await sources.inbox.settle();
       await sessions.close();
     } finally {

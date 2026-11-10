@@ -20,6 +20,7 @@ export async function moveSettled(
   const moves = [
     { ids: ready, status: "ready", from: "processing" },
     { ids: back, status: "inbox", from: "processing" },
+    { ids: back, status: "inbox", from: "transcribing" },
   ] as const;
   for (const move of moves) {
     // oxlint-disable-next-line eslint/no-await-in-loop -- one transaction runs one query at a time

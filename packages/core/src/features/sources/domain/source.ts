@@ -8,10 +8,12 @@ export type SourceType = (typeof sourceTypes)[number];
  * Where the Source is in its Inbox processing:
  * - `inbox`: «в Inbox», it waits for processing;
  * - `processing`: «разбирается», an Inbox processing reads it now;
+ * - `transcribing`: «транскрибируется», the server recognizes the speech of a video or audio file
+ *   before the processing agent reads it; `progress` has the percent;
  * - `ready`: «готов», an Inbox processing read it;
  * - `failed`: «ошибка», the server or the agent could not read it, for the reason in `failure`.
  */
-export type SourceStatus = "inbox" | "processing" | "ready" | "failed";
+export type SourceStatus = "inbox" | "processing" | "transcribing" | "ready" | "failed";
 
 /** A Source as the slice stores it: a file in the data directory or a URL. */
 export interface Source {
@@ -28,6 +30,8 @@ export interface Source {
   readonly failure: string | null;
   /** How many numbered parts the server cut the Source's text into; null before it read it. */
   readonly parts: number | null;
+  /** The percent of a running transcription, from 0 to 99; null in any other status. */
+  readonly progress: number | null;
   readonly createdAt: string;
 }
 

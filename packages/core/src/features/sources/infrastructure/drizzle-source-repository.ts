@@ -10,6 +10,19 @@ function toSource({ number: _number, ...row }: typeof sources.$inferSelect): Sou
   return { ...row, createdAt: row.createdAt.toISOString() };
 }
 
+/** Stores the percent of a Source «транскрибируется». */
+async function setProgress(
+  database: Database,
+  { targetId, id, progress }: { targetId: string; id: string; progress: number },
+) {
+  await database
+    .update(sources)
+    .set({ progress })
+    .where(
+      and(eq(sources.targetId, targetId), eq(sources.id, id), eq(sources.status, "transcribing")),
+    );
+}
+
 /** The Sources in the `sources` Postgres schema. */
 export function drizzleSourceRepository(database: Database): SourceRepository<Transaction> {
   return {
@@ -37,7 +50,7 @@ export function drizzleSourceRepository(database: Database): SourceRepository<Tr
       }
       await executorOf(database, transaction)
         .update(sources)
-        .set({ status, failure: status === "failed" ? (failure ?? null) : null })
+        .set({ status, failure: status === "failed" ? (failure ?? null) : null, progress: null })
         .where(
           and(
             eq(sources.targetId, targetId),
@@ -52,6 +65,8 @@ export function drizzleSourceRepository(database: Database): SourceRepository<Tr
         .set({ parts })
         .where(and(eq(sources.targetId, targetId), eq(sources.id, id)));
     },
+    setProgress: async (targetId, id, progress) =>
+      setProgress(database, { targetId, id, progress }),
     erase: async (targetId, transaction) => {
       await transaction.delete(sources).where(eq(sources.targetId, targetId));
     },

@@ -10,6 +10,7 @@ import { textFormat, textParts } from "../domain/source-text.ts";
 import { inBackground } from "./inbox-context.ts";
 import type { InboxContext, InboxDependencies } from "./inbox-context.ts";
 import { closeRun, watchAgent } from "./inbox-ending.ts";
+import { sourceText } from "./inbox-transcription.ts";
 
 /**
  * - `started`: the Sources are «разбирается»; the server reads them and starts the agent in the
@@ -90,13 +91,9 @@ async function checkStart(
 }
 
 /** Reads the Source's text and stores its numbered parts; rejects when there is no text. */
-async function storeParts({ dependencies }: InboxContext, source: Source): Promise<void> {
-  const { repository, files, texts, extractor } = dependencies;
-  const text = await extractor.extract({
-    format: textFormat(source),
-    path: source.file === null ? null : files.absolute(source.file),
-    url: source.url,
-  });
+async function storeParts(context: InboxContext, source: Source): Promise<void> {
+  const { repository, texts } = context.dependencies;
+  const text = await sourceText(context, source);
   const parts = textParts(text);
   if (parts.length === 0) {
     throw new UnreadableSourceError("в материале нет текста");

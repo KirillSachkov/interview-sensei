@@ -111,6 +111,7 @@ describe("materials for the agent of the Target setup", () => {
         status: "inbox",
         failure: null,
         parts: null,
+        progress: null,
         createdAt: fixedTime,
       },
     ]);
@@ -123,6 +124,7 @@ describe("materials for the agent of the Target setup", () => {
       status: "inbox",
       failure: null,
       parts: null,
+      progress: null,
       createdAt: fixedTime,
     });
   });

@@ -15,6 +15,7 @@ import type {
   SourceTexts,
   TextExtractor,
 } from "../domain/ports.ts";
+import type { SourceTranscription } from "../domain/transcription-port.ts";
 
 export interface InboxDependencies {
   readonly repository: SourceRepository<Transaction>;
@@ -22,6 +23,8 @@ export interface InboxDependencies {
   readonly files: SourceFiles;
   readonly texts: SourceTexts;
   readonly extractor: TextExtractor;
+  /** Recognizes the speech of video and audio files. */
+  readonly transcription: SourceTranscription;
   readonly targets: SourceTargets<Transaction>;
   readonly agents: InboxAgents;
   readonly questions: InboxQuestions<Transaction>;

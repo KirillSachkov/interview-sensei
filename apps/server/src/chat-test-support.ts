@@ -9,6 +9,7 @@ import type { FastifyInstance } from "fastify";
 import { expect, onTestFinished } from "vitest";
 
 import { buildServer } from "./server.ts";
+import type { ServerDependencies } from "./server.ts";
 
 export const fixedTime = "2026-01-02T03:04:05.000Z";
 export const fakeReply = "Фейковый агент получил: «Привет»";
@@ -27,6 +28,8 @@ export interface ServerOptions {
   readonly skillsDirectory?: string;
   readonly clock?: Clock;
   readonly timer?: Timer;
+  /** The stand-ins for speech recognition; see transcription-test-support.ts. */
+  readonly transcription?: ServerDependencies["transcription"];
 }
 
 /**
@@ -44,6 +47,7 @@ export async function startServer(
     clock = { now: () => new Date(fixedTime) },
     // Dumps and agent timeouts are not under test here; the timer never runs a task.
     timer = { repeat: () => () => {}, after: () => () => {} },
+    transcription,
   }: ServerOptions = {},
 ) {
   const server = await buildServer({
@@ -52,6 +56,7 @@ export async function startServer(
     dataDirectory,
     fakeAgent: true,
     allowedOrigins,
+    transcription,
     ...(skillsDirectory === undefined ? {} : { skillsDirectory }),
   });
   let closed: Promise<void> | null = null;

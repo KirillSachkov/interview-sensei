@@ -4,9 +4,13 @@ import type { InboxProposal, InboxReport } from "../domain/inbox.ts";
 import type { InboxBankQuestion, InboxTarget } from "../domain/ports.ts";
 import { reportQuestions } from "../domain/report-questions.ts";
 import type { Source } from "../domain/source.ts";
+import { textFormat } from "../domain/source-text.ts";
 import type { InboxContext } from "./inbox-context.ts";
 
-/** One material of the proposal card: its type and volume from the server, the agent's assessment. */
+/**
+ * One material of the proposal card: its type and volume from the server, whether it is a video or
+ * audio, and the agent's assessment.
+ */
 async function proposalItems({ dependencies }: InboxContext, proposal: InboxProposal) {
   const sources = await dependencies.repository.list(proposal.targetId);
   const items = await Promise.all(
@@ -17,7 +21,9 @@ async function proposalItems({ dependencies }: InboxContext, proposal: InboxProp
       }
       const size = source.file === null ? null : await dependencies.files.size(source.file);
       const { type, title, url } = source;
-      return [{ sourceId, type, title, url, size, assessment }];
+      // A recording needs speech recognition: the card offers its components.
+      const video = textFormat(source) === "video";
+      return [{ sourceId, type, title, url, size, video, assessment }];
     }),
   );
   return items.flat();
