@@ -39,12 +39,8 @@ function toolText(answer: unknown): string {
   throw new Error(`Unexpected tool answer: ${JSON.stringify(answer)}`);
 }
 
-/** Calls our MCP tool on the address that `/mcp` reveals in the interviewer chat. */
-export async function callTextTool(
-  chat: Chat,
-  name: string,
-  arguments_: object = {},
-): Promise<string> {
+/** Calls our MCP tool on the address that `/mcp` reveals in the interviewer chat; its JSON result. */
+export async function callTool(chat: Chat, name: string): Promise<unknown> {
   const reply = await ask(chat, "/mcp", "MCP: ");
   const [, url = ""] = reply.slice("MCP: ".length).split(" ");
   const response = await fetch(url, {
@@ -58,17 +54,12 @@ export async function callTextTool(
       jsonrpc: "2.0",
       id: 1,
       method: "tools/call",
-      params: { name, arguments: arguments_ },
+      params: { name, arguments: {} },
     }),
   });
   const body = await response.text();
   const data = body.split("\n").find((line) => line.startsWith("data:")) ?? "";
-  return toolText(JSON.parse(data.slice("data:".length)));
-}
-
-/** Calls an MCP tool that returns JSON. */
-export async function callTool(chat: Chat, name: string): Promise<unknown> {
-  return JSON.parse(await callTextTool(chat, name));
+  return JSON.parse(toolText(JSON.parse(data.slice("data:".length))));
 }
 
 /**
@@ -87,4 +78,11 @@ export async function demoWithMock(dataDirectory?: string) {
   // The session ends after the agent's last turn.
   await run.chat.waitFor((view) => view.status === "ended");
   return { ...api, interviewId: run.interview.id, graded };
+}
+
+/** Drives a tool through the fake agent, including ACP permission, and returns its text result. */
+export async function promptTool(chat: Chat, name: string, args: object = {}): Promise<string> {
+  const prefix = `Результат ${name}: `;
+  const reply = await ask(chat, `/tool ${name} ${JSON.stringify(args)}`, prefix);
+  return reply.slice(prefix.length);
 }
