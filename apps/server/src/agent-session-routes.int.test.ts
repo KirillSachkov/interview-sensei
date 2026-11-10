@@ -19,6 +19,7 @@ const view: SessionView = {
   entries: [],
   failure: null,
   agentText: "new",
+  narration: null,
 };
 
 /** AgentSessions whose prompt and cancel reject, as when the database or the agent breaks. */

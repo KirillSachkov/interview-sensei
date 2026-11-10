@@ -124,6 +124,81 @@ function draftChatTests() {
   });
 }
 
+/**
+ * Holds the answers of the draft until the returned release: the draft then arrives with no new
+ * message after it, as when the agent's turn has ended. Its other requests pass.
+ */
+async function holdDraft(page: Page) {
+  const held = Promise.withResolvers<null>();
+  const draft = /\/api\/targets\/[^/]+\/draft$/u;
+  await page.route(draft, async (route) => {
+    if (route.request().method() === "GET") {
+      await held.promise;
+    }
+    await route.continue();
+  });
+  return () => {
+    held.resolve(null);
+  };
+}
+
+/** «Отменить изменения» empties the draft, so the next tests start without one. */
+async function discardDraft(chat: ReturnType<typeof setupChat>) {
+  await chat.panel.getByRole("button", { name: "Отменить изменения" }).click();
+  await expect(chat.changes).toHaveCount(0);
+}
+
+/** The draft that arrives after the Candidate scrolled up leaves the chat where it is. */
+function scrolledDraftTest() {
+  test("the chat stays where the Candidate scrolled when the draft appears after the turn", async ({
+    page,
+  }) => {
+    const chat = await openPythonChat(page);
+    const list = chat.panel.getByRole("list", { name: "Сообщения" });
+    await sendMarkdown(chat);
+    const release = await holdDraft(page);
+
+    await chat.callTool("update_target", { tone: "strict" });
+    await scrollToTop(list);
+    release();
+
+    await expect(chat.changes).toHaveCount(1);
+    await expect(list.evaluate(({ scrollTop }: Scrolled) => scrollTop)).resolves.toBe(0);
+    await discardDraft(chat);
+  });
+}
+
+/** A plan as long as a real agent's: five Sections with their Topics. */
+const longPlan = {
+  sections: ["Опыт", "Kotlin", "Корутины", "Android", "Проектирование"].map((name, index) => ({
+    name,
+    kind: index === 0 ? "conversation" : "topics",
+    topics: Array.from({ length: 5 }, (_topic, topic) => `${name}: тема ${topic + 1}`),
+  })),
+};
+
+// Issue #88: the canvas fitted its view only when it opened, so a long plan that appeared later
+// went under the zoom island.
+function longPlanTest() {
+  test("a long plan of a new Target appears above the zoom island", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Новая цель" }).click();
+    const chat = await onboarding(page);
+    await chat.callTool("update_target", { name: "Kotlin-разработчик", level: "senior" });
+    await chat.callTool("set_interview_plan", longPlan);
+
+    await chat.callTool("apply_changes", {});
+
+    const plan = zones(page).goal.getByRole("list", { name: "План собеседования" });
+    const zoom = page.getByLabel("Масштаб", { exact: true });
+    await expect(plan.getByRole("list", { name: "Темы" })).toHaveCount(5);
+    await expect(async () => {
+      const [planBox, zoomBox] = await Promise.all([box(plan), box(zoom)]);
+      expect(planBox.y + planBox.height).toBeLessThanOrEqual(zoomBox.y);
+    }).toPass({ timeout: 5000 });
+  });
+}
+
 /** The element's box on the page; an element off the page fails the test. */
 async function box(element: Locator) {
   const found = await element.boundingBox();
@@ -157,6 +232,30 @@ function sessionsZoneTest() {
   });
 }
 
+/** A long draft leaves the chat's last message, input and «Применить» on the screen. */
+function longDraftTest() {
+  test("a long draft keeps the chat's last message, input and «Применить» in the panel", async ({
+    page,
+  }) => {
+    const chat = await openPythonChat(page);
+    await chat.callTool("add_questions", { questions: manyQuestions });
+
+    await sendMessage(chat, "Что дальше?");
+
+    await expect(chat.changes).toHaveText([/^Вопросы: добавить 56 вопросов/u]);
+    for (const element of [
+      chat.messages.last(),
+      chat.panel.getByRole("textbox", { name: "Сообщение" }),
+      chat.panel.getByRole("button", { name: "Применить (1)" }),
+    ]) {
+      // oxlint-disable-next-line eslint/no-await-in-loop -- one element after another on one page
+      await expectInPanel(chat.panel, element);
+    }
+    await chat.panel.getByRole("button", { name: "Отменить изменения" }).click();
+    await expect(chat.changes).toHaveCount(0);
+  });
+}
+
 export function setupChatTests() {
   test.describe("the setup chat beside a large screen's canvas", () => {
     // The live check ran on a 1600×1000 window, where the whole chat panel is on the screen.
@@ -181,28 +280,10 @@ export function setupChatTests() {
       await expect(page.getByRole("button", { name: pythonName })).not.toContainText("черновик");
     });
 
-    test("a long draft keeps the chat's last message, input and «Применить» in the panel", async ({
-      page,
-    }) => {
-      const chat = await openPythonChat(page);
-      await chat.callTool("add_questions", { questions: manyQuestions });
-
-      await sendMessage(chat, "Что дальше?");
-
-      await expect(chat.changes).toHaveText([/^Вопросы: добавить 56 вопросов/u]);
-      for (const element of [
-        chat.messages.last(),
-        chat.panel.getByRole("textbox", { name: "Сообщение" }),
-        chat.panel.getByRole("button", { name: "Применить (1)" }),
-      ]) {
-        // oxlint-disable-next-line eslint/no-await-in-loop -- one element after another on one page
-        await expectInPanel(chat.panel, element);
-      }
-      await chat.panel.getByRole("button", { name: "Отменить изменения" }).click();
-      await expect(chat.changes).toHaveCount(0);
-    });
-
+    longDraftTest();
     draftChatTests();
+    scrolledDraftTest();
+    longPlanTest();
   });
   sessionsZoneTest();
 }

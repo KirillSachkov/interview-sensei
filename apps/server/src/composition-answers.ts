@@ -3,9 +3,9 @@
 // processing and runs its agent in an Agent session. Only composition.ts imports this module.
 import { answerSearchModule } from "@interview-sensei/core/answer-search";
 import type { AgentSessions } from "@interview-sensei/core/agent-sessions";
-import type { Storage, StorageOptions } from "@interview-sensei/core/storage";
+import type { Storage } from "@interview-sensei/core/storage";
 
-import type { AgentRuntime } from "./composition-agents.ts";
+import type { AgentRuntime, Clock, Timer } from "./composition-agents.ts";
 import type { composeTargets } from "./composition-targets.ts";
 
 export {
@@ -18,8 +18,8 @@ export type { AnswerSearch, AnswerStartOutcome } from "@interview-sensei/core/an
 type ModuleDependencies = Parameters<typeof answerSearchModule>[0];
 
 interface AnswerSliceDependencies {
-  readonly clock: StorageOptions["clock"];
-  readonly timer: StorageOptions["timer"];
+  readonly clock: Clock;
+  readonly timer: Timer;
   readonly slices: ReturnType<typeof composeTargets>;
   readonly runtime: AgentRuntime;
   readonly sessions: AgentSessions;

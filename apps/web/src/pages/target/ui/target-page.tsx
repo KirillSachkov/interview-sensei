@@ -68,7 +68,8 @@ function TargetCanvas({ target }: { target: TargetView }) {
     <>
       <TopBar target={target} />
       <main>
-        <Canvas zones={zones} label="Холст цели" />
+        {/* A new Target gets its plan when it becomes active: the canvas fits again to show it. */}
+        <Canvas zones={zones} label="Холст цели" fitKey={target.status} />
         <SidePanel targetId={target.id} panel={panel} />
       </main>
     </>

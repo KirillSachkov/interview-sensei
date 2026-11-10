@@ -28,13 +28,11 @@ import {
   sourcesMigrations,
   sourcesModule,
 } from "@interview-sensei/core/sources";
-import type { AgentRuntime } from "@interview-sensei/core/agent-runtime";
-import type { SliceMigrations, Storage, StorageOptions } from "@interview-sensei/core/storage";
+import type { SliceMigrations, Storage } from "@interview-sensei/core/storage";
+
+import type { AgentRuntime, Clock, Timer } from "./composition-agents.ts";
 
 export { UnknownAgentError } from "@interview-sensei/core/targets";
-
-type Clock = StorageOptions["clock"];
-type Timer = StorageOptions["timer"];
 
 /** The migrations of the slices this module composes, in the order composition.ts applies them. */
 export const targetSliceMigrations: readonly SliceMigrations[] = [

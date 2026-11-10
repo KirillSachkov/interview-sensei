@@ -43,6 +43,8 @@ export interface SessionErasure<Transaction> {
 /** The working directories of the sessions, one per session in the data directory. */
 export interface SessionDirectories {
   readonly remove: (sessionIds: readonly string[]) => Promise<void>;
+  /** The ids of the sessions that have a directory; none before the first session. */
+  readonly list: () => Promise<readonly string[]>;
 }
 
 /** How the agent process ended without a request from the server. */

@@ -1,4 +1,4 @@
-import { request } from "./request";
+import { request } from "./http";
 
 /** What the material is. */
 export type SourceType = "vacancy" | "resume" | "link" | "file" | "note" | "transcript";

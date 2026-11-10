@@ -110,6 +110,20 @@ export interface TopicSummary extends Topic {
   readonly questionCount: number;
 }
 
+/**
+ * The content as its format has it: an open Question has no options, whatever a row or an input
+ * carries; a quiz keeps its options and correct ones.
+ */
+export function questionContent(content: {
+  readonly format: QuestionContent["format"];
+  readonly options: readonly QuizOption[];
+  readonly correctOptionIds: readonly string[];
+}): QuestionContent {
+  return content.format === "open"
+    ? { format: "open", options: [], correctOptionIds: [] }
+    : { format: "quiz", options: content.options, correctOptionIds: content.correctOptionIds };
+}
+
 /** Rejects malformed quizzes and options attached to an open Question. */
 export function validateQuestion(content: {
   readonly format: QuestionContent["format"];

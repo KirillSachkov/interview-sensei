@@ -1,15 +1,9 @@
 // The bodies of the Mock interview requests. The checks keep JSON types strict, without Fastify's
 // coercion, and give the services typed requests.
 import type { CandidateReply, SideThreadRequest, StartRequest } from "./composition.ts";
+import { onlyField } from "./route-params.ts";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
-
-/** The body's only field. */
-export function onlyField(body: unknown, key: string): unknown {
-  return typeof body === "object" && body !== null && Object.keys(body).length === 1 && key in body
-    ? Reflect.get(body, key)
-    : undefined;
-}
 
 function sectionIdsOf(sectionIds: unknown): string[] | undefined {
   return Array.isArray(sectionIds) &&

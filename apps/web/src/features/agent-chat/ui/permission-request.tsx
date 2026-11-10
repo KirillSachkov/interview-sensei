@@ -10,8 +10,19 @@ const kindNames: Readonly<Record<string, string>> = {
   reject_always: "Запрещать всегда",
 };
 
-/** The option's name for the Candidate: by its kind, or the agent's own name for an unknown kind. */
-const optionName = (option: PermissionOption) => kindNames[option.kind] ?? option.name;
+/**
+ * The option's name for the Candidate: by its kind, or the agent's own name for an unknown kind.
+ * When the request offers two options of one kind, such as two «always» options, the
+ * agent's own name follows the kind's, so the buttons differ.
+ */
+function optionName(option: PermissionOption, options: readonly PermissionOption[]): string {
+  const kindName = kindNames[option.kind];
+  if (kindName === undefined) {
+    return option.name;
+  }
+  const sameKind = options.filter((other) => other.kind === option.kind).length;
+  return sameKind > 1 ? `${kindName} — ${option.name}` : kindName;
+}
 
 function answerText(entry: PermissionEntry): string {
   if (entry.answer === null) {
@@ -22,7 +33,7 @@ function answerText(entry: PermissionEntry): string {
   }
   const { optionId } = entry.answer;
   const chosen = entry.options.find((option) => option.optionId === optionId);
-  return `Ваш ответ: ${chosen === undefined ? optionId : optionName(chosen)}`;
+  return `Ваш ответ: ${chosen === undefined ? optionId : optionName(chosen, entry.options)}`;
 }
 
 /**
@@ -68,7 +79,7 @@ export function PermissionRequest({
                 onAnswer(entry.requestId, option.optionId);
               }}
             >
-              {optionName(option)}
+              {optionName(option, entry.options)}
             </button>
           ))}
         </p>

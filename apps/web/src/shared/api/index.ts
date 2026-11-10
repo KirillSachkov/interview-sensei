@@ -8,7 +8,7 @@ export {
   fetchDraft,
   removeDraftChange,
 } from "./drafts";
-export type { DraftOperation } from "./drafts";
+export type { DraftChange, DraftOperation } from "./drafts";
 export { fetchSources, maxSourceFileBytes, uploadSource } from "./sources";
 export {
   answerSearchCounts,

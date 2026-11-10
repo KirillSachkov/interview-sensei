@@ -1,5 +1,4 @@
-import { isObject } from "./http";
-import { request } from "./request";
+import { isObject, request } from "./http";
 
 /** A speech model the Candidate chooses: GigaAM v3 for Russian, Parakeet for 25 languages. */
 export type ModelId = "gigaam-v3" | "parakeet-v3";

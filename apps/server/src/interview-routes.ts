@@ -11,8 +11,8 @@ import type {
   StartOutcome,
   StartRequest,
 } from "./composition.ts";
-import { onlyField, replyOf, startRequestOf } from "./interview-requests.ts";
-import { attemptParams, params } from "./route-params.ts";
+import { replyOf, startRequestOf } from "./interview-requests.ts";
+import { attemptParams, onlyField, params } from "./route-params.ts";
 import { registerPauseRoutes } from "./pause-routes.ts";
 import { registerSideThreadRoutes } from "./side-thread-routes.ts";
 

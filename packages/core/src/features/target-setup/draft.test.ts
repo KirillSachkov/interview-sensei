@@ -117,3 +117,79 @@ describe("draft of changes", () => {
     );
   });
 });
+
+describe("the Section renames in the draft", () => {
+  it("keeps the id, criteria and Topics of a Section that the plan renames", () => {
+    const current: SetupState = { ...newTarget, sections: [{ id: "section-1", ...goSection }] };
+
+    const state = stateAfter(current, [
+      {
+        type: "set_interview_plan",
+        sections: [{ name: "Go", kind: "topics" }],
+        renameSections: [{ from: "go и конкурентность", to: "Go" }],
+      },
+    ]);
+
+    expect(state.sections).toStrictEqual([{ ...goSection, id: "section-1", name: "Go" }]);
+    expect(draftProblems(state)).toStrictEqual([]);
+  });
+
+  it("swaps the names of two Sections, each keeping its id", () => {
+    const go = { id: "section-2", ...goSection, name: "Go" };
+    const current: SetupState = {
+      ...newTarget,
+      sections: [{ id: "section-1", ...experience }, go],
+    };
+
+    const state = stateAfter(current, [
+      {
+        type: "set_interview_plan",
+        sections: [
+          { name: "Go", kind: "conversation" },
+          { name: "Опыт и резюме", kind: "topics" },
+        ],
+        renameSections: [
+          { from: "Опыт и резюме", to: "Go" },
+          { from: "Go", to: "Опыт и резюме" },
+        ],
+      },
+    ]);
+
+    expect(state.sections.map(({ id, name }) => [id, name])).toStrictEqual([
+      ["section-1", "Go"],
+      ["section-2", "Опыт и резюме"],
+    ]);
+  });
+
+  it("refuses to rename a Section to the name of a Section that keeps its own", () => {
+    const current: SetupState = {
+      ...newTarget,
+      sections: [
+        { id: "section-1", ...experience },
+        { id: "section-2", ...goSection },
+      ],
+    };
+
+    const state = stateAfter(current, [
+      {
+        type: "set_interview_plan",
+        sections: [{ name: "Go и конкурентность", kind: "topics" }],
+        renameSections: [{ from: "Опыт и резюме", to: "go и конкурентность" }],
+      },
+    ]);
+
+    expect(draftProblems(state)).toContain("Секция «go и конкурентность» уже есть в цели.");
+  });
+
+  it("refuses to rename a Section the Target does not have", () => {
+    const state = stateAfter(newTarget, [
+      {
+        type: "set_interview_plan",
+        sections: [{ name: "Go", kind: "topics" }],
+        renameSections: [{ from: "Rust", to: "Go" }],
+      },
+    ]);
+
+    expect(draftProblems(state)).toContain("Секции «Rust» нет в цели.");
+  });
+});

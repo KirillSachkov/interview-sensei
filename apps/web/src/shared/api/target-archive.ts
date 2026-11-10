@@ -1,4 +1,4 @@
-import { request } from "./request";
+import { request } from "./http";
 import { isTargetSummary, isTargetView } from "./targets";
 import type { TargetSummary, TargetView } from "./targets";
 

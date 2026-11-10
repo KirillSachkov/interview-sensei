@@ -228,8 +228,22 @@ describe("the Questions in the draft", () => {
 
     expect(state.questions).toStrictEqual([
       { ...goroutine, text: "Чем горутина отличается от потока?", rating: "useful" },
-      { ...goroutine, id: "question-2", topic: "Каналы", text: "Что такое мьютекс?", hidden: true },
-      { ...added, topic: "Каналы", hidden: false, rating: null, referenceAnswer: null },
+      {
+        ...goroutine,
+        id: "question-2",
+        topic: "Каналы",
+        text: "Что такое мьютекс?",
+        hidden: true,
+        moved: true,
+      },
+      {
+        ...added,
+        topic: "Каналы",
+        hidden: false,
+        rating: null,
+        referenceAnswer: null,
+        moved: true,
+      },
     ]);
     expect(draftProblems(state)).toStrictEqual([]);
   });

@@ -55,6 +55,29 @@ describe("the Interview plan through the draft", () => {
     ]);
   });
 
+  it("keeps the id, criteria and Topics of a Section that the plan renames", async () => {
+    const { server } = await startServer(await temporaryDirectory());
+    const { target, events } = await appliedTarget(server);
+    const go = target.sections.find((section) => section.name === "Go");
+
+    const after = await applied({ server, events, targetId: target.id }, [
+      "set_interview_plan",
+      {
+        sections: [
+          { name: "Опыт", kind: "conversation" },
+          { name: "Golang", kind: "topics" },
+        ],
+        renameSections: [{ from: "Go", to: "Golang" }],
+      },
+    ]);
+
+    expect(after.sections.find((section) => section.id === go?.id)).toMatchObject({
+      name: "Golang",
+      gradingCriteria: go?.gradingCriteria,
+      topics: go?.topics,
+    });
+  });
+
   it("keeps the switch, criteria and Topics of a Section whose plan entry leaves them out", async () => {
     const { server } = await startServer(await temporaryDirectory());
     const { target, events } = await appliedTarget(server);

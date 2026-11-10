@@ -1,14 +1,9 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 
 import type { Features } from "./composition.ts";
+import { params } from "./route-params.ts";
 
 type Dependencies = Pick<Features, "sources">;
-
-const params = {
-  type: "object",
-  properties: { id: { type: "string", format: "uuid" } },
-  required: ["id"],
-} as const;
 
 const fileTooLargeMessage = "Файл больше 100 МБ. Прикрепите файл до 100 МБ.";
 

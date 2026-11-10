@@ -2,6 +2,7 @@
 // Written for this project; the store of @acp-components/core (MIT) served only as a reference.
 import type { AgentSession, ChatEntry, SessionStatus, SessionView } from "./agent-session.ts";
 import { isLive } from "./agent-session.ts";
+import { endsNarration, narrates, narrationAfter, narrationShown } from "./narration.ts";
 import type { AgentUpdate, RecordedEvent, SessionEvent } from "./session-event.ts";
 
 /**
@@ -12,7 +13,13 @@ export function emptyView(
   session: AgentSession,
   earlierEntries: readonly ChatEntry[] = [],
 ): SessionView {
-  return { ...session, entries: earlierEntries, failure: null, agentText: "new" };
+  return {
+    ...session,
+    entries: earlierEntries,
+    failure: null,
+    agentText: "new",
+    narration: null,
+  };
 }
 
 /** The status after the event, the same rule for the live session and for the stored one. */
@@ -207,14 +214,23 @@ function agentTextAfter(view: SessionView, event: SessionEvent): SessionView["ag
   }
 }
 
-/** Applies one journal entry to the view. */
+/** Applies one journal entry to the view; see narration.ts for the agent's narration. */
 export function applyEvent(view: SessionView, recorded: RecordedEvent): SessionView {
+  const current = narrationShown(view, recorded.event);
+  const { event } = recorded;
   return {
-    ...view,
-    status: statusAfter(view.status, recorded.event),
-    entries: entriesAfter(view, recorded),
-    failure: recorded.event.type === "session_failed" ? recorded.event.failure : view.failure,
-    agentText: agentTextAfter(view, recorded.event),
+    ...current,
+    status: statusAfter(current.status, event),
+    entries: narrates(current, event) ? current.entries : entriesAfter(current, recorded),
+    failure: event.type === "session_failed" ? event.failure : current.failure,
+    // A dropped narration leaves no message for the agent's next text to continue.
+    agentText:
+      current.narration !== null && endsNarration(event) && current.agentText !== "hidden"
+        ? "new"
+        : agentTextAfter(current, event),
+    narration: narrationAfter(current, event, (narration) =>
+      entriesAfter({ ...current, entries: narration }, recorded),
+    ),
   };
 }
 

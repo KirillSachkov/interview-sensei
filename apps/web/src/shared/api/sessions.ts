@@ -1,5 +1,4 @@
-import { request } from "./request";
-import { sent } from "./http";
+import { request, sent } from "./http";
 
 /** One line of the chat; the server folds the agent's events into these. */
 export type ChatEntry =

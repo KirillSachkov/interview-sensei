@@ -108,6 +108,11 @@ describe("mcp and permissions", () => {
         options: [
           { optionId: "allow-once", name: "Allow once", kind: "allow_once" },
           { optionId: "allow-always", name: "Always allow", kind: "allow_always" },
+          {
+            optionId: "allow-always-command",
+            name: "Always allow this command",
+            kind: "allow_always",
+          },
           { optionId: "reject-once", name: "Reject", kind: "reject_once" },
           { optionId: "reject-always", name: "Always reject", kind: "reject_always" },
         ],

@@ -1,6 +1,6 @@
 import { Panel, ReactFlow, useReactFlow, useViewport } from "@xyflow/react";
 import type { Node, NodeProps } from "@xyflow/react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { ReactNode } from "react";
 
 /**
@@ -100,10 +100,49 @@ function ZoomControls() {
 const fitPadding = { top: "112px", bottom: "96px", left: "48px", right: "48px" } as const;
 
 /**
- * The infinite canvas of one Target. The wheel or trackpad moves it; the middle mouse button, or
- * Space with the left button, drags it; Ctrl or ⌘ with the wheel and a pinch change the scale.
+ * Fits the view again when `fitKey` changes, such as when a new Target gets its plan: the canvas
+ * fits only when it opens, and the zone that grew would go under the zoom island. The zones measure
+ * their new content in the next frame, so the fit waits for the frame after it.
  */
-export function Canvas({ zones, label }: { zones: readonly CanvasZone[]; label: string }) {
+function FitOnChange({ fitKey }: { fitKey: string }) {
+  const flow = useReactFlow();
+  const fitted = useRef(fitKey);
+  // Stays until the fit runs: a cleanup that cancels the frames leaves it for the next run.
+  const pending = useRef(false);
+  useEffect(() => {
+    pending.current ||= fitted.current !== fitKey;
+    fitted.current = fitKey;
+    let measured = 0;
+    const rendered = requestAnimationFrame(() => {
+      measured = requestAnimationFrame(() => {
+        if (pending.current) {
+          pending.current = false;
+          void flow.fitView({ padding: fitPadding, maxZoom: 1 });
+        }
+      });
+    });
+    return () => {
+      cancelAnimationFrame(rendered);
+      cancelAnimationFrame(measured);
+    };
+  }, [fitKey, flow]);
+  return null;
+}
+
+/**
+ * The infinite canvas of one Target. The wheel or trackpad moves it; the middle mouse button, or
+ * Space with the left button, drags it; Ctrl or ⌘ with the wheel and a pinch change the scale. It
+ * fits the view when it opens and again when `fitKey` changes.
+ */
+export function Canvas({
+  zones,
+  label,
+  fitKey = "",
+}: {
+  zones: readonly CanvasZone[];
+  label: string;
+  fitKey?: string;
+}) {
   const nodes = useMemo(() => zoneNodes(zones), [zones]);
   return (
     <section className="canvas" aria-label={label}>
@@ -125,6 +164,7 @@ export function Canvas({ zones, label }: { zones: readonly CanvasZone[]; label: 
         fitViewOptions={{ padding: fitPadding, maxZoom: 1 }}
       >
         <ZoomControls />
+        <FitOnChange fitKey={fitKey} />
       </ReactFlow>
     </section>
   );

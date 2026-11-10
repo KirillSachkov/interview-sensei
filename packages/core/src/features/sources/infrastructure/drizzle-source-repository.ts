@@ -23,6 +23,18 @@ async function setProgress(
     );
 }
 
+/** Changes the fields of the Target's Source. */
+async function updateOne(
+  database: Database,
+  { targetId, id }: { targetId: string; id: string },
+  values: Partial<typeof sources.$inferInsert>,
+) {
+  await database
+    .update(sources)
+    .set(values)
+    .where(and(eq(sources.targetId, targetId), eq(sources.id, id)));
+}
+
 /** The Sources in the `sources` Postgres schema. */
 export function drizzleSourceRepository(database: Database): SourceRepository<Transaction> {
   return {
@@ -59,12 +71,8 @@ export function drizzleSourceRepository(database: Database): SourceRepository<Tr
           ),
         );
     },
-    setParts: async (targetId, id, parts) => {
-      await database
-        .update(sources)
-        .set({ parts })
-        .where(and(eq(sources.targetId, targetId), eq(sources.id, id)));
-    },
+    setParts: async (targetId, id, parts) => updateOne(database, { targetId, id }, { parts }),
+    setType: async (targetId, id, type) => updateOne(database, { targetId, id }, { type }),
     setProgress: async (targetId, id, progress) =>
       setProgress(database, { targetId, id, progress }),
     erase: async (targetId, transaction) => {

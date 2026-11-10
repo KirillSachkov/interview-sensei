@@ -5,20 +5,9 @@ import type { Features } from "./composition.ts";
 import { registerQuestionReviewRoutes } from "./question-review-routes.ts";
 import { registerSettingsRoutes } from "./settings-routes.ts";
 import { registerTargetArchiveRoutes } from "./target-archive-routes.ts";
+import { onlyField, params, uuid } from "./route-params.ts";
 
 type Dependencies = Pick<Features, "targets" | "questionBank" | "createDemo">;
-const params = {
-  type: "object",
-  properties: { id: { type: "string", format: "uuid" } },
-  required: ["id"],
-} as const;
-
-/** Body checks keep JSON types strict; Fastify's default schema compiler coerces booleans. */
-function field(body: unknown, key: string): unknown {
-  return typeof body === "object" && body !== null && Object.keys(body).length === 1 && key in body
-    ? Reflect.get(body, key)
-    : undefined;
-}
 
 interface QuestionQuery {
   topicId?: string;
@@ -33,7 +22,6 @@ interface QuestionQuery {
  * `referenceCheck=true` those of the list «проверить опорный ответ».
  */
 function registerQuestions(server: FastifyInstance, { targets, questionBank }: Dependencies) {
-  const uuid = { type: "string", format: "uuid" } as const;
   server.get<{ Params: { id: string }; Querystring: QuestionQuery }>(
     "/api/targets/:id/questions",
     {
@@ -79,7 +67,7 @@ function registerQuestionWrites(server: FastifyInstance, dependencies: Dependenc
     "/api/questions/:id/rating",
     { schema: { params } },
     async (request, reply) => {
-      const rating = field(request.body, "rating");
+      const rating = onlyField(request.body, "rating");
       if (rating !== null && rating !== "useful" && rating !== "irrelevant" && rating !== "wrong") {
         return reply.code(400).send({ error: "invalid_rating" });
       }
@@ -91,7 +79,7 @@ function registerQuestionWrites(server: FastifyInstance, dependencies: Dependenc
     "/api/questions/:id/hidden",
     { schema: { params } },
     async (request, reply) => {
-      const hidden = field(request.body, "hidden");
+      const hidden = onlyField(request.body, "hidden");
       if (typeof hidden !== "boolean") {
         return reply.code(400).send({ error: "invalid_hidden" });
       }
@@ -103,7 +91,7 @@ function registerQuestionWrites(server: FastifyInstance, dependencies: Dependenc
 
 const sectionParams = {
   type: "object",
-  properties: { id: params.properties.id, sectionId: params.properties.id },
+  properties: { id: uuid, sectionId: uuid },
   required: ["id", "sectionId"],
 } as const;
 
@@ -116,7 +104,7 @@ function registerSections(server: FastifyInstance, { targets }: Dependencies) {
     "/api/targets/:id/sections/:sectionId/enabled",
     { schema: { params: sectionParams } },
     async (request, reply) => {
-      const enabled = field(request.body, "enabled");
+      const enabled = onlyField(request.body, "enabled");
       if (typeof enabled !== "boolean") {
         return reply.code(400).send({ error: "invalid_enabled" });
       }
@@ -152,7 +140,7 @@ function registerTargetAgent(
     "/api/targets/:id/agent",
     { schema: { params } },
     async (request, reply) => {
-      const agent = field(request.body, "agent");
+      const agent = onlyField(request.body, "agent");
       if (agent !== null && typeof agent !== "string") {
         return reply.code(400).send({ error: "unknown_agent" });
       }

@@ -8,7 +8,7 @@ import {
   fetchDraft,
   removeDraftChange,
 } from "@/shared/api";
-import type { DraftOperation } from "@/shared/api";
+import type { DraftChange } from "@/shared/api";
 
 import { changeDetails, changeText } from "../lib/change-text";
 import { refreshAppliedViews } from "../model/plan-views";
@@ -66,14 +66,14 @@ function DraftFailure({ applying, removing }: { applying: Error | null; removing
 type Draft = ReturnType<typeof useDraft>;
 
 /** The change's short line; a long change opens its details under it. */
-function ChangeLine({ operation }: { operation: DraftOperation }) {
-  const details = changeDetails(operation);
+function ChangeLine({ change }: { change: DraftChange }) {
+  const details = changeDetails(change);
   if (details.length === 0) {
-    return <span>{changeText(operation)}</span>;
+    return <span>{changeText(change)}</span>;
   }
   return (
     <details>
-      <summary>{changeText(operation)}</summary>
+      <summary>{changeText(change)}</summary>
       <ul>
         {details.map((line, index) => (
           // The lines are the change's own text and may repeat.
@@ -99,11 +99,11 @@ function ChangeList({
     <ol aria-label="Изменения черновика" className="draft-change-list">
       {changes.map((change) => (
         <li key={change.id}>
-          <ChangeLine operation={change.operation} />
+          <ChangeLine change={change} />
           <button
             type="button"
             className="ghost"
-            aria-label={`Убрать изменение: ${changeText(change.operation)}`}
+            aria-label={`Убрать изменение: ${changeText(change)}`}
             disabled={disabled}
             onClick={() => {
               onRemove(change.id);

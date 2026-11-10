@@ -75,6 +75,27 @@ describe("the mark «не подтверждён» after the draft of changes", 
     ]);
   });
 
+  it("confirms a made-up Question that the Candidate moves into the Topic its own Topic merges into", async () => {
+    const mock = await interviewApi();
+    const { events } = await mock.answered(["Опыт и резюме"], "Ответ [new]");
+    const made = cardAt(await events.waitFor(hasQuestions(2)), 1);
+    const setup = await setupOf(mock);
+    await callTool(setup, "edit_questions", {
+      edits: [{ id: made.questionId, topic: "Проектирование сервисов" }],
+    });
+    await callTool(setup, "set_interview_plan", {
+      sections: demoPlan,
+      renameTopics: [{ from: "Опыт разработки", to: "Проектирование сервисов" }],
+    });
+
+    await applyDraft(mock.server, mock.target.id);
+
+    const bank = await mock.questions();
+    expect(bank.filter((question) => question.id === made.questionId)).toMatchObject([
+      { text: made.text, unconfirmed: false },
+    ]);
+  });
+
   it("keeps the mark on a made-up Question whose Topic the plan merges into another", async () => {
     const mock = await interviewApi();
     const { events } = await mock.answered(["Опыт и резюме"], "Ответ [new]");

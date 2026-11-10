@@ -23,7 +23,8 @@ The Candidate sees the draft as a list in the chat and applies it as a whole, by
 A Target has one draft of changes. It outlives the Agent session and a restart, so a Target is never changed halfway.
 After a restart or a crash of the agent, opening the Target setup continues the conversation: a new Agent session starts with the earlier chat, and its brief holds the draft and the last messages.
 After «Завершить» the next Target setup session starts afresh.
-The draft holds one Interview plan: a new plan replaces the earlier one and keeps its Topic renames.
+The draft holds one Interview plan: a new plan replaces the earlier one and keeps its Topic and Section renames.
+A renamed Section stays the same Section with its Mock interviews; a rename of a Topic into an existing one merges them, and the draft says so.
 _Avoid_: Draft, alone: a new Target is a draft too.
 
 **Interview plan**:
