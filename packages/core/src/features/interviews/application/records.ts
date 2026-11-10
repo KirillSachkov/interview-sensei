@@ -81,7 +81,31 @@ export interface DisputeRequest {
   readonly reason: string;
 }
 
-/** Records the Candidate's Dispute of the Attempt's Grade; undefined for an unknown Attempt. */
+/** A Dispute puts the disputed Question on the list «проверить опорный ответ» (#63, Q5). */
+async function requestReferenceCheck(
+  { repository, questions }: InterviewsDependencies,
+  {
+    id,
+    disputed,
+    reason,
+    disputedAt,
+  }: { id: string; disputed: Attempt; reason: string; disputedAt: string },
+) {
+  const asked = await repository.asked(id);
+  const question = asked.find((entry) => entry.id === disputed.askedQuestionId);
+  if (question !== undefined) {
+    await questions.requestReferenceCheck({
+      questionId: question.questionId,
+      comment: reason,
+      requestedAt: disputedAt,
+    });
+  }
+}
+
+/**
+ * Records the Candidate's Dispute of the Attempt's Grade and puts its Question on the list
+ * «проверить опорный ответ»; undefined for an unknown Attempt.
+ */
 export async function dispute(
   context: Context,
   { id, attemptId, grade, reason }: DisputeRequest,
@@ -92,14 +116,16 @@ export async function dispute(
     if (disputed === undefined) {
       return disputed;
     }
+    const disputedAt = dependencies.clock.now().toISOString();
     await dependencies.repository.dispute({
       id: randomUUID(),
       interviewId: id,
       attemptId,
       grade,
       reason,
-      disputedAt: dependencies.clock.now().toISOString(),
+      disputedAt,
     });
+    await requestReferenceCheck(dependencies, { id, disputed, reason, disputedAt });
     return debrief(dependencies, id, attemptId);
   });
 }

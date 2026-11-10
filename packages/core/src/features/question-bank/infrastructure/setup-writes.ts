@@ -19,7 +19,7 @@ export function setupWrites(
   database: Database,
 ): Pick<
   QuestionRepository<Transaction>,
-  "questions" | "addQuestions" | "editQuestion" | "renameTopic" | "mergeTopic"
+  "questions" | "addQuestions" | "editQuestion" | "renameTopic" | "mergeTopic" | "setImportance"
 > {
   return {
     questions: async (targetId, transaction) => {
@@ -48,6 +48,12 @@ export function setupWrites(
         .update(topics)
         .set({ name })
         .where(eq(topics.id, topicId));
+    },
+    setImportance: async (targetId, { topicId, importance }, transaction) => {
+      await executorOf(database, transaction)
+        .update(topics)
+        .set({ importance })
+        .where(and(eq(topics.targetId, targetId), eq(topics.id, topicId)));
     },
     mergeTopic: async (from, into, transaction) => {
       const executor = executorOf(database, transaction);

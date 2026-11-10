@@ -16,7 +16,9 @@ import type {
   QuestionRating,
   QuizOption,
   ReferenceAnswer,
+  ReferenceCheck,
   SectionKind,
+  TopicImportance,
 } from "../domain/question.ts";
 
 export const questionBankSchema = pgSchema("question_bank");
@@ -26,6 +28,7 @@ export const topics = questionBankSchema.table(
     id: uuid("id").primaryKey(),
     targetId: uuid("target_id").notNull(),
     name: text("name").notNull(),
+    importance: text("importance").$type<TopicImportance>().notNull().default("normal"),
   },
   (table) => [unique().on(table.targetId, table.name), unique().on(table.targetId, table.id)],
 );
@@ -53,6 +56,7 @@ export const questions = questionBankSchema.table(
     sourcePart: integer("source_part"),
     sectionKind: text("section_kind").$type<SectionKind>(),
     referenceAnswer: jsonb("reference_answer").$type<ReferenceAnswer>(),
+    referenceCheck: jsonb("reference_check").$type<ReferenceCheck>(),
     unconfirmed: boolean("unconfirmed").notNull().default(false),
     hidden: boolean("hidden").notNull().default(false),
     rating: text("rating").$type<QuestionRating>(),

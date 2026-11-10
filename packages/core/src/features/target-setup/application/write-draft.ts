@@ -5,11 +5,13 @@ import { randomUUID } from "node:crypto";
 import type { Transaction } from "../../../shared/storage/index.ts";
 import type { Clock } from "../../../shared/time/index.ts";
 import type { SetupState } from "../domain/draft.ts";
-import type { DraftQuestion } from "../domain/draft-questions.ts";
+import type { DraftQuestion, ReferenceContent } from "../domain/draft-questions.ts";
+import { latestImportance } from "../domain/draft-topics.ts";
 import type {
   SetupAttempts,
   SetupQuestion,
   SetupQuestionEdit,
+  SetupReferenceAnswer,
   TargetUpdate,
 } from "../domain/ports.ts";
 import { confirms } from "../domain/question-confirmation.ts";
@@ -44,6 +46,26 @@ function updateOf(state: SetupState, topicIds: readonly string[]): TargetUpdate 
 }
 
 /**
+ * A reference answer that the Candidate corrected through the draft: they applied it, so it is
+ * «проверен кандидатом», and it no longer comes from a Source.
+ */
+function corrected(content: ReferenceContent): SetupReferenceAnswer {
+  return { ...content, origin: "candidate", sourceId: null, part: null };
+}
+
+/** The corrected reference answer, when the draft changed its points or sample. */
+function referenceEdit(before: SetupQuestion, after: DraftQuestion) {
+  const old = before.referenceAnswer;
+  const next = after.referenceAnswer;
+  const same =
+    next === null ||
+    (old !== null &&
+      old.sample === next.sample &&
+      JSON.stringify(old.points) === JSON.stringify(next.points));
+  return same ? {} : { referenceAnswer: corrected(next) };
+}
+
+/**
  * The fields of the Question that the draft changed; null when it changed none. An edit that
  * confirms a made-up Question also takes off its mark «не подтверждён».
  */
@@ -53,6 +75,7 @@ function editOf(before: SetupQuestion, after: DraftQuestion, topicId: string) {
     ...(topicId === before.topicId ? {} : { topicId }),
     ...(after.hidden === before.hidden ? {} : { hidden: after.hidden }),
     ...(after.rating === before.rating ? {} : { rating: after.rating }),
+    ...referenceEdit(before, after),
   };
   const confirmed = before.unconfirmed && confirms(fields) ? { unconfirmed: false as const } : {};
   const edit: SetupQuestionEdit = { id: before.id, ...fields, ...confirmed };
@@ -61,14 +84,20 @@ function editOf(before: SetupQuestion, after: DraftQuestion, topicId: string) {
 
 /** The draft's new Question with its Topic id; it takes the Target's level unless it has one. */
 function addedOf(
-  { topic: _topic, ...question }: DraftQuestion,
+  { topic: _topic, referenceAnswer, ...question }: DraftQuestion,
   { topicId, state, createdAt }: { topicId: string; state: SetupState; createdAt: string },
 ) {
   const level = question.level ?? state.level;
   if (level === null) {
     throw new Error("A new Question needs a level; draftProblems reports it");
   }
-  return { ...question, topicId, level, createdAt };
+  return {
+    ...question,
+    topicId,
+    level,
+    createdAt,
+    referenceAnswer: referenceAnswer === null ? null : corrected(referenceAnswer),
+  };
 }
 
 /** Adds the draft's new Questions and stores the edits of the Target's Questions. */
@@ -116,13 +145,44 @@ async function renameTopics(
   }
 }
 
-/** The ids of the Topics the plan names, then of the Topics of the Questions; creates missing ones. */
+/**
+ * The ids of the Topics the plan names, of the Topics of the Questions and of the Topics that get
+ * an importance; creates missing ones.
+ */
 async function topicIdsOf({ topics }: StateSources, { targetId, state, transaction }: Write) {
   const planNames = state.sections.flatMap((section) => section.topics);
   const questionNames = state.questions.map((question) => question.topic);
-  const named = await topics.ensureTopics(targetId, [...planNames, ...questionNames], transaction);
+  const importance = latestImportance(state.importance);
+  const named = await topics.ensureTopics(
+    targetId,
+    [...planNames, ...questionNames, ...importance.map((change) => change.topic)],
+    transaction,
+  );
   const ids = named.map((topic) => topic.id);
-  return { plan: ids.slice(0, planNames.length), questions: ids.slice(planNames.length) };
+  const questionsEnd = planNames.length + questionNames.length;
+  return {
+    plan: ids.slice(0, planNames.length),
+    questions: ids.slice(planNames.length, questionsEnd),
+    importance: importance.map((change, index) => ({
+      topicId: ids[questionsEnd + index] ?? "",
+      importance: change.importance,
+    })),
+  };
+}
+
+/** Stores the importance of each Topic that the draft gave one, after the renames. */
+async function writeImportance(
+  { topics }: StateSources,
+  { targetId, transaction }: Write,
+  changes: readonly {
+    topicId: string;
+    importance: SetupState["importance"][number]["importance"];
+  }[],
+) {
+  for (const change of changes) {
+    // oxlint-disable-next-line eslint/no-await-in-loop -- the writes share one transaction
+    await topics.setImportance(targetId, change, transaction);
+  }
 }
 
 /**
@@ -138,6 +198,7 @@ export async function writeDraft(dependencies: Writers, write: Write) {
   const before = await dependencies.topics.questions(targetId, transaction);
   const topicIds = await topicIdsOf(dependencies, write);
   await writeQuestions(dependencies, { ...write, before, topicIds: topicIds.questions });
+  await writeImportance(dependencies, write, topicIds.importance);
   await targets.savePreferences(targetId, state.preferences, transaction);
   return targets.update(targetId, updateOf(state, topicIds.plan), transaction);
 }

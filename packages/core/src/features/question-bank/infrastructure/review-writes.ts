@@ -1,14 +1,19 @@
-// The writes of the Candidate's review of Questions: a bulk review and «просмотрено».
+// The Candidate's review of Questions: a bulk review, «просмотрено», and one Question to check.
 import { and, eq, inArray } from "drizzle-orm";
 
 import type { Database, Transaction } from "../../../shared/storage/index.ts";
 import type { QuestionRepository } from "../domain/ports.ts";
 import { questions } from "./schema.ts";
+import { toQuestion } from "./setup-writes.ts";
 
 export function reviewWrites(
   database: Database,
-): Pick<QuestionRepository<Transaction>, "review" | "markSeen"> {
+): Pick<QuestionRepository<Transaction>, "review" | "markSeen" | "question"> {
   return {
+    question: async (id) => {
+      const [row] = await database.select().from(questions).where(eq(questions.id, id));
+      return row === undefined ? undefined : toQuestion(row);
+    },
     review: async (targetId, { deleted, edits }) => {
       await database.transaction(async (transaction) => {
         if (deleted.length > 0) {

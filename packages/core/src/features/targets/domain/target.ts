@@ -33,6 +33,8 @@ export interface TopicSummary {
   readonly id: string;
   readonly targetId: string;
   readonly name: string;
+  /** How much the Topic matters for the Target: high, normal or low. */
+  readonly importance: "high" | "normal" | "low";
   readonly questionCount: number;
 }
 export interface TargetView extends Target {

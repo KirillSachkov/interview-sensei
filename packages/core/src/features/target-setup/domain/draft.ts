@@ -6,7 +6,7 @@ import type { DraftQuestion, NewQuestion, QuestionEdit } from "./draft-questions
 import { savedPreference } from "./draft-preferences.ts";
 import type { DraftPreference, PreferenceChange } from "./draft-preferences.ts";
 import { namesTopic, renamedTopics, topicKey } from "./draft-topics.ts";
-import type { TopicRename } from "./draft-topics.ts";
+import type { TopicImportance, TopicRename } from "./draft-topics.ts";
 import type { Level, SectionKind, Tone } from "./target-values.ts";
 
 type TargetStatus = "draft" | "active" | "archived";
@@ -46,6 +46,8 @@ export interface SetupState {
   readonly topics: readonly string[];
   /** The Topic renames and merges that applying makes, in order. */
   readonly topicRenames: readonly TopicRename[];
+  /** The importance that applying gives Topics, in order, under their names after the renames. */
+  readonly importance: readonly TopicImportance[];
   readonly preferences: readonly DraftPreference[];
   /** Every Question of the Target, hidden ones too, with the new ones of the draft. */
   readonly questions: readonly DraftQuestion[];
@@ -72,6 +74,7 @@ export type DraftOperation =
       readonly renameTopics?: readonly TopicRename[];
     }
   | ({ readonly type: "save_preference" } & PreferenceChange)
+  | { readonly type: "set_topic_importance"; readonly topics: readonly TopicImportance[] }
   | { readonly type: "add_questions"; readonly questions: readonly NewQuestion[] }
   | { readonly type: "edit_questions"; readonly edits: readonly QuestionEdit[] };
 
@@ -111,14 +114,18 @@ function withPlan(state: SetupState, sections: readonly ProposedSection[]): Setu
   };
 }
 
-/** Every name of the Topic `from` becomes `to`; a missing Topic is a problem. */
-function withRename(state: SetupState, rename: TopicRename): SetupState {
-  const named = [
+/** The names of every Topic the state knows: the Target's, the plan's and the Questions'. */
+function namedTopics(state: SetupState): readonly string[] {
+  return [
     ...state.topics,
     ...state.sections.flatMap((section) => section.topics),
     ...state.questions.map((question) => question.topic),
   ];
-  if (!namesTopic(named, rename.from)) {
+}
+
+/** Every name of the Topic `from` becomes `to`; a missing Topic is a problem. */
+function withRename(state: SetupState, rename: TopicRename): SetupState {
+  if (!namesTopic(namedTopics(state), rename.from)) {
     return { ...state, missing: [...state.missing, `Темы «${rename.from.trim()}» нет в цели.`] };
   }
   const renamed = (name: string) => (topicKey(name) === topicKey(rename.from) ? rename.to : name);
@@ -130,7 +137,21 @@ function withRename(state: SetupState, rename: TopicRename): SetupState {
     })),
     topics: renamedTopics(state.topics, rename),
     topicRenames: [...state.topicRenames, rename],
+    importance: state.importance.map((change) => ({ ...change, topic: renamed(change.topic) })),
     questions: state.questions.map((question) => ({ ...question, topic: renamed(question.topic) })),
+  };
+}
+
+/** The Topics get their importance; a Topic that the state does not know is a problem. */
+function withImportance(state: SetupState, changes: readonly TopicImportance[]): SetupState {
+  const named = namedTopics(state);
+  const missing = changes
+    .filter((change) => !namesTopic(named, change.topic))
+    .map((change) => `Темы «${change.topic.trim()}» нет в цели.`);
+  return {
+    ...state,
+    importance: [...state.importance, ...changes],
+    missing: [...state.missing, ...missing],
   };
 }
 
@@ -151,6 +172,16 @@ function withEdits(state: SetupState, edits: readonly QuestionEdit[]): SetupStat
   return { ...state, questions: edited.questions, missing: [...state.missing, ...edited.missing] };
 }
 
+function withAdded(state: SetupState, questions: readonly NewQuestion[]): SetupState {
+  const added = questions.map((question) => ({
+    ...question,
+    hidden: false,
+    rating: null,
+    referenceAnswer: null,
+  }));
+  return { ...state, questions: [...state.questions, ...added] };
+}
+
 function applyOperation(state: SetupState, operation: DraftOperation): SetupState {
   switch (operation.type) {
     case "update_target": {
@@ -167,13 +198,11 @@ function applyOperation(state: SetupState, operation: DraftOperation): SetupStat
       const { type: _type, ...change } = operation;
       return withPreference(state, change);
     }
+    case "set_topic_importance": {
+      return withImportance(state, operation.topics);
+    }
     case "add_questions": {
-      const added = operation.questions.map((question) => ({
-        ...question,
-        hidden: false,
-        rating: null,
-      }));
-      return { ...state, questions: [...state.questions, ...added] };
+      return withAdded(state, operation.questions);
     }
     case "edit_questions": {
       return withEdits(state, operation.edits);

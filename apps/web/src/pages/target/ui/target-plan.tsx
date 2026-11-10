@@ -2,7 +2,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
 import { setSectionEnabled } from "@/shared/api";
-import type { PlanSection, QuestionScope, TargetView, TopicStatus } from "@/shared/api";
+import type {
+  PlanSection,
+  QuestionScope,
+  TargetView,
+  TopicImportance,
+  TopicStatus,
+} from "@/shared/api";
 
 import { questionCount } from "../lib/question-count";
 import { refreshPlanViews } from "../model/plan-views";
@@ -27,6 +33,23 @@ export interface PlanActions {
   readonly onQuestions: (view: QuestionsView) => void;
   /** The setup chat when it is open beside this Section. */
   readonly renderChat: (sectionId: string) => ReactNode;
+}
+
+/** The importance on a Topic chip; «обычная» shows nothing. */
+const importanceMarks: Readonly<Record<TopicImportance, { mark: string; name: string } | null>> = {
+  high: { mark: "↑", name: "высокая важность" },
+  normal: null,
+  low: { mark: "↓", name: "низкая важность" },
+};
+
+function ImportanceMark({ importance }: { importance: TopicImportance }) {
+  const shown = importanceMarks[importance];
+  return shown === null ? null : (
+    <span className={`topic-importance ${importance}`} title={shown.name}>
+      <span aria-hidden="true">{shown.mark}</span>
+      <span className="visually-hidden">, {shown.name}</span>
+    </span>
+  );
 }
 
 /** The Topic status of each Topic of the plan by its id; empty until the progress loads. */
@@ -92,6 +115,7 @@ function SectionTopics({
                 {topic.name}
                 {status === undefined ? null : <TopicStatusText status={status} />}
               </span>
+              <ImportanceMark importance={topic.importance} />
             </button>
           </li>
         );
@@ -181,8 +205,8 @@ function SectionBlock({
 
 /**
  * The Target's Interview plan in the «Цель» zone: numbered Sections with a colour bar by Section
- * kind, Topic chips with their Topic status dots, the number of Questions, the switch and ✎. A chip
- * or the number opens the Questions in the side panel.
+ * kind, Topic chips with their Topic status dots and ↑ or ↓ for a high or low importance, the
+ * number of Questions, the switch and ✎. A chip or the number opens the Questions in the side panel.
  */
 export function TargetPlan({ target, actions }: { target: TargetView; actions: PlanActions }) {
   const progress = useProgress(target.id);

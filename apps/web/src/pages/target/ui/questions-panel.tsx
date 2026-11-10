@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchQuestions, hideQuestion, rateQuestion } from "@/shared/api";
 import type { Question, QuestionRating } from "@/shared/api";
 
+import { ReferenceAnswerDetails, VerifyReference } from "./reference-answer";
 import type { QuestionsView } from "./target-plan";
 
 const ratings: readonly { rating: QuestionRating; mark: string; label: string }[] = [
@@ -28,6 +29,35 @@ function useQuestionWrite<Variables>(
   });
 }
 
+/** 👍 👎 ⚠: a pressed rating pressed again clears it. */
+function QuestionRatings({
+  rating: current,
+  onRate,
+}: {
+  rating: QuestionRating | null;
+  onRate: (rating: QuestionRating | null) => void;
+}) {
+  return (
+    <span className="question-rating">
+      {ratings.map(({ rating, mark, label }) => (
+        <button
+          key={rating}
+          type="button"
+          className="ghost"
+          aria-label={label}
+          title={label}
+          aria-pressed={current === rating}
+          onClick={() => {
+            onRate(current === rating ? null : rating);
+          }}
+        >
+          {mark}
+        </button>
+      ))}
+    </span>
+  );
+}
+
 function QuestionItem({ targetId, question }: { targetId: string; question: Question }) {
   const hide = useQuestionWrite(targetId, async (hidden: boolean) =>
     hideQuestion(question.id, hidden),
@@ -39,35 +69,30 @@ function QuestionItem({ targetId, question }: { targetId: string; question: Ques
   return (
     <li className="question" aria-label={question.text}>
       <p>{question.text}</p>
+      {question.referenceAnswer === null ? null : (
+        <ReferenceAnswerDetails answer={question.referenceAnswer} />
+      )}
       <div className="question-actions">
         {question.hidden ? null : (
-          <span className="question-rating">
-            {ratings.map(({ rating, mark, label }) => (
-              <button
-                key={rating}
-                type="button"
-                className="ghost"
-                aria-label={label}
-                title={label}
-                aria-pressed={question.rating === rating}
-                onClick={() => {
-                  rate.mutate(question.rating === rating ? null : rating);
-                }}
-              >
-                {mark}
-              </button>
-            ))}
-          </span>
+          <QuestionRatings
+            rating={question.rating}
+            onRate={(rating) => {
+              rate.mutate(rating);
+            }}
+          />
         )}
-        <button
-          type="button"
-          className="ghost"
-          onClick={() => {
-            hide.mutate(!question.hidden);
-          }}
-        >
-          {question.hidden ? "Вернуть" : "Скрыть"}
-        </button>
+        <span className="question-tools">
+          <VerifyReference targetId={targetId} question={question} />
+          <button
+            type="button"
+            className="ghost"
+            onClick={() => {
+              hide.mutate(!question.hidden);
+            }}
+          >
+            {question.hidden ? "Вернуть" : "Скрыть"}
+          </button>
+        </span>
       </div>
       {failure === null ? null : <p role="alert">Не сохранилось: {failure.message}</p>}
     </li>
@@ -108,8 +133,8 @@ function QuestionList({
 }
 
 /**
- * The side panel with the Questions of a Section or a Topic: «Скрыть», «Вернуть» and the Question
- * rating 👍 👎 ⚠ write at once, without the draft of changes.
+ * The side panel with the Questions of a Section or a Topic and their reference answers: «Скрыть»,
+ * «Вернуть», the Question rating 👍 👎 ⚠ and «Проверен» write at once, without the draft of changes.
  */
 export function QuestionsPanel({
   targetId,

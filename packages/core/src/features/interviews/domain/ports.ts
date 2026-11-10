@@ -93,6 +93,15 @@ export interface InterviewQuestions {
   ) => Promise<readonly BankQuestion[]>;
   /** Adds the Question to the Target's bank. */
   readonly add: (question: NewBankQuestion) => Promise<void>;
+  /**
+   * A Dispute puts the Question on the list «проверить опорный ответ» with the Candidate's reason;
+   * nothing for a Question without a reference answer.
+   */
+  readonly requestReferenceCheck: (request: {
+    readonly questionId: string;
+    readonly comment: string;
+    readonly requestedAt: string;
+  }) => Promise<boolean>;
 }
 
 /** The agent-sessions slice runs the interviewer's AgentSession and those of its Side threads. */

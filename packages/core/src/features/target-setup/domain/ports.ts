@@ -1,5 +1,5 @@
 import type { DraftChange } from "./draft.ts";
-import type { Level, SectionKind, Tone } from "./target-values.ts";
+import type { Importance, Level, SectionKind, Tone } from "./target-values.ts";
 import type { DraftPreference } from "./draft-preferences.ts";
 import type { QuestionRating } from "./draft-questions.ts";
 import type { TopicRename } from "./draft-topics.ts";
@@ -39,7 +39,11 @@ export interface SetupTarget {
     readonly kind: SectionKind;
     readonly gradingCriteria: string;
     readonly enabled: boolean;
-    readonly topics: readonly { readonly id: string; readonly name: string }[];
+    readonly topics: readonly {
+      readonly id: string;
+      readonly name: string;
+      readonly importance: Importance;
+    }[];
   }[];
   /** The active Preferences. */
   readonly preferences: readonly DraftPreference[];
@@ -80,7 +84,10 @@ export interface SetupTargets<Transaction> {
   ) => Promise<void>;
 }
 
-/** The question-bank slice gives the Target's Topic of each name and creates the missing ones. */
+/**
+ * The question-bank slice gives the Target's Topic of each name, creates the missing ones and
+ * stores their importance.
+ */
 export interface SetupTopics<Transaction> {
   /** One Topic per name, in the order of the names; the same Topic for names that match. */
   readonly ensureTopics: (
@@ -88,6 +95,23 @@ export interface SetupTopics<Transaction> {
     names: readonly string[],
     transaction?: Transaction,
   ) => Promise<readonly { readonly id: string; readonly name: string }[]>;
+  readonly setImportance: (
+    targetId: string,
+    change: { readonly topicId: string; readonly importance: Importance },
+    transaction?: Transaction,
+  ) => Promise<void>;
+}
+
+/**
+ * A reference answer as question-bank keeps it. One that the Candidate corrected through the draft
+ * has the origin «проверен кандидатом» and no Source.
+ */
+export interface SetupReferenceAnswer {
+  readonly points: readonly string[];
+  readonly sample: string;
+  readonly origin: "material" | "internet" | "agent" | "candidate";
+  readonly sourceId: string | null;
+  readonly part: number | null;
 }
 
 /** A Question as target-setup reads and writes it: its Topic by id. */
@@ -103,11 +127,12 @@ export interface SetupQuestion {
   readonly rating: QuestionRating | null;
   /** The interviewer made it up, and the Candidate has not confirmed it. */
   readonly unconfirmed: boolean;
+  readonly referenceAnswer: SetupReferenceAnswer | null;
 }
 
 /**
- * The new text, Topic, visibility or rating of one Question; `unconfirmed: false` confirms a
- * made-up Question.
+ * The new text, Topic, visibility, rating or reference answer of one Question; `unconfirmed:
+ * false` confirms a made-up Question.
  */
 export interface SetupQuestionEdit {
   readonly id: string;
@@ -115,6 +140,7 @@ export interface SetupQuestionEdit {
   readonly topicId?: string;
   readonly hidden?: boolean;
   readonly rating?: QuestionRating | null;
+  readonly referenceAnswer?: SetupReferenceAnswer;
   readonly unconfirmed?: false;
 }
 

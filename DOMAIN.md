@@ -37,6 +37,7 @@ The product defines Section kinds; the Candidate and the agent compose Sections 
 
 **Topic**:
 An area of knowledge within a Target that its Sections check.
+A Topic has an importance: high, normal or low («высокая», «обычная», «низкая»). A new Topic is normal; the agent of the Target setup takes the importance from the vacancy, and the Candidate changes it through the draft of changes.
 A Topic merged into another one hands over its Questions and Attempts, so its progress counts there.
 
 **Question**:
@@ -54,6 +55,12 @@ _Avoid_: Task, when the item is not an algorithm problem.
 What a good answer to a Question contains: 3–5 key points and a short sample answer, with its origin and, for an answer from a Source, the Source and its part.
 The origin is one of «из материала», «из интернета», «из знаний агента» and «проверен кандидатом».
 Inbox processing writes a Reference answer only from the Source itself; a Question whose Source has no answer stays without one.
+The Candidate marks a Reference answer «проверен» in the side panel of Questions, which makes its origin «проверен кандидатом», or corrects it through the draft of changes, which does the same and drops its Source.
+
+**Reference check**:
+The list «проверить опорный ответ» in the zone «Цель»: the Questions whose Reference answer the Candidate should look at again.
+A Dispute of the Grade of an Attempt puts its Question there with the Candidate's reason, when the Question has a Reference answer.
+«проверен» or a corrected Reference answer takes the Question off the list; a hidden Question is not shown there.
 
 **Mock interview**:
 The only kind of interview: the agent acts as an interviewer and asks Questions for a Target.

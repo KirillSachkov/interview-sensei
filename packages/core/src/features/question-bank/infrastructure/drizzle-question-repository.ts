@@ -1,4 +1,4 @@
-import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNotNull, sql } from "drizzle-orm";
 
 import { executorOf } from "../../../shared/storage/index.ts";
 import type { Database, Executor, Transaction } from "../../../shared/storage/index.ts";
@@ -22,6 +22,7 @@ async function search(
     eq(questions.hidden, filter.hidden ?? false),
     filter.topicId === undefined ? undefined : eq(questions.topicId, filter.topicId),
     filter.topicIds === undefined ? undefined : inArray(questions.topicId, [...filter.topicIds]),
+    filter.referenceCheck === true ? isNotNull(questions.referenceCheck) : undefined,
     // strpos treats %, _ and backslash as literal text rather than LIKE wildcards.
     ...words.map((word) => sql`strpos(lower(${questions.text}), lower(${word})) > 0`),
   ];
@@ -40,6 +41,7 @@ async function topicSummaries(executor: Executor, targetId: string) {
       id: topics.id,
       targetId: topics.targetId,
       name: topics.name,
+      importance: topics.importance,
       questionCount: count(questions.id),
     })
     .from(topics)
