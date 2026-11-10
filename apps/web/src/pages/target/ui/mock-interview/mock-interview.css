@@ -139,14 +139,18 @@
   margin-top: var(--space-3);
 }
 
-/* The running Mock interview: a tinted panel with white cards and room between them. */
+/* The running Mock interview: white cards on the white zone, with room between them and no
+   grey panels. */
 .mock {
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
-  border-radius: var(--radius-card);
-  background: var(--color-surface-muted);
-  padding: var(--space-5);
+}
+
+/* Marks inside the mock are outlined, not filled with grey. */
+.mock .tag:not(.accent) {
+  border: 1px solid var(--color-line);
+  background: transparent;
 }
 
 .mock > p {
@@ -167,7 +171,8 @@
 }
 
 .mock-title h3 {
-  font-size: var(--font-size-card-title);
+  font-size: var(--font-size-body);
+  font-weight: 650;
   white-space: nowrap;
 }
 
@@ -208,6 +213,8 @@
 /* Why the Mock interview is paused. */
 .paused-note {
   margin: 0;
+  font-size: var(--font-size-small);
+  color: var(--color-muted);
 }
 
 .resume-dialog {
@@ -248,7 +255,26 @@
 /* The question that waits for the answer stands out. */
 .question-card.current {
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px var(--color-accent-soft);
+  box-shadow: 0 0 0 1px var(--color-accent);
+}
+
+/* «Посмотреть разбор» and «Обсудить отдельно» are small and stand at the left. */
+.question-card button {
+  align-self: flex-start;
+}
+
+.debrief-toggle,
+.discuss-button {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-small);
+}
+
+.discuss-button {
+  color: var(--color-muted);
+}
+
+.discuss-button::before {
+  content: "↗";
 }
 
 /* A line joins a question with the next one, as the interview goes down. */
@@ -262,9 +288,9 @@
 }
 
 .question-text {
-  font-size: var(--font-size-card-title);
-  font-weight: 600;
-  line-height: 1.35;
+  font-size: var(--font-size-body);
+  font-weight: 650;
+  line-height: 1.4;
 }
 
 .card-number {
@@ -298,9 +324,8 @@
 
 .debrief {
   margin-top: var(--space-3);
-  border-radius: var(--radius-card);
-  background: var(--color-surface-muted);
-  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--color-accent-soft);
+  padding: 0 0 0 var(--space-4);
 }
 
 .debrief h4 {
@@ -509,51 +534,37 @@
   box-shadow: inset 0 0 0 1px var(--color-danger);
 }
 
-/* The Sections of the mock as steps in their order; the current one is filled. */
+/* The Sections of the mock as plain steps in their order; the current one is in the accent. */
 .section-strip {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1) var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
+  font-size: var(--font-size-small);
+  color: var(--color-muted);
   counter-reset: section;
 }
 
 .section-strip li {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-pill);
-  background: var(--color-surface);
-  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-1);
-  font-size: var(--font-size-small);
-  color: var(--color-muted);
   counter-increment: section;
 }
 
 .section-strip li::before {
-  content: counter(section);
-  display: inline-grid;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--color-surface-muted);
-  place-items: center;
+  content: counter(section) ". ";
+}
+
+.section-strip li:not(:last-child)::after {
+  content: "→";
+  margin-left: var(--space-2);
+  color: var(--color-line);
 }
 
 .section-strip li.current {
-  border-color: var(--color-accent);
-  background: var(--color-accent-soft);
   color: var(--color-accent);
   font-weight: 600;
-}
-
-.section-strip li.current::before {
-  background: var(--color-accent);
-  color: var(--color-on-accent);
 }
 
 .card-marks {
@@ -571,8 +582,19 @@
   padding: 0;
 }
 
+/* The rating buttons stay quiet until the pointer comes or the Candidate rated. */
 .question-rating .rating {
+  border-color: transparent;
+  background: transparent;
   padding: var(--space-1) var(--space-2);
+  filter: grayscale(1);
+  opacity: 0.45;
+}
+
+.question-rating .rating:hover,
+.question-rating .rating[aria-pressed="true"] {
+  filter: none;
+  opacity: 1;
 }
 
 .question-rating .rating[aria-pressed="true"] {

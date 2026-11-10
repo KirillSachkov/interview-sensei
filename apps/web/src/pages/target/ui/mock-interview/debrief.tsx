@@ -186,7 +186,7 @@ export function Debrief({
     <>
       <button
         type="button"
-        className="ghost"
+        className="debrief-toggle"
         aria-expanded={open}
         onClick={() => {
           setOpen((current) => !current);

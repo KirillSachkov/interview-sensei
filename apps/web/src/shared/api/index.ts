@@ -95,12 +95,7 @@ export {
   fetchTargets,
   openDemoTarget,
 } from "./targets";
-export type {
-  PlanSection,
-  TargetSummary,
-  TargetView,
-  TopicImportance,
-} from "./targets";
+export type { PlanSection, TargetSummary, TargetView, TopicImportance } from "./targets";
 export {
   fetchQuestions,
   fetchReferenceChecks,
