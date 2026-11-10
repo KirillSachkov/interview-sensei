@@ -30,6 +30,11 @@ Diagnosis alone does not authorize a fix.
 Requirements changes need the owner’s decision.
 Follow [delivery](docs/agents/delivery.md) for merge authority.
 
+## Codebase ownership
+
+You maintain this codebase. During authorized implementation, reuse existing implementations and consolidate duplication within the assignment; fix directly related defects and report every incidental change.
+Work within the agreed requirements and owner decisions; the owner defines the product's purpose. Follow the start and authority rules above and the existing merge and deployment gates.
+
 ## Context pointers
 
 - Before preparing work, read [requirements](docs/agents/requirements.md) and [human participation](docs/agents/human-review.md).
