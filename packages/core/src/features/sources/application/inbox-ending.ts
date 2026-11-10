@@ -75,8 +75,8 @@ export type StopOutcome =
   | { readonly type: "target_not_found" | "not_running" };
 
 /**
- * «Остановить разбор»: closes the run with a partial report, then stops its agent at once, even in a
- * turn. A tool call the agent makes meanwhile finds no running processing.
+ * «Остановить разбор»: closes the run with a partial report, which cancels a running
+ * transcription, then stops its agent at once, even in a turn. A tool call the agent makes meanwhile finds no running processing.
  */
 export async function stop(context: InboxContext, targetId: string): Promise<StopOutcome> {
   const { targets, inbox, sessions } = context.dependencies;

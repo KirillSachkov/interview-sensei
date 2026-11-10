@@ -31,7 +31,7 @@ export default defineConfig({
         extends: true,
         test: {
           // Seam 3 of spec #74: the real components of speech recognition. They download about
-          // 270 MB, so only `test:live` and its CI job run them.
+          // 910 MB, so only `test:live` and its CI job run them.
           name: "live",
           include: ["src/**/*.live.test.ts"],
           testTimeout: 1_200_000,

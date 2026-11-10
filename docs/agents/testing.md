@@ -15,7 +15,7 @@ Run every command from the repository root after `pnpm install --frozen-lockfile
   Only the root script builds first; `pnpm --filter @interview-sensei/e2e test:e2e` tests the existing `apps/web/dist`.
 - `pnpm test:package`: `pnpm build`, then the Vitest project `package` of `apps/server` against the packed npm package.
   npm downloads the package's dependencies, so the command needs the network.
-- `pnpm --filter @interview-sensei/core test:live`: the Vitest project `live`. It downloads the real components of speech recognition, about 270 MB, into `INTERVIEW_SENSEI_TRANSCRIPTION_LIVE_DIR` or a temporary directory, and recognizes a Russian clip.
+- `pnpm --filter @interview-sensei/core test:live`: the Vitest project `live`. It downloads the real components of speech recognition, about 910 MB, into `INTERVIEW_SENSEI_TRANSCRIPTION_LIVE_DIR` or a temporary directory, and recognizes a Russian clip with GigaAM and an English clip with Parakeet.
 - `pnpm verify`: `pnpm check`, `pnpm test`, `pnpm test:e2e`, the Vitest project `package` and `python3 scripts/check.py` in order.
 - `python3 scripts/check.py`: local Markdown links/anchors, own skill identity and invocation metadata, directory hashes, package skill links and client pointers.
 - `git diff --check`: whitespace errors in the change.
@@ -114,7 +114,9 @@ Speech recognition (#74) has stand-ins behind the ports of the `transcription` s
 `brokenSha` gives one component a wrong SHA-256.
 Its stub ffmpeg reads a «video» file as text, one second per line; «[без звука]» makes a file without sound.
 Its stub model returns the lines as the text and stops at «[ждать]» until the test calls `continueSpeech`, so a test sees «транскрибируется» with its percent.
+A cancel of the run, such as «Остановить разбор» or the server's close, also stops it there; `model.cancelled` counts the cancelled runs.
 Pass `stubTranscription().components` to `startServer` as `transcription`.
+`transcriptionTarget(models)` starts such a server with the models installed and an active Target; `startWithLanguages` starts a processing with the card's language of each recording.
 
 The fake agent has a side thread mode for Side threads (`fake-agent-side-thread.ts`).
 On «The Candidate opened a side thread from a mock interview.» it calls `get_brief` and replies «Разбираю вопрос кандидата: «<candidateQuestion>»».
