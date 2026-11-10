@@ -119,7 +119,7 @@ export function unapplied(chat: ReturnType<typeof setupChat>, count: number) {
  * «Новый чат» on the service page, until the server created the chat. The page shows the latest
  * chat meanwhile, which may be another test's empty one: a message typed into it would be lost.
  */
-export async function startedChat(page: Page) {
+export async function clickNewChat(page: Page) {
   const created = page.waitForResponse(
     (response) =>
       response.request().method() === "POST" &&
@@ -127,7 +127,8 @@ export async function startedChat(page: Page) {
   );
   await page.getByRole("button", { name: "Новый чат" }).click();
   // The page puts the new chat in place of the latest one as soon as it gets this answer.
-  await (await created).finished();
+  const response = await created;
+  await response.finished();
 }
 
 /** Starts a chat with the fake agent on «Проверка агента», sends «Привет» and gets the reply. */
@@ -135,7 +136,7 @@ export async function greetFakeAgent(page: Page) {
   await page
     .getByRole("combobox", { name: "Агент", exact: true })
     .selectOption({ label: "Фейковый агент" });
-  await startedChat(page);
+  await clickNewChat(page);
   const messages = page.getByRole("list", { name: "Сообщения" }).getByRole("listitem");
   await expect(messages).toHaveCount(0);
   await page.getByLabel("Сообщение").fill("Привет");

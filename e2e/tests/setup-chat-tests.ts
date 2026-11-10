@@ -191,14 +191,18 @@ function longPlanTest() {
     await chat.callTool("apply_changes", {});
 
     const plan = zones(page).goal.getByRole("list", { name: "План собеседования" });
-    const zoom = page.getByLabel("Масштаб", { exact: true });
     await expect(plan.getByRole("list", { name: "Темы" })).toHaveCount(5);
     await page.getByRole("button", { name: "Показать всё" }).click();
-    await expect(async () => {
-      const [planBox, zoomBox] = await Promise.all([box(plan), box(zoom)]);
-      expect(planBox.y + planBox.height).toBeLessThanOrEqual(zoomBox.y);
-    }).toPass({ timeout: 5000 });
+    await expectAbove(plan, page.getByLabel("Масштаб", { exact: true }));
   });
+}
+
+/** The upper element ends above the top of the lower one, once the view settled. */
+async function expectAbove(upper: Locator, lower: Locator) {
+  await expect(async () => {
+    const [upperBox, lowerBox] = await Promise.all([box(upper), box(lower)]);
+    expect(upperBox.y + upperBox.height).toBeLessThanOrEqual(lowerBox.y);
+  }).toPass({ timeout: 5000 });
 }
 
 /** The element's box on the page; an element off the page fails the test. */

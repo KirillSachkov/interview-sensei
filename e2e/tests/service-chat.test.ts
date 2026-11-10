@@ -2,7 +2,7 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page, Request } from "@playwright/test";
 
-import { startedChat } from "./canvas-support.ts";
+import { clickNewChat } from "./canvas-support.ts";
 
 /** Opens the page, starts a chat with the fake agent and returns its message list items. */
 async function startNewChat(page: Page) {
@@ -10,7 +10,7 @@ async function startNewChat(page: Page) {
   await page
     .getByRole("combobox", { name: "Агент", exact: true })
     .selectOption({ label: "Фейковый агент" });
-  await startedChat(page);
+  await clickNewChat(page);
   // The new chat replaces the latest one of other tests and has no messages yet.
   const messages = page.getByRole("list", { name: "Сообщения" }).getByRole("listitem");
   await expect(messages).toHaveCount(0);
