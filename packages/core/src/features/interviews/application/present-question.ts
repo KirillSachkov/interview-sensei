@@ -4,13 +4,13 @@
 // gets the reference answer of the shown question for its judgment.
 import { randomUUID } from "node:crypto";
 
-import { candidateLevel, restingQuestions } from "../domain/candidates.ts";
+import { candidateLevel } from "../domain/candidates.ts";
 import type { MockInterview, ReferenceAnswer } from "../domain/interview.ts";
 import { presentedQuestion } from "../domain/interview.ts";
 import type { BankQuestion, NewBankQuestion, PlanSection, TargetPlan } from "../domain/ports.ts";
 import { change } from "./context.ts";
 import type { Context } from "./context.ts";
-import { earlierInterviews } from "./question-history.ts";
+import { assertQuestionRested } from "./question-history.ts";
 import { assertTopicOpen, planTopics } from "./topic-limit.ts";
 import {
   assertNotFinishing,
@@ -109,15 +109,7 @@ async function bankQuestion(
   if (asked.some((entry) => entry.questionId === question.id)) {
     throw new InterviewToolError("This question was already asked in this mock interview.");
   }
-  const rest = restingQuestions(
-    await repository.history(interview.targetId),
-    await earlierInterviews(context, interview.targetId, interview.id),
-  );
-  if (rest.has(question.id)) {
-    throw new InterviewToolError(
-      "This question is still resting after its last Grade: pick one from next_question_candidates.",
-    );
-  }
+  await assertQuestionRested(context, interview, question.id);
   return question;
 }
 
