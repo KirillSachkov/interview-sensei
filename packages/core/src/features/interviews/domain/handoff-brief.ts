@@ -2,7 +2,7 @@
 // the brief from stored data, never from the agent's log.
 import type { AskedQuestion, Judgment } from "./interview.ts";
 import type { TargetPlan } from "./ports.ts";
-import type { SideThread } from "./side-thread.ts";
+import type { SideThread, ThreadMessage } from "./side-thread.ts";
 
 /** The Section and Topic names of the asked question in the Target's plan. */
 function sectionAndTopicOf(plan: TargetPlan, question: AskedQuestion) {
@@ -35,12 +35,6 @@ function debriefOf(question: AskedQuestion, judgment: Judgment | null) {
   }
   const { grade, gaps, justification, strongAnswer } = judgment;
   return { grade, gaps, justification, strongAnswer };
-}
-
-/** One message of the Side thread's chat before its continuation. */
-export interface ThreadMessage {
-  readonly from: "candidate" | "agent";
-  readonly text: string;
 }
 
 /**

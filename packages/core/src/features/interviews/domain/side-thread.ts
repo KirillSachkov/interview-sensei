@@ -15,6 +15,12 @@ export interface SideThreadOrigin {
   readonly id: string;
 }
 
+/** One message of the Side thread's chat before its continuation. */
+export interface ThreadMessage {
+  readonly from: "candidate" | "agent";
+  readonly text: string;
+}
+
 export interface SideThread {
   readonly id: string;
   readonly interviewId: string;
@@ -31,6 +37,12 @@ export interface SideThread {
   readonly hinted: boolean;
   /** ISO 8601. */
   readonly createdAt: string;
+  /**
+   * When the server closed the Side thread for good (#80): its agent waited for a message when the
+   * Mock interview finished, or its Target went to the archive. A closed Side thread stays readable
+   * and takes no more messages, so it does not go on; null for one that may.
+   */
+  readonly closedAt: string | null;
 }
 
 /**

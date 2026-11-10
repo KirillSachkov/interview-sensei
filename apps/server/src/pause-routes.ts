@@ -4,8 +4,13 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 
 import type { ArchiveGuard } from "./archive-guard.ts";
-import { SessionsClosedError } from "./composition.ts";
-import type { Features, ResumeOutcome, ResumeRequest } from "./composition.ts";
+import type { Features, ResumeOutcome } from "./composition.ts";
+import {
+  continuationRequestOf,
+  refuseAgent,
+  startForInterview,
+} from "./interview-session-start.ts";
+import type { StartRefusal } from "./interview-session-start.ts";
 import { params } from "./route-params.ts";
 
 type Dependencies = Pick<Features, "interviews"> & { readonly archiveGuard: ArchiveGuard };
@@ -32,58 +37,7 @@ function registerPause(server: FastifyInstance, { interviews }: Dependencies) {
   );
 }
 
-/** The body `{}` or `{ agent }`; undefined for another one. */
-function resumeRequestOf(body: unknown): ResumeRequest | undefined {
-  if (body === undefined || body === null) {
-    return {};
-  }
-  if (typeof body !== "object") {
-    return undefined;
-  }
-  const keys = Object.keys(body);
-  const agent: unknown = Reflect.get(body, "agent");
-  if (keys.length === 0) {
-    return {};
-  }
-  return keys.length === 1 && typeof agent === "string" ? { agent } : undefined;
-}
-
-type ResumeOrClosing =
-  ResumeOutcome | { readonly type: "server_closing" } | { readonly type: "target_archived" };
-
-/** Goes on as a new agent session of the Target: an archived Target refuses it, as it refuses a start. */
-async function resumeOrClosing(
-  { interviews, archiveGuard }: Dependencies,
-  { id, request }: { id: string; request: ResumeRequest },
-): Promise<ResumeOrClosing> {
-  const interview = await interviews.view(id);
-  if (interview === undefined) {
-    return { type: "not_found" };
-  }
-  try {
-    const outcome = await archiveGuard.startSession(interview.targetId, async () =>
-      interviews.resume(id, request),
-    );
-    return outcome === "target_archived" ? { type: outcome } : outcome;
-  } catch (error) {
-    if (error instanceof SessionsClosedError) {
-      return { type: "server_closing" };
-    }
-    throw error;
-  }
-}
-
-/** Why the agent of the Mock interview cannot go on with it, and what the Candidate can do. */
-function unavailableMessage({
-  reason,
-  targetAgent,
-}: Extract<ResumeOutcome, { type: "agent_unavailable" }>): string {
-  const why =
-    reason === null ? "Агент мока больше не доступен." : `Агент мока недоступен. ${reason}`;
-  return targetAgent === null
-    ? `${why} Агент цели тоже недоступен: выберите агента в меню «Агент» в верхней панели.`
-    : `${why} Можно продолжить мок с агентом цели.`;
-}
+type ResumeOrClosing = ResumeOutcome | StartRefusal;
 
 /** The refusal of «Продолжить» in Russian. */
 function refuseResume(reply: FastifyReply, outcome: Exclude<ResumeOrClosing, { type: "resumed" }>) {
@@ -94,21 +48,9 @@ function refuseResume(reply: FastifyReply, outcome: Exclude<ResumeOrClosing, { t
     case "not_paused": {
       return reply.code(409).send({ error: outcome.type, message: "Мок не на паузе." });
     }
-    case "invalid_agent": {
-      return reply.code(400).send({
-        error: outcome.type,
-        message: "Продолжить мок можно только его агентом или агентом цели.",
-      });
-    }
+    case "invalid_agent":
     case "agent_unavailable": {
-      const { agent, reason, targetAgent } = outcome;
-      return reply.code(409).send({
-        error: outcome.type,
-        agent,
-        reason,
-        targetAgent,
-        message: unavailableMessage(outcome),
-      });
+      return refuseAgent(reply, outcome, "мок");
     }
     case "target_archived": {
       return reply.code(409).send({
@@ -134,13 +76,14 @@ function registerResume(server: FastifyInstance, dependencies: Dependencies) {
     "/api/interviews/:id/resume",
     { schema: { params } },
     async (request, reply) => {
-      const resumeRequest = resumeRequestOf(request.body);
+      const resumeRequest = continuationRequestOf(request.body);
       if (resumeRequest === undefined) {
         return reply.code(400).send({ error: "invalid_request" });
       }
-      const outcome = await resumeOrClosing(dependencies, {
-        id: request.params.id,
-        request: resumeRequest,
+      const { id } = request.params;
+      const outcome = await startForInterview(dependencies, id, {
+        start: async () => dependencies.interviews.resume(id, resumeRequest),
+        notFound: { type: "not_found" } as const,
       });
       return outcome.type === "resumed"
         ? reply.code(200).send(outcome.interview)

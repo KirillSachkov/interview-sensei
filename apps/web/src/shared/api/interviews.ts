@@ -1,5 +1,6 @@
 // The Mock interview API of the server. The view never holds a Grade: it comes only with the
 // Debrief of an Attempt.
+import { throwIfAgentUnavailable } from "./agent-unavailable";
 import { checked, isObject, path, sent } from "./http";
 import type { SideThread } from "./side-threads";
 import { fetchTarget } from "./targets";
@@ -174,37 +175,6 @@ export async function pauseInterview(interviewId: string): Promise<void> {
 }
 
 /**
- * The agent of the paused Mock interview cannot go on with it; the message says why in Russian.
- * `targetAgent` is the Target's agent the Candidate may go on with, or null.
- */
-export class AgentUnavailableError extends Error {
-  readonly targetAgent: string | null;
-
-  constructor(message: string, targetAgent: string | null) {
-    super(message);
-    this.name = "AgentUnavailableError";
-    this.targetAgent = targetAgent;
-  }
-}
-
-/** The refusal of «Продолжить» because of the agent, from the body of a 409. */
-async function unavailableAgent(response: Response): Promise<AgentUnavailableError | null> {
-  if (response.status !== 409) {
-    return null;
-  }
-  const body: unknown = await response
-    .clone()
-    .json()
-    .catch(() => null);
-  return isObject(body) && body.error === "agent_unavailable" && typeof body.message === "string"
-    ? new AgentUnavailableError(
-        body.message,
-        typeof body.targetAgent === "string" ? body.targetAgent : null,
-      )
-    : null;
-}
-
-/**
  * «Продолжить»: a new interviewer session goes on with the paused Mock interview, with its agent or
  * the chosen `agent` of the Target. Throws AgentUnavailableError when the agent cannot run.
  */
@@ -213,10 +183,7 @@ export async function resumeInterview(interviewId: string, agent?: string): Prom
     `/api/interviews/${path(interviewId)}/resume`,
     agent === undefined ? {} : { agent },
   );
-  const unavailable = await unavailableAgent(response);
-  if (unavailable !== null) {
-    throw unavailable;
-  }
+  await throwIfAgentUnavailable(response);
   return checked(response, isInterviewView);
 }
 

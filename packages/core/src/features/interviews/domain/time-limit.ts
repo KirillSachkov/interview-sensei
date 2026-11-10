@@ -31,10 +31,14 @@ export function limitEndsAt(interview: Timing): string | null {
     : new Date(Date.parse(startedAt) + pausedMs + limitMinutes * 60_000).toISOString();
 }
 
+/** Whether the time left is used up; false without a limit. */
+export function limitPassed(leftMs: number | null): boolean {
+  return leftMs !== null && leftMs <= 0;
+}
+
 /** Whether the running Mock interview has passed its limit at the moment. */
 export function inOvertime(interview: Timing, now: string): boolean {
-  const left = timeLeftMs(interview, now);
-  return interview.status === "running" && left !== null && left <= 0;
+  return interview.status === "running" && limitPassed(timeLeftMs(interview, now));
 }
 
 /** The time fields once the paused Mock interview goes on at `now`: the pause joins the earlier ones. */

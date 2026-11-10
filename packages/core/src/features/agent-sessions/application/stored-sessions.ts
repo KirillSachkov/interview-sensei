@@ -75,13 +75,42 @@ export async function chainOf(
   return [sessionId, ...earlier];
 }
 
-/** Whether the Candidate ended the session, rather than the server or a failure of its agent. */
-export async function endedByCandidate(
+/**
+ * The last conversation of a kind for a Target: its newest session that no later session
+ * continues, such as the Target setup after a restart (#85).
+ */
+export interface LastConversation {
+  readonly sessionId: string;
+  /** Whether the Candidate ended it, as with «Завершить», rather than the server or a failure. */
+  readonly endedByCandidate: boolean;
+  /** The Candidate's and the agent's messages of its chat, with those of the sessions it continues. */
+  readonly messages: readonly ConversationMessage[];
+}
+
+/** The kind's last conversation for the Target; undefined when the Target has no such session. */
+export async function lastConversation(
+  live: ReadonlyMap<string, LiveSession>,
   repository: SessionRepository,
-  sessionId: string,
-): Promise<boolean> {
-  const journal = await repository.journal(sessionId);
-  return journal.some(({ event }) => event.type === "session_ended" && event.by === "candidate");
+  { kind, targetId }: { kind: string; targetId: string },
+): Promise<LastConversation | undefined> {
+  const all = await repository.list();
+  const sessions = all.filter((session) => session.kind === kind && session.targetId === targetId);
+  const continued = new Set(sessions.map((session) => session.continuesSessionId));
+  const last = sessions.find((session) => !continued.has(session.id));
+  if (last === undefined) {
+    return undefined;
+  }
+  const [journal, view] = await Promise.all([
+    repository.journal(last.id),
+    sessionView(live, repository, last.id),
+  ]);
+  return {
+    sessionId: last.id,
+    endedByCandidate: journal.some(
+      ({ event }) => event.type === "session_ended" && event.by === "candidate",
+    ),
+    messages: conversationOf(view?.entries ?? []),
+  };
 }
 
 /** Marks sessions that were live when the server last stopped as ended. */

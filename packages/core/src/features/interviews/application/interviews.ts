@@ -15,8 +15,8 @@ import { createInterviewer } from "./interviewer.ts";
 import type { Interviewer } from "./interviewer.ts";
 import { createRecords } from "./records.ts";
 import type { Records } from "./records.ts";
-import { createSideThreads } from "./side-threads.ts";
-import type { SideThreads } from "./side-threads.ts";
+import { createSideThreads } from "./side-thread-api.ts";
+import type { SideThreads } from "./side-thread-api.ts";
 
 /** How many of a Target's newest Mock interviews the canvas shows. */
 const latestCount = 5;

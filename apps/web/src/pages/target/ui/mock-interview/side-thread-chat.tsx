@@ -3,11 +3,12 @@ import { useState } from "react";
 
 import { useSessionEvents } from "@/entities/session";
 import { PermissionRequest } from "@/features/agent-chat";
-import { continueSideThread, deleteSideThread } from "@/shared/api";
+import { AgentUnavailableError, continueSideThread, deleteSideThread } from "@/shared/api";
 import type { ChatEntry, SessionView, SideThread } from "@/shared/api";
 
 import { AgentLine, CandidateLine, ChatForm } from "./chat-parts";
 import { FragmentQuote } from "./discuss-separately";
+import { OtherAgentChoice } from "./pause-controls";
 import { useRefreshSideThreads } from "./side-thread-refresh";
 
 /** Where the Side thread opened, as its title says. */
@@ -51,14 +52,16 @@ function Line({
 
 /**
  * «Продолжить» in a Side thread whose agent is gone (#85): a new agent session goes on with the
- * thread, and its chat keeps the earlier messages.
+ * thread, and its chat keeps the earlier messages. When the Mock interview's agent is unavailable,
+ * the Candidate sees why and may go on with the Target's agent, as for the Mock interview.
  */
 function ContinueThread({ thread, text }: { thread: SideThread; text: string }) {
   const refresh = useRefreshSideThreads(thread.interviewId);
   const continuation = useMutation({
-    mutationFn: async () => continueSideThread(thread),
+    mutationFn: async (agent: string | null) => continueSideThread(thread, agent ?? undefined),
     onSuccess: refresh,
   });
+  const { error } = continuation;
   return (
     <div className="side-thread-continue">
       <p className="muted">{text}</p>
@@ -67,13 +70,22 @@ function ContinueThread({ thread, text }: { thread: SideThread; text: string }) 
         className="primary"
         disabled={continuation.isPending}
         onClick={() => {
-          continuation.mutate();
+          continuation.mutate(null);
         }}
       >
         Продолжить
       </button>
-      {continuation.isError ? (
-        <p role="alert">Ветка не продолжилась: {continuation.error.message}</p>
+      {error instanceof AgentUnavailableError ? (
+        <OtherAgentChoice
+          error={error}
+          pending={continuation.isPending}
+          onChoose={(agent) => {
+            continuation.mutate(agent);
+          }}
+        />
+      ) : null}
+      {error !== null && !(error instanceof AgentUnavailableError) ? (
+        <p role="alert">Ветка не продолжилась: {error.message}</p>
       ) : null}
     </div>
   );
@@ -89,6 +101,9 @@ function ThreadState({
   view: SessionView;
   onCancel: () => void;
 }) {
+  if (thread.closedAt !== null) {
+    return <p className="muted">Ветка закрыта: её можно только читать.</p>;
+  }
   if (view.failure !== null) {
     return (
       <ContinueThread

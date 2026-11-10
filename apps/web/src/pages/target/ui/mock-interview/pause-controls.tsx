@@ -43,10 +43,11 @@ export function pauseText(reason: InterviewView["pauseReason"]): string {
 }
 
 /**
- * The choice when the agent of the Mock interview is unavailable: the reason and, when the
- * Target's agent can run, going on with it. The Mock interview keeps that agent from then on.
+ * The choice when the agent of the Mock interview is unavailable for «Продолжить», of the Mock
+ * interview or of its Side thread: the reason and, when the Target's agent can run, going on with
+ * it.
  */
-function OtherAgentChoice({
+export function OtherAgentChoice({
   error,
   onChoose,
   pending,
@@ -79,7 +80,8 @@ function OtherAgentChoice({
 
 /**
  * «Продолжить»: a new interviewer session goes on from where the Mock interview stopped. When its
- * agent is unavailable, the Candidate sees why and may go on with the Target's agent.
+ * agent is unavailable, the Candidate sees why and may go on with the Target's agent, which the
+ * Mock interview keeps from then on.
  */
 export function ResumeButton({
   view,

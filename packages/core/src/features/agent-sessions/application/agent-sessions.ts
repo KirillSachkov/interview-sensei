@@ -20,16 +20,17 @@ import {
   queuePrompt,
 } from "./server-prompts.ts";
 import type { PromptOutcome, QueueContext, QueueOutcome } from "./server-prompts.ts";
-import { runningFor, sessionOpener, stopAll, stopNow } from "./open-session.ts";
-import type { OpenSession, StartRequest } from "./open-session.ts";
+import { liveNow, runningFor, sessionOpener, stopAll, stopNow } from "./open-session.ts";
+import type { OpenKey, OpenSession, StartRequest } from "./open-session.ts";
 import type { ConversationMessage } from "../domain/session-view.ts";
 import { removeChain } from "./session-removal.ts";
 import {
   earlierMessages,
   endInterrupted,
-  endedByCandidate,
+  lastConversation,
   sessionView,
 } from "./stored-sessions.ts";
+import type { LastConversation } from "./stored-sessions.ts";
 
 export interface AgentSessionsDependencies extends LiveSessionDependencies {
   readonly launcher: AgentLauncher;
@@ -54,14 +55,16 @@ export interface AgentSessions {
   readonly running: (targetId: string, except?: StartRequest["kind"]) => boolean;
   /** Stops at once, even in a turn, and ends every live session of the kind for the Target. */
   readonly stopAll: (targetId: string, kind: StartRequest["kind"]) => Promise<void>;
+  /** Whether the session is live on this server now: starting, waiting or working. */
+  readonly isLive: (sessionId: string) => boolean;
   readonly view: (sessionId: string) => Promise<SessionView | undefined>;
   /**
    * The Candidate's and the agent's messages of the earlier sessions that this one continues, in
    * order, for the brief of a continued conversation; empty when it continues none.
    */
   readonly earlierMessages: (sessionId: string) => Promise<readonly ConversationMessage[]>;
-  /** Whether the Candidate ended the session, as with «Завершить», rather than the server. */
-  readonly endedByCandidate: (sessionId: string) => Promise<boolean>;
+  /** The kind's last conversation for the Target, which a new session may continue; see LastConversation. */
+  readonly lastConversation: (of: OpenKey) => Promise<LastConversation | undefined>;
   /** Sends the Candidate's prompt to the agent; refuses it while the agent works. */
   readonly prompt: (sessionId: string, text: string) => Promise<PromptOutcome>;
   /**
@@ -270,10 +273,11 @@ export function createAgentSessions(dependencies: AgentSessionsDependencies): Ag
     list: async () => dependencies.repository.list(),
     running: (targetId, except) => runningFor(context.live, targetId, except),
     stopAll: async (targetId, kind) => stopAll(context.live, targetId, kind),
+    isLive: (sessionId) => liveNow(context.live, sessionId),
     view: async (sessionId) => sessionView(context.live, dependencies.repository, sessionId),
     earlierMessages: async (sessionId) =>
       earlierMessages(context.live, dependencies.repository, sessionId),
-    endedByCandidate: async (sessionId) => endedByCandidate(dependencies.repository, sessionId),
+    lastConversation: async (of) => lastConversation(context.live, dependencies.repository, of),
     prompt: async (sessionId, text) => candidatePrompt(context.queue, sessionId, text),
     queuePrompt: async (sessionId, text, options) =>
       queuePrompt(context.queue, { sessionId, text }, options),

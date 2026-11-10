@@ -7,7 +7,7 @@ import type { Dispute } from "./dispute.ts";
 import { pendingFollowUp } from "./follow-ups.ts";
 import type { AskedQuestion, Attempt, MockInterview } from "./interview.ts";
 import { presentedQuestion } from "./interview.ts";
-import { inOvertime, timeLeftMs } from "./time-limit.ts";
+import { limitPassed, timeLeftMs } from "./time-limit.ts";
 
 /** What the summary reads of the Mock interview's records at the moment `now`. */
 export interface ContinuationRecords {
@@ -79,7 +79,8 @@ export function continuationSummary(
     currentSectionId: interview.currentSectionId,
     /** Whole minutes; null without a limit, 0 or below in overtime. */
     timeLeftMinutes: left === null ? null : Math.round(left / 60_000),
-    overtime: inOvertime({ ...interview, status: "running" }, now),
+    // The paused Mock interview is in overtime once it goes on: its time stands as it stood.
+    overtime: limitPassed(left),
     askedQuestions: asked.flatMap((question) => {
       const attempt = attempts.find((entry) => entry.askedQuestionId === question.id);
       return attempt === undefined

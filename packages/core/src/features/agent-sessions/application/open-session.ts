@@ -25,7 +25,7 @@ export interface StartRequest {
 }
 
 /** The kind and Target that have at most one live session. */
-interface OpenKey {
+export interface OpenKey {
   readonly kind: SessionKind;
   readonly targetId: string;
 }
@@ -87,6 +87,12 @@ export function runningFor(
   except?: SessionKind,
 ): boolean {
   return liveOf(live, targetId).some((session) => session.view.kind !== except);
+}
+
+/** Whether the session is live now: starting, waiting or working. */
+export function liveNow(live: ReadonlyMap<string, LiveSession>, sessionId: string): boolean {
+  const session = live.get(sessionId);
+  return session !== undefined && isLive(session.view.status);
 }
 
 /** Stops at once, even in a turn, and ends every live session of the kind for the Target. */

@@ -1,11 +1,8 @@
 import { z } from "zod";
 
 import { sessionTool } from "../../../shared/mcp/index.ts";
-import type { SetupMessage } from "../domain/brief.ts";
+import type { EarlierMessages } from "../domain/ports.ts";
 import type { TargetSetup } from "./target-setup.ts";
-
-/** The messages of the earlier sessions that the session continues; empty when it continues none. */
-export type EarlierMessages = (sessionId: string) => Promise<readonly SetupMessage[]>;
 
 /**
  * `get_brief` of the Target setup session: the mode of the session and the Target's state, and

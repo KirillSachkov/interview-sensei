@@ -42,7 +42,6 @@ export {
   startServiceChat,
 } from "./sessions";
 export {
-  AgentUnavailableError,
   answerFollowUp,
   answerQuestion,
   fetchDebrief,
@@ -70,6 +69,7 @@ export type {
 } from "./progress";
 export { fetchQuestionMarks } from "./questions";
 export { continueSideThread, deleteSideThread, openSideThread } from "./side-threads";
+export { AgentUnavailableError } from "./agent-unavailable";
 export type { SideThread, SideThreadOpening, SideThreadOrigin } from "./side-threads";
 export type { ChatEntry, PermissionEntry, SessionView } from "./sessions";
 export {

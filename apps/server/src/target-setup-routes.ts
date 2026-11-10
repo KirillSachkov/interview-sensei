@@ -43,20 +43,10 @@ async function availableAgent({ targets, runtime }: Dependencies, targetId: stri
  * Target has none.
  */
 async function setupToContinue({ sessions }: Dependencies, targetId: string) {
-  const all = await sessions.list();
-  const setups = all.filter(
-    (session) => session.kind === "target-setup" && session.targetId === targetId,
-  );
-  const continued = new Set(setups.map((session) => session.continuesSessionId));
-  const last = setups.find((session) => !continued.has(session.id));
-  if (last === undefined || (await sessions.endedByCandidate(last.id))) {
-    return null;
-  }
-  const view = await sessions.view(last.id);
-  const talked = (view?.entries ?? []).some(
-    (entry) => entry.type === "candidate_message" || entry.type === "agent_message",
-  );
-  return { id: last.id, talked };
+  const last = await sessions.lastConversation({ kind: "target-setup", targetId });
+  return last === undefined || last.endedByCandidate
+    ? null
+    : { id: last.sessionId, talked: last.messages.length > 0 };
 }
 
 /**

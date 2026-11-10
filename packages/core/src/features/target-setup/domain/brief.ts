@@ -1,6 +1,6 @@
 // What the agent of a Target setup session learns from get_brief and its first prompt.
 import type { DraftChange } from "./draft.ts";
-import type { SetupTarget } from "./ports.ts";
+import type { SetupMessage, SetupTarget } from "./ports.ts";
 
 /**
  * The application's first prompt to the agent of a draft Target: the agent speaks first and
@@ -19,12 +19,6 @@ export const continuationPrompt =
 
 /** How many of the earlier conversation's last messages the brief of a continued session holds. */
 const lastMessagesInBrief = 20;
-
-/** One message of the earlier setup conversation. */
-export interface SetupMessage {
-  readonly from: "candidate" | "agent";
-  readonly text: string;
-}
 
 /** The lines about the earlier conversation in the brief of a continued session; none without one. */
 function continuationText(earlier: readonly SetupMessage[]): string[] {

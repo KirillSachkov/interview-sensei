@@ -3,7 +3,6 @@ import { randomUUID } from "node:crypto";
 import type { RunInTransaction, Transaction } from "../../../shared/storage/index.ts";
 import type { Clock } from "../../../shared/time/index.ts";
 import { continuationPrompt, onboardingPrompt, setupBrief } from "../domain/brief.ts";
-import type { SetupMessage } from "../domain/brief.ts";
 import { draftProblems, stateAfter } from "../domain/draft.ts";
 import type { DraftChange, DraftOperation } from "../domain/draft.ts";
 import { planReplacement } from "../domain/draft-plan.ts";
@@ -12,6 +11,7 @@ import type { NewQuestion } from "../domain/draft-questions.ts";
 import type {
   DraftRepository,
   SetupAttempts,
+  SetupMessage,
   SetupQuestions,
   SetupTarget,
   SetupTargets,

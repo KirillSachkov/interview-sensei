@@ -16,6 +16,7 @@ import {
   targetSetupModule,
   withoutDuplicates,
 } from "@interview-sensei/core/target-setup";
+import type { EarlierMessages } from "@interview-sensei/core/target-setup";
 import { appSettingsMigrations, appSettingsModule } from "@interview-sensei/core/app-settings";
 import {
   getSource,
@@ -117,7 +118,7 @@ type TargetSlices = ReturnType<typeof composeTargets>;
  */
 export function targetTools(
   { targets, questionBank, targetSetup, sources }: TargetSlices,
-  earlierMessages: Parameters<typeof setupBrief>[1],
+  earlierMessages: EarlierMessages,
 ) {
   const reading = {
     getTarget: getTarget(targets),

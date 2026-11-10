@@ -7,6 +7,8 @@ import type { Difficulty, MockInterview } from "../domain/interview.ts";
 import { interviewerRole } from "../domain/interviewer-role.ts";
 import type { InterviewView } from "../domain/interview-view.ts";
 import type { PlanSection, TargetPlan } from "../domain/ports.ts";
+import { agentRefusal } from "./agent-choice.ts";
+import type { AgentRefusal } from "./agent-choice.ts";
 import { tellInterviewer, viewOf } from "./context.ts";
 import { watchAgent } from "./pauses.ts";
 import type { Context, InterviewsDependencies } from "./context.ts";
@@ -33,7 +35,7 @@ export type StartOutcome =
   | { readonly type: "started"; readonly interview: InterviewView }
   | { readonly type: "target_not_found" | "invalid_sections" | "interview_running" }
   | { readonly type: "interview_paused"; readonly interviewId: string }
-  | { readonly type: "agent_unavailable"; readonly reason: string | null };
+  | AgentRefusal;
 
 /** The selected Sections in the plan's order, or null when the selection is invalid. */
 function selectedSections(plan: TargetPlan, sectionIds: readonly string[]) {
@@ -50,19 +52,15 @@ function selectedSections(plan: TargetPlan, sectionIds: readonly string[]) {
 
 /** The Target's agent when it can run now; otherwise the refusal. */
 async function interviewerAgent(
-  { targets, agents }: InterviewsDependencies,
+  dependencies: InterviewsDependencies,
   targetId: string,
-): Promise<string | Extract<StartOutcome, { type: "agent_unavailable" }>> {
-  const targetAgent = await targets.agent(targetId);
+): Promise<string | AgentRefusal> {
+  const targetAgent = await dependencies.targets.agent(targetId);
   const chosen = targetAgent?.agent ?? null;
-  const offered = chosen === null ? [] : await agents.listAgents();
-  const availability = offered.find((entry) => entry.agent === chosen);
-  if (chosen === null || availability === undefined) {
+  if (chosen === null) {
     return { type: "agent_unavailable", reason: null };
   }
-  return availability.available
-    ? chosen
-    : { type: "agent_unavailable", reason: availability.reason };
+  return (await agentRefusal(dependencies, chosen)) ?? chosen;
 }
 
 /** What a start needs once every check passed. */

@@ -65,6 +65,7 @@ A Mock interview is running («идёт») until the Candidate finishes it («з
 «Продолжить» starts a new Agent session of the same Mock interview with its agent, or with the Target's agent when its own is unavailable; the Mock interview keeps that agent from then on.
 Its chat shows the journals of all its Agent sessions in order. The time limit counts only the time it runs.
 A Target has at most one Mock interview that runs or is paused. Finishing a paused one gives the summary Debrief without the agent's summary.
+A pause while the agent writes its summary after «Завершить» drops that request: the continued Mock interview runs as before «Завершить», so «Пауза» and «Завершить» work again.
 Mock interviews that ended before pauses existed keep the status interrupted («прерван»); a new one never gets it.
 With a time limit, it follows the arc of a real interview, from general Questions to deeper ones. Without a limit, it continues until the Candidate stops it.
 Stopping early keeps every recorded Attempt and still produces a Debrief.
@@ -149,7 +150,7 @@ Every Inbox processing and Mock interview for that Target follows the active Pre
 
 **Side thread**:
 A separate Agent session that branches from a Mock interview at a chosen moment, for clarification and explanation.
-It runs with the agent of its Mock interview; the code calls its kind `side-thread`.
+It runs with the agent of its Mock interview, unless the Candidate continues it with the Target's agent; the code calls its kind `side-thread`.
 It starts from a Handoff brief, not from the whole Mock interview history. A Side thread cannot record Attempts or change Grades.
 A Side thread opened before the Candidate answers the current Question marks that Attempt as received with a hint, also while the Mock interview is paused.
 After the answer, during Follow-ups, after the end of the Mock interview and on an earlier Question it gives no hint mark.
@@ -158,7 +159,8 @@ The Candidate opens a Side thread at a question card, at an interviewer message 
 A Side thread from an interviewer message discusses the Question that was shown when the message came; a message before the first Question opens none.
 The Candidate can delete a Side thread for good; the hint mark on the Attempt stays.
 When the Mock interview finishes, its Side threads whose agent waits for a message close; archiving the Target closes all of its Side threads.
-A closed Side thread, and every Side thread after a restart or a crash of its agent, stays readable; «Продолжить» starts a new Agent session of the Side thread with the Mock interview's agent.
+A closed Side thread stays readable and takes no more messages, so it cannot be continued, also after the Target returns from the archive.
+After a restart or a crash of its agent, a Side thread that is not closed stays readable, and «Продолжить» starts a new Agent session of it with the Mock interview's agent, or with the Target's agent when the Mock interview's one is unavailable; the Mock interview keeps its own agent.
 The new session's chat starts with the earlier one, and its Handoff brief holds the Side thread's earlier messages. Continuing never changes the hint mark.
 Deleting a continued Side thread deletes every Agent session of its chat.
 

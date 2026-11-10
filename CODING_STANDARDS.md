@@ -100,8 +100,11 @@ A Side thread from an interviewer message (`agent-N`, the chat entry id) goes to
 Questions from before this column have none and count as shown at the chat's start.
 Deleting a Side thread stops its agent at once and deletes its AgentSession, the earlier sessions it continues, their journals and session directories with `AgentSessions.remove`; `asked_questions.hinted` stays.
 «Продолжить» in a Side thread whose session is no longer live (`continueSideThread`, #85) starts a session with `continues` and moves `side_threads.session_id` to it; its first server prompt is `sideThreadContinues`, and `get_brief` adds `continuation.messages` from `AgentSessions.earlierMessages`.
-A finished Mock interview ends its Side threads whose session is `idle` (`closeIdleSideThreads`); a working one goes on.
-`POST /api/targets/:id/archive` refuses with `session_running` only for live sessions of other kinds; it stops the Target's live Side threads with `AgentSessions.stopAll` and then archives.
+A continuation of a Mock interview or of its Side thread picks its agent with `continuingAgent` of `interviews/application/agent-choice.ts`: the Mock interview's agent, or the Target's agent the Candidate chose; both routes answer an unavailable agent with the same 409 `agent_unavailable` of `interview-session-start.ts`.
+A Side thread continued with the Target's agent leaves the Mock interview's agent as it is.
+A finished Mock interview closes its Side threads whose session is `idle` (`closeIdleSideThreads`): it sets `side_threads.closed_at` and ends their sessions; a working one goes on.
+`POST /api/targets/:id/archive` refuses with `session_running` only for live sessions of other kinds; it closes every Side thread of the Target (`closeTargetSideThreads`), stops the live ones with `AgentSessions.stopAll` and then archives.
+A closed Side thread stays readable and refuses «Продолжить» with 409 `side_thread_closed`, also after the Target returns from the archive.
 
 ### Server messages
 
@@ -109,7 +112,7 @@ The server talks to the interviewer with template messages in `interviews/domain
 They go through `AgentSessions.queuePrompt`, after the agent's current turn, and stay out of the chat.
 The continuation after a pause (#84), `interviewContinues`, is the first message of a new session: the agent finds where the interview stopped in the continuation summary of `get_brief`.
 That session starts with `continues` of `AgentSessions.start`: its view begins with the chat of the session it continues, so the chat and chat positions span every session of the Mock interview.
-A Target setup session continues the same way (#85): `prepare` of `AgentSessions.open` returns `continues` for the Target's last setup session unless the Candidate ended it, which «Завершить» records as `session_ended` with `by: "candidate"`.
+A Target setup session continues the same way (#85): `prepare` of `AgentSessions.open` returns `continues` for the Target's last setup session (`AgentSessions.lastConversation`) unless the Candidate ended it, which «Завершить» records as `session_ended` with `by: "candidate"`.
 A continued session gets the same launch recipe as a new one and never `session/load`: nothing of the earlier conversation goes to the agent's own storage.
 The sixth message of #10, `discussedInSideThread`, tells the interviewer only that the Candidate discussed question N in a Side thread, never its content.
 It is a note, not a prompt: `AgentSessions.addNote` puts it before the next prompt the agent gets, the Candidate's or the server's, so the current turn goes on.

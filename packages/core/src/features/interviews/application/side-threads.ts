@@ -11,11 +11,10 @@ import { givesHint } from "../domain/side-thread.ts";
 import type { SideThread, SideThreadOrigin } from "../domain/side-thread.ts";
 import { change, inBackground } from "./context.ts";
 import type { Context } from "./context.ts";
-import { sideThreadBrief } from "./side-thread-brief.ts";
-import { continueSideThread } from "./side-thread-continuation.ts";
-import type { ContinueOutcome } from "./side-thread-continuation.ts";
-import { agentRefusal, originPlace } from "./side-thread-origins.ts";
-import type { AgentRefusal, OriginRefusal } from "./side-thread-origins.ts";
+import { agentRefusal } from "./agent-choice.ts";
+import type { AgentRefusal } from "./agent-choice.ts";
+import { originPlace } from "./side-thread-origins.ts";
+import type { OriginRefusal } from "./side-thread-origins.ts";
 
 /** Where the Candidate opens the Side thread, the selected fragment and the question, if any. */
 export interface SideThreadRequest {
@@ -98,6 +97,7 @@ async function store(
       question: request.question,
       hinted,
       createdAt: clock.now().toISOString(),
+      closedAt: null,
     };
     await repository.createSideThread(thread);
     return thread;
@@ -121,7 +121,7 @@ function tellAgents(context: Context, { interview, question }: Opening, thread: 
 }
 
 /** Opens a Side thread at the asked question with the Mock interview's agent. */
-async function openSideThread(
+export async function openSideThread(
   context: Context,
   interviewId: string,
   request: SideThreadRequest,
@@ -146,7 +146,7 @@ async function openSideThread(
  * it continues and their journals go, and the hint mark of its question stays. `not_found` for a
  * Side thread of another Mock interview.
  */
-async function deleteSideThread(
+export async function deleteSideThread(
   context: Context,
   { interviewId, threadId }: { interviewId: string; threadId: string },
 ): Promise<"deleted" | "not_found"> {
@@ -164,51 +164,30 @@ async function deleteSideThread(
 }
 
 /**
- * Closes the Side threads of a finished Mock interview whose agent waits for a message; a thread
- * whose agent works or starts goes on. A closed thread stays readable.
+ * Closes the Side threads of a finished Mock interview whose agent waits for a message, for good;
+ * a thread whose agent works or starts goes on. A closed thread stays readable and does not go on.
  */
 export async function closeIdleSideThreads(
-  { dependencies: { repository, sessions } }: Context,
+  { dependencies: { repository, sessions, clock } }: Context,
   interviewId: string,
 ): Promise<void> {
   const threads = await repository.sideThreads(interviewId);
-  await Promise.all(
-    threads.map(async ({ sessionId }) => {
-      const view = await sessions.view(sessionId);
-      if (view?.status === "idle") {
-        await sessions.end(sessionId);
-      }
-    }),
+  const views = await Promise.all(threads.map(async ({ sessionId }) => sessions.view(sessionId)));
+  const idle = threads.filter((_thread, index) => views[index]?.status === "idle");
+  await repository.closeSideThreads(
+    idle.map(({ id }) => id),
+    clock.now().toISOString(),
   );
+  await Promise.all(idle.map(async ({ sessionId }) => sessions.end(sessionId)));
 }
 
-/** The Side threads of Mock interviews: the Candidate's side and the `get_brief` of their agents. */
-export interface SideThreads {
-  /** «Обсудить отдельно»: opens a Side thread with the Mock interview's agent. */
-  readonly openSideThread: (id: string, request: SideThreadRequest) => Promise<SideThreadOutcome>;
-  /** The Mock interview's Side threads in the order they were opened; undefined for an unknown one. */
-  readonly sideThreads: (id: string) => Promise<readonly SideThread[] | undefined>;
-  /** The Handoff brief of the Side thread whose AgentSession calls, as JSON. */
-  readonly sideThreadBrief: (sessionId: string) => Promise<string>;
-  /** «Продолжить»: a new session of the Side thread whose agent is gone continues it. */
-  readonly continueSideThread: (id: string, threadId: string) => Promise<ContinueOutcome>;
-  /**
-   * ✕: deletes the Side thread with every AgentSession of its chat and their journals; the hint
-   * mark stays.
-   */
-  readonly deleteSideThread: (id: string, threadId: string) => Promise<"deleted" | "not_found">;
-}
-
-export function createSideThreads(context: Context): SideThreads {
-  const { repository } = context.dependencies;
-  return {
-    openSideThread: async (id, request) => openSideThread(context, id, request),
-    sideThreads: async (id) =>
-      (await repository.get(id)) === undefined ? undefined : repository.sideThreads(id),
-    sideThreadBrief: async (sessionId) => sideThreadBrief(context, sessionId),
-    continueSideThread: async (id, threadId) =>
-      continueSideThread(context, { interviewId: id, threadId }),
-    deleteSideThread: async (id, threadId) =>
-      deleteSideThread(context, { interviewId: id, threadId }),
-  };
+/**
+ * Closes every Side thread of the Target's Mock interviews for good, as its archive does (#80);
+ * the caller stops their agents.
+ */
+export async function closeTargetSideThreads(
+  { dependencies: { repository, clock } }: Context,
+  targetId: string,
+): Promise<void> {
+  await repository.closeTargetSideThreads(targetId, clock.now().toISOString());
 }

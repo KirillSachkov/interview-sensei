@@ -1,5 +1,5 @@
 import type { Dispute } from "./dispute.ts";
-import type { SideThread } from "./side-thread.ts";
+import type { SideThread, ThreadMessage } from "./side-thread.ts";
 import type { AttemptRecord, HistoryFilter } from "./history.ts";
 import type {
   AskedQuestion,
@@ -114,9 +114,7 @@ export interface InterviewSessions {
    * The Candidate's and the agent's messages of the earlier sessions that this one continues, in
    * order; empty when it continues none.
    */
-  readonly earlierMessages: (
-    sessionId: string,
-  ) => Promise<readonly { readonly from: "candidate" | "agent"; readonly text: string }[]>;
+  readonly earlierMessages: (sessionId: string) => Promise<readonly ThreadMessage[]>;
   /**
    * Sends a template message after the agent's current turn; it stays out of the chat. With
    * `showAgentText`, the agent's hidden text goes to the chat again from this message on.
@@ -134,6 +132,8 @@ export interface InterviewSessions {
   readonly end: (sessionId: string) => Promise<void>;
   /** Stops the agent at once, even in a turn, and ends the session; false when it is not live. */
   readonly stop: (sessionId: string) => Promise<boolean>;
+  /** Whether the session is live now: its agent starts, waits for a message or works. */
+  readonly isLive: (sessionId: string) => boolean;
   /**
    * Stops the agent at once and deletes the session with the earlier sessions it continues and
    * their journals, for good.
@@ -227,6 +227,10 @@ export interface SideThreadRepository {
   readonly sideThreadBySession: (sessionId: string) => Promise<SideThread | undefined>;
   /** Moves the Side thread to the new AgentSession that continues its earlier one. */
   readonly continueSideThread: (id: string, sessionId: string) => Promise<void>;
+  /** Closes the Side threads for good at the moment; a closed one keeps its first moment. */
+  readonly closeSideThreads: (ids: readonly string[], at: string) => Promise<void>;
+  /** Closes every Side thread of the Target's Mock interviews, as closeSideThreads. */
+  readonly closeTargetSideThreads: (targetId: string, at: string) => Promise<void>;
   /** Marks the asked question: its Attempt is recorded as received with a hint. */
   readonly markHinted: (askedQuestionId: string) => Promise<void>;
   /** Marks the asked question: the Candidate opened the Debrief of its Attempt. */
