@@ -92,6 +92,22 @@ describe("a video with its transcript", () => {
     ]);
   });
 
+  it("goes back to the Inbox when its video gets «ошибка»", async () => {
+    const { server, target } = await transcriptionTarget([]);
+    const { video, transcript } = await videoWithTranscript(server, target.id);
+
+    await startProcessing(server, target.id, [video.id]);
+    const { events } = await processingEvents(server, target.id);
+    await readParts(events, video.id, 1);
+    await toolResult(events, "mark_source_failed", { id: video.id, reason: "запись о другом" });
+    await toolResult(events, "write_inbox_report", { summary: "Ничего." });
+
+    await expect(statuses(server, target.id)).resolves.toStrictEqual([
+      { id: video.id, status: "failed", parts: 1 },
+      { id: transcript.id, status: "inbox", parts: null },
+    ]);
+  });
+
   it("goes back to the Inbox with its video on «Остановить разбор»", async () => {
     const { server, target } = await transcriptionTarget([]);
     const { video, transcript } = await videoWithTranscript(server, target.id);
