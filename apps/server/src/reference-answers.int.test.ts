@@ -1,12 +1,14 @@
 // Issue #65: the Candidate checks reference answers. «Проверен» in the side panel makes a reference
 // answer «проверен кандидатом»; the setup agent corrects one through the draft of changes; a Dispute
-// puts the Question on the list «проверить опорный ответ» of the zone «Цель».
+// puts the Question on the list «проверить опорный ответ» of the zone «Цель». Issue #64: the
+// interviewer grades against the reference answer, and its disagreement puts the Question there too.
 import type { FastifyInstance } from "fastify";
 import { describe, expect, it } from "vitest";
 
 import { browserHeaders, isIdle, openEvents } from "./chat-test-support.ts";
 import { idsOf, manualProcessing, topicOf } from "./inbox-test-support.ts";
-import { cardAt, interviewApi, isGraded } from "./interview-test-support.ts";
+import { answerWith } from "./interview-flow-test-support.ts";
+import { cardAt, hasQuestions, interviewApi, isGraded } from "./interview-test-support.ts";
 import { materialQuestion } from "./material-test-support.ts";
 import { first } from "./model-test-support.ts";
 import { dispute } from "./progress-test-support.ts";
@@ -161,6 +163,72 @@ describe("the list «Проверить опорный ответ»", () => {
     });
     await expect(verify(api.server, crypto.randomUUID())).resolves.toMatchObject({
       statusCode: 404,
+    });
+  });
+});
+
+describe("the judgment against the reference answer", () => {
+  it("shows in the Debrief which key points the answer covered", async () => {
+    const api = await demoWithReferenceAnswers();
+    const run = await api.answered(["Опыт и резюме"], "Ответ [grade:2] [covered:1,3] [last]");
+    const card = cardAt(await run.events.waitFor(isGraded(0)), 0);
+
+    await expect(api.debrief(run.interview.id, card)).resolves.toMatchObject({
+      grade: 2,
+      referencePoints: [
+        { text: "Пример из практики", covered: true },
+        { text: "Роль кандидата", covered: false },
+        { text: "Результат в цифрах", covered: true },
+      ],
+      referenceDisagreement: null,
+    });
+    await expect(checksOf(api.server, api.target.id)).resolves.toStrictEqual([]);
+  });
+
+  it("puts the Question on the list with the interviewer's disagreement", async () => {
+    const api = await demoWithReferenceAnswers();
+    const run = await api.answered(["Опыт и резюме"], "Ответ [disagree] [last]");
+    const card = cardAt(await run.events.waitFor(isGraded(0)), 0);
+    const disagreement = "Фейковый интервьюер не согласен с опорным ответом.";
+
+    await expect(api.debrief(run.interview.id, card)).resolves.toMatchObject({
+      referenceDisagreement: disagreement,
+    });
+    const listed = await checksOf(api.server, api.target.id);
+    expect(listed.map(({ text, referenceCheck }) => ({ text, referenceCheck }))).toStrictEqual([
+      {
+        text: card.text,
+        referenceCheck: {
+          reason: "interviewer",
+          comment: disagreement,
+          requestedAt: expect.any(String) as unknown,
+        },
+      },
+    ]);
+  });
+
+  it("grades a Question without a reference answer from the agent's knowledge", async () => {
+    const api = await interviewApi();
+    const run = await api.answered(["Опыт и резюме"], "Ответ [grade:3] [last]");
+    const card = cardAt(await run.events.waitFor(isGraded(0)), 0);
+
+    await expect(api.debrief(run.interview.id, card)).resolves.toMatchObject({
+      grade: 3,
+      referencePoints: null,
+      referenceDisagreement: null,
+    });
+  });
+
+  it("shows «Не знаю» as covering none of the key points", async () => {
+    const api = await demoWithReferenceAnswers();
+    const run = await api.started(["Опыт и резюме"]);
+    await run.events.waitFor(hasQuestions(1));
+    await answerWith(api, run.interview.id, { skipped: true });
+    const card = cardAt(await run.events.waitFor(isGraded(0)), 0);
+
+    await expect(api.debrief(run.interview.id, card)).resolves.toMatchObject({
+      gradedBy: "skip",
+      referencePoints: corrected.points.map((text) => ({ text, covered: false })),
     });
   });
 });

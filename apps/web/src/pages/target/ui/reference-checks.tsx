@@ -4,8 +4,9 @@ import { useReferenceChecks } from "../model/reference-checks";
 import { ReferenceAnswerDetails, VerifyReference } from "./reference-answer";
 
 /**
- * «Проверить опорный ответ» in the «Цель» zone: the Questions whose Grade the Candidate disputed,
- * each with the reason, its reference answer and «Проверен». «Исправить в чате» opens the setup
+ * «Проверить опорный ответ» in the «Цель» zone: the Questions whose Grade the Candidate disputed or
+ * whose reference answer the interviewer disagreed with, each with the reason, its reference answer
+ * and «Проверен». «Исправить в чате» opens the setup
  * chat, where the agent corrects a reference answer through the draft of changes. The card shows
  * nothing while the list is empty.
  */
@@ -31,7 +32,12 @@ export function ReferenceChecks({ targetId, onFix }: { targetId: string; onFix: 
           <li key={question.id} className="question" aria-label={question.text}>
             <p>{question.text}</p>
             {question.referenceCheck === null ? null : (
-              <p className="muted">Оспорена оценка: {question.referenceCheck.comment}</p>
+              <p className="muted">
+                {question.referenceCheck.reason === "interviewer"
+                  ? "Интервьюер не согласен с опорным ответом"
+                  : "Оспорена оценка"}
+                : {question.referenceCheck.comment}
+              </p>
             )}
             {question.referenceAnswer === null ? null : (
               <ReferenceAnswerDetails answer={question.referenceAnswer} />

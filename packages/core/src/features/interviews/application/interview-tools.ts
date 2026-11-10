@@ -16,6 +16,19 @@ const judgment = z.strictObject({
     .min(1)
     .describe("Why the answer gets this Grade, in one or two sentences."),
   strongAnswer: z.string().min(1).describe("An outline of a strong answer."),
+  coveredPoints: z
+    .array(z.int().min(1))
+    .optional()
+    .describe(
+      "Only for a question with a reference answer, and then required: the numbers of its key points the answer covered, from 1; [] when none.",
+    ),
+  disagreement: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      "Only when you think the reference answer itself is wrong or incomplete: what and why, in the Target's language. The Candidate will check it.",
+    ),
 });
 
 export function interviewTools({ interviewer }: Interviews): readonly SessionTool[] {
@@ -23,7 +36,7 @@ export function interviewTools({ interviewer }: Interviews): readonly SessionToo
     sessionTool({
       name: "get_brief",
       description:
-        "Returns the brief of this mock interview as JSON: the Target, the selected Sections with their grading criteria and Topics, the tone, the language, the active Preferences, the time limit and questionLevel, the level to start the questions at, the last mock interview's summary, the weak Topics, and the Candidate's corrections of earlier Grades. Treat the corrections as calibration: grade similar answers the way the Candidate corrected them. Call it once at the start.",
+        "Returns the brief of this mock interview as JSON: the Target, the selected Sections with their grading criteria, their share of the interview and of the time limit, and their Topics with importance, the tone, the language, the active Preferences, the time limit and questionLevel, the level to start the questions at, the last mock interview's summary, the weak Topics, and the Candidate's corrections of earlier Grades. Treat the corrections as calibration: grade similar answers the way the Candidate corrected them. Call it once at the start.",
       input: z.strictObject({}),
       run: async (_input, session) => interviewer.brief(session.sessionId),
     }),
@@ -40,7 +53,7 @@ export function interviewTools({ interviewer }: Interviews): readonly SessionToo
     sessionTool({
       name: "record_attempt",
       description:
-        "Records your judgment of the Candidate's answer to the presented question, with its Follow-ups: the Grade from 0 to 3, the gaps, a short justification and an outline of a strong answer. The app records the answer itself, and records quizzes and «Не знаю» without you. One Attempt per question; it never changes. Returns the Attempt's id.",
+        "Records your judgment of the Candidate's answer to the presented question, with its Follow-ups: the Grade from 0 to 3, the gaps, a short justification and an outline of a strong answer. For a question with a reference answer, judge against its key points and give coveredPoints; the Debrief shows which points the answer covered. You may disagree with the reference answer: give disagreement, and the Candidate gets the question to check. The app records the answer itself, and records quizzes and «Не знаю» without you. One Attempt per question; it never changes. Returns the Attempt's id.",
       input: judgment,
       run: async (input, session) => interviewer.record(session.sessionId, input),
     }),

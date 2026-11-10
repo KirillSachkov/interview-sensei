@@ -6,9 +6,12 @@ import type { TargetView } from "./targets";
 /** The Candidate's opinion of a Question: useful, irrelevant or wrong. */
 export type QuestionRating = "useful" | "irrelevant" | "wrong";
 
-/** Why the Question is on the list «проверить опорный ответ»: the Candidate's Dispute. */
+/**
+ * Why the Question is on the list «проверить опорный ответ»: the Candidate's Dispute, or the
+ * interviewer's disagreement with the reference answer.
+ */
 interface ReferenceCheck {
-  readonly reason: "dispute";
+  readonly reason: "dispute" | "interviewer";
   readonly comment: string;
 }
 

@@ -77,6 +77,7 @@ Inbox processing in `sources` starts its agent through `agent-sessions`, which c
 `create_topic` of `sources` creates the Topic through `question-bank` and adds it to the Section through `targets`, in one shared transaction.
 The bulk review of Questions in `question-bank` asks `interviews` which Questions have Attempts through its `QuestionAttempts` port: deleting such a Question hides it. `topicMerges` hands `interviews` over the same way as for a Topic merge.
 A Dispute in `interviews` puts the disputed Question on the list «Проверить опорный ответ» through its `ReferenceChecks` port, which `question-bank` supplies (#65). The Dispute and this write share one transaction: `composeFeatures` passes `storage.transaction` to `interviews`.
+`record_attempt` with the interviewer's disagreement with the reference answer does the same (#64): the Attempt and the list entry share one transaction.
 
 ### Session profiles
 

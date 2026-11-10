@@ -62,10 +62,13 @@ The Candidate marks a Reference answer «проверен» in the side panel of
 **Reference check**:
 The list «Проверить опорный ответ» in the zone «Цель»: the Questions whose Reference answer the Candidate should look at again.
 A Dispute of the Grade of an Attempt puts its Question there with the Candidate's reason, when the Question has a Reference answer.
+So does the interviewer of a Mock interview that disagrees with the Reference answer, with why.
 «проверен» or a corrected Reference answer takes the Question off the list; a hidden Question is not shown there.
 
 **Mock interview**:
 The only kind of interview: the agent acts as an interviewer and asks Questions for a Target.
+The agent takes each Question from the five candidates the server ranks and gives reasons for, and makes up its own only when none fits, with why.
+Each selected Section gets a share of the interview that grows with the number and importance of its Topics; with a time limit the share is in minutes.
 The Candidate picks its Sections, a time limit and a difficulty: easier, as is or harder. The Target has no difficulty of its own: it is the difficulty of its latest Mock interview, which the next one offers first.
 A Mock interview is running («идёт») until the Candidate finishes it («завершён»).
 «Пауза», a crash of its agent and a server restart make it paused («на паузе»): its Agent session ends, its timer stops and the Presented question stays.
@@ -93,6 +96,7 @@ A clarification of the Candidate's current answer: "what did you mean", "give an
 **Deeper question**:
 A new Question that goes deeper into the same Topic after a confident answer. It gets its own Attempt, linked to the previous one.
 The agent keeps going deeper until the Candidate becomes unsure, which shows how deep the Candidate knows the Topic.
+Going deeper stays within the limit of questions in a row on one Topic: at most three, Deeper questions included, and four for a shaky Topic.
 _Avoid_: Question chain.
 
 **Debrief**:
@@ -105,7 +109,8 @@ An Attempt is never changed after it is recorded; a Dispute adds a correction in
 
 **Grade**:
 The assessment of one Attempt on a scale from 0 to 3, with a short justification.
-The agent grades a free answer. The server grades a quiz answer by its correct options and gives a skipped Attempt 0; it explains these Grades itself.
+The agent grades a free answer, against the key points of the Question's Reference answer when it has one; the Debrief shows which key points the answer covered.
+The Reference answer is a hint, not the truth: the agent may disagree with it and says why. A Question without one the agent grades from its own knowledge. The server grades a quiz answer by its correct options and gives a skipped Attempt 0; it explains these Grades itself.
 
 **Dispute**:
 The Candidate's correction of a Grade, with a required reason. The corrected Grade applies at once; the agent does not arbitrate.

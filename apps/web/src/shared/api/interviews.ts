@@ -90,6 +90,13 @@ export interface AttemptDebrief {
   readonly strongAnswer: string;
   /** The Candidate got a hint in a Side thread before answering. */
   readonly hinted: boolean;
+  /**
+   * The key points of the Question's reference answer, each with whether the answer covered it;
+   * null without a reference answer or for a quiz.
+   */
+  readonly referencePoints: readonly { readonly text: string; readonly covered: boolean }[] | null;
+  /** Why the interviewer disagrees with the reference answer; null when it agrees. */
+  readonly referenceDisagreement: string | null;
   /** The Candidate's latest Dispute: its Grade applies instead of `grade`. */
   readonly dispute: { readonly grade: number; readonly reason: string } | null;
 }

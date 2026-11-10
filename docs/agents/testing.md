@@ -78,12 +78,15 @@ It knows the server's template messages by their first sentence and answers them
 On «The mock interview has started.» it calls `get_brief`, then shows the next question.
 To show a question, it takes the first open candidate of `next_question_candidates`, or the first one, and calls `present_question`.
 Right after that it sends «Подсказка до ответа: …» in the same turn; the browser must never get this hint.
+When `next_question_candidates` refuses, it replies «Кандидаты не получены: <tool result>» and shows no question.
 On «The Candidate answered the presented question.» it replies «Ответ получен.» and calls `record_attempt`.
 The Grade comes from the marker `[grade:N]` in the Candidate's answer, 2 without one; then it shows the next question.
+For a question with a reference answer it counts the key points in the result of `present_question`, or in the brief's `presentedQuestion` after a pause, and covers all of them, or those of the marker `[covered:1,3]`.
+`[disagree]` adds its disagreement with the reference answer, «Фейковый интервьюер не согласен с опорным ответом.».
 The marker `[twice]` makes it call `record_attempt` once more and reply «Повторная запись: <tool result>».
 Markers in the Candidate's answer steer it: `[followup]` makes it call `ask_follow_up` instead of `record_attempt`, and a refused Follow-up gives «Follow-up отклонён: <tool result>», then the Attempt.
 `[quiz]` makes the next question the first quiz candidate, and `[deeper]` makes it a Deeper question in the same Topic with the recorded Attempt as its parent.
-`[new]` makes it show a made-up question in the last Topic, and `[section]` calls `set_current_section` with the brief's next Section first.
+`[new]` makes it show a made-up question in the last Topic, with a reason, and `[section]` calls `set_current_section` with the brief's next Section first.
 `[last]` makes it show no next question, so its replies to chat messages reach the chat.
 On «The Candidate answered your Follow-up.» it replies «Уточнение получено.» and reads the same markers in that answer.
 On a quiz result it replies «Квиз оценён: N.», on «Не знаю» «Вопрос пропущен.», then it shows the next question without `record_attempt`.
