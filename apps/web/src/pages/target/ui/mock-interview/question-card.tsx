@@ -9,6 +9,7 @@ import { FollowUps } from "./follow-ups";
 import { QuestionRatingButtons, useQuestionMarks } from "./question-rating";
 import { QuizForm } from "./quiz-form";
 import { SkipButton } from "./skip-button";
+import { useTopicNames } from "./topic-names";
 
 /** The form for the presented question: quiz options or free text, both with «Не знаю». */
 function OpenAnswer({ interviewId, card }: { interviewId: string; card: Card }) {
@@ -137,17 +138,21 @@ function AttemptPart({
 }
 
 /**
- * The line above the question: its number, «глубже», «не подтверждён», «с подсказкой» after a Side thread
+ * The line above the question: its number and Topic, «глубже» on the line from the question above, «не подтверждён», «с подсказкой» after a Side thread
  * before the answer, and the Candidate's rating.
  */
 function CardMarks({ targetId, card, number }: { targetId: string; card: Card; number: number }) {
   const marks = useQuestionMarks(targetId, card.questionId);
+  const topic = useTopicNames(targetId).get(card.topicId);
   return (
     <div className="card-marks">
-      <span className="card-number" aria-hidden="true">
-        Вопрос {number}
+      <span className="card-number">
+        <span aria-hidden="true">Вопрос {number}</span>
+        {topic === undefined ? null : ` · ${topic}`}
       </span>
-      {card.parentAttemptId === null ? null : <span className="tag accent">глубже</span>}
+      {card.parentAttemptId === null ? null : (
+        <span className="tag accent deeper-mark">глубже</span>
+      )}
       {marks?.unconfirmed === true ? <span className="tag">не подтверждён</span> : null}
       {card.hinted ? <span className="tag">с подсказкой</span> : null}
       <QuestionRatingButtons targetId={targetId} questionId={card.questionId} />

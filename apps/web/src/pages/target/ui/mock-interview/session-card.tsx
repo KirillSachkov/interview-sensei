@@ -22,6 +22,27 @@ function averageText(average: number | null): string {
   return average === null ? "без оценок" : `средняя оценка ${average.toLocaleString("ru-RU")}`;
 }
 
+/** The colour of the average Grade on the 0–3 scale: strong from 2.5, middling from 1.5. */
+function gradeTone(average: number): "good" | "middle" | "weak" {
+  if (average >= 2.5) {
+    return "good";
+  }
+  return average >= 1.5 ? "middle" : "weak";
+}
+
+/** The average Grade with a dot of its colour, and how many questions got an answer. */
+function SessionResult({ session }: { session: SessionSummary }) {
+  return (
+    <span className="session-result muted">
+      {session.averageGrade === null ? null : (
+        <span className={`grade-dot ${gradeTone(session.averageGrade)}`} aria-hidden="true" />
+      )}
+      {averageText(session.averageGrade)} · ответов {session.answeredCount} из{" "}
+      {session.questionCount}
+    </span>
+  );
+}
+
 /** A Mock interview collapsed into one line: its date, Sections and average Grade. */
 export function SessionCardBody({
   session,
@@ -37,7 +58,7 @@ export function SessionCardBody({
     <>
       <span className="session-date">{dateFormat.format(new Date(session.startedAt))}</span>
       <span className="session-sections">{names.join(", ")}</span>
-      <span className="muted">{averageText(session.averageGrade)}</span>
+      <SessionResult session={session} />
       {session.status === "interrupted" ? <span className="tag">прерван</span> : null}
       {session.status === "running" ? <span className="tag accent">идёт</span> : null}
       {session.status === "paused" ? <span className="tag accent">на паузе</span> : null}
