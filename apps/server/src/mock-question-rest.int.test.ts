@@ -22,13 +22,15 @@ async function nextRound(api: Api) {
   );
   await run.events.waitFor(isGraded(0));
   await run.chat.waitFor(saysWhenIdle("Ответ получен."));
-  await promptTool(run.chat, "set_current_section", { sectionId: api.sectionId("Опыт и резюме") });
+  await promptTool(run.chat, "set_current_section", {
+    sectionId: api.sectionId("TypeScript и Node.js"),
+  });
   return run;
 }
 
 /** A finished Mock interview with one known Grade. */
 async function gradedQuestion(api: Api, grade: number) {
-  const run = await api.answered(["Опыт и резюме"], `Ответ [grade:${grade}] [last]`);
+  const run = await api.answered(["TypeScript и Node.js"], `Ответ [grade:${grade}] [last]`);
   await run.events.waitFor(isGraded(0));
   await run.chat.waitFor(saysWhenIdle("Ответ получен."));
   await finish(api, run);
