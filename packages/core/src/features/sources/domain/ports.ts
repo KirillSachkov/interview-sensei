@@ -164,6 +164,7 @@ interface InboxReferenceAnswer {
 
 /** A Question of the bank as Inbox processing reads it. */
 export interface InboxBankQuestion {
+  readonly format: "open" | "quiz";
   readonly id: string;
   readonly topicId: string;
   readonly text: string;
@@ -232,6 +233,15 @@ export interface InboxQuestions<Transaction> {
   ) => Promise<readonly InboxBankQuestion[]>;
   /** «просмотрено»: the Candidate has seen these Questions of the Target. */
   readonly markSeen: (targetId: string, ids: readonly string[]) => Promise<void>;
+  /** Writes only the Reference answer, preserving the Question and its review state. */
+  readonly editQuestions: (
+    targetId: string,
+    edits: readonly {
+      readonly id: string;
+      readonly referenceAnswer: NonNullable<InboxNewQuestion["referenceAnswer"]>;
+    }[],
+    transaction: Transaction,
+  ) => Promise<void>;
   /** Rejects a Question whose Topic is not the Target's. */
   readonly addQuestions: (
     targetId: string,
@@ -269,4 +279,21 @@ export interface InboxSessions {
     listener: (view: { readonly status: string }) => void,
   ) => () => void;
   readonly view: (sessionId: string) => Promise<{ readonly status: string } | undefined>;
+}
+
+/** A Question of `add_bank_questions` as the agent gives it. */
+export interface MaterialQuestion {
+  readonly existingQuestionId?: string | undefined;
+  readonly topicId: string;
+  readonly text: string;
+  readonly format: "open" | "quiz";
+  readonly options: readonly { readonly id: string; readonly text: string }[];
+  readonly correctOptionIds: readonly string[];
+  readonly level: "junior" | "middle" | "senior";
+  readonly sectionKind: "conversation" | "topics" | "design";
+  /** The material; without it the agent made the Question up, and it is unconfirmed. */
+  readonly sourceId?: string | undefined;
+  readonly part?: number | undefined;
+  readonly referenceAnswer?:
+    { readonly points: readonly string[]; readonly sample: string } | null | undefined;
 }

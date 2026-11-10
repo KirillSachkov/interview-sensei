@@ -6,26 +6,11 @@ import { randomUUID } from "node:crypto";
 import type { ToolSession } from "../../../shared/mcp/index.ts";
 import type { Transaction } from "../../../shared/storage/index.ts";
 import type { InboxRun } from "../domain/inbox.ts";
-import type { InboxNewQuestion } from "../domain/ports.ts";
+import type { InboxBankQuestion, InboxNewQuestion, MaterialQuestion } from "../domain/ports.ts";
 import type { Source } from "../domain/source.ts";
+import { attachAnswer, matchingQuestion } from "./inbox-duplicates.ts";
 import { refuseInRecheck, runOf } from "./inbox-context.ts";
 import type { InboxContext } from "./inbox-context.ts";
-
-/** A Question of `add_bank_questions` as the agent gives it. */
-export interface MaterialQuestion {
-  readonly topicId: string;
-  readonly text: string;
-  readonly format: "open" | "quiz";
-  readonly options: readonly { readonly id: string; readonly text: string }[];
-  readonly correctOptionIds: readonly string[];
-  readonly level: "junior" | "middle" | "senior";
-  readonly sectionKind: "conversation" | "topics" | "design";
-  /** The material; without it the agent made the Question up, and it is unconfirmed. */
-  readonly sourceId?: string | undefined;
-  readonly part?: number | undefined;
-  readonly referenceAnswer?:
-    { readonly points: readonly string[]; readonly sample: string } | null | undefined;
-}
 
 /** A Question without a Source has no part and no reference answer. */
 function checkMadeUp(question: MaterialQuestion): void {
@@ -107,17 +92,50 @@ function bankQuestion(question: MaterialQuestion, createdAt: string): InboxNewQu
   };
 }
 
-/** The new Questions without the duplicates of the Target's Questions and of each other. */
-async function filtered(
-  { dependencies }: InboxContext,
+/** Adds in order so repeats inside one call can enrich an earlier Question too. */
+async function mergeQuestions(
+  context: InboxContext,
   { targetId, questions }: { targetId: string; questions: readonly MaterialQuestion[] },
   transaction: Transaction,
 ) {
-  const existing = await dependencies.questions.questions(targetId, transaction);
-  const texts = existing.map((question) => question.text);
-  const { kept, duplicates } = dependencies.duplicates.withoutDuplicates(questions, texts);
-  const createdAt = dependencies.clock.now().toISOString();
-  return { rows: kept.map((question) => bankQuestion(question, createdAt)), duplicates };
+  const existing = [...(await context.dependencies.questions.questions(targetId, transaction))];
+  const results = [];
+  for (const question of questions) {
+    // oxlint-disable-next-line eslint/no-await-in-loop -- writes share the transaction
+    results.push(await mergeOne(context, { targetId, question, existing }, transaction));
+  }
+  return {
+    rows: results.flatMap((result) => result.rows),
+    duplicates: results.flatMap((result) => result.duplicates),
+    answers: results.flatMap((result) => result.answers),
+  };
+}
+
+async function mergeOne(
+  context: InboxContext,
+  {
+    targetId,
+    question,
+    existing,
+  }: { targetId: string; question: MaterialQuestion; existing: InboxBankQuestion[] },
+  transaction: Transaction,
+) {
+  const match = matchingQuestion(context.dependencies.duplicates, question, existing);
+  const row = bankQuestion(question, context.dependencies.clock.now().toISOString());
+  if (match === undefined) {
+    await context.dependencies.questions.addQuestions(targetId, [row], transaction);
+    existing.push({ ...row, ratingComment: null });
+    return { rows: [row], duplicates: [], answers: [] };
+  }
+  const result = await attachAnswer(
+    context,
+    { targetId, question, match, answer: row.referenceAnswer },
+    transaction,
+  );
+  if (result?.status === "attached") {
+    existing.splice(existing.indexOf(match), 1, { ...match, referenceAnswer: row.referenceAnswer });
+  }
+  return { rows: [], duplicates: [question.text], answers: result === null ? [] : [result] };
 }
 
 async function addIn(
@@ -125,19 +143,21 @@ async function addIn(
   { session, questions }: { session: ToolSession; questions: readonly MaterialQuestion[] },
   transaction: Transaction,
 ) {
-  const { questions: bank, inbox, repository } = context.dependencies;
+  const { inbox, repository } = context.dependencies;
   const { targetId, run } = await runOf(context, session, transaction);
   refuseInRecheck(run);
   checkSources(questions, await repository.list(targetId, transaction), run);
-  const { rows, duplicates } = await filtered(context, { targetId, questions }, transaction);
-  if (rows.length > 0) {
-    await bank.addQuestions(targetId, rows, transaction);
-  }
+  const { rows, duplicates, answers } = await mergeQuestions(
+    context,
+    { targetId, questions },
+    transaction,
+  );
   const questionIds = rows.map((row) => row.id);
   await inbox.recordAdded(run.id, { questionIds, duplicates: duplicates.length }, transaction);
   return {
     added: rows.map(({ id, text }) => ({ id, text })),
-    duplicates: duplicates.map((question) => question.text),
+    duplicates,
+    answers,
   };
 }
 
@@ -155,3 +175,5 @@ export async function addBankQuestions(
     addIn(context, { session, questions }, opened),
   );
 }
+
+export type { MaterialQuestion } from "../domain/ports.ts";

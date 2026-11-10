@@ -79,6 +79,7 @@ const referenceAnswer = z.strictObject({
 });
 
 const materialQuestion = z.strictObject({
+  existingQuestionId: z.uuid().optional(),
   topicId: z.uuid(),
   text: z.string().trim().min(1),
   format: z.enum(["open", "quiz"]).default("open"),
@@ -97,7 +98,7 @@ function addBankQuestions(inbox: Inbox) {
   return sessionTool({
     name: "add_bank_questions",
     description:
-      "Adds Questions from the materials straight into the Target's bank, each in a Topic by id, with its level, the Section kind it fits, the Source and the number of the part it comes from. A Question from a web page the server could not read (`parts` null) gets its `sourceId` and no `part`. A Question you make up without a material gets no `sourceId`, `part` or `referenceAnswer`; the app marks it «не подтверждён» until the Candidate confirms it. Give `referenceAnswer` only when the material itself answers the Question: 3–5 key points and a short sample answer; the app marks it «из материала». A quiz has options with ids and the ids of the correct ones. The tool leaves out duplicates of the Target's Questions by text, ignoring case, spaces and punctuation, returns them in `duplicates` and counts them for the report.",
+      "Adds Questions from the materials straight into the Target's bank, each in a Topic by id, with its level, the Section kind it fits, the Source and the number of the part it comes from. A Question from a web page the server could not read (`parts` null) gets its `sourceId` and no `part`. A Question you make up without a material gets no `sourceId`, `part` or `referenceAnswer`; the app marks it «не подтверждён» until the Candidate confirms it. Give `referenceAnswer` only when the material itself answers the Question: 3–5 key points and a short sample answer; the app marks it «из материала». A quiz has options with ids and the ids of the correct ones. For the same meaning found with search_questions, give existingQuestionId to keep that Question. Exact text repeats (ignoring case, spaces and punctuation) match automatically. Repeats count in duplicates; an answer attaches to the existing Question, preserving its identity and question provenance. Topic, format and Section kind must match. answers reports attached, candidate_protected or material_preserved. Candidate and material answers are never overwritten; put conflicting material answers in the report doubtful with both sources. Material answers replace web or agent answers.",
     input: z.strictObject({ questions: z.array(materialQuestion).min(1) }),
     run: async ({ questions }, session) =>
       JSON.stringify(await inbox.addBankQuestions(session, questions)),
