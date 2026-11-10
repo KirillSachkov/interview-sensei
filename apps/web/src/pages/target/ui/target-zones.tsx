@@ -1,20 +1,19 @@
-import { useQuery } from "@tanstack/react-query";
-import { useCallback, useMemo, useState } from "react";
-
-import { fetchLatestInterviews } from "@/shared/api";
 import type { CanvasZone } from "@/shared/ui/canvas";
 
+import { activeInterview, useLatestInterviews } from "../model/latest-interviews";
 import { goalZoneWidth } from "../model/setup-chat-state";
 import { GoalZone } from "./goal-zone";
 import type { GoalZoneProps } from "./goal-zone";
 import { MockInterviews } from "./mock-interview/mock-interviews";
 
+/** The id of the «Сессии» zone: the canvas moves to it when a Mock interview starts. */
+export const sessionsZoneId = "sessions";
+
 /**
  * The zones of the Target's canvas. A slice adds its widget to a zone's `content` here and leaves
- * the canvas itself unchanged. «Сессии» stands to the right once the Target has a Mock interview
- * or the Candidate pressed «Начать мок-собеседование».
+ * the canvas itself unchanged. «Сессии» stands to the right once the Target has a Mock interview.
  */
-export function targetZones(goal: GoalZoneProps, sessions: SessionsZone): CanvasZone[] {
+export function targetZones(goal: GoalZoneProps, sessionsShown: boolean): CanvasZone[] {
   const { target } = goal;
   const goalZone: CanvasZone = {
     id: "goal",
@@ -22,40 +21,30 @@ export function targetZones(goal: GoalZoneProps, sessions: SessionsZone): Canvas
     width: goalZoneWidth(goal.chat),
     content: <GoalZone zone={goal} />,
   };
-  if (!sessions.shown) {
+  if (!sessionsShown) {
     return [goalZone];
   }
   return [
     goalZone,
     {
-      id: "sessions",
+      id: sessionsZoneId,
       title: "Сессии",
       hint: "моки по этой цели",
       width: 1080,
       minHeight: 640,
-      content: <MockInterviews targetId={target.id} startRequest={sessions.startRequest} />,
+      content: <MockInterviews targetId={target.id} />,
     },
   ];
 }
 
-interface SessionsZone {
-  readonly shown: boolean;
-  /** Grows with each «Начать мок-собеседование»: the zone opens its start dialog. */
-  readonly startRequest: number;
-}
-
-/** Whether «Сессии» is on the canvas, and the requests to start a Mock interview from «Цель». */
+/**
+ * Whether «Сессии» is on the canvas, and the Mock interview that runs or is paused now: the canvas
+ * moves to the zone when that one changes, such as when the Candidate starts a Mock interview.
+ */
 export function useSessionsZone(targetId: string) {
-  const [startRequest, setStartRequest] = useState(0);
-  const latest = useQuery({
-    queryKey: ["targets", targetId, "interviews"],
-    queryFn: async () => fetchLatestInterviews(targetId),
-  });
-  const shown = startRequest > 0 || (latest.data?.length ?? 0) > 0;
+  const { latest } = useLatestInterviews(targetId);
   return {
-    zone: useMemo(() => ({ shown, startRequest }), [shown, startRequest]),
-    requestStart: useCallback(() => {
-      setStartRequest((current) => current + 1);
-    }, []),
+    shown: (latest.data?.length ?? 0) > 0,
+    activeId: activeInterview(latest.data)?.id ?? "",
   };
 }

@@ -210,16 +210,10 @@ async function box(element: Locator) {
   return found;
 }
 
-/** The left element ends before the right one starts, so it covers no part of it. */
-async function expectLeftOf(left: Locator, right: Locator) {
-  const [leftBox, rightBox] = await Promise.all([box(left), box(right)]);
-  expect(leftBox.x + leftBox.width).toBeLessThan(rightBox.x);
-}
-
 // Issue #71: the open setup chat used to cover the left part of the «Сессии» zone. Since #113 the
-// zone appears with «Начать мок-собеседование» of the «Цель» zone, which opens its start dialog.
+// zone appears with the Target's first Mock interview, started from the «Цель» zone.
 function sessionsZoneTest() {
-  test("«Начать мок-собеседование» shows the «Сессии» zone beside the open setup chat", async ({
+  test("«Начать мок-собеседование» opens the start window, and «Сессии» stays off the canvas", async ({
     page,
   }) => {
     const chat = await openPythonChat(page);
@@ -228,9 +222,13 @@ function sessionsZoneTest() {
 
     await goal.getByRole("button", { name: "Начать мок-собеседование" }).click();
 
-    await expect(sessions.getByRole("dialog", { name: "Начать мок" })).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Начать мок" })).toBeVisible();
     await expect(chat.panel).toBeVisible();
-    await expectLeftOf(chat.panel, sessions);
+    await expect(sessions).toHaveCount(0);
+    await page
+      .getByRole("dialog", { name: "Начать мок" })
+      .getByRole("button", { name: "Отмена" })
+      .click();
   });
 }
 

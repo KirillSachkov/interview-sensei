@@ -16,8 +16,6 @@ export interface GoalZoneProps {
   readonly target: TargetView;
   readonly chat: SetupChatState;
   readonly onChat: (state: SetupChatState) => void;
-  /** «Начать мок-собеседование»: shows the «Сессии» zone and opens its start dialog. */
-  readonly onStartMock: () => void;
   readonly onQuestions: (view: QuestionsView) => void;
   /** Opens the side panel of an Inbox report. */
   readonly onReport: (reportId: string) => void;
@@ -32,7 +30,7 @@ export interface GoalZoneProps {
  * answers.
  */
 export function GoalZone({
-  zone: { target, chat, onChat, onStartMock, onQuestions, onReport, onAnswerReport },
+  zone: { target, chat, onChat, onQuestions, onReport, onAnswerReport },
 }: {
   zone: GoalZoneProps;
 }) {
@@ -51,7 +49,7 @@ export function GoalZone({
             Настроить цель
           </button>
         </div>
-        <StartTile target={target} onStart={onStartMock} />
+        <StartTile target={target} />
         <Readiness targetId={target.id} />
       </div>
       <div className="goal-column">

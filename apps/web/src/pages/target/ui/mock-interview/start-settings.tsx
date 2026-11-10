@@ -36,7 +36,6 @@ function Choice<Value>({
           <label key={option.label} className="section-choice">
             <input
               type="radio"
-              className="nodrag"
               name={name}
               checked={option.value === value}
               onChange={() => {

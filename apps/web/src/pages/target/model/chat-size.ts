@@ -8,7 +8,7 @@ export interface ChatSize {
 
 export const defaultChatSize: ChatSize = { width: 800, height: 820 };
 /** The limits of the drag: a chat narrower or shorter than the least loses its message box. */
-export const leastChatSize: ChatSize = { width: 560, height: 520 };
+const leastChatSize: ChatSize = { width: 560, height: 520 };
 export const largestChatSize: ChatSize = { width: 1400, height: 1400 };
 
 const key = "interview-sensei:setup-chat-size";

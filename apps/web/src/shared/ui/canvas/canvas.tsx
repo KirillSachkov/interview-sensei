@@ -146,25 +146,36 @@ function zoomedAt(view: Viewport, event: WheelEvent, pane: DOMRect): Viewport {
 // The top bar islands float over the canvas, so the fitted view starts below them.
 const fitPadding = { top: "112px", bottom: "96px", left: "48px", right: "48px" } as const;
 
+/** A zone to show and the key of the reason: the view moves to the zone when the key changes. */
+export interface CanvasFocus {
+  readonly zone: string;
+  readonly key: string;
+}
+
 /**
- * Fits the view again when `fitKey` changes, such as when the «Сессии» zone appears: the canvas
- * fits only when it opens, and a new zone would stay out of sight. The zones measure
- * their new content in the next frame, so the fit waits for the frame after it.
+ * Moves the view to the zone when the key of `focus` changes, such as to «Сессии» when a Mock
+ * interview starts: the canvas fits only when it opens, and a new zone would stay out of sight.
+ * The zone measures its content in the next frame, so the move waits for the frame after it.
  */
-function FitOnChange({ fitKey }: { fitKey: string }) {
+function FocusOnChange({ focus }: { focus: CanvasFocus }) {
   const flow = useReactFlow();
-  const fitted = useRef(fitKey);
-  // Stays until the fit runs: a cleanup that cancels the frames leaves it for the next run.
+  const shown = useRef(focus.key);
+  // Stays until the move runs: a cleanup that cancels the frames leaves it for the next run.
   const pending = useRef(false);
   useEffect(() => {
-    pending.current ||= fitted.current !== fitKey;
-    fitted.current = fitKey;
+    pending.current ||= shown.current !== focus.key;
+    shown.current = focus.key;
     let measured = 0;
     const rendered = requestAnimationFrame(() => {
       measured = requestAnimationFrame(() => {
-        if (pending.current) {
+        if (pending.current && flow.getNode(focus.zone) !== undefined) {
           pending.current = false;
-          void flow.fitView({ padding: fitPadding, maxZoom: 1 });
+          void flow.fitView({
+            nodes: [{ id: focus.zone }],
+            padding: fitPadding,
+            maxZoom: 1,
+            duration: 400,
+          });
         }
       });
     });
@@ -172,23 +183,23 @@ function FitOnChange({ fitKey }: { fitKey: string }) {
       cancelAnimationFrame(rendered);
       cancelAnimationFrame(measured);
     };
-  }, [fitKey, flow]);
+  }, [focus.key, focus.zone, flow]);
   return null;
 }
 
 /**
  * The infinite canvas of one Target. The wheel or trackpad moves it; the middle mouse button, or
  * Space with the left button, drags it; Ctrl or ⌘ with the wheel and a pinch change the scale. It
- * fits the view when it opens and again when `fitKey` changes.
+ * fits the view when it opens and moves to the zone of `focus` when its key changes.
  */
 export function Canvas({
   zones,
   label,
-  fitKey = "",
+  focus,
 }: {
   zones: readonly CanvasZone[];
   label: string;
-  fitKey?: string;
+  focus?: CanvasFocus;
 }) {
   const nodes = useMemo(() => zoneNodes(zones), [zones]);
   return (
@@ -212,7 +223,7 @@ export function Canvas({
       >
         <ZoomControls />
         <ZoomOverWidgets />
-        <FitOnChange fitKey={fitKey} />
+        {focus === undefined ? null : <FocusOnChange focus={focus} />}
       </ReactFlow>
     </section>
   );

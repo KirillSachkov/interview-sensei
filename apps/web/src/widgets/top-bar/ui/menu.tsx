@@ -119,32 +119,6 @@ export function MenuChoice({
   );
 }
 
-/** A switch in a Menu that stays open after a click, such as «Наполнять в фоне». */
-export function MenuCheckbox({
-  checked,
-  onToggle,
-  children,
-}: {
-  checked: boolean;
-  onToggle: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      role="menuitemcheckbox"
-      aria-checked={checked}
-      className="menu-choice"
-      onClick={onToggle}
-    >
-      <span aria-hidden="true" className="check">
-        {checked ? "✓" : ""}
-      </span>
-      <span className="menu-choice-body">{children}</span>
-    </button>
-  );
-}
-
 /** One action in a Menu, such as «В архив»; `hint` explains it or why it is disabled. */
 export function MenuItem({
   disabled = false,

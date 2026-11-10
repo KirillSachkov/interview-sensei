@@ -10,20 +10,36 @@
 .start-mock {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-self: stretch;
   gap: var(--space-3);
 }
 
+.start-mock > button {
+  justify-content: center;
+}
+
+/* «Новое мок-собеседование»: the window in the middle of the page */
+
 .start-dialog {
   position: static;
+  width: min(640px, calc(100vw - 96px));
+  max-width: none;
   margin: 0;
+  border: 0;
+  gap: var(--space-4);
+  padding: var(--space-6);
   color: inherit;
+}
+
+.start-dialog form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
 }
 
 .start-dialog fieldset {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
   margin: 0;
   border: 0;
   padding: 0;
@@ -31,13 +47,89 @@
 
 .start-dialog legend {
   margin-bottom: var(--space-2);
+  font-size: var(--font-size-small);
   font-weight: 600;
+  color: var(--color-muted);
 }
 
+.start-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.start-sections {
+  flex-direction: column;
+}
+
+/* A choice is a chip: the native box or dot is hidden, and the chosen chip is filled. */
 .section-choice {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  padding: var(--space-2) var(--space-4);
+  cursor: pointer;
+}
+
+.section-choice:hover {
+  background: var(--color-hover);
+}
+
+/* The native input covers the chip unseen, so a click anywhere on the chip changes it. */
+.section-choice input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+
+.section-choice:has(input:checked) {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.section-choice:has(input:focus-visible) {
+  outline: 3px solid var(--color-accent-soft);
+  outline-offset: 1px;
+}
+
+.section-choice:has(input:disabled) {
+  cursor: default;
+  opacity: 0.55;
+}
+
+/* A Section chip shows its mark at the left: a tick when chosen, an empty ring otherwise. */
+.start-sections .section-choice::before {
+  content: "";
+  display: grid;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-line);
+  border-radius: 50%;
+  font-size: var(--font-size-small);
+  place-items: center;
+}
+
+.start-sections .section-choice:has(input:checked)::before {
+  content: "✓";
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.start-dialog .dialog-actions {
+  justify-content: flex-end;
+  margin-top: 0;
 }
 
 .dialog-actions,
@@ -391,23 +483,6 @@
 
 .follow-up-question {
   font-weight: 600;
-}
-
-.start-choice {
-  margin: var(--space-4) 0 0;
-  border: 0;
-  padding: 0;
-}
-
-.start-choice legend {
-  margin-bottom: var(--space-2);
-  font-weight: 600;
-}
-
-.start-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-4);
 }
 
 /* Side threads (#80): to the right of their question, past the edge of the «Сессии» zone, on the

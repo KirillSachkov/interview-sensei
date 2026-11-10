@@ -8,10 +8,19 @@ import { zones } from "./canvas-support.ts";
 // Spec #41: the fake agent's interviewer mode takes the Grade from the marker in the answer and
 // sends a hint right after it shows a question, which the chat must leave out.
 
+/**
+ * «Начать мок-собеседование» of the «Цель» zone opens the window «Начать мок» in the middle of
+ * the page; the «Сессии» zone appears once the Target has a Mock interview.
+ */
+async function openStartWindow(sessions: Locator) {
+  const page = sessions.page();
+  await page.getByRole("button", { name: "Начать мок-собеседование" }).click();
+  return page.getByRole("dialog", { name: "Начать мок" });
+}
+
 /** Starts a mock on «Опыт и резюме» only, from the dialog «Начать мок». */
 export async function startMock(sessions: Locator) {
-  await sessions.getByRole("button", { name: "Начать мок" }).click();
-  const dialog = sessions.getByRole("dialog", { name: "Начать мок" });
+  const dialog = await openStartWindow(sessions);
   await dialog.getByRole("checkbox", { name: "TypeScript и Node.js" }).uncheck();
   await dialog.getByRole("checkbox", { name: "Проектирование" }).uncheck();
   await dialog.getByRole("button", { name: "Начать" }).click();
@@ -64,8 +73,7 @@ async function finishWithoutGrade(sessions: Locator) {
 
 /** Starts a mock on the one Section, from the dialog «Начать мок». */
 async function startMockOn(sessions: Locator, section: string) {
-  await sessions.getByRole("button", { name: "Начать мок" }).click();
-  const dialog = sessions.getByRole("dialog", { name: "Начать мок" });
+  const dialog = await openStartWindow(sessions);
   for (const other of ["Опыт и резюме", "TypeScript и Node.js", "Проектирование"]) {
     if (other !== section) {
       // oxlint-disable-next-line eslint/no-await-in-loop -- the checkboxes change one after another

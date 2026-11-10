@@ -1,12 +1,14 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import type { SubmitEvent } from "react";
+import type { ReactNode, SubmitEvent } from "react";
+import { createPortal } from "react-dom";
 
 import { fetchPlanSections, finishInterview, startInterview } from "@/shared/api";
 import type { Difficulty, InterviewView, PlanSection } from "@/shared/api";
 
 import { ResumeButton } from "./pause-controls";
 import { useStartSettings } from "./start-settings";
+import "./mock-interview.css";
 
 /** The Sections the Candidate checked; all enabled ones at first. */
 function useChosenSections(sections: readonly PlanSection[]) {
@@ -35,23 +37,24 @@ function SectionChoices({
   onToggle: (id: string) => void;
 }) {
   return (
-    <fieldset>
+    <fieldset className="start-choice">
       <legend>Секции плана</legend>
-      {sections.map((section) => (
-        <label key={section.id} className="section-choice">
-          <input
-            type="checkbox"
-            className="nodrag"
-            checked={chosen.has(section.id)}
-            disabled={!section.enabled}
-            onChange={() => {
-              onToggle(section.id);
-            }}
-          />
-          {section.name}
-          {section.enabled ? null : <span className="tag">выключена</span>}
-        </label>
-      ))}
+      <div className="start-options start-sections">
+        {sections.map((section) => (
+          <label key={section.id} className="section-choice">
+            <input
+              type="checkbox"
+              checked={chosen.has(section.id)}
+              disabled={!section.enabled}
+              onChange={() => {
+                onToggle(section.id);
+              }}
+            />
+            {section.name}
+            {section.enabled ? null : <span className="tag">выключена</span>}
+          </label>
+        ))}
+      </div>
     </fieldset>
   );
 }
@@ -88,22 +91,52 @@ function StartDialog({
     start.mutate();
   };
   return (
-    <dialog open className="card start-dialog" aria-label="Начать мок">
+    <StartWindow label="Начать мок" title="Новое мок-собеседование">
       <form onSubmit={submit}>
         <SectionChoices sections={sections} chosen={chosen} onToggle={toggle} />
         {settings.fields}
-        <div className="dialog-actions">
-          <button type="submit" className="primary" disabled={chosen.size === 0 || start.isPending}>
-            Начать
-          </button>
-          <button type="button" className="ghost" onClick={onCancel}>
-            Отмена
-          </button>
-        </div>
         {chosen.size === 0 ? <p className="hint">Выберите хотя бы одну секцию.</p> : null}
         {start.isError ? <p role="alert">Мок не начался: {start.error.message}</p> : null}
+        <StartActions disabled={chosen.size === 0 || start.isPending} onCancel={onCancel} />
       </form>
-    </dialog>
+    </StartWindow>
+  );
+}
+
+function StartActions({ disabled, onCancel }: { disabled: boolean; onCancel: () => void }) {
+  return (
+    <div className="dialog-actions">
+      <button type="button" className="ghost" onClick={onCancel}>
+        Отмена
+      </button>
+      <button type="submit" className="primary big" disabled={disabled}>
+        Начать
+      </button>
+    </div>
+  );
+}
+
+/**
+ * A window in the middle of the page over the dimmed canvas. It lives in the page's body: inside
+ * a zone the canvas would scale and move it with the zone.
+ */
+function StartWindow({
+  label,
+  title,
+  children,
+}: {
+  label: string;
+  title: string;
+  children: ReactNode;
+}) {
+  return createPortal(
+    <div className="dialog-backdrop">
+      <dialog open aria-modal="true" aria-label={label} className="island dialog start-dialog">
+        <h2>{title}</h2>
+        {children}
+      </dialog>
+    </div>,
+    document.body,
   );
 }
 
@@ -125,7 +158,7 @@ function StartButton({
         aria-describedby={noSections ? "no-sections" : undefined}
         onClick={onOpen}
       >
-        Начать мок
+        Начать мок-собеседование
       </button>
       {noSections ? (
         <p id="no-sections" className="hint">
@@ -154,10 +187,13 @@ function PausedChoice({
     onSuccess: onFinished,
   });
   return (
-    <dialog open className="card start-dialog" aria-label="Мок на паузе">
+    <StartWindow label="Мок на паузе" title="Мок на паузе">
       <p>По этой цели есть мок на паузе. Продолжите его или завершите, чтобы начать новый.</p>
+      {finish.isError ? <p role="alert">Мок не завершился: {finish.error.message}</p> : null}
       <div className="dialog-actions">
-        <ResumeButton view={paused} />
+        <button type="button" className="ghost" onClick={onCancel}>
+          Отмена
+        </button>
         <button
           type="button"
           disabled={finish.isPending}
@@ -167,29 +203,10 @@ function PausedChoice({
         >
           Завершить и начать новый
         </button>
-        <button type="button" className="ghost" onClick={onCancel}>
-          Отмена
-        </button>
+        <ResumeButton view={paused} />
       </div>
-      {finish.isError ? <p role="alert">Мок не завершился: {finish.error.message}</p> : null}
-    </dialog>
+    </StartWindow>
   );
-}
-
-/**
- * Whether the dialog is open: the Candidate pressed the button, or asked from outside with a new
- * `openRequest` and has not closed that request yet.
- */
-function useDialogOpen(openRequest: number): [boolean, (open: boolean) => void] {
-  const [pressed, setPressed] = useState(false);
-  const [closedRequest, setClosedRequest] = useState(0);
-  const setOpen = (next: boolean) => {
-    setPressed(next);
-    if (!next) {
-      setClosedRequest(openRequest);
-    }
-  };
-  return [pressed || openRequest > closedRequest, setOpen];
 }
 
 /** The Sections of the Target's plan for the dialog. */
@@ -201,27 +218,24 @@ function usePlanSections(targetId: string) {
 }
 
 /**
- * «Начать мок» and its dialog; the button explains why it is off without enabled Sections. The
- * dialog starts with the difficulty the Target keeps. With a `paused` Mock interview the button
+ * «Начать мок-собеседование» and its window in the middle of the page; the button explains why it
+ * is off without enabled Sections. The window starts with the difficulty the Target keeps. With a `paused` Mock interview the button
  * first offers to continue it or to finish it; `onFinished` runs once it is finished.
  */
 export function StartMock({
   targetId,
   difficulty,
   paused,
-  openRequest = 0,
   onFinished,
   onStarted,
 }: {
   targetId: string;
   difficulty: Difficulty;
   paused: InterviewView | null;
-  /** Grows when the Candidate asks for the dialog from outside; each new value opens it. */
-  openRequest?: number;
   onFinished: () => void;
   onStarted: (interview: InterviewView) => void;
 }) {
-  const [open, setOpen] = useDialogOpen(openRequest);
+  const [open, setOpen] = useState(false);
   const close = setOpen.bind(null, false);
   const sections = usePlanSections(targetId);
   if (sections.isError) {

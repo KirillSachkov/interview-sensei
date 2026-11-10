@@ -57,7 +57,7 @@ function isChoice(value: unknown): value is OptionChoice | null {
   );
 }
 
-export function isAgentOptions(value: unknown): value is AgentOptions {
+function isAgentOptions(value: unknown): value is AgentOptions {
   return (
     typeof value === "object" &&
     value !== null &&

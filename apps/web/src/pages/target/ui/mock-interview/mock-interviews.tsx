@@ -1,39 +1,12 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 
-import { fetchLatestInterviews } from "@/shared/api";
 import type { InterviewView } from "@/shared/api";
 
+import { activeInterview, useLatestInterviews } from "../../model/latest-interviews";
 import { InterviewArea } from "./interview-area";
 import { PastSessions } from "./past-sessions";
 import { ShownSession } from "./shown-session";
-import { StartMock } from "./start-form";
 import "./mock-interview.css";
-
-const interviewsKey = (targetId: string) => ["targets", targetId, "interviews"];
-
-/** The Target's newest Mock interviews, and how the zone updates them. */
-function useLatestInterviews(targetId: string) {
-  const queryClient = useQueryClient();
-  const latest = useQuery({
-    queryKey: interviewsKey(targetId),
-    queryFn: async () => fetchLatestInterviews(targetId),
-  });
-  // An ended Mock interview changes the Readiness and the session history too.
-  const refresh = useCallback(() => {
-    for (const queryKey of [
-      interviewsKey(targetId),
-      ["progress", targetId],
-      ["history", targetId],
-    ]) {
-      void queryClient.invalidateQueries({ queryKey });
-    }
-  }, [queryClient, targetId]);
-  const started = (interview: InterviewView) => {
-    queryClient.setQueryData(interviewsKey(targetId), [interview, ...(latest.data ?? [])]);
-  };
-  return { latest, refresh, started };
-}
 
 /** Which ended session the canvas shows; at first the newest one, while none runs. */
 function useShownSession(latest: readonly InterviewView[] | undefined) {
@@ -53,27 +26,17 @@ function useShownSession(latest: readonly InterviewView[] | undefined) {
     shownId: chosen === null ? newest : chosen.id,
     focus: chosen?.focus ?? 0,
     handleShow,
-    reset: () => {
-      setChosen(null);
-    },
   };
 }
 
-interface MockInterviewsProps {
-  targetId: string;
-  /** Grows when the Candidate asks for a Mock interview from the «Цель» zone. */
-  startRequest?: number;
-}
-
 /**
- * The «Сессии» zone: the running or paused Mock interview, and «Начать мок» unless one runs; then
- * the last ended sessions as collapsed cards, and the one the Candidate opened, the newest by
- * default. A Target has at most one Mock interview that runs or is paused: with a paused one,
- * «Начать мок» offers to continue it or to finish it and start a new one. `startRequest` opens the
- * same dialog from «Начать мок-собеседование» of the «Цель» zone.
+ * The «Сессии» zone: the running or paused Mock interview, then the last ended sessions as
+ * collapsed cards, and the one the Candidate opened, the newest by default. A Target has at most
+ * one Mock interview that runs or is paused. «Начать мок-собеседование» of the «Цель» zone starts
+ * the next one.
  */
-export function MockInterviews({ targetId, startRequest = 0 }: MockInterviewsProps) {
-  const { latest, refresh, started } = useLatestInterviews(targetId);
+export function MockInterviews({ targetId }: { targetId: string }) {
+  const { latest, refresh } = useLatestInterviews(targetId);
   const shown = useShownSession(latest.data);
   if (latest.isError) {
     return <p role="alert">Сессии не загрузились: {latest.error.message}</p>;
@@ -81,31 +44,12 @@ export function MockInterviews({ targetId, startRequest = 0 }: MockInterviewsPro
   if (latest.data === undefined) {
     return null;
   }
-  const [current] = latest.data;
-  const active = current?.status === "running" || current?.status === "paused";
+  const active = activeInterview(latest.data);
   return (
     <div className="mock-zone">
-      {current !== undefined && active ? (
-        <InterviewArea key={current.id} interview={current} onChanged={refresh} />
-      ) : null}
-      {current?.status === "running" ? null : (
-        <StartMock
-          targetId={targetId}
-          difficulty={current?.difficulty ?? "as_is"}
-          paused={current?.status === "paused" ? current : null}
-          openRequest={startRequest}
-          onFinished={refresh}
-          onStarted={(interview) => {
-            shown.reset();
-            started(interview);
-          }}
-        />
+      {active === null ? null : (
+        <InterviewArea key={active.id} interview={active} onChanged={refresh} />
       )}
-      {current === undefined ? (
-        <p className="placeholder muted">
-          Сессий пока нет. Здесь появятся мок-собеседования по цели.
-        </p>
-      ) : null}
       <PastSessions targetId={targetId} shownId={shown.shownId} onShow={shown.handleShow} />
       {shown.shownId === null ? null : (
         <ShownSession

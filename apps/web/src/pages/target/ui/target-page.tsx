@@ -10,7 +10,7 @@ import { Canvas } from "@/shared/ui/canvas";
 import { useSetupChat } from "../model/setup-chat-state";
 import { SidePanel, useSidePanel } from "./side-panel";
 import { TargetNotFound } from "./target-not-found";
-import { targetZones, useSessionsZone } from "./target-zones";
+import { sessionsZoneId, targetZones, useSessionsZone } from "./target-zones";
 
 function TargetCanvas({ target }: { target: TargetView }) {
   const [chat, setChat] = useSetupChat();
@@ -20,27 +20,10 @@ function TargetCanvas({ target }: { target: TargetView }) {
   const zones = useMemo(
     () =>
       targetZones(
-        {
-          target,
-          chat,
-          onChat: setChat,
-          onStartMock: sessions.requestStart,
-          onQuestions,
-          onReport,
-          onAnswerReport,
-        },
-        sessions.zone,
+        { target, chat, onChat: setChat, onQuestions, onReport, onAnswerReport },
+        sessions.shown,
       ),
-    [
-      target,
-      chat,
-      setChat,
-      sessions.requestStart,
-      sessions.zone,
-      onQuestions,
-      onReport,
-      onAnswerReport,
-    ],
+    [target, chat, setChat, sessions.shown, onQuestions, onReport, onAnswerReport],
   );
   useEffect(() => {
     rememberTarget(target.id);
@@ -49,11 +32,11 @@ function TargetCanvas({ target }: { target: TargetView }) {
     <>
       <TopBar target={target} />
       <main>
-        {/* The view fits again when «Сессии» appears or a Mock interview is asked for. */}
+        {/* The view moves to «Сессии» when a Mock interview starts, pauses or ends. */}
         <Canvas
           zones={zones}
           label="Холст цели"
-          fitKey={`${sessions.zone.shown}-${sessions.zone.startRequest}`}
+          focus={{ zone: sessionsZoneId, key: sessions.activeId }}
         />
         <SidePanel targetId={target.id} panel={panel} />
       </main>
