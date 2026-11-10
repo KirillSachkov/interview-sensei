@@ -39,6 +39,7 @@ The product defines Section kinds; the Candidate and the agent compose Sections 
 
 **Topic**:
 An area of knowledge within a Target that its Sections check.
+A Topic has an importance: high, normal or low («высокая», «обычная», «низкая»). A new Topic is normal; the agent of the Target setup takes the importance from the vacancy, and the Candidate changes it through the draft of changes.
 A Topic merged into another one hands over its Questions and Attempts, so its progress counts there.
 
 **Question**:
@@ -58,6 +59,12 @@ The origin is one of four labels:
 «из материала», from a Source, with the Source and its part; «из интернета», from web pages, with the links to them; «из знаний агента», from the agent's own knowledge, without a source; and «проверен кандидатом», checked by the Candidate.
 Inbox processing writes a Reference answer only from the Source itself; a Question whose Source has no answer stays without one.
 Answer search writes «из интернета» and «из знаний агента». It never replaces an answer «из материала» or «проверен кандидатом», and never replaces «из интернета» with «из знаний агента»; an answer «из знаний агента» gives way to one «из интернета».
+The Candidate marks a Reference answer «проверен» in the side panel of Questions, which makes its origin «проверен кандидатом», or corrects it through the draft of changes, which does the same and drops its Source.
+
+**Reference check**:
+The list «Проверить опорный ответ» in the zone «Цель»: the Questions whose Reference answer the Candidate should look at again.
+A Dispute of the Grade of an Attempt puts its Question there with the Candidate's reason, when the Question has a Reference answer.
+«проверен» or a corrected Reference answer takes the Question off the list; a hidden Question is not shown there.
 
 **Answer search**:
 «Наполнение ответов»: the background work that finds Reference answers on the web for the Questions of a Target.

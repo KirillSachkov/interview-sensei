@@ -1,6 +1,6 @@
 import { request } from "./request";
 import { isTargetView } from "./targets";
-import type { Level, TargetView } from "./targets";
+import type { Level, TargetView, TopicImportance } from "./targets";
 
 /** One Section of the plan that the agent proposes; its Topics by name. An omitted field stays as it is. */
 interface ProposedSection {
@@ -41,6 +41,10 @@ export type DraftOperation =
       readonly text?: string;
       readonly active?: boolean;
     }
+  | {
+      readonly type: "set_topic_importance";
+      readonly topics: readonly { readonly topic: string; readonly importance: TopicImportance }[];
+    }
   | { readonly type: "add_questions"; readonly questions: readonly ProposedQuestion[] }
   | {
       readonly type: "edit_questions";
@@ -50,6 +54,7 @@ export type DraftOperation =
         readonly topic?: string;
         readonly hidden?: boolean;
         readonly rating?: Rating | null;
+        readonly referenceAnswer?: { readonly points: readonly string[]; readonly sample: string };
       }[];
     };
 

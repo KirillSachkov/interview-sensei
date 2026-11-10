@@ -217,6 +217,8 @@ function composeSessionWork(
     sessions,
     agents: runtime,
     questions: slices.questionBank,
+    referenceChecks: slices.questionBank,
+    transaction: storage.transaction,
     // «Наполнять в фоне»: answer search is built below and exists by the first finished mock.
     onFinished: ({ targetId }) => {
       answers.interviewFinished(targetId);

@@ -6,7 +6,7 @@ import { sessionTool } from "../../../shared/mcp/index.ts";
 import type { ToolSession } from "../../../shared/mcp/index.ts";
 import { planProblems } from "../domain/draft.ts";
 import type { DraftOperation } from "../domain/draft.ts";
-import { levels, sectionKinds, tones } from "../domain/target-values.ts";
+import { importances, levels, sectionKinds, tones } from "../domain/target-values.ts";
 import type { RecordOutcome, TargetSetup } from "./target-setup.ts";
 
 export function sessionTarget(session: ToolSession): string {
@@ -107,6 +107,26 @@ export function setInterviewPlan(setup: TargetSetup) {
         ...(renameTopics.length === 0 ? {} : { renameTopics }),
       });
     },
+  });
+}
+
+export function setTopicImportance(setup: TargetSetup) {
+  return sessionTool({
+    name: "set_topic_importance",
+    description:
+      "Records the importance of Topics in the draft of changes, each Topic by name: `high` for a Topic the vacancy requires or stresses, `low` for a nice-to-have, `normal` otherwise. A Topic starts as `normal`. Name a Topic of the Target or of the draft's plan. The Target stays unchanged until the draft is applied.",
+    input: z.strictObject({
+      topics: z
+        .array(
+          z.strictObject({
+            topic: z.string().trim().min(1),
+            importance: z.enum(importances),
+          }),
+        )
+        .min(1),
+    }),
+    run: async ({ topics }, session) =>
+      recordIn(setup, session, { type: "set_topic_importance", topics }),
   });
 }
 

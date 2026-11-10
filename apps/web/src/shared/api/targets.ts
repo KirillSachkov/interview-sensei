@@ -10,10 +10,14 @@ export interface TargetSummary {
 
 type SectionKind = "conversation" | "topics" | "design";
 
-/** A Topic of a Section with its number of Questions. */
+/** How much a Topic matters for the Target: «высокая», «обычная» or «низкая». */
+export type TopicImportance = "high" | "normal" | "low";
+
+/** A Topic of a Section with its importance and number of Questions. */
 interface TopicSummary {
   readonly id: string;
   readonly name: string;
+  readonly importance: TopicImportance;
   readonly questionCount: number;
 }
 

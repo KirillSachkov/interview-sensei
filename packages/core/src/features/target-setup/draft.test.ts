@@ -14,6 +14,7 @@ const newTarget: SetupState = {
   sections: [],
   topics: [],
   topicRenames: [],
+  importance: [],
   preferences: [],
   questions: [],
   missing: [],

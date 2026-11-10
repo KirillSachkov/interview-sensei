@@ -46,7 +46,7 @@ function targetText(target: SetupTarget): string {
       kind: section.kind,
       gradingCriteria: section.gradingCriteria,
       enabled: section.enabled,
-      topics: section.topics.map((topic) => topic.name),
+      topics: section.topics.map((topic) => ({ name: topic.name, importance: topic.importance })),
     })),
   });
 }
@@ -77,13 +77,13 @@ export function setupBrief(
       ? [
           "Mode: onboarding. The Target is a new draft: start with questions.",
           "Ask which position and level the Candidate prepares for, then ask for the vacancy, the resume and their experience.",
-          "Then build the Target's name, level, Sections and Topics yourself.",
+          "Then build the Target's name, level, Sections and Topics yourself, and give each Topic its importance from the vacancy.",
         ]
       : ["Mode: editing. The Target is set up: ask the Candidate what to change."];
   return [
     "This is the Target setup session of Interview Sensei.",
     ...mode,
-    "Record every change in the draft of changes with update_target, set_interview_plan, save_preference, add_questions and edit_questions; the Candidate sees the draft above the chat input.",
+    "Record every change in the draft of changes with update_target, set_interview_plan, set_topic_importance, save_preference, add_questions and edit_questions; the Candidate sees the draft above the chat input.",
     "get_draft lists the draft; remove_draft_change and discard_draft take changes back.",
     "Call apply_changes only after the Candidate explicitly agrees.",
     `The Target now: ${targetText(target)}`,

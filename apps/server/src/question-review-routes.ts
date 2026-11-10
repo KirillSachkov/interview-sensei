@@ -25,6 +25,7 @@ export function registerQuestionReviewRoutes(
   server: FastifyInstance,
   { targets, questionBank }: Dependencies,
 ) {
+  registerReferenceCheck(server, { questionBank });
   server.post<{ Params: { id: string }; Body: ReviewBody }>(
     "/api/targets/:id/questions/review",
     {
@@ -60,6 +61,38 @@ export function registerQuestionReviewRoutes(
             message: "Часть вопросов уже удалена или относится к другой цели. Обновите список.",
           })
         : outcome;
+    },
+  );
+}
+
+/**
+ * `POST /api/questions/:id/reference-answer/verified`: «проверен». The reference answer gets the
+ * origin «проверен кандидатом», and the Question leaves the list «проверить опорный ответ». 204; 404
+ * `question_not_found`; 409 `no_reference_answer` for a Question without one.
+ */
+function registerReferenceCheck(
+  server: FastifyInstance,
+  { questionBank }: Pick<Dependencies, "questionBank">,
+) {
+  server.post<{ Params: { id: string } }>(
+    "/api/questions/:id/reference-answer/verified",
+    { schema: { params } },
+    async (request, reply) => {
+      const outcome = await questionBank.verifyReferenceAnswer(request.params.id);
+      switch (outcome) {
+        case "verified": {
+          return reply.code(204).send();
+        }
+        case "not_found": {
+          return reply.code(404).send({ error: "question_not_found" });
+        }
+        case "no_reference_answer": {
+          return reply.code(409).send({ error: outcome });
+        }
+        default: {
+          return outcome satisfies never;
+        }
+      }
     },
   );
 }

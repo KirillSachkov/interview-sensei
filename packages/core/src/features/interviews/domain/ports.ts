@@ -1,5 +1,5 @@
 import type { Dispute } from "./dispute.ts";
-import type { SideThread, ThreadMessage } from "./side-thread.ts";
+import type { SideThreadRepository, ThreadMessage } from "./side-thread.ts";
 import type { AttemptRecord, HistoryFilter } from "./history.ts";
 import type {
   AskedQuestion,
@@ -96,6 +96,27 @@ export interface InterviewQuestions {
   readonly add: (question: NewBankQuestion) => Promise<void>;
 }
 
+/** Why a Dispute puts its Question on the list «проверить опорный ответ». */
+interface ReferenceCheckRequest {
+  readonly questionId: string;
+  /** The Candidate's reason for the Dispute. */
+  readonly comment: string;
+  /** ISO 8601. */
+  readonly requestedAt: string;
+}
+
+/**
+ * The question-bank slice puts a disputed Question on the list «проверить опорный ответ»; nothing
+ * for a Question without a reference answer. `Transaction` is the storage's open transaction, in
+ * which the Dispute is recorded too.
+ */
+export interface ReferenceChecks<Transaction> {
+  readonly requestReferenceCheck: (
+    request: ReferenceCheckRequest,
+    transaction: Transaction,
+  ) => Promise<void>;
+}
+
 /** The agent-sessions slice runs the interviewer's AgentSession and those of its Side threads. */
 export interface InterviewSessions {
   /** Starts the interviewer's AgentSession, or the explaining one of a Side thread. */
@@ -168,8 +189,11 @@ export interface InterviewProgress {
   ) => Promise<readonly { readonly id: string; readonly name: string; readonly status: string }[]>;
 }
 
-/** Reads the Target's past Mock interviews for its history, its progress and the brief. */
-export interface HistoryRepository {
+/**
+ * Reads the Target's past Mock interviews for its history, its progress and the brief, and records
+ * Disputes. `Transaction` is the storage's open transaction, opaque to the domain.
+ */
+export interface HistoryRepository<Transaction> {
   /** Every running Mock interview of every Target, not the paused ones. */
   readonly allRunning: () => Promise<readonly MockInterview[]>;
   /** One page of the Target's Mock interviews, the newest first, and how many match. */
@@ -180,7 +204,8 @@ export interface HistoryRepository {
   ) => Promise<{ readonly interviews: readonly MockInterview[]; readonly total: number }>;
   /** The Attempts of the Target's Mock interviews from the earliest to the latest. */
   readonly targetAttempts: (targetId: string) => Promise<readonly AttemptRecord[]>;
-  readonly dispute: (dispute: Dispute) => Promise<void>;
+  /** Records the Dispute in the open transaction, which also writes its reference check. */
+  readonly dispute: (dispute: Dispute, transaction?: Transaction) => Promise<void>;
   /** The Disputes in the order they were made: of one Mock interview, or of a Target. */
   readonly disputes: (interviewId: string) => Promise<readonly Dispute[]>;
   readonly targetDisputes: (targetId: string) => Promise<readonly Dispute[]>;
@@ -219,31 +244,12 @@ export interface InterviewQuestionAttempts {
   ) => Promise<readonly string[]>;
 }
 
-/** Stores the Side threads of Mock interviews. */
-export interface SideThreadRepository {
-  readonly createSideThread: (thread: SideThread) => Promise<void>;
-  /** The Mock interview's Side threads in the order they were opened. */
-  readonly sideThreads: (interviewId: string) => Promise<readonly SideThread[]>;
-  readonly sideThreadBySession: (sessionId: string) => Promise<SideThread | undefined>;
-  /** Moves the Side thread to the new AgentSession that continues its earlier one. */
-  readonly continueSideThread: (id: string, sessionId: string) => Promise<void>;
-  /** Closes the Side threads for good at the moment; a closed one keeps its first moment. */
-  readonly closeSideThreads: (ids: readonly string[], at: string) => Promise<void>;
-  /** Closes every Side thread of the Target's Mock interviews, as closeSideThreads. */
-  readonly closeTargetSideThreads: (targetId: string, at: string) => Promise<void>;
-  /** Marks the asked question: its Attempt is recorded as received with a hint. */
-  readonly markHinted: (askedQuestionId: string) => Promise<void>;
-  /** Marks the asked question: the Candidate opened the Debrief of its Attempt. */
-  readonly markDebriefOpened: (askedQuestionId: string) => Promise<void>;
-  /** Deletes the Side thread's row; the hint mark of its asked question stays. */
-  readonly deleteSideThread: (id: string) => Promise<void>;
-}
-
 /**
  * Stores Mock interviews, their asked questions, Attempts and Side threads in the `interviews`
  * schema.
  */
-export interface InterviewRepository extends HistoryRepository, SideThreadRepository {
+export interface InterviewRepository<Transaction>
+  extends HistoryRepository<Transaction>, SideThreadRepository {
   /**
    * `running` when the Target already has a running or paused Mock interview; nothing is stored
    * then.

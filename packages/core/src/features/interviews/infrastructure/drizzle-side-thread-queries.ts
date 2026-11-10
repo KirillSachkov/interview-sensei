@@ -3,8 +3,7 @@
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 
 import type { Database } from "../../../shared/storage/index.ts";
-import type { SideThread } from "../domain/side-thread.ts";
-import type { SideThreadRepository } from "../domain/ports.ts";
+import type { SideThread, SideThreadRepository } from "../domain/side-thread.ts";
 import { askedQuestions, interviews, sideThreads } from "./schema.ts";
 
 function toSideThread({

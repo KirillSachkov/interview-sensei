@@ -2,6 +2,7 @@ import type { TargetView } from "@/shared/api";
 
 import { AnswersCard } from "./answers-card";
 import { Readiness } from "./readiness/readiness";
+import { ReferenceChecks } from "./reference-checks";
 import { SetupChat, setupChatOverhang } from "./setup-chat";
 import { SourcesCard } from "./sources-card";
 import { TargetCard } from "./target-card";
@@ -33,8 +34,8 @@ export interface GoalZoneProps {
 
 /**
  * The «Цель» zone: the Target's name and level, «Настроить цель», «Готовность», the Interview plan,
- * the materials and the reference answers. The setup chat opens beside the card or the Section
- * where the Candidate opened it.
+ * the materials, the reference answers and the list «Проверить опорный ответ». The setup chat
+ * opens beside the card or the Section where the Candidate opened it.
  */
 export function GoalZone({
   zone: { target, setupAnchor, onSetup, onCloseSetup, onQuestions, onReport, onAnswerReport },
@@ -66,6 +67,12 @@ export function GoalZone({
           onQuestions,
           renderChat: (sectionId) =>
             typeof setupAnchor === "object" && setupAnchor?.sectionId === sectionId ? chat : null,
+        }}
+      />
+      <ReferenceChecks
+        targetId={target.id}
+        onFix={() => {
+          onSetup("target");
         }}
       />
       <SourcesCard targetId={target.id} onReport={onReport} />

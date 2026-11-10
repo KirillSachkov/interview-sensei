@@ -2,8 +2,10 @@ import type {
   Question,
   QuestionRating,
   ReferenceAnswer,
+  ReferenceCheck,
   StoredQuestion,
   Topic,
+  TopicImportance,
   TopicSummary,
 } from "./question.ts";
 
@@ -12,6 +14,8 @@ export interface QuestionFilter {
   readonly topicId?: string;
   readonly topicIds?: readonly string[];
   readonly hidden?: boolean;
+  /** Only the Questions of the list «проверить опорный ответ». */
+  readonly referenceCheck?: boolean;
   readonly limit?: number;
 }
 /**
@@ -50,6 +54,13 @@ export interface QuestionRepository<Transaction> {
   readonly renameTopic: (topicId: string, name: string, transaction?: Transaction) => Promise<void>;
   /** Moves the Questions of the Topic `from` to the Topic `into`, then deletes `from`. */
   readonly mergeTopic: (from: string, into: string, transaction?: Transaction) => Promise<void>;
+  readonly setImportance: (
+    targetId: string,
+    change: { readonly topicId: string; readonly importance: TopicImportance },
+    transaction?: Transaction,
+  ) => Promise<void>;
+  /** The Question by its id, hidden or not; undefined for an unknown id. */
+  readonly question: (id: string, transaction?: Transaction) => Promise<Question | undefined>;
 }
 /**
  * The new text, Topic, visibility or rating of one Question; `unconfirmed: false` confirms a
@@ -68,6 +79,8 @@ export interface QuestionEdit {
   readonly unseen?: false;
   /** A new reference answer, such as one that answer search found. */
   readonly referenceAnswer?: ReferenceAnswer;
+  /** Puts the Question on the list «проверить опорный ответ», or takes it off with null. */
+  readonly referenceCheck?: ReferenceCheck | null;
 }
 /** The Questions to delete for good and the edits of the others. */
 export interface ReviewPlan {

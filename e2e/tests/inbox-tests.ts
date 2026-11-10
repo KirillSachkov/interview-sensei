@@ -4,8 +4,7 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 
-import { onboarding, zones } from "./canvas-support.ts";
-import type { setupChat } from "./canvas-support.ts";
+import { onboarding, setupChat, zones } from "./canvas-support.ts";
 import { openTarget } from "./target-actions.ts";
 
 type SetupChat = ReturnType<typeof setupChat>;
@@ -117,6 +116,35 @@ async function openRustReport(page: Page) {
   return page.getByRole("complementary", { name: "Отчёт о разборе" });
 }
 
+/** The setup agent gives «Владение» a high importance, and the Candidate applies it (#65). */
+async function raiseOwnership(page: Page) {
+  await openTarget(page, rustName);
+  await zones(page).goal.getByRole("button", { name: "Настроить цель" }).click();
+  const chat = setupChat(page);
+  await expect(chat.panel.getByRole("textbox", { name: "Сообщение" })).toBeVisible();
+  await chat.callTool("set_topic_importance", {
+    topics: [{ topic: "Владение", importance: "high" }],
+  });
+  await expect(chat.changes).toContainText(["Важность тем: «Владение» — высокая"]);
+  await chat.panel.getByRole("button", { name: "Применить (1)" }).click();
+  await chat.panel.getByRole("button", { name: "Скрыть" }).click();
+  await page.getByRole("button", { name: "Показать всё" }).click();
+}
+
+/** The chip of «Владение» shows ↑; its side panel marks the reference answer «Проверен». */
+async function expectVerifiedReference(page: Page) {
+  const chip = zones(page).goal.getByRole("button", { name: /^Владение.*высокая важность$/u });
+  await expect(chip).toContainText("↑");
+  await chip.click();
+  const panel = page.getByRole("complementary", { name: "Вопросы: Владение" });
+  const question = panel.getByRole("listitem", { name: "Как устроено владение в Rust?" });
+  await question.getByText("Опорный ответ").click();
+  await expect(question).toContainText("из материала, часть 1");
+  await question.getByRole("button", { name: "Проверен" }).click();
+  await expect(question.locator("summary")).toHaveText(/^Опорный ответ\s*проверен кандидатом$/u);
+  await expect(question.getByRole("button", { name: "Проверен" })).toBeHidden();
+}
+
 /** «Выбрать все», then the bulk action «Скрыть»; resolves with the bar of the bulk actions. */
 async function hideEvery(report: Locator) {
   await report.getByRole("button", { name: "Выбрать все" }).click();
@@ -145,6 +173,13 @@ export function inboxTests() {
       await expect(materials.getByRole("listitem")).toContainText(["готов"]);
       await expect(materials).not.toContainText("Не разобрано");
       await expectReport(page, { chat, materials });
+    });
+
+    test("the plan shows a Topic's high importance, and «Проверен» in the side panel marks the reference answer", async ({
+      page,
+    }) => {
+      await raiseOwnership(page);
+      await expectVerifiedReference(page);
     });
 
     test("the report's filter «Только новые» shows the new Questions, and «Скрыть» hides the chosen ones at once", async ({

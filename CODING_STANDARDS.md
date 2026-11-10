@@ -85,6 +85,7 @@ A running search whose agent has not started yet goes back to `waiting` instead,
 `answers.inboxFinished` starts a search of 20 Questions with it on, after a processing that `interrupted` (the server's start) did not end; `onFinished` of `interviews`, only for a finished Mock interview (a paused one the Candidate finishes counts; a pause does not), goes to `answers.interviewFinished` the same way.
 A background start that does not happen goes to `onBackgroundSkipped`, which the server logs at `info`.
 The Debrief in the web app reads the asked Question's Reference answer from `GET /api/targets/:id/questions` of its Topic, hidden Questions too; the Debrief API of `interviews` stays without it.
+A Dispute in `interviews` puts the disputed Question on the list «Проверить опорный ответ» through its `ReferenceChecks` port, which `question-bank` supplies (#65). The Dispute and this write share one transaction: `composeSessionWork` passes `storage.transaction` to `interviews`.
 
 ### Session profiles
 

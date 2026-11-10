@@ -68,7 +68,7 @@ function interviewQueries(database: Database) {
         .limit(limit);
       return rows.map((row) => toInterview(row));
     },
-  } satisfies Partial<InterviewRepository>;
+  } satisfies Partial<InterviewRepository<Transaction>>;
 }
 
 /** The questions the agent showed and the Candidate's answers to them. */
@@ -99,7 +99,7 @@ function askedQueries(database: Database) {
         .set({ followUps })
         .where(eq(askedQuestions.id, askedQuestionId));
     },
-  } satisfies Partial<InterviewRepository>;
+  } satisfies Partial<InterviewRepository<Transaction>>;
 }
 
 /** The Grade that applies to the Attempt: its latest Dispute's, or the recorded one. */
@@ -155,7 +155,7 @@ function attemptQueries(database: Database) {
         .returning({ id: attempts.id });
       return rows.length > 0 ? ("recorded" as const) : ("exists" as const);
     },
-  } satisfies Partial<InterviewRepository>;
+  } satisfies Partial<InterviewRepository<Transaction>>;
 }
 
 /**
@@ -208,7 +208,7 @@ async function attempted(database: Database, targetId: string, questionIds: read
 
 export function drizzleInterviewRepository(
   database: Database,
-): InterviewRepository &
+): InterviewRepository<Transaction> &
   InterviewErasure<Transaction> &
   InterviewTopicMerge<Transaction> &
   InterviewQuestionAttempts {

@@ -1,4 +1,6 @@
-import type { ReferenceAnswer } from "@/shared/api";
+import type { Question, ReferenceAnswer } from "@/shared/api";
+
+import { useVerifyReference } from "../model/reference-checks";
 
 /** The origin of a reference answer as the Candidate reads it. */
 export const originNames: Readonly<Record<ReferenceAnswer["origin"], string>> = {
@@ -23,18 +25,19 @@ function hostOf(link: string): string {
 }
 
 /**
- * «Опорный ответ», folded: its origin with the material's part, the key points, the sample and the
- * links to the web sources of an answer «из интернета».
+ * The reference answer, folded: its origin in the summary, with the part for an answer «из
+ * материала», then the key points, the sample and the links to the web sources of an answer «из
+ * интернета».
  */
 export function ReferenceAnswerDetails({ answer }: { answer: ReferenceAnswer }) {
   const links = answer.links ?? [];
   return (
-    <details className="report-reference">
+    <details className="reference-answer">
       <summary>
         Опорный ответ{" "}
         <span className="tag">
           {originNames[answer.origin]}
-          {partText(answer.part)}
+          {answer.origin === "material" ? partText(answer.part) : ""}
         </span>
       </summary>
       <ul>
@@ -59,5 +62,32 @@ export function ReferenceAnswerDetails({ answer }: { answer: ReferenceAnswer }) 
         </p>
       )}
     </details>
+  );
+}
+
+/**
+ * «Проверен»: the reference answer becomes «проверен кандидатом» at once, without the draft of
+ * changes; nothing for an answer that is already.
+ */
+export function VerifyReference({ targetId, question }: { targetId: string; question: Question }) {
+  const verify = useVerifyReference(targetId);
+  if (question.referenceAnswer === null || question.referenceAnswer.origin === "candidate") {
+    return null;
+  }
+  return (
+    <>
+      <button
+        type="button"
+        className="ghost"
+        title="Отметить опорный ответ проверенным"
+        disabled={verify.isPending}
+        onClick={() => {
+          verify.mutate(question.id);
+        }}
+      >
+        Проверен
+      </button>
+      {verify.isError ? <p role="alert">Не сохранилось: {verify.error.message}</p> : null}
+    </>
   );
 }

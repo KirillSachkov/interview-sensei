@@ -51,19 +51,31 @@ export interface NewQuestion {
   readonly level: Level | null;
 }
 
+/** What a good answer contains: 3–5 key points and a short sample answer. */
+export interface ReferenceContent {
+  readonly points: readonly string[];
+  readonly sample: string;
+}
+
 /** A Question of the Target as the draft sees it. */
 export interface DraftQuestion extends NewQuestion {
   readonly hidden: boolean;
   readonly rating: QuestionRating | null;
+  /** The content of its reference answer; null without one. */
+  readonly referenceAnswer: ReferenceContent | null;
 }
 
-/** Rephrases, moves to the Topic of another name, hides or shows, or rates one Question. */
+/**
+ * Rephrases, moves to the Topic of another name, hides or shows, rates one Question, or corrects
+ * its reference answer.
+ */
 export interface QuestionEdit {
   readonly id: string;
   readonly text?: string;
   readonly topic?: string;
   readonly hidden?: boolean;
   readonly rating?: QuestionRating | null;
+  readonly referenceAnswer?: ReferenceContent;
 }
 
 /** The Questions after the edits; `missing` for the edits of Questions that do not exist. */

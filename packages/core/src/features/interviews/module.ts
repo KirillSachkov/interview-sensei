@@ -1,4 +1,4 @@
-import type { Database, Transaction } from "../../shared/storage/index.ts";
+import type { Database, RunInTransaction, Transaction } from "../../shared/storage/index.ts";
 import type { Clock, Timer } from "../../shared/time/index.ts";
 import { createInterviews } from "./application/interviews.ts";
 import type { Interviews } from "./application/interviews.ts";
@@ -11,6 +11,7 @@ import type {
   InterviewSessions,
   InterviewTargets,
   InterviewTopicMerge,
+  ReferenceChecks,
 } from "./domain/ports.ts";
 import { drizzleInterviewRepository } from "./infrastructure/drizzle-interview-repository.ts";
 
@@ -28,6 +29,10 @@ export interface InterviewsModuleDependencies {
   readonly agents: InterviewAgents;
   /** The Target's Questions: the question-bank module. */
   readonly questions: InterviewQuestions;
+  /** The list «проверить опорный ответ»: the question-bank module. */
+  readonly referenceChecks: ReferenceChecks<Transaction>;
+  /** The storage's transactions: a Dispute and its reference check share one. */
+  readonly transaction: RunInTransaction;
   /** The interviewer's AgentSession: the agent-sessions module. */
   readonly sessions: InterviewSessions;
   /** Receives errors of background work. */
