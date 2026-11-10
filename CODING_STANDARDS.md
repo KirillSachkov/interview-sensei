@@ -166,12 +166,32 @@ The parts lie in `targets/<Target id>/texts/<Source id>/0001.txt` and onward, be
 | TXT, MD | the file as UTF-8 |
 | SRT, VTT | `subtitleText`: the spoken lines without numbers, times, tags and repeats |
 | HTML file, link | the page's article by `@mozilla/readability` on `linkedom`, then `htmlText`; a link's PDF or plain text by its content type |
+| Video, audio file | the `transcription` slice through the `SourceTranscription` port; see [speech recognition](#speech-recognition) |
 
 A page waits at most 30 seconds on the injected `Timer` and may hold at most 20 MB.
 linkedom and Readability type their DOM with TypeScript's DOM library, which server code does not load.
 So only `sources/infrastructure/page-text.ts` touches their DOM, under a file-level disable of the unsafe-value rules with that reason.
 A Source the server cannot read gets the Source status «ошибка» with the reason in Russian.
 A link to a web page is the exception: it stays «разбирается» without parts, and the Inbox processing agent opens it on the web.
+
+### Speech recognition
+
+The `transcription` slice (#74) turns the speech of a video or audio file into text; no agent takes part.
+`sources` calls it through its `SourceTranscription` port in `inbox-transcription.ts` before the agent starts: the Source is `transcribing` («транскрибируется») with `progress`, then `processing` with the text in parts.
+The port answers `{ text }` or `{ failure }` with the Russian reason, which becomes «ошибка».
+The model follows the Target's language (`modelFor`): Russian goes to GigaAM v3, other languages of Parakeet TDT 0.6B v3 to Parakeet.
+
+`pinnedCatalog` in `transcription/domain/pinned-catalog.ts` pins every component per platform: URL, size and SHA-256.
+They are `engine` (the npm tarballs of `sherpa-onnx-node` and its platform package), `ffmpeg` (the gzipped ffmpeg-static binary), `vad` (Silero VAD) and each model (the `.onnx` files and `tokens.txt` of the sherpa-onnx export on Hugging Face at a pinned commit).
+The application never takes them from npm dependencies or the system: it downloads them only after «Скачать» into `transcription/<component>/` of the data directory.
+`componentStore` writes each file to a `.part` file, checks its size and SHA-256, deletes the component's directory on a mismatch, then unpacks it and writes `.installed` with the version.
+`tar.ts` reads the npm tarballs, because Node has no tar reader; models come as separate files, because Node has no bzip2.
+`ffmpegExtractor` runs only the downloaded ffmpeg and streams 16 kHz mono float samples from its standard output, so no sound file is written.
+`sherpaRecognizer` loads `sherpa-onnx-node` from the data directory with `createRequire` and feeds Silero VAD; the model decodes each phrase asynchronously.
+The server's close stops a running download (`transcription.close`).
+
+`transcriptionModule` takes `components` with a catalog, an extractor and a recognizer; API tests pass stand-ins, the server passes nothing and gets the real ones.
+`buildServer({ transcription })` hands them over.
 
 ### Local requests
 

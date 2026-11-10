@@ -113,8 +113,9 @@ The agent's own Inbox report moves the Sources by the same rule: a Source the ag
 
 **Source status**:
 Where a Source is in Inbox processing: «в Inbox» until processing starts, «разбирается» during it, «готов» after it, or «ошибка» with the reason when the Source could not be read.
-The server gives «ошибка» to a format it cannot read, archives included, to a Source without text, and to a video file or a video link: «приложите транскрипт».
-The Candidate attaches the video's transcript as a Source of its own, and Inbox processing reads it as text.
+A video or audio file is «транскрибируется» with the percent heard while the server recognizes its speech on the Candidate's device, before the agent starts (#74); then it is «разбирается» with the recognized text.
+The server gives «ошибка» to a format it cannot read, archives included, to a Source without text, to a video or audio file without installed speech recognition or without sound, and to a video link: «приложите транскрипт».
+The Candidate may attach the video's transcript as a Source of its own, and Inbox processing reads it as text.
 A web page the server could not read stays «разбирается» without parts: the agent opens it on the web, and its Questions have no part.
 It becomes «готов» by the agent's Inbox report and goes back to the Inbox when processing ends without one.
 The agent gives «ошибка» with its reason to a Source it cannot read either.
@@ -178,4 +179,9 @@ Inbox processing may use the web, so its agent opens pages without a request.
 **Source**:
 Material attached to a Target: a vacancy, a resume, a link, a video transcript, a file or the Candidate's own note.
 A Target can have any number of Sources of each type. Questions refer to the Sources they came from.
-The server reads the text of a Source itself, from PDF, DOCX, plain text, Markdown, subtitles and web pages, and keeps it in numbered parts in the data directory.
+The server reads the text of a Source itself, from PDF, DOCX, plain text, Markdown, subtitles and web pages, recognizes the speech of video and audio files, and keeps the text in numbered parts in the data directory.
+
+**Speech recognition**:
+The application's own recognition of speech in video and audio on the Candidate's device (#74), with no agent: ffmpeg-static extracts the sound, Silero VAD cuts it into phrases, and a speech model recognizes them through sherpa-onnx.
+The Candidate chooses the model: GigaAM v3 for Russian, Parakeet TDT 0.6B v3 for 25 European languages, or both.
+Its components download only after the Candidate's consent, into the data directory, at pinned versions with checked SHA-256; nothing is installed into the system.

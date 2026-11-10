@@ -15,6 +15,7 @@ Run every command from the repository root after `pnpm install --frozen-lockfile
   Only the root script builds first; `pnpm --filter @interview-sensei/e2e test:e2e` tests the existing `apps/web/dist`.
 - `pnpm test:package`: `pnpm build`, then the Vitest project `package` of `apps/server` against the packed npm package.
   npm downloads the package's dependencies, so the command needs the network.
+- `pnpm --filter @interview-sensei/core test:live`: the Vitest project `live`. It downloads the real components of speech recognition, about 270 MB, into `INTERVIEW_SENSEI_TRANSCRIPTION_LIVE_DIR` or a temporary directory, and recognizes a Russian clip.
 - `pnpm verify`: `pnpm check`, `pnpm test`, `pnpm test:e2e`, the Vitest project `package` and `python3 scripts/check.py` in order.
 - `python3 scripts/check.py`: local Markdown links/anchors, own skill identity and invocation metadata, directory hashes, package skill links and client pointers.
 - `git diff --check`: whitespace errors in the change.
@@ -32,6 +33,7 @@ Install the Playwright browser once with `pnpm --filter @interview-sensei/e2e ex
 | integration | `packages/core/src/**/*.int.test.ts`  | Core technical code on real infrastructure: PGlite, files, agent discovery and the fake ACP agent as a process, in temporary directories. |
 | e2e         | `e2e/tests/*.test.ts`                 | The real browser against the built app that `interview-sensei` serves. |
 | package     | `apps/server/src/**/*.package.test.ts` | The packed npm package installed by npm into a temporary directory, started with the fake agent. |
+| live        | `packages/core/src/**/*.live.test.ts` | Real downloaded components, such as speech recognition; only `test:live` and its CI job run them. |
 
 Test external behavior at the public boundary, not implementation details.
 Name each test after the behavior it checks.
@@ -107,6 +109,13 @@ After a turn without the Inbox report the server waits 2 minutes on its `Timer`,
 A test of a restart stops the server and starts another one on the same data directory, as the Mock interview tests do.
 The fake agent streams a reply word by word, so a test of a long text uses words without spaces.
 
+Speech recognition (#74) has stand-ins behind the ports of the `transcription` slice; no API test downloads or runs the real components.
+`transcription-test-support.ts` serves made-up components with their real SHA-256 from a local HTTP server (`component-server-test-support.ts`), which can hold a file halfway so a test sees the download's progress.
+`brokenSha` gives one component a wrong SHA-256.
+Its stub ffmpeg reads a «video» file as text, one second per line; «[без звука]» makes a file without sound.
+Its stub model returns the lines as the text and stops at «[ждать]» until the test calls `continueSpeech`, so a test sees «транскрибируется» with its percent.
+Pass `stubTranscription().components` to `startServer` as `transcription`.
+
 The fake agent has a side thread mode for Side threads (`fake-agent-side-thread.ts`).
 On «The Candidate opened a side thread from a mock interview.» it calls `get_brief` and replies «Разбираю вопрос кандидата: «<candidateQuestion>»».
 A failed step there ends the turn with «Фейковый агент ветки сломался: <error>».
@@ -176,6 +185,7 @@ They run the package with the Node that runs Vitest; CI runs them on Node 22.15.
 ## CI
 
 `harness-check` (`.github/workflows/check.yml`) runs the structural checker and the whitespace check.
+`transcription-live` (`.github/workflows/transcription.yml`) runs the Vitest project `live` on `ubuntu-latest` and `windows-latest` when the `transcription` slice changes; it caches the downloaded components by the hash of `pinned-catalog.ts` and prints the download and recognition times.
 `app-check`, `app-test` and `app-e2e` (`.github/workflows/app.yml`) run `pnpm check`, `pnpm test` and `pnpm test:e2e`.
 `app-package` builds the package on Node 24 and runs the Vitest project `package` on each Node of its matrix.
 `publish` (`.github/workflows/release.yml`) publishes the npm package; [release](#release) describes it.
