@@ -7,6 +7,7 @@ import type { BankQuestion, PlanSection, TargetPlan } from "../domain/ports.ts";
 import { suggestedSection } from "../domain/section-shares.ts";
 import { runningMs } from "../domain/time-limit.ts";
 import type { Context } from "./context.ts";
+import { earlierInterviews } from "./question-history.ts";
 import { assertTopicOpen, planTopics } from "./topic-limit.ts";
 import {
   assertRunning,
@@ -34,12 +35,6 @@ function candidateOf({ question, reasons }: Candidate) {
     ...(question.format === "quiz" ? { options: question.options } : {}),
     reasons,
   };
-}
-
-/** The Mock interviews of the Target before this one, the newest first. */
-async function earlierInterviews(context: Context, targetId: string, interviewId: string) {
-  const latest = await context.dependencies.repository.latest(targetId, 3);
-  return latest.filter((entry) => entry.id !== interviewId).map((entry) => entry.id);
 }
 
 /** The suggested move to another selected Section by the shares, for the agent; null without one. */

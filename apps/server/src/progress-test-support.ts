@@ -39,8 +39,12 @@ function toolText(answer: unknown): string {
   throw new Error(`Unexpected tool answer: ${JSON.stringify(answer)}`);
 }
 
-/** Calls our MCP tool on the address that `/mcp` reveals in the interviewer chat; its JSON result. */
-export async function callTool(chat: Chat, name: string): Promise<unknown> {
+/** Calls our MCP tool on the address that `/mcp` reveals in the interviewer chat. */
+export async function callTextTool(
+  chat: Chat,
+  name: string,
+  arguments_: object = {},
+): Promise<string> {
   const reply = await ask(chat, "/mcp", "MCP: ");
   const [, url = ""] = reply.slice("MCP: ".length).split(" ");
   const response = await fetch(url, {
@@ -54,12 +58,17 @@ export async function callTool(chat: Chat, name: string): Promise<unknown> {
       jsonrpc: "2.0",
       id: 1,
       method: "tools/call",
-      params: { name, arguments: {} },
+      params: { name, arguments: arguments_ },
     }),
   });
   const body = await response.text();
   const data = body.split("\n").find((line) => line.startsWith("data:")) ?? "";
-  return JSON.parse(toolText(JSON.parse(data.slice("data:".length))));
+  return toolText(JSON.parse(data.slice("data:".length)));
+}
+
+/** Calls an MCP tool that returns JSON. */
+export async function callTool(chat: Chat, name: string): Promise<unknown> {
+  return JSON.parse(await callTextTool(chat, name));
 }
 
 /**

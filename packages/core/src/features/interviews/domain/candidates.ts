@@ -178,6 +178,18 @@ function resting(entry: PastQuestion | undefined, recentInterviewIds: readonly s
   return recentInterviewIds.slice(0, restAfterGrade[entry.grade]).includes(entry.interviewId);
 }
 
+/** The Questions still resting after their latest Grade, regardless of rank or wanted level. */
+export function restingQuestions(
+  history: readonly PastQuestion[],
+  recentInterviewIds: readonly string[],
+): ReadonlySet<string> {
+  return new Set(
+    [...lastGraded(history)]
+      .filter(([, entry]) => resting(entry, recentInterviewIds))
+      .map(([id]) => id),
+  );
+}
+
 export interface CandidateRequest {
   /** The Target's Questions of the current Section's Topics. */
   readonly questions: readonly BankQuestion[];
@@ -221,6 +233,7 @@ export function questionCandidates(request: CandidateRequest): readonly Candidat
     history.filter((entry) => entry.interviewId === interviewId).map((entry) => entry.questionId),
   );
   const graded = lastGraded(history);
+  const rest = restingQuestions(history, recentInterviewIds);
   const full = fullTopicOf(request);
   const topic = topicScores(request);
   const scored = (question: BankQuestion): Candidate & { readonly priority: number } => {
@@ -249,7 +262,7 @@ export function questionCandidates(request: CandidateRequest): readonly Candidat
         question.rating !== "wrong" &&
         question.topicId !== full &&
         !asked.has(question.id) &&
-        !resting(graded.get(question.id), recentInterviewIds),
+        !rest.has(question.id),
     )
     .map((question) => scored(question))
     .toSorted((left, right) => right.priority - left.priority)
