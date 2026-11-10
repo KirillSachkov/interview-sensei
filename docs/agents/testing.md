@@ -107,6 +107,13 @@ After a turn without the Inbox report the server waits 2 minutes on its `Timer`,
 A test of a restart stops the server and starts another one on the same data directory, as the Mock interview tests do.
 The fake agent streams a reply word by word, so a test of a long text uses words without spaces.
 
+The fake agent has an answer search mode (`fake-agent-answers.ts`) for the opening «Answer search has started.».
+It sends a `usage_update` of 4321 tokens, takes the queue five Questions at a time with `next_questions_without_answer`, and writes an answer «из интернета» with a link to example.com for the first Question of each batch and for one «из знаний агента», and «из знаний агента» for the others.
+A refused save goes to `failed` of its `write_answer_report` with the tool's error.
+A Target whose name has `[manual]` makes it stop at «Жду команд.», so an API test drives the search with `/tool`; `answer-test-support.ts` makes such a Target with `manualTarget` and starts its search with `manualSearch`.
+`/usage <tokens>` in any session sends a `usage_update` with these tokens and replies «Расход: <tokens>», for the report's token usage.
+`/wait`, `/crash` and the 2-minute wait on `manualTime()` end an answer search as they end an Inbox processing.
+
 The fake agent has a side thread mode for Side threads (`fake-agent-side-thread.ts`).
 On «The Candidate opened a side thread from a mock interview.» it calls `get_brief` and replies «Разбираю вопрос кандидата: «<candidateQuestion>»».
 A failed step there ends the turn with «Фейковый агент ветки сломался: <error>».

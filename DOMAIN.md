@@ -52,8 +52,21 @@ _Avoid_: Task, when the item is not an algorithm problem.
 
 **Reference answer**:
 What a good answer to a Question contains: 3–5 key points and a short sample answer, with its origin and, for an answer from a Source, the Source and its part.
-The origin is one of «из материала», «из интернета», «из знаний агента» and «проверен кандидатом».
+The origin is one of four labels:
+«из материала», from a Source, with the Source and its part; «из интернета», from web pages, with the links to them; «из знаний агента», from the agent's own knowledge, without a source; and «проверен кандидатом», checked by the Candidate.
 Inbox processing writes a Reference answer only from the Source itself; a Question whose Source has no answer stays without one.
+Answer search writes «из интернета» and «из знаний агента». It never replaces an answer «из материала» or «проверен кандидатом», and never replaces «из интернета» with «из знаний агента»; an answer «из знаний агента» gives way to one «из интернета».
+
+**Answer search**:
+«Наполнение ответов»: the background work that finds Reference answers on the web for the Questions of a Target.
+The Candidate starts it with «Найти ответы» in the zone «Цель», after seeing how many Questions have no Reference answer, choosing how many to fill, 20 by default, and the warning that each Question costs about one web search of the agent's subscription.
+The server keeps the queue: first the Questions asked in a Mock interview without a Reference answer or with one «из знаний агента», then those of shaky and not started Topics, then the rest, each group from the earliest added. Hidden Questions stay out.
+An Agent session of its own takes the Questions from the queue, searches the web and writes each answer; the agent only searches and words the answers, the server keeps the rules of overwriting.
+A Target has at most one Answer search at a time, and it waits while the Target's Inbox processing runs.
+«Остановить», a failed agent, an agent that ended its work without the report, or a restart of the server ends it early; the written answers stay, and the server writes a partial answer report.
+
+**Answer report**:
+The summary of one Answer search: how many Questions it filled of how many, by origin, the Questions it could not fill with the agent's reasons, and the agent's token usage from its last ACP `usage_update`, or «агент не сообщил расход».
 
 **Mock interview**:
 The only kind of interview: the agent acts as an interviewer and asks Questions for a Target.
@@ -158,8 +171,8 @@ _Avoid_: Grade, which assesses the Candidate's answer, not the Question.
 
 **Agent session**:
 One conversation of the application with the Candidate's agent: its kind, agent, ACP session id, status and event journal.
-There are four kinds: Target setup, Inbox processing, Mock interview and Side thread. Each kind has its own skill, MCP tools and limits.
-Inbox processing has no chat: the Candidate sees only the Source statuses and the Inbox report.
+There are five kinds: Target setup, Inbox processing, Mock interview, Side thread and Answer search. Each kind has its own skill, MCP tools and limits.
+Inbox processing and Answer search have no chat: the Candidate sees only their status and report.
 The server records every event in the journal; the chat and its history after a restart come from the journal, not from the agent's log.
 The code calls it `AgentSession`. The skeleton's agent check also runs in one, but it is not a domain kind.
 _Avoid_: Session, when the kind of session matters.
@@ -172,8 +185,8 @@ Only that Agent session's agent gets it, and it closes when that agent stops.
 The agent's request to perform an action, such as a shell command, with the options it offers.
 The server answers requests for our own MCP tools.
 Every other request goes to the Candidate in the chat, when the session kind asks the Candidate.
-In a Mock interview and in Inbox processing it does not: they show no requests, so the server refuses them itself.
-Inbox processing may use the web, so its agent opens pages without a request.
+In a Mock interview, in Inbox processing and in Answer search it does not: they show no requests, so the server refuses them itself.
+Inbox processing and Answer search may use the web, so their agents open pages without a request.
 
 **Source**:
 Material attached to a Target: a vacancy, a resume, a link, a video transcript, a file or the Candidate's own note.
