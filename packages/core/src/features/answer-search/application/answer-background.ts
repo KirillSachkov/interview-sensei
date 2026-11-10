@@ -39,7 +39,7 @@ export function inboxFinished(context: AnswerContext, end: InboxEnd): void {
   });
 }
 
-/** A Mock interview of the Target is finished, not «прерван»: a search starts in the background. */
+/** A Mock interview of the Target is finished, not paused: a search starts in the background. */
 export function interviewFinished(context: AnswerContext, targetId: string): void {
   inBackground(context, async () => fill(context, targetId));
 }

@@ -53,7 +53,14 @@ function runQueries(
       const rows = await database
         .update(answerRuns)
         .set({ sessionId })
-        .where(and(eq(answerRuns.id, runId), eq(answerRuns.status, "running")))
+        // A run that went back to waiting and began again keeps the agent that set its session first.
+        .where(
+          and(
+            eq(answerRuns.id, runId),
+            eq(answerRuns.status, "running"),
+            isNull(answerRuns.sessionId),
+          ),
+        )
         .returning({ id: answerRuns.id });
       return rows.length > 0;
     },

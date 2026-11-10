@@ -31,7 +31,7 @@ import {
   sessionView,
   usageOf,
 } from "./stored-sessions.ts";
-import type { LastConversation } from "./stored-sessions.ts";
+import type { LastConversation, SessionUsage } from "./stored-sessions.ts";
 
 export interface AgentSessionsDependencies extends LiveSessionDependencies {
   readonly launcher: AgentLauncher;
@@ -59,8 +59,8 @@ export interface AgentSessions {
   /** Whether the session is live on this server now: starting, waiting or working. */
   readonly isLive: (sessionId: string) => boolean;
   readonly view: (sessionId: string) => Promise<SessionView | undefined>;
-  /** The context tokens, window and cost of the agent's latest ACP `usage_update`; null without one. */
-  readonly usage: (sessionId: string) => ReturnType<typeof usageOf>;
+  /** The context tokens, window and cost of the agent's latest ACP `usage_update`, or null. */
+  readonly usage: (sessionId: string) => Promise<SessionUsage | null>;
   /**
    * The Candidate's and the agent's messages of the earlier sessions that this one continues, in
    * order, for the brief of a continued conversation; empty when it continues none.

@@ -1,6 +1,6 @@
 // The usage an agent reports with the ACP `usage_update` (spec #70): the journal keeps every
-// update, and the latest one counts. ACP defines `used` as the tokens currently in the context, `size` as
-// the context window and `cost` as the session's cumulative cost, so `used` is no spend.
+// update, and the latest one counts. ACP defines `used` as the tokens currently in the context,
+// `size` as the context window and `cost` as the session's cumulative cost, so `used` is no spend.
 import type { AgentUpdate, RecordedEvent } from "./session-event.ts";
 
 /**
