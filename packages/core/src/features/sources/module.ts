@@ -1,13 +1,12 @@
 import type { Database, RunInTransaction, Transaction } from "../../shared/storage/index.ts";
 import type { Clock, Timer } from "../../shared/time/index.ts";
 import { createInbox } from "./application/inbox.ts";
+import type { InboxRunFinished, InboxRunStarted } from "./application/inbox.ts";
 import { createSources } from "./application/sources.ts";
 import type {
   DuplicateFilter,
   InboxAgents,
   InboxQuestions,
-  InboxRunFinished,
-  InboxRunStarted,
   InboxSessions,
   SourceTargets,
 } from "./domain/ports.ts";
@@ -66,6 +65,8 @@ interface SourcesModuleDependencies {
   duplicates: DuplicateFilter;
   /** The agent-sessions slice. */
   sessions: InboxSessions;
+  /** The transcription slice: the text of video and audio files. */
+  transcription: Parameters<typeof createInbox>[0]["transcription"];
   /** Receives errors of background work. */
   onError: (error: unknown) => void;
   /** Hears that an Inbox processing or Recheck of the Target started. */

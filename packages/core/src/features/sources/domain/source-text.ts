@@ -5,8 +5,9 @@
 const partLength = 8000;
 
 /**
- * How the server reads a Source's text. A `video` has no text the server can read: the Candidate
- * attaches its transcript as a material of its own (#36 decides on transcription).
+ * How the server reads a Source's text. A `video` is a recording: a video or audio file, whose
+ * speech the server recognizes (#74), or a link to a known video hosting, which needs yt-dlp. Any
+ * other link is `web` until yt-dlp tells that it is a video.
  */
 export type TextFormat =
   "pdf" | "docx" | "text" | "subtitles" | "html" | "web" | "video" | "unsupported";
@@ -28,6 +29,14 @@ const formatsByExtension: Readonly<Record<string, TextFormat>> = {
   webm: "video",
   avi: "video",
   m4v: "video",
+  mp3: "video",
+  m4a: "video",
+  wav: "video",
+  ogg: "video",
+  oga: "video",
+  opus: "video",
+  flac: "video",
+  aac: "video",
 };
 
 /** Video hostings: a link to one of them is a video, not a page with text. */
@@ -60,6 +69,64 @@ export function textFormat(source: {
     return source.url === null ? "unsupported" : linkFormat(source.url);
   }
   return formatsByExtension[extensionOf(source.file)] ?? "unsupported";
+}
+
+/** The file name without its directory and its extension, in lowercase. */
+function baseName(file: string): string {
+  const name = (file.split(/[/\\]/u).at(-1) ?? "").toLowerCase();
+  const dot = name.lastIndexOf(".");
+  return dot > 0 ? name.slice(0, dot) : name;
+}
+
+/** A Source as the binding of a transcript reads it. */
+interface BindableSource {
+  readonly type: string;
+  readonly file: string | null;
+  readonly url: string | null;
+  readonly status: string;
+}
+
+/**
+ * The transcript bound to a video or audio file: the Candidate's first file of subtitles or plain
+ * text with the same name in any case, such as `interview.vtt` beside `interview.mp4`, unless it
+ * got «ошибка». The video takes its text instead of recognizing its speech. A note, a link and a
+ * recording of a link bind nothing.
+ */
+export function boundTranscript<Material extends BindableSource>(
+  video: Material,
+  sources: readonly Material[],
+): Material | undefined {
+  if (video.file === null || textFormat(video) !== "video") {
+    return undefined;
+  }
+  const name = baseName(video.file);
+  return sources.find(
+    (source) =>
+      (source.type === "file" || source.type === "transcript") &&
+      source.file !== null &&
+      source.status !== "failed" &&
+      ["subtitles", "text"].includes(textFormat(source)) &&
+      baseName(source.file) === name,
+  );
+}
+
+/**
+ * The transcripts of the run bound to a video of the run, each with its video's id. Such a
+ * transcript is its video's text: the agent reads only the video, and the transcript follows it to
+ * «готов» or back to the Inbox.
+ */
+export function boundInRun(
+  runIds: readonly string[],
+  materials: readonly (BindableSource & { readonly id: string })[],
+): ReadonlyMap<string, string> {
+  const bound = new Map<string, string>();
+  for (const video of materials.filter((material) => runIds.includes(material.id))) {
+    const transcript = boundTranscript(video, materials);
+    if (transcript !== undefined && runIds.includes(transcript.id)) {
+      bound.set(transcript.id, video.id);
+    }
+  }
+  return bound;
 }
 
 const namedEntities: Readonly<Record<string, string>> = {
@@ -146,25 +213,33 @@ function isHeaderBlock(first: string): boolean {
   return /^(?:WEBVTT|NOTE|STYLE|REGION)\b/u.test(first);
 }
 
-/** The spoken text of one cue: its lines without numbers, times, tags and references. */
-function cueSpeech(lines: readonly string[]): string {
+/** The spoken lines of one cue: without numbers, times, tags and references. */
+function cueLines(lines: readonly string[]): string[] {
   return lines
     .filter((line, index) => line !== "" && !isCueLine(line, lines[index + 1]))
     .map((line) => withoutEntities(line.replaceAll(/<[^>]*>/gu, "")).trim())
-    .filter((line) => line !== "")
-    .join(" ");
+    .filter((line) => line !== "");
 }
 
-/** The spoken text of each cue in SRT or WebVTT subtitles, one line per cue, repeats dropped. */
+/**
+ * The spoken text of each cue in SRT or WebVTT subtitles, one line per cue. A line that the cue
+ * before already had is dropped: repeated captions and the rolling automatic captions of YouTube,
+ * where each cue repeats the line before the new one.
+ */
 export function subtitleText(subtitles: string): string {
   const cues = subtitles
     .replaceAll(/\r\n?/gu, "\n")
     .split(/\n[ \t]*\n/u)
     .map((block) => block.split("\n").map((line) => line.trim()))
     .filter((lines) => !isHeaderBlock(lines[0] ?? ""))
-    .map((lines) => cueSpeech(lines))
-    .filter((speech) => speech !== "");
-  return cues.filter((speech, index) => cues[index - 1] !== speech).join("\n");
+    .map((lines) => cueLines(lines));
+  return cues
+    .map((lines, index) => {
+      const before = new Set(cues[index - 1]);
+      return lines.filter((line) => !before.has(line)).join(" ");
+    })
+    .filter((speech) => speech !== "")
+    .join("\n");
 }
 
 /** The tags whose end ends a paragraph of the page's text. */

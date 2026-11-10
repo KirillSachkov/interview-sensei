@@ -10,9 +10,13 @@ export interface SourceView {
   readonly title: string;
   readonly url: string | null;
   readonly path: string | null;
-  /** «в Inbox», «разбирается», «готов» or «ошибка» with the reason in `failure`. */
-  readonly status: "inbox" | "processing" | "ready" | "failed";
+  /**
+   * «в Inbox», «разбирается», «транскрибируется» with the percent in `progress`, «готов» or
+   * «ошибка» with the reason in `failure`.
+   */
+  readonly status: "inbox" | "processing" | "transcribing" | "ready" | "failed";
   readonly failure: string | null;
+  readonly progress: number | null;
   readonly createdAt: string;
 }
 

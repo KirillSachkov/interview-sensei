@@ -1,22 +1,25 @@
 // The only server module that imports core features (`server-composes-features-in-one-module`),
-// with its parts composition-targets.ts and composition-agents.ts. Each feature gives one module
-// factory that hides its infrastructure; this module calls each factory once and hands the routes
-// finished services. Routes take the types they need from here.
+// with its parts composition-targets.ts, composition-agents.ts, composition-answers.ts and
+// composition-work.ts. Each feature gives one module factory that hides its
+// infrastructure; this module calls each factory once and hands the routes finished services.
+// Routes take the types they need from here.
 import {
   interviewsMigrations,
-  interviewsModule,
   interviewTools,
   sideThreadTools,
 } from "@interview-sensei/core/interviews";
-import { getProgress, progressModule } from "@interview-sensei/core/progress";
+import { getProgress } from "@interview-sensei/core/progress";
 import { healthModule } from "@interview-sensei/core/health";
 import { openStorage } from "@interview-sensei/core/storage";
-import type { SliceMigrations, Storage } from "@interview-sensei/core/storage";
-import type { Interviews } from "@interview-sensei/core/interviews";
+import { transcriptionModule } from "@interview-sensei/core/transcription";
+import type { TranscriptionComponents } from "@interview-sensei/core/transcription";
+import type { SliceMigrations } from "@interview-sensei/core/storage";
+import type { Interviews, interviewsModule } from "@interview-sensei/core/interviews";
 import type { Progress } from "@interview-sensei/core/progress";
 
-import { answerSearchMigrations, answerTools, composeAnswers } from "./composition-answers.ts";
+import { answerSearchMigrations, answerTools } from "./composition-answers.ts";
 import type { AnswerSearch } from "./composition-answers.ts";
+import { composeSessionWork } from "./composition-work.ts";
 import {
   agentSessionsMigrations,
   composeRuntime,
@@ -42,6 +45,8 @@ export type { InboxStartOutcome } from "@interview-sensei/core/sources";
 export type { AnswerStartOutcome } from "./composition-answers.ts";
 export { maxSearchCount } from "./composition-answers.ts";
 export { grades } from "@interview-sensei/core/interviews";
+export { modelIds, TranscriptionError } from "@interview-sensei/core/transcription";
+export type * from "@interview-sensei/core/transcription";
 export type * from "@interview-sensei/core/interviews";
 
 /**
@@ -118,28 +123,9 @@ function sessionTools(slices: ReturnType<typeof composeTargets>) {
   };
 }
 
-export type FeatureDependencies = AgentDependencies;
-
-/** Mock interviews and the progress of their Attempts; the interviews' brief reads progress back. */
-function composeInterviews(
-  storage: Storage,
-  log: FeatureDependencies["log"],
-  services: Omit<Parameters<typeof interviewsModule>[0], "database" | "onError" | "progress">,
-) {
-  const interviews: ReturnType<typeof interviewsModule> = interviewsModule({
-    database: storage.database,
-    ...services,
-    progress: {
-      focus: async (targetId) => progress.focus(targetId),
-      topicStatuses: async (targetId) => {
-        const found = await progress.target(targetId);
-        return found?.topics ?? [];
-      },
-    },
-    onError: (error) => log.error({ err: error }, "A mock interview failed in the background"),
-  });
-  const progress = progressModule({ plans: services.targets, attempts: interviews });
-  return { interviews, progress };
+export interface FeatureDependencies extends AgentDependencies {
+  /** Stand-ins for the components of speech recognition in tests; the real ones by default. */
+  transcription?: TranscriptionComponents | undefined;
 }
 
 /**
@@ -175,7 +161,7 @@ function topicMerges(interviews: () => ReturnType<typeof interviewsModule>) {
  * exist by the first call.
  */
 function targetDependencies(
-  { clock, timer, dataDirectory, log }: FeatureDependencies,
+  { clock, timer, dataDirectory, log, transcription }: FeatureDependencies,
   later: {
     interviews: () => ReturnType<typeof interviewsModule>;
     sessions: () => AgentSessions;
@@ -186,6 +172,11 @@ function targetDependencies(
     clock,
     timer,
     dataDirectory,
+    transcription: transcriptionModule({
+      dataDirectory,
+      components: transcription,
+      onError: (error) => log.error({ err: error }, "A download of speech recognition failed"),
+    }),
     attempts: topicMerges(later.interviews),
     sessions: inboxSessions(later.sessions),
     onError: (error: unknown) =>
@@ -197,49 +188,6 @@ function targetDependencies(
       later.answers().inboxFinished(end);
     },
   };
-}
-
-/** After the gateway: Mock interviews with their progress, and answer search, which reads both. */
-function composeSessionWork(
-  storage: Storage,
-  { clock, timer, log }: FeatureDependencies,
-  {
-    slices,
-    runtime,
-    sessions,
-  }: {
-    slices: ReturnType<typeof composeTargets>;
-    runtime: ReturnType<typeof composeRuntime>;
-    sessions: AgentSessions;
-  },
-) {
-  const { interviews, progress } = composeInterviews(storage, log, {
-    clock,
-    timer,
-    targets: slices.targets,
-    sessions,
-    agents: runtime,
-    questions: slices.questionBank,
-    referenceChecks: slices.questionBank,
-    transaction: storage.transaction,
-    // «Наполнять в фоне»: answer search is built below and exists by the first finished mock.
-    onFinished: ({ targetId }) => {
-      answers.interviewFinished(targetId);
-    },
-  });
-  const answers: AnswerSearch = composeAnswers(storage, {
-    clock,
-    timer,
-    slices,
-    runtime,
-    sessions,
-    interviews,
-    progress,
-    onError: (error) => log.error({ err: error }, "An answer search failed in the background"),
-    onBackgroundSkipped: (skipped) =>
-      log.info(skipped, "«Наполнять в фоне» started no answer search"),
-  });
-  return { interviews, progress, answers };
 }
 
 /**

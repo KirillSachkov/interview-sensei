@@ -1,5 +1,8 @@
 // What every part of Inbox processing shares: its dependencies and its background work.
-import { inBackground as runInBackground } from "../../../shared/background-work/index.ts";
+import {
+  endAfterTurn as endSessionAfterTurn,
+  inBackground as runInBackground,
+} from "../../../shared/background-work/index.ts";
 import type { ToolSession } from "../../../shared/mcp/index.ts";
 import type { RunInTransaction, Transaction } from "../../../shared/storage/index.ts";
 import type { Clock, Timer } from "../../../shared/time/index.ts";
@@ -16,6 +19,7 @@ import type {
   SourceTexts,
   TextExtractor,
 } from "../domain/ports.ts";
+import type { SourceTranscription } from "../domain/transcription-port.ts";
 
 export interface InboxDependencies {
   readonly repository: SourceRepository<Transaction>;
@@ -23,6 +27,8 @@ export interface InboxDependencies {
   readonly files: SourceFiles;
   readonly texts: SourceTexts;
   readonly extractor: TextExtractor;
+  /** Recognizes the speech of video and audio files. */
+  readonly transcription: SourceTranscription;
   readonly targets: SourceTargets<Transaction>;
   readonly agents: InboxAgents;
   readonly questions: InboxQuestions<Transaction>;
@@ -51,11 +57,38 @@ export interface InboxContext {
   readonly dependencies: InboxDependencies;
   /** The background work of started runs: reading the texts and starting the agent. */
   readonly pending: Set<Promise<void>>;
+  /**
+   * The cancel of each run that reads its texts, by run id: «Остановить разбор» and the server's
+   * close stop a running transcription with it.
+   */
+  readonly reading: Map<string, AbortController>;
+}
+
+/**
+ * Cancels every running reading, then waits for the background work of started runs; the server
+ * calls it before it closes.
+ */
+export async function settle(context: InboxContext): Promise<void> {
+  for (const controller of context.reading.values()) {
+    controller.abort();
+  }
+  await Promise.allSettled(context.pending);
+}
+
+/** Cancels the reading of the run's texts, such as its transcription; nothing without one. */
+export function cancelReading(context: InboxContext, runId: string): void {
+  context.reading.get(runId)?.abort();
 }
 
 /** Runs the work in the background until it settles; `pending` holds it meanwhile. */
 export function inBackground(context: InboxContext, work: () => Promise<void>): void {
   runInBackground({ pending: context.pending, onError: context.dependencies.onError }, work);
+}
+
+/** Ends the agent's session after its current turn; nothing waits for the end. */
+export function endAfterTurn(context: InboxContext, sessionId: string): void {
+  const { sessions, onError } = context.dependencies;
+  endSessionAfterTurn({ sessions, onError }, sessionId);
 }
 
 /** The Target of the tool's session; a session without one has nothing to process. */

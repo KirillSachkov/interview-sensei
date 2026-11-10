@@ -39,6 +39,11 @@ export interface ServerDependencies extends Pick<
    * for the launch command, the repository's `skills/` by default.
    */
   skillsDirectory?: string;
+  /**
+   * Stand-ins for the components of speech recognition: API tests pass a catalog on a local HTTP
+   * server and stubs of ffmpeg and the model. The pinned real components by default.
+   */
+  transcription?: FeatureDependencies["transcription"];
   /** The built web app to serve beside `/api`; `pnpm dev` serves the web app from Vite instead. */
   webDirectory?: string;
   /**
@@ -61,6 +66,7 @@ export async function buildServer({
   logLevel,
   fakeAgent = false,
   userEnvironment,
+  transcription,
   skillsDirectory = appSkillsDirectory,
   webDirectory,
   allowedOrigins = [],
@@ -78,6 +84,7 @@ export async function buildServer({
     skillsDirectory,
     fakeAgent,
     userEnvironment,
+    transcription,
     origin: () => loopbackOrigin(server),
     log: server.log,
   });

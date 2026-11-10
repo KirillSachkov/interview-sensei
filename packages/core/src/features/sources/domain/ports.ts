@@ -2,8 +2,6 @@ import type { InboxMode, InboxProposal, InboxReport, InboxRun } from "./inbox.ts
 import type { Source, SourceStatus } from "./source.ts";
 import type { TextFormat } from "./source-text.ts";
 
-export type { InboxRunFinished, InboxRunStarted } from "./inbox.ts";
-
 /**
  * Stores the Sources of each Target in the order they were added. `Transaction` is the storage's
  * open transaction, opaque to the domain: deleting a Target erases the data of every slice in it.
@@ -13,7 +11,7 @@ export interface SourceRepository<Transaction> {
   readonly list: (targetId: string, transaction?: Transaction) => Promise<readonly Source[]>;
   /** The Source only when it belongs to the Target. */
   readonly get: (targetId: string, id: string) => Promise<Source | undefined>;
-  /** Moves the Target's Sources to the status; `failure` only with `failed`. */
+  /** Moves the Target's Sources to the status; `failure` only with `failed`; clears the percent. */
   readonly setStatus: (
     targetId: string,
     change: {
@@ -25,6 +23,8 @@ export interface SourceRepository<Transaction> {
     },
     transaction?: Transaction,
   ) => Promise<void>;
+  /** Stores the percent of a Source «транскрибируется»; another status keeps none. */
+  readonly setProgress: (targetId: string, id: string, progress: number) => Promise<void>;
   /** Stores how many parts the server cut the Source's text into. */
   readonly setParts: (targetId: string, id: string, parts: number) => Promise<void>;
   /** Erases the Target's Sources in the open transaction; their files stay. */

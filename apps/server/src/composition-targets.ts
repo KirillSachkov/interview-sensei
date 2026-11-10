@@ -48,9 +48,10 @@ export const targetSliceMigrations: readonly SliceMigrations[] = [
 type SetupAttempts = Parameters<typeof targetSetupModule>[0]["attempts"];
 type QuestionAttempts = Parameters<typeof questionBankModule>[0]["attempts"];
 type InboxSessions = Parameters<typeof sourcesModule>[0]["sessions"];
+type SourceTranscription = Parameters<typeof sourcesModule>[0]["transcription"];
 
 /** What the slices of this module take from the server besides the storage. */
-export interface TargetSliceDependencies {
+export interface TargetSliceDependencies<Transcription extends SourceTranscription> {
   readonly clock: Clock;
   readonly timer: Timer;
   readonly dataDirectory: string;
@@ -61,6 +62,8 @@ export interface TargetSliceDependencies {
   readonly attempts: SetupAttempts & QuestionAttempts;
   /** The agent-sessions slice, built after these slices: Inbox processing starts its agent there. */
   readonly sessions: InboxSessions;
+  /** The transcription slice: Inbox processing reads video and audio files through it. */
+  readonly transcription: Transcription;
   /** Receives the failures of background work. */
   readonly onError: (error: unknown) => void;
   /** Hears that an Inbox processing of the Target started: it takes over a running answer search. */
@@ -75,20 +78,12 @@ export interface TargetSliceDependencies {
  * default agent of the settings. A Topic merge of a draft moves the Attempts through `attempts`,
  * the interviews slice.
  */
-export function composeTargets(
+export function composeTargets<Transcription extends SourceTranscription>(
   storage: Storage,
-  {
-    clock,
-    timer,
-    dataDirectory,
-    attempts,
-    sessions,
-    onError,
-    onInboxStarted,
-    onInboxFinished,
-  }: TargetSliceDependencies,
+  dependencies: TargetSliceDependencies<Transcription>,
   runtime: AgentRuntime,
 ) {
+  const { clock, timer, dataDirectory, attempts, sessions, transcription, onError } = dependencies;
   const { database } = storage;
   const questionBank = questionBankModule({ database, attempts });
   const appSettings = appSettingsModule({ database, agents: runtime });
@@ -118,11 +113,12 @@ export function composeTargets(
     questions: questionBank,
     duplicates: { withoutDuplicates },
     sessions,
+    transcription,
     onError,
-    onRunStarted: onInboxStarted,
-    onRunFinished: onInboxFinished,
+    onRunStarted: dependencies.onInboxStarted,
+    onRunFinished: dependencies.onInboxFinished,
   });
-  return { questionBank, targets, targetSetup, appSettings, sources };
+  return { questionBank, targets, targetSetup, appSettings, sources, transcription };
 }
 
 type TargetSlices = ReturnType<typeof composeTargets>;

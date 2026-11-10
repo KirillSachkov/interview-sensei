@@ -36,6 +36,7 @@ export const sources = sourcesSchema.table(
     status: text("status").$type<SourceStatus>().notNull(),
     failure: text("failure"),
     parts: integer("parts"),
+    progress: integer("progress"),
     createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull(),
   },
   (table) => [index("sources_by_target").on(table.targetId, table.number)],

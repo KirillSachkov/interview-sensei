@@ -54,14 +54,25 @@ function refuseStart(
 }
 
 function registerStart(server: FastifyInstance, { sources, archiveGuard }: Dependencies) {
-  server.post<{ Params: { id: string }; Body: { sourceIds?: string[] } | undefined }>(
+  server.post<{
+    Params: { id: string };
+    Body: { sourceIds?: string[]; languages?: Record<string, string> } | undefined;
+  }>(
     "/api/targets/:id/inbox/processing",
     {
       schema: {
         params,
         body: {
           type: "object",
-          properties: { sourceIds: { type: "array", items: uuid, maxItems: 500 } },
+          properties: {
+            sourceIds: { type: "array", items: uuid, maxItems: 500 },
+            languages: {
+              type: "object",
+              propertyNames: uuid,
+              additionalProperties: { type: "string", pattern: "^[a-z]{2,3}(-[A-Za-z0-9]{1,8})*$" },
+              maxProperties: 500,
+            },
+          },
           additionalProperties: false,
           nullable: true,
         },
@@ -69,9 +80,9 @@ function registerStart(server: FastifyInstance, { sources, archiveGuard }: Depen
     },
     async (request, reply) => {
       const targetId = request.params.id;
-      const sourceIds = request.body?.sourceIds;
+      const { sourceIds, languages } = request.body ?? {};
       const outcome = await archiveGuard.startSession(targetId, async () =>
-        sources.inbox.start({ targetId, sourceIds }),
+        sources.inbox.start({ targetId, sourceIds, languages }),
       );
       if (outcome === "target_archived") {
         return refuseStart(reply, { type: outcome });

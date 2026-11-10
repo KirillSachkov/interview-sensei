@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { htmlText, subtitleText, textFormat, textParts } from "./domain/source-text.ts";
+import {
+  boundTranscript,
+  htmlText,
+  subtitleText,
+  textFormat,
+  textParts,
+} from "./domain/source-text.ts";
 
 describe(textParts, () => {
   it("keeps a short text in one part without the blank lines around it", () => {
@@ -55,6 +61,33 @@ describe(subtitleText, () => {
     ].join("\r\n");
 
     expect(subtitleText(srt)).toBe("Расскажите о себе.\nЯ пишу на Go пять лет.");
+  });
+
+  it("keeps each line of rolling automatic captions once, as YouTube writes them", () => {
+    const vtt = [
+      "WEBVTT",
+      "Kind: captions",
+      "Language: ru",
+      "",
+      "00:00:00.000 --> 00:00:01.390 align:start position:0%",
+      " ",
+      "Привет.<00:00:00.560><c> В</c><00:00:00.720><c> этом</c><00:00:00.880><c> видео</c>",
+      "",
+      "00:00:01.390 --> 00:00:01.400 align:start position:0%",
+      "Привет. В этом видео",
+      " ",
+      "",
+      "00:00:01.400 --> 00:00:03.430 align:start position:0%",
+      "Привет. В этом видео",
+      "разберём<00:00:02.000><c> горутины.</c>",
+      "",
+      "00:00:03.430 --> 00:00:03.440 align:start position:0%",
+      "разберём горутины.",
+      " ",
+      "",
+    ].join("\n");
+
+    expect(subtitleText(vtt)).toBe("Привет. В этом видео\nразберём горутины.");
   });
 
   it("drops the WebVTT header, notes, cue settings and repeated captions", () => {
@@ -134,5 +167,43 @@ describe(htmlText, () => {
     expect(htmlText(html)).toBe(
       "Go-разработчик\n\nМы ищем middle разработчика.\n\nГорутины\n\nКаналы & select\n\nСтрока\nвторая",
     );
+  });
+});
+
+/** A material of the Candidate: a file by its name, or a link without one. */
+function material(id: string, name: string | null, extra: object = {}) {
+  return {
+    id,
+    type: "file",
+    file: name === null ? null : `targets/t/sources/${id}/${name}`,
+    url: name === null ? `https://example.com/${id}` : null,
+    status: "inbox",
+    ...extra,
+  };
+}
+
+describe(boundTranscript, () => {
+  it("binds subtitles or a text file with the video's name, in any case, to the video", () => {
+    const video = material("v", "Interview 1.mp4");
+    const transcript = material("t", "interview 1.VTT");
+
+    expect(boundTranscript(video, [video, material("o", "other.vtt"), transcript])).toBe(
+      transcript,
+    );
+    expect(boundTranscript(material("a", "talk.m4a"), [material("x", "talk.txt")])?.id).toBe("x");
+  });
+
+  it("binds no PDF, no note, no failed file and nothing to a link or a text file", () => {
+    const video = material("v", "talk.mp4");
+
+    expect(
+      boundTranscript(video, [
+        material("p", "talk.pdf"),
+        material("n", "talk.md", { type: "note" }),
+        material("f", "talk.srt", { status: "failed" }),
+      ]),
+    ).toBeUndefined();
+    expect(boundTranscript(material("l", null), [material("t", "l.vtt")])).toBeUndefined();
+    expect(boundTranscript(material("x", "talk.txt"), [material("y", "talk.vtt")])).toBeUndefined();
   });
 });

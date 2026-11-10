@@ -78,7 +78,7 @@ Inbox processing in `sources` starts its agent through `agent-sessions`, which c
 `create_topic` of `sources` creates the Topic through `question-bank` and adds it to the Section through `targets`, in one shared transaction.
 The bulk review of Questions in `question-bank` asks `interviews` which Questions have Attempts through its `QuestionAttempts` port: deleting such a Question hides it. `topicMerges` hands `interviews` over the same way as for a Topic merge.
 `answer-search` (#70) reads its queue from `question-bank`, the Attempts of `interviews` and the Topic statuses of `progress`, writes Reference answers through `question-bank` and runs its agent through `agent-sessions`.
-`composition-answers.ts` composes it after `interviews` and `progress`. `sources` tells the server that an Inbox processing ended through its `onRunFinished` callback, and composeFeatures hands that to `answers.inboxFinished`, which begins a waiting Answer search.
+`composition-answers.ts` composes it; `composeSessionWork` in `composition-work.ts` builds it after `interviews` and `progress`. `sources` tells the server that an Inbox processing ended through its `onRunFinished` callback, and composeFeatures hands that to `answers.inboxFinished`, which begins a waiting Answer search.
 `onRunStarted` of `sources` goes to `answers.inboxStarted`: a running Answer search closes with a partial report and its agent stops, because Inbox processing goes first.
 A running search whose agent has not started yet goes back to `waiting` instead, and so does a start that finds the processing running only after it stored the run.
 «Наполнять в фоне» (#79) is `fillInBackground` of `app-settings`, which `answer-search` reads through its `AnswerSettings` port.
@@ -186,7 +186,7 @@ A profile that allows shell or web gets no ban for it. The permission modes stay
 
 The `sources` slice reads the text of a Source itself (#63) and cuts it into numbered parts of at most 8000 characters at paragraph borders (`textParts`); `read_source` gives one part.
 The parts lie in `targets/<Target id>/texts/<Source id>/0001.txt` and onward, beside the Sources' files, so deleting the Target removes them.
-`textFormat` picks the reader by the file's extension; a link is a web page.
+`textFormat` picks the reader by the file's extension; a link goes to the `transcription` slice first and is a web page when yt-dlp does not recognize it.
 
 | Format | Reader |
 | --- | --- |
@@ -195,12 +195,56 @@ The parts lie in `targets/<Target id>/texts/<Source id>/0001.txt` and onward, be
 | TXT, MD | the file as UTF-8 |
 | SRT, VTT | `subtitleText`: the spoken lines without numbers, times, tags and repeats |
 | HTML file, link | the page's article by `@mozilla/readability` on `linkedom`, then `htmlText`; a link's PDF or plain text by its content type |
+| Link to a video | the `transcription` slice through `transcribeLink`: the video's subtitles by `subtitleText`, or its recognized speech |
+| Video, audio file | the `transcription` slice through the `SourceTranscription` port; see [speech recognition](#speech-recognition) |
 
 A page waits at most 30 seconds on the injected `Timer` and may hold at most 20 MB.
 linkedom and Readability type their DOM with TypeScript's DOM library, which server code does not load.
 So only `sources/infrastructure/page-text.ts` touches their DOM, under a file-level disable of the unsafe-value rules with that reason.
 A Source the server cannot read gets the Source status «ошибка» with the reason in Russian.
 A link to a web page is the exception: it stays «разбирается» without parts, and the Inbox processing agent opens it on the web.
+A link to a video without text is not: `UnreadableVideoError` gives it «ошибка» like a file.
+
+### Speech recognition
+
+The `transcription` slice (#74) turns the speech of a video or audio file into text; no agent takes part.
+`sources` calls it through its `SourceTranscription` port in `inbox-transcription.ts` before the agent starts: the Source is `transcribing` («транскрибируется») with `progress`, then `processing` with the text in parts.
+The port answers `{ text }` or `{ failure }` with the Russian reason, which becomes «ошибка».
+The model follows the file's language (`modelFor`): the card's choice in `languages` of the start, otherwise the Target's language.
+Russian goes to GigaAM v3 when it is installed, otherwise to Parakeet TDT 0.6B v3; the other languages of Parakeet go to Parakeet.
+`noModelReason` gives the hint of a language without a model; `status` lists `recognitionLanguages` with the model of each.
+A run's reading has an `AbortController` in `reading` of the Inbox context: closing the run, including «Остановить разбор», and `inbox.settle` at the server's close abort it, and the port passes its `signal` on.
+A cancelled reading marks nothing: the run's end has moved the Source, and `endInterrupted` returns it to the Inbox after a restart.
+A recording or a link with stored parts keeps them (`transcribedBefore` in `inbox-reading.ts`), so the speech of a video on any site is never recognized twice.
+The same check covers a link to a web page: a page read in an interrupted processing reuses its stored parts and is not downloaded again.
+`boundTranscript` in `source-text.ts` finds the Bound transcript of a recording: then `sourceText` reads that file instead of calling the port, and the start takes the transcript into the run.
+`boundInRun` names the run's bound transcripts: the agent's brief and `list_inbox` leave them out, and `settledSources` moves each with its video, to «готов» or back to the Inbox.
+
+`pinnedCatalog` in `transcription/domain/pinned-catalog.ts` pins every component per platform: URL, size and SHA-256.
+They are `engine` (the npm tarballs of `sherpa-onnx-node` and its platform package), `ffmpeg` (the gzipped ffmpeg-static binary), `vad` (Silero VAD) and each model (the `.onnx` files and `tokens.txt` of the sherpa-onnx export on Hugging Face at a pinned commit).
+The application never takes them from npm dependencies or the system: it downloads them only after «Скачать» into `transcription/<component>/` of the data directory.
+`componentStore` writes each file to a `.part` file, checks its size and SHA-256, deletes the component's directory on a mismatch, then unpacks it and writes `.installed` with the version.
+`tar.ts` reads the npm tarballs, because Node has no tar reader; models come as separate files, because Node has no bzip2.
+`ffmpegExtractor` runs only the downloaded ffmpeg and streams 16 kHz mono float samples from its standard output, so no sound file is written.
+`sherpaRecognizer` loads `sherpa-onnx-node` from the data directory with `createRequire` and feeds Silero VAD; the model decodes each phrase asynchronously.
+The server's close stops a running download (`transcription.close`).
+`transcription.remove` deletes a model's directory through `ComponentStore.remove`; it refuses during a download and while the model recognizes a recording.
+
+Links to videos (#76) go through the `VideoLinks` port, `ytDlpLinks` in `transcription/infrastructure/yt-dlp.ts`.
+yt-dlp is the component `yt-dlp`: the zipped directory build of a pinned release, unpacked by `fflate`, because the one-file build unpacks itself on every run, about 7 seconds on macOS.
+Any «Скачать» downloads it; `POST /api/transcription/install` with no model downloads it alone, so links give their subtitles without a model.
+The processing card offers that download for a chosen link to a video hosting when no model is ticked, and «Распознавание речи» has «Установить» for yt-dlp.
+The card asks no language for a link: the server takes it from yt-dlp, and a missing model gives «ошибка» with the hint.
+Each run passes `--ignore-config`, `--no-plugin-dirs`, `--no-js-runtimes --js-runtimes node:<process.execPath>`, `--no-remote-components`, `--ffmpeg-location` of the downloaded ffmpeg and `--cache-dir` in the data directory, so yt-dlp never uses Deno, a system ffmpeg or the user's settings.
+The generic extractor reads only links to media files: on another page it would find an embedded video and lose the article.
+`-J` gives the video's JSON; the later runs read it back with `--load-info-json`, so the site is asked once for the data.
+The pure rules in `transcription/domain/video-link.ts` read that JSON and yt-dlp's errors and pick the method: `linkMethod` chooses the subtitles or the speech, `originalAudio` the original audio track of an auto-dubbing, `linkFailure` the reason of a private, deleted or login-only video.
+Subtitles and audio come into `transcription/downloads/<id>/`, deleted after use; the audio goes to `ffmpegExtractor` like a file.
+The server's start deletes `transcription/downloads/` (`removeLeftovers` of `transcriptionModule`), so an interrupted process leaves no audio behind.
+Before yt-dlp is downloaded, a link to a video hosting by `textFormat` gets «ошибка», and another link is a web page.
+
+`transcriptionModule` takes `components` with a catalog, an extractor, a recognizer and `links`; API tests pass stand-ins, the server passes nothing and gets the real ones.
+`buildServer({ transcription })` hands them over.
 
 ### Local requests
 

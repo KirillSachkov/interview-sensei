@@ -188,21 +188,32 @@ function readWhole(run: InboxRun, { id, parts }: RunSource): boolean {
  * Where the run's Sources go when it ends, by the agent's report (`reported`) or without it: of the
  * Sources still «разбирается», those whose every part the agent read become «готов» (`ready`); the
  * rest go back to the Inbox (`back`). A web page the server could not read has no parts: the agent
- * read it on the web, so it becomes «готов» only by the agent's report. A Source with «ошибка»
- * keeps it; `failed` counts them.
+ * read it on the web, so it becomes «готов» only by the agent's report. A transcript of `bound`
+ * follows its video: «готов» with it, back to the Inbox otherwise. A Source with «ошибка» keeps it;
+ * `failed` counts them.
  */
 export function settledSources(
   run: InboxRun,
   sources: readonly RunSource[],
-  { reported }: { reported: boolean },
+  {
+    reported,
+    bound = new Map(),
+  }: { reported: boolean; bound?: ReadonlyMap<string, string> | undefined },
 ): { readonly ready: string[]; readonly back: string[]; readonly failed: number } {
   const own = sources.filter((source) => run.sourceIds.includes(source.id));
-  const processing = own.filter((source) => source.status === "processing");
+  const processing = own.filter(
+    (source) => source.status === "processing" || source.status === "transcribing",
+  );
   const done = (source: RunSource) => (source.parts === null ? reported : readWhole(run, source));
-  const ready = processing.filter((source) => done(source)).map((source) => source.id);
-  const back = processing.map((source) => source.id).filter((source) => !ready.includes(source));
+  const read = processing.filter((source) => !bound.has(source.id));
+  const ready = read.filter((source) => done(source)).map((source) => source.id);
+  const followers = processing.filter((source) => bound.has(source.id)).map((source) => source.id);
+  const follow = followers.filter((id) => ready.includes(bound.get(id) ?? ""));
+  const back = [...read.map((source) => source.id), ...followers].filter(
+    (id) => !ready.includes(id) && !follow.includes(id),
+  );
   const failed = own.filter((source) => source.status === "failed").length;
-  return { ready, back, failed };
+  return { ready: [...ready, ...follow], back, failed };
 }
 
 /**
@@ -220,9 +231,14 @@ export function agentSummary(summary: string, back: number): string {
 export function partialReport(
   run: InboxRun,
   sources: readonly RunSource[],
-  { id, reason, createdAt }: { id: string; reason: RunEnding; createdAt: string },
+  {
+    id,
+    reason,
+    createdAt,
+    bound,
+  }: { id: string; reason: RunEnding; createdAt: string; bound?: ReadonlyMap<string, string> },
 ): { readonly report: InboxReport; readonly ready: string[]; readonly back: string[] } {
-  const { ready, back, failed } = settledSources(run, sources, { reported: false });
+  const { ready, back, failed } = settledSources(run, sources, { reported: false, bound });
   const summary = partialSummary(run, {
     reason,
     ready: ready.length,

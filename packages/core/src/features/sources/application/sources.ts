@@ -49,7 +49,7 @@ function viewOf(files: SourceFiles, { file, ...source }: Source): SourceView {
 /** Writes the file, then its Source; a failed write keeps neither. */
 async function store(
   { repository, files, clock }: SourcesDependencies,
-  source: Omit<Source, "file" | "status" | "failure" | "parts" | "createdAt">,
+  source: Omit<Source, "file" | "status" | "failure" | "parts" | "progress" | "createdAt">,
   { name, bytes }: { name: string; bytes: AttachedFile["bytes"] | Iterable<Uint8Array> },
 ): Promise<Source | null> {
   const place = { targetId: source.targetId, sourceId: source.id, name: safeFileName(name) };
@@ -63,6 +63,7 @@ async function store(
     status: "inbox",
     failure: null,
     parts: null,
+    progress: null,
     createdAt: clock.now().toISOString(),
   };
   try {
@@ -107,6 +108,7 @@ async function addOne(dependencies: SourcesDependencies, targetId: string, added
       status: "inbox",
       failure: null,
       parts: null,
+      progress: null,
       createdAt: dependencies.clock.now().toISOString(),
     };
     await dependencies.repository.add(source);

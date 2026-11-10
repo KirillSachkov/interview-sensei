@@ -66,6 +66,34 @@ describe(partialReport, () => {
     );
   });
 
+  it("moves a bound transcript with its video: «готов» with a video read to the end, back to the Inbox otherwise", () => {
+    const withTranscripts = {
+      ...run,
+      sourceIds: ["vacancy", "vacancy-text", "article", "article-text"],
+    };
+    const sources = [
+      { id: "vacancy", status: "processing", parts: 2 },
+      { id: "vacancy-text", status: "processing", parts: null },
+      { id: "article", status: "processing", parts: 3 },
+      { id: "article-text", status: "processing", parts: null },
+    ] as const;
+    const bound = new Map([
+      ["vacancy-text", "vacancy"],
+      ["article-text", "article"],
+    ]);
+
+    const { ready, back } = partialReport(withTranscripts, sources, {
+      ...ending,
+      reason: "stopped",
+      bound,
+    });
+
+    expect({ ready, back }).toStrictEqual({
+      ready: ["vacancy", "vacancy-text"],
+      back: ["article", "article-text"],
+    });
+  });
+
   it("says why the processing ended", () => {
     const sources = [
       { id: "vacancy", status: "processing", parts: 2 },
