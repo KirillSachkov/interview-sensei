@@ -68,58 +68,60 @@ async function demoWithReferenceAnswers() {
   return { ...api, setup: events };
 }
 
-/** Answers the first question of «Опыт и резюме» and disputes its Grade with the reason. */
-async function disputedAnswer(api: Awaited<ReturnType<typeof interviewApi>>, reason: string) {
+type Api = Awaited<ReturnType<typeof interviewApi>>;
+
+/** Answers the first question of «Опыт и резюме»; resolves with a Dispute of its Grade. */
+async function answeredForDispute(api: Api) {
   const run = await api.answered(["Опыт и резюме"], "Ответ [grade:1] [last]");
   const card = cardAt(await run.events.waitFor(isGraded(0)), 0);
-  const response = await dispute(api, {
-    interviewId: run.interview.id,
-    card,
-    payload: { grade: 3, reason },
-  });
-  expect(response.statusCode).toBe(200);
-  return card;
+  const disputeWith = async (reason: string) => {
+    const response = await dispute(api, {
+      interviewId: run.interview.id,
+      card,
+      payload: { grade: 3, reason },
+    });
+    expect(response.statusCode).toBe(200);
+  };
+  return { card, disputeWith };
 }
 
-describe("«Проверен»", () => {
-  it("makes the reference answer «проверен кандидатом», keeping its material and part", async () => {
-    const { server, target, file, questionId } = await fromMaterial();
+/** The list holds the disputed Question with the reason; «Проверен» empties it. */
+async function expectListedThenVerified(
+  api: Api,
+  { text, reason }: { text: string; reason: string },
+) {
+  const listed = await checksOf(api.server, api.target.id);
+  expect(listed).toHaveLength(1);
+  expect(first(listed)).toMatchObject({
+    text,
+    referenceCheck: { reason: "dispute", comment: reason },
+  });
+  await verify(api.server, first(listed).id);
+  await expect(checksOf(api.server, api.target.id)).resolves.toStrictEqual([]);
+}
 
-    const response = await verify(server, questionId);
+// Each test starts its own server, which costs seconds in CI: a test checks one Question's path.
+describe("«Проверен» and a corrected reference answer", () => {
+  it("«Проверен» keeps the material and part; a correction through the draft drops them", async () => {
+    const { server, target, file, setup, questionId } = await fromMaterial();
+    const answerOf = async () => {
+      const bank = await questionsOf(server, target.id);
+      return bank.find((question) => question.id === questionId)?.referenceAnswer;
+    };
 
-    expect(response.statusCode).toBe(204);
-    const bank = await questionsOf(server, target.id);
-    expect(bank.find((question) => question.id === questionId)?.referenceAnswer).toStrictEqual({
+    await expect(verify(server, questionId)).resolves.toMatchObject({ statusCode: 204 });
+    await expect(answerOf()).resolves.toStrictEqual({
       ...materialQuestion({ topicId: "", sourceId: "" }, "").referenceAnswer,
       origin: "candidate",
       sourceId: file.id,
       part: 1,
     });
-  });
-
-  it("answers 409 for a Question without a reference answer and 404 for an unknown one", async () => {
-    const { server, questions } = await interviewApi();
-    const question = first(await questions());
-
-    await expect(verify(server, question.id)).resolves.toMatchObject({
-      statusCode: 409,
-      body: JSON.stringify({ error: "no_reference_answer" }),
-    });
-    await expect(verify(server, crypto.randomUUID())).resolves.toMatchObject({ statusCode: 404 });
-  });
-});
-
-describe("a corrected reference answer", () => {
-  it("is «проверен кандидатом» without a material after «Применить»", async () => {
-    const { server, target, setup, questionId } = await fromMaterial();
 
     await applied({ server, events: setup, targetId: target.id }, [
       "edit_questions",
       { edits: [{ id: questionId, referenceAnswer: corrected }] },
     ]);
-
-    const bank = await questionsOf(server, target.id);
-    expect(bank.find((question) => question.id === questionId)?.referenceAnswer).toStrictEqual({
+    await expect(answerOf()).resolves.toStrictEqual({
       ...corrected,
       origin: "candidate",
       sourceId: null,
@@ -128,41 +130,37 @@ describe("a corrected reference answer", () => {
   });
 });
 
-describe("the list «проверить опорный ответ»", () => {
-  it("gets the disputed Question with the Candidate's reason; «Проверен» takes it off", async () => {
+describe("the list «Проверить опорный ответ»", () => {
+  it("gets the disputed Question with the reason; «Проверен» and a correction each take it off", async () => {
     const api = await demoWithReferenceAnswers();
+    const { card, disputeWith } = await answeredForDispute(api);
     const reason = "Опорный ответ не учитывает мой пример.";
-    const card = await disputedAnswer(api, reason);
 
-    const listed = await checksOf(api.server, api.target.id);
+    await disputeWith(reason);
+    await expectListedThenVerified(api, { text: card.text, reason });
 
-    expect(listed).toHaveLength(1);
-    expect(first(listed)).toMatchObject({
-      text: card.text,
-      referenceCheck: { reason: "dispute", comment: reason },
-    });
-    await verify(api.server, first(listed).id);
-    await expect(checksOf(api.server, api.target.id)).resolves.toStrictEqual([]);
-  });
-
-  it("loses a Question whose reference answer the setup agent corrected", async () => {
-    const api = await demoWithReferenceAnswers();
-    await disputedAnswer(api, "Пункты неполные.");
-    const [listed] = await checksOf(api.server, api.target.id);
-
+    await disputeWith("Пункты неполные.");
+    await expect(checksOf(api.server, api.target.id)).resolves.toHaveLength(1);
     await applied({ server: api.server, events: api.setup, targetId: api.target.id }, [
       "edit_questions",
-      { edits: [{ id: listed?.id, referenceAnswer: { ...corrected, sample: "Новый образец." } }] },
+      { edits: [{ id: card.questionId, referenceAnswer: { ...corrected, sample: "Новый." } }] },
     ]);
-
     await expect(checksOf(api.server, api.target.id)).resolves.toStrictEqual([]);
   });
 
-  it("stays empty after a Dispute of a Question without a reference answer", async () => {
+  it("stays empty after a Dispute of a Question without a reference answer, which «Проверен» refuses", async () => {
     const api = await interviewApi();
+    const { card, disputeWith } = await answeredForDispute(api);
 
-    await disputedAnswer(api, "Оценка занижена.");
+    await disputeWith("Оценка занижена.");
 
     await expect(checksOf(api.server, api.target.id)).resolves.toStrictEqual([]);
+    await expect(verify(api.server, card.questionId)).resolves.toMatchObject({
+      statusCode: 409,
+      body: JSON.stringify({ error: "no_reference_answer" }),
+    });
+    await expect(verify(api.server, crypto.randomUUID())).resolves.toMatchObject({
+      statusCode: 404,
+    });
   });
 });
