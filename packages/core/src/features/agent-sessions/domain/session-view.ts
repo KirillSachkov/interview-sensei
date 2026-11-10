@@ -2,6 +2,7 @@
 // Written for this project; the store of @acp-components/core (MIT) served only as a reference.
 import type { AgentSession, ChatEntry, SessionStatus, SessionView } from "./agent-session.ts";
 import { isLive } from "./agent-session.ts";
+import { narrationAfter, withoutNarration } from "./narration.ts";
 import type { AgentUpdate, RecordedEvent, SessionEvent } from "./session-event.ts";
 
 /**
@@ -12,7 +13,13 @@ export function emptyView(
   session: AgentSession,
   earlierEntries: readonly ChatEntry[] = [],
 ): SessionView {
-  return { ...session, entries: earlierEntries, failure: null, agentText: "new" };
+  return {
+    ...session,
+    entries: earlierEntries,
+    failure: null,
+    agentText: "new",
+    narrationFrom: null,
+  };
 }
 
 /** The status after the event, the same rule for the live session and for the stored one. */
@@ -132,6 +139,15 @@ function withAnswer(
   );
 }
 
+/** The entries after the agent's update: its text, or its first tool call after a narration. */
+function entriesAfterUpdate(view: SessionView, update: AgentUpdate, id: number) {
+  if (update.sessionUpdate === "tool_call" && view.narrationFrom !== null) {
+    return withoutNarration(view.entries, view.narrationFrom);
+  }
+  const chunk = messageChunk(update);
+  return chunk === null || view.agentText === "hidden" ? view.entries : withChunk(view, chunk, id);
+}
+
 function entriesAfter(view: SessionView, { id, event }: RecordedEvent): readonly ChatEntry[] {
   switch (event.type) {
     case "prompt_sent": {
@@ -140,10 +156,7 @@ function entriesAfter(view: SessionView, { id, event }: RecordedEvent): readonly
         : [...view.entries, { id: `candidate-${id}`, type: "candidate_message", text: event.text }];
     }
     case "agent_update": {
-      const chunk = messageChunk(event.update);
-      return chunk === null || view.agentText === "hidden"
-        ? view.entries
-        : withChunk(view, chunk, id);
+      return entriesAfterUpdate(view, event.update, id);
     }
     case "turn_ended": {
       return event.stopReason === "end_turn"
@@ -215,6 +228,7 @@ export function applyEvent(view: SessionView, recorded: RecordedEvent): SessionV
     entries: entriesAfter(view, recorded),
     failure: recorded.event.type === "session_failed" ? recorded.event.failure : view.failure,
     agentText: agentTextAfter(view, recorded.event),
+    narrationFrom: narrationAfter(view, recorded.event),
   };
 }
 

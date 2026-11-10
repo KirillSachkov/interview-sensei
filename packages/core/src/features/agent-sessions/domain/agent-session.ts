@@ -71,4 +71,10 @@ export interface SessionView extends AgentSession {
    * `hidden`, over turns, until the server shows the text again or the session ends.
    */
   readonly agentText: "continues" | "new" | "hidden";
+  /**
+   * The index of the first chat entry of a Target setup's turn that the server's prompt started,
+   * until the agent's first tool call in it; null otherwise. The agent's text before that call
+   * narrates its first steps, often in English, and the chat leaves it out (#88).
+   */
+  readonly narrationFrom: number | null;
 }
