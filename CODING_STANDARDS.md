@@ -278,7 +278,7 @@ Launch recipes in `agent-runtime/domain/*-recipe.ts` put every directory, file a
 It removes files and directories only inside the recipe's `syncedDirectories`, the skill copy, so the copy equals its source.
 A slice that stores data owns a Postgres schema named after it, with its Drizzle tables and drizzle-kit migrations in `infrastructure/`.
 The slice keeps its tables in `infrastructure/schema.ts` and its drizzle-kit config in `infrastructure/drizzle.config.ts`, with the output in `infrastructure/migrations/`.
-Generate migrations with `db:generate`; never write or edit them by hand. Prettier ignores them.
+Generate migrations with `db:generate`; never write or edit them by hand, except the SQL body of a data migration below. Prettier ignores them.
 A data migration is a custom drizzle-kit migration of one slice: `pnpm --filter @interview-sensei/core exec drizzle-kit generate --config src/features/<slice>/infrastructure/drizzle.config.ts --custom --name <name>` writes an empty SQL file with its journal entry and snapshot, and only that file's SQL body is written by hand, on the slice's own schema, such as `interviews` 0008 (`db:generate --custom` would add an empty one to every slice).
 Prettier reads `.prettierignore` only from its working directory, so run it from the root (`pnpm format`) or from `packages/core`, which has its own copy; never from another directory.
 `db:generate` turns the first `CREATE SCHEMA` into `CREATE SCHEMA IF NOT EXISTS`, because the migrator first creates the schema for the history table.
