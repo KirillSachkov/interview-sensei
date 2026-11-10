@@ -12,7 +12,9 @@ const cardCount = 5;
 
 /** The newest ended sessions for the cards, and how many more the history holds. */
 function cardsOf({ items, total }: HistoryPage) {
-  const ended = items.filter((session) => session.status !== "running");
+  const ended = items.filter(
+    (session) => session.status !== "running" && session.status !== "paused",
+  );
   const cards = ended.slice(0, cardCount);
   return { cards, more: total - (items.length - ended.length) - cards.length };
 }

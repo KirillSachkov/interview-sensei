@@ -1,5 +1,6 @@
 // The Mock interview API of the server. The view never holds a Grade: it comes only with the
 // Debrief of an Attempt.
+import { throwIfAgentUnavailable } from "./agent-unavailable";
 import { checked, isObject, path, sent } from "./http";
 import type { SideThread } from "./side-threads";
 import { fetchTarget } from "./targets";
@@ -53,15 +54,20 @@ export interface InterviewView {
   /** The interviewer's AgentSession: its chat goes over the session's socket. */
   readonly sessionId: string;
   readonly agent: string;
-  readonly status: "running" | "finished" | "interrupted";
+  /** «прерван» only for Mock interviews from before pauses. */
+  readonly status: "running" | "paused" | "finished" | "interrupted";
+  /** Why it is paused: «Пауза», a crash of its agent, or a stop of the app; null while it runs. */
+  readonly pauseReason: "candidate" | "agent_failed" | "server_stopped" | null;
   readonly sectionIds: readonly string[];
   readonly currentSectionId: string | null;
   /** Null without a limit. */
   readonly limitMinutes: number | null;
   readonly difficulty: Difficulty;
   readonly startedAt: string;
-  /** When the limit ends; null without a limit. */
+  /** When the limit ends while it runs; null without a limit or on a pause. */
   readonly endsAt: string | null;
+  /** The time left before the limit, below 0 in overtime; on a pause it stands still. */
+  readonly timeLeftMs: number | null;
   /** Past the limit the interview goes on until the Candidate finishes it. */
   readonly overtime: boolean;
   readonly finishRequestedAt: string | null;
@@ -161,6 +167,24 @@ export async function answerQuestion(interviewId: string, reply: CandidateReply)
 /** The answer to the interviewer's last Follow-up. */
 export async function answerFollowUp(interviewId: string, text: string): Promise<void> {
   await sent(await postJson(`/api/interviews/${path(interviewId)}/follow-up`, { text }));
+}
+
+/** «Пауза»: the timer stops and the interviewer's session ends. */
+export async function pauseInterview(interviewId: string): Promise<void> {
+  await sent(await postJson(`/api/interviews/${path(interviewId)}/pause`));
+}
+
+/**
+ * «Продолжить»: a new interviewer session goes on with the paused Mock interview, with its agent or
+ * the chosen `agent` of the Target. Throws AgentUnavailableError when the agent cannot run.
+ */
+export async function resumeInterview(interviewId: string, agent?: string): Promise<InterviewView> {
+  const response = await postJson(
+    `/api/interviews/${path(interviewId)}/resume`,
+    agent === undefined ? {} : { agent },
+  );
+  await throwIfAgentUnavailable(response);
+  return checked(response, isInterviewView);
 }
 
 export async function finishInterview(interviewId: string): Promise<void> {

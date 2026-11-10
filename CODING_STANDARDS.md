@@ -86,7 +86,7 @@ Profiles live in `sessionProfiles` in `shared/session-kinds/profiles.ts`, beside
 `mcp-gateway` serves the profile's `instructions` at MCP `initialize`.
 A session may add text to the role when it starts: `roleAddition` of `AgentSessions.start` goes after the profile's role.
 The mock interview adds the Target's tone and language this way (`interviewerRole` in `interviews`).
-One text for the agent is in Russian: `onboardingPrompt` in `target-setup/domain/brief.ts`, the first prompt of a draft Target's setup session.
+Two texts for the agent are in Russian: `onboardingPrompt` in `target-setup/domain/brief.ts`, the first prompt of a draft Target's setup session, and `continuationPrompt` beside it, the first prompt of a setup session that continues an earlier one (#85).
 It stands for the Candidate's first message, because an agent writes its first line in the prompt's language, even before it loads the skill.
 The language rule itself stays in the profile's role.
 The `side-thread` kind (#80) explains: skill `sensei-explain`, web on, shell off, and `askCandidate: true`, because the Side thread has a chat.
@@ -99,14 +99,22 @@ The server builds the Handoff brief from stored data (`handoffBrief`): its `debr
 A Side thread from an interviewer message (`agent-N`, the chat entry id) goes to the question that was shown when the message came.
 `present_question` hides the agent's text first, then stores the number of chat entries in `asked_questions.chat_position`; the message belongs to the last question whose position is not after its index in the chat.
 Questions from before this column have none and count as shown at the chat's start.
-Deleting a Side thread stops its agent at once and deletes its AgentSession, journal and session directory with `AgentSessions.remove`; `asked_questions.hinted` stays.
-A finished Mock interview ends its Side threads whose session is `idle` (`closeIdleSideThreads`); a working one goes on.
-`POST /api/targets/:id/archive` refuses with `session_running` only for live sessions of other kinds; it stops the Target's live Side threads with `AgentSessions.stopAll` and then archives.
+Deleting a Side thread stops its agent at once and deletes its AgentSession, the earlier sessions it continues, their journals and session directories with `AgentSessions.remove`; `asked_questions.hinted` stays.
+«Продолжить» in a Side thread whose session is no longer live (`continueSideThread`, #85) starts a session with `continues` and moves `side_threads.session_id` to it; its first server prompt is `sideThreadContinues`, and `get_brief` adds `continuation.messages` from `AgentSessions.earlierMessages`.
+A continuation of a Mock interview or of its Side thread picks its agent with `continuingAgent` of `interviews/application/agent-choice.ts`: the Mock interview's agent, or the Target's agent the Candidate chose; both routes answer an unavailable agent with the same 409 `agent_unavailable` of `interview-session-start.ts`.
+A Side thread continued with the Target's agent leaves the Mock interview's agent as it is.
+A finished Mock interview closes its Side threads whose session neither starts nor works (`closeFinishedSideThreads`): idle ones and those that a restart or a crash stopped. It sets `side_threads.closed_at` and ends the live ones; a working one goes on. Migration `0008` closes the threads that #80 already treated as closed: those of ended Mock interviews opened before their end.
+`POST /api/targets/:id/archive` refuses with `session_running` only for live sessions of other kinds; it closes every Side thread of the Target (`closeTargetSideThreads`), stops the live ones with `AgentSessions.stopAll` and then archives.
+A closed Side thread stays readable and refuses «Продолжить» with 409 `side_thread_closed`, also after the Target returns from the archive.
 
 ### Server messages
 
 The server talks to the interviewer with template messages in `interviews/domain/agent-messages.ts` (#10): the start, an answer, a quiz result, «Не знаю», a Follow-up answer, five minutes left and the finish.
 They go through `AgentSessions.queuePrompt`, after the agent's current turn, and stay out of the chat.
+The continuation after a pause (#84), `interviewContinues`, is the first message of a new session: the agent finds where the interview stopped in the continuation summary of `get_brief`.
+That session starts with `continues` of `AgentSessions.start`: its view begins with the chat of the session it continues, so the chat and chat positions span every session of the Mock interview.
+A Target setup session continues the same way (#85): `prepare` of `AgentSessions.open` returns `continues` for the Target's last setup session (`AgentSessions.lastConversation`) unless the Candidate ended it, which «Завершить» records as `session_ended` with `by: "candidate"`.
+A continued session gets the same launch recipe as a new one and never `session/load`: nothing of the earlier conversation goes to the agent's own storage.
 The sixth message of #10, `discussedInSideThread`, tells the interviewer only that the Candidate discussed question N in a Side thread, never its content.
 It is a note, not a prompt: `AgentSessions.addNote` puts it before the next prompt the agent gets, the Candidate's or the server's, so the current turn goes on.
 Several Side threads on one question before that prompt give one note: `addNote` skips a note that already waits.
@@ -271,7 +279,8 @@ Launch recipes in `agent-runtime/domain/*-recipe.ts` put every directory, file a
 It removes files and directories only inside the recipe's `syncedDirectories`, the skill copy, so the copy equals its source.
 A slice that stores data owns a Postgres schema named after it, with its Drizzle tables and drizzle-kit migrations in `infrastructure/`.
 The slice keeps its tables in `infrastructure/schema.ts` and its drizzle-kit config in `infrastructure/drizzle.config.ts`, with the output in `infrastructure/migrations/`.
-Generate migrations with `db:generate`; never write or edit them by hand. Prettier ignores them.
+Generate migrations with `db:generate`; never write or edit them by hand, except the SQL body of a data migration below. Prettier ignores them.
+A data migration is a custom drizzle-kit migration of one slice: `pnpm --filter @interview-sensei/core exec drizzle-kit generate --config src/features/<slice>/infrastructure/drizzle.config.ts --custom --name <name>` writes an empty SQL file with its journal entry and snapshot, and only that file's SQL body is written by hand, on the slice's own schema, such as `interviews` 0008 (`db:generate --custom` would add an empty one to every slice).
 Prettier reads `.prettierignore` only from its working directory, so run it from the root (`pnpm format`) or from `packages/core`, which has its own copy; never from another directory.
 `db:generate` turns the first `CREATE SCHEMA` into `CREATE SCHEMA IF NOT EXISTS`, because the migrator first creates the schema for the history table.
 `schema.ts` exports its `pgSchema`: drizzle-kit reads only exported objects and would otherwise drop the schema.

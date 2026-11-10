@@ -6,7 +6,7 @@ import type {
   MockInterview,
 } from "./interview.ts";
 import type { SideThread } from "./side-thread.ts";
-import { inOvertime, limitEndsAt } from "./time-limit.ts";
+import { inOvertime, limitEndsAt, timeLeftMs } from "./time-limit.ts";
 
 /** An asked question as the browser shows it: no correct options and no Grade. */
 interface QuestionCard {
@@ -35,8 +35,10 @@ interface QuestionCard {
 /** A Mock interview as the browser shows it; Grades come only with the Debrief of an Attempt. */
 export interface InterviewView extends MockInterview {
   readonly questions: readonly QuestionCard[];
-  /** When the time limit ends; null without a limit. */
+  /** When the time limit ends while it runs; null without a limit or on a pause. */
   readonly endsAt: string | null;
+  /** The time left before the limit at the moment of the view, below 0 in overtime; null without a limit. On a pause it stands still. */
+  readonly timeLeftMs: number | null;
   /** The running Mock interview has passed its limit and goes on until the Candidate ends it. */
   readonly overtime: boolean;
   /** The Side threads in the order they were opened. */
@@ -81,6 +83,7 @@ export function interviewView(
     ...interview,
     questions: asked.map((question) => card(question, attempts)),
     endsAt: limitEndsAt(interview),
+    timeLeftMs: timeLeftMs(interview, now),
     overtime: inOvertime(interview, now),
     sideThreads,
   };

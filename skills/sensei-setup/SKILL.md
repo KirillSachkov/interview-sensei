@@ -72,6 +72,7 @@ Every change goes to the draft of changes. The Candidate sees the draft as a lis
 - `get_draft` lists the draft with the ids of its changes. `remove_draft_change` takes one change back; `discard_draft` takes all of them back, only when the Candidate asks.
 - `get_brief` shows the active Preferences and the draft. `get_target` and `search_questions` show the Target as it is now, without the draft.
 - The draft outlives the session. When `get_brief` shows unapplied changes at the start, tell the Candidate and ask whether to keep them.
+- A session may continue an earlier one that stopped, such as at a restart of the app. Then `get_brief` says so and lists the last messages of that conversation. Go on from where it stopped: say briefly where you are, and do not start the onboarding again.
 
 ## Applying
 

@@ -8,6 +8,7 @@ import type { Clock, Timer } from "@interview-sensei/core/time";
 import type { FastifyInstance } from "fastify";
 import { expect, onTestFinished } from "vitest";
 
+import type { UserEnvironment } from "./composition.ts";
 import { buildServer } from "./server.ts";
 
 export const fixedTime = "2026-01-02T03:04:05.000Z";
@@ -27,12 +28,14 @@ export interface ServerOptions {
   readonly skillsDirectory?: string;
   readonly clock?: Clock;
   readonly timer?: Timer;
+  /** The Candidate's home and env, such as a temporary home whose agent directories must stay untouched. */
+  readonly userEnvironment?: UserEnvironment;
 }
 
 /**
  * Builds the server with the fake agent on the data directory and listens on a free port of the
  * host, `127.0.0.1` by default: the agent reaches the session's MCP address over real HTTP.
- * `allowedOrigins` and `skillsDirectory` go to buildServer. `stop` closes it early.
+ * `allowedOrigins`, `skillsDirectory` and `userEnvironment` go to buildServer. `stop` closes it early.
  * Without `clock` the time stands at fixedTime; without `timer` no task ever runs.
  */
 export async function startServer(
@@ -44,6 +47,7 @@ export async function startServer(
     clock = { now: () => new Date(fixedTime) },
     // Dumps and agent timeouts are not under test here; the timer never runs a task.
     timer = { repeat: () => () => {}, after: () => () => {} },
+    userEnvironment,
   }: ServerOptions = {},
 ) {
   const server = await buildServer({
@@ -53,6 +57,7 @@ export async function startServer(
     fakeAgent: true,
     allowedOrigins,
     ...(skillsDirectory === undefined ? {} : { skillsDirectory }),
+    ...(userEnvironment === undefined ? {} : { userEnvironment }),
   });
   let closed: Promise<void> | null = null;
   const stop = async () => {

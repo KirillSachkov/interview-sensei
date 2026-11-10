@@ -1,0 +1,1 @@
+ALTER TABLE "agent_sessions"."sessions" ADD COLUMN "continues_session_id" uuid;

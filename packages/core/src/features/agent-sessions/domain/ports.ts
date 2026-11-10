@@ -13,6 +13,7 @@ export interface SessionRepository {
     kind: string;
     agent: string;
     targetId?: string | null;
+    continuesSessionId?: string;
     createdAt: Date;
   }) => Promise<AgentSession>;
   /** Appends the event and stores the status after it, in one transaction. */

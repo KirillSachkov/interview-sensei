@@ -8,7 +8,7 @@ import {
   fetchDraft,
   removeDraftChange,
 } from "@/shared/api";
-import type { DraftOperation, SessionView } from "@/shared/api";
+import type { DraftOperation } from "@/shared/api";
 
 import { changeDetails, changeText } from "../lib/change-text";
 import { refreshAppliedViews } from "../model/plan-views";
@@ -118,17 +118,17 @@ function ChangeList({
 }
 
 /**
- * Reloads the draft and the Target whenever the agent ends a turn: its tools change the draft
- * during the turn, and its `apply_changes` changes the Target as «Применить» does.
+ * Reloads the draft and the Target whenever the agent ends a turn (see turnEnd): its tools change
+ * the draft during the turn, and its `apply_changes` changes the Target as «Применить» does.
  */
-function useDraftAfterTurn(targetId: string, status: SessionView["status"]) {
+function useDraftAfterTurn(targetId: string, turn: number | null) {
   const queryClient = useQueryClient();
   useEffect(() => {
-    if (status === "idle") {
+    if (turn !== null) {
       void queryClient.invalidateQueries({ queryKey: ["targets", targetId, "draft"] });
       void refreshAppliedViews(queryClient, targetId);
     }
-  }, [queryClient, targetId, status]);
+  }, [queryClient, targetId, turn]);
 }
 
 /** «Применить (N)» and «Отменить изменения». */
@@ -160,15 +160,9 @@ function DraftActions({
  * «Применить (N)» and «Отменить изменения». The draft outlives the session, so a reopened chat
  * shows «Есть неприменённые изменения (N)».
  */
-export function DraftChanges({
-  targetId,
-  status,
-}: {
-  targetId: string;
-  status: SessionView["status"];
-}) {
+export function DraftChanges({ targetId, turn }: { targetId: string; turn: number | null }) {
   const draft = useDraft(targetId);
-  useDraftAfterTurn(targetId, status);
+  useDraftAfterTurn(targetId, turn);
   const apply = useDraftApply(targetId);
   const { remove, discard } = useDraftRemoval(targetId);
   const busy = apply.isPending || remove.isPending || discard.isPending;

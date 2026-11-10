@@ -1,5 +1,5 @@
 import type { Dispute } from "./dispute.ts";
-import type { SideThread } from "./side-thread.ts";
+import type { SideThreadRepository, ThreadMessage } from "./side-thread.ts";
 import type { AttemptRecord, HistoryFilter } from "./history.ts";
 import type {
   AskedQuestion,
@@ -10,6 +10,7 @@ import type {
   Level,
   MockInterview,
   PastQuestion,
+  PauseReason,
 } from "./interview.ts";
 
 /** One Section of the Target's Interview plan, with its Topics. */
@@ -124,7 +125,17 @@ export interface InterviewSessions {
     agent: string;
     targetId: string;
     roleAddition: string;
+    /**
+     * The earlier session that the new one continues, after a pause or a restart; its chat comes
+     * first.
+     */
+    continues?: string;
   }) => Promise<{ readonly id: string }>;
+  /**
+   * The Candidate's and the agent's messages of the earlier sessions that this one continues, in
+   * order; empty when it continues none.
+   */
+  readonly earlierMessages: (sessionId: string) => Promise<readonly ThreadMessage[]>;
   /**
    * Sends a template message after the agent's current turn; it stays out of the chat. With
    * `showAgentText`, the agent's hidden text goes to the chat again from this message on.
@@ -140,14 +151,24 @@ export interface InterviewSessions {
   readonly addNote: (sessionId: string, text: string) => void;
   /** Stops the agent after its current turn. */
   readonly end: (sessionId: string) => Promise<void>;
-  /** Stops the agent at once and deletes the session with its journal for good. */
+  /** Stops the agent at once, even in a turn, and ends the session; false when it is not live. */
+  readonly stop: (sessionId: string) => Promise<boolean>;
+  /** Whether the session is live now: its agent starts, waits for a message or works. */
+  readonly isLive: (sessionId: string) => boolean;
+  /**
+   * Stops the agent at once and deletes the session with the earlier sessions it continues and
+   * their journals, for good.
+   */
   readonly remove: (sessionId: string) => Promise<void>;
   /** Calls the listener after each change of a live session; returns the unsubscribe. */
   readonly subscribe: (
     sessionId: string,
     listener: (view: { readonly status: string }) => void,
   ) => () => void;
-  /** The session's status and chat; an agent message of the chat has its `text`. */
+  /**
+   * The session's status and chat, with the chat of the sessions it continues first; an agent
+   * message of the chat has its `text`.
+   */
   readonly view: (sessionId: string) => Promise<
     | {
         readonly status: string;
@@ -173,7 +194,7 @@ export interface InterviewProgress {
  * Disputes. `Transaction` is the storage's open transaction, opaque to the domain.
  */
 export interface HistoryRepository<Transaction> {
-  /** Every running Mock interview of every Target. */
+  /** Every running Mock interview of every Target, not the paused ones. */
   readonly allRunning: () => Promise<readonly MockInterview[]>;
   /** One page of the Target's Mock interviews, the newest first, and how many match. */
   readonly historyPage: (
@@ -223,31 +244,21 @@ export interface InterviewQuestionAttempts {
   ) => Promise<readonly string[]>;
 }
 
-/** Stores the Side threads of Mock interviews. */
-export interface SideThreadRepository {
-  readonly createSideThread: (thread: SideThread) => Promise<void>;
-  /** The Mock interview's Side threads in the order they were opened. */
-  readonly sideThreads: (interviewId: string) => Promise<readonly SideThread[]>;
-  readonly sideThreadBySession: (sessionId: string) => Promise<SideThread | undefined>;
-  /** Marks the asked question: its Attempt is recorded as received with a hint. */
-  readonly markHinted: (askedQuestionId: string) => Promise<void>;
-  /** Marks the asked question: the Candidate opened the Debrief of its Attempt. */
-  readonly markDebriefOpened: (askedQuestionId: string) => Promise<void>;
-  /** Deletes the Side thread's row; the hint mark of its asked question stays. */
-  readonly deleteSideThread: (id: string) => Promise<void>;
-}
-
 /**
  * Stores Mock interviews, their asked questions, Attempts and Side threads in the `interviews`
  * schema.
  */
 export interface InterviewRepository<Transaction>
   extends HistoryRepository<Transaction>, SideThreadRepository {
-  /** `running` when the Target already has a running Mock interview; nothing is stored then. */
+  /**
+   * `running` when the Target already has a running or paused Mock interview; nothing is stored
+   * then.
+   */
   readonly create: (interview: MockInterview) => Promise<"created" | "running">;
   readonly get: (id: string) => Promise<MockInterview | undefined>;
   readonly bySession: (sessionId: string) => Promise<MockInterview | undefined>;
-  readonly running: (targetId: string) => Promise<MockInterview | undefined>;
+  /** The Target's Mock interview that runs or is paused; a Target has at most one. */
+  readonly active: (targetId: string) => Promise<MockInterview | undefined>;
   /** Every Question asked in the Target's Mock interviews, in the order of showing. */
   readonly history: (targetId: string) => Promise<readonly PastQuestion[]>;
   /** The Target's newest Mock interviews first. */
@@ -256,8 +267,14 @@ export interface InterviewRepository<Transaction>
     id: string,
     changes: {
       readonly status?: InterviewStatus;
+      readonly sessionId?: string;
+      readonly agent?: string;
+      readonly pausedAt?: string | null;
+      readonly pausedMs?: number;
+      readonly pauseReason?: PauseReason | null;
+      readonly resumedAt?: string;
       readonly currentSectionId?: string;
-      readonly finishRequestedAt?: string;
+      readonly finishRequestedAt?: string | null;
       readonly finishedAt?: string;
       readonly summary?: string;
       readonly nextStep?: string;

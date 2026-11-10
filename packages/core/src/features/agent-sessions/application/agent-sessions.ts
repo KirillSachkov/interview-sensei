@@ -1,10 +1,7 @@
-import { rm } from "node:fs/promises";
 import path from "node:path";
 
 import type { AgentSession, SessionView } from "../domain/agent-session.ts";
-import { isLive } from "../domain/agent-session.ts";
 import type { AgentLauncher } from "../domain/ports.ts";
-import { replay } from "../domain/session-view.ts";
 import {
   answerPermission,
   cancelPermissions,
@@ -23,8 +20,17 @@ import {
   queuePrompt,
 } from "./server-prompts.ts";
 import type { PromptOutcome, QueueContext, QueueOutcome } from "./server-prompts.ts";
-import { runningFor, sessionOpener, stopAll, stopNow } from "./open-session.ts";
-import type { OpenSession, StartRequest } from "./open-session.ts";
+import { liveNow, runningFor, sessionOpener, stopAll, stopNow } from "./open-session.ts";
+import type { OpenKey, OpenSession, StartRequest } from "./open-session.ts";
+import type { ConversationMessage } from "../domain/session-view.ts";
+import { removeChain } from "./session-removal.ts";
+import {
+  earlierMessages,
+  endInterrupted,
+  lastConversation,
+  sessionView,
+} from "./stored-sessions.ts";
+import type { LastConversation } from "./stored-sessions.ts";
 
 export interface AgentSessionsDependencies extends LiveSessionDependencies {
   readonly launcher: AgentLauncher;
@@ -49,7 +55,16 @@ export interface AgentSessions {
   readonly running: (targetId: string, except?: StartRequest["kind"]) => boolean;
   /** Stops at once, even in a turn, and ends every live session of the kind for the Target. */
   readonly stopAll: (targetId: string, kind: StartRequest["kind"]) => Promise<void>;
+  /** Whether the session is live on this server now: starting, waiting or working. */
+  readonly isLive: (sessionId: string) => boolean;
   readonly view: (sessionId: string) => Promise<SessionView | undefined>;
+  /**
+   * The Candidate's and the agent's messages of the earlier sessions that this one continues, in
+   * order, for the brief of a continued conversation; empty when it continues none.
+   */
+  readonly earlierMessages: (sessionId: string) => Promise<readonly ConversationMessage[]>;
+  /** The kind's last conversation for the Target, which a new session may continue; see LastConversation. */
+  readonly lastConversation: (of: OpenKey) => Promise<LastConversation | undefined>;
   /** Sends the Candidate's prompt to the agent; refuses it while the agent works. */
   readonly prompt: (sessionId: string, text: string) => Promise<PromptOutcome>;
   /**
@@ -72,10 +87,19 @@ export interface AgentSessions {
    * as ended. Does nothing for a session that is not live.
    */
   readonly end: (sessionId: string) => Promise<void>;
-  /** Stops the agent at once and deletes the session with its journal for good, such as a Side thread. */
+  /**
+   * Stops the agent at once and deletes the session and the earlier sessions it continues, with
+   * their journals, for good, such as a Side thread.
+   */
   readonly remove: (sessionId: string) => Promise<void>;
-  /** Stops the agent at once, even in a turn, and ends the session; false when it is not live. */
-  readonly stop: (sessionId: string) => Promise<boolean>;
+  /**
+   * Stops the agent at once, even in a turn, and ends the session; false when it is not live.
+   * `byCandidate` when the Candidate ends it, as with «Завершить» of the Target setup.
+   */
+  readonly stop: (
+    sessionId: string,
+    options?: { readonly byCandidate?: boolean },
+  ) => Promise<boolean>;
   /**
    * Passes the Candidate's choice to the agent's permission request. `not_found` when the request
    * no longer waits or did not offer the option.
@@ -118,14 +142,17 @@ interface Context {
 /** Creates the session and starts its agent; close ends it when close began meanwhile. */
 async function createAndLaunch(
   context: Context,
-  { kind, agent, targetId, roleAddition, opening }: StartRequest,
+  { kind, agent, targetId, roleAddition, opening, continues }: StartRequest,
 ): Promise<SessionView> {
   const { dependencies } = context;
   const { repository, clock } = dependencies;
+  const earlier =
+    continues === undefined ? undefined : await sessionView(context.live, repository, continues);
   const created = await repository.create({
     kind,
     agent,
     ...(targetId === undefined ? {} : { targetId }),
+    ...(earlier === undefined ? {} : { continuesSessionId: earlier.id }),
     createdAt: clock.now(),
   });
   // A finished session leaves `live`: later reads come from the journal.
@@ -136,6 +163,7 @@ async function createAndLaunch(
     onIdle: () => {
       void drain(context.queue, session);
     },
+    ...(earlier === undefined ? {} : { earlierEntries: earlier.entries }),
   });
   if (context.closing) {
     // Close began during the create: the session ends before its agent ever starts.
@@ -178,16 +206,6 @@ async function start(context: Context, request: StartRequest): Promise<SessionVi
   }
 }
 
-async function view({ dependencies, live }: Context, sessionId: string) {
-  const session = live.get(sessionId);
-  if (session !== undefined) {
-    return session.view;
-  }
-  const { repository } = dependencies;
-  const stored = await repository.load(sessionId);
-  return stored === undefined ? undefined : replay(stored, await repository.journal(sessionId));
-}
-
 async function cancel({ live }: Context, sessionId: string): Promise<void> {
   const session = live.get(sessionId);
   const agent = session?.agent ?? null;
@@ -214,26 +232,12 @@ async function answer(
   return "accepted";
 }
 
-async function endInterrupted({ dependencies: { repository, clock } }: Context): Promise<void> {
-  const sessions = await repository.list();
-  const interrupted = sessions.filter((session) => isLive(session.status));
-  await Promise.all(
-    interrupted.map(async (session) =>
-      repository.append({
-        sessionId: session.id,
-        event: { type: "session_ended" },
-        status: "ended",
-        recordedAt: clock.now(),
-      }),
-    ),
-  );
-}
-
-/** Stops the session's agent at once and deletes the session, its journal and its directory. */
-async function remove({ live, dependencies }: Context, sessionId: string): Promise<void> {
-  await stopNow(live, sessionId);
-  await dependencies.repository.remove(sessionId);
-  await rm(path.join(dependencies.sessionsDirectory, sessionId), { recursive: true, force: true });
+function subscribe({ live }: Context, sessionId: string, listener: SessionListener): () => void {
+  const listeners = live.get(sessionId)?.listeners;
+  listeners?.add(listener);
+  return () => {
+    listeners?.delete(listener);
+  };
 }
 
 async function close(context: Context): Promise<void> {
@@ -269,7 +273,11 @@ export function createAgentSessions(dependencies: AgentSessionsDependencies): Ag
     list: async () => dependencies.repository.list(),
     running: (targetId, except) => runningFor(context.live, targetId, except),
     stopAll: async (targetId, kind) => stopAll(context.live, targetId, kind),
-    view: async (sessionId) => view(context, sessionId),
+    isLive: (sessionId) => liveNow(context.live, sessionId),
+    view: async (sessionId) => sessionView(context.live, dependencies.repository, sessionId),
+    earlierMessages: async (sessionId) =>
+      earlierMessages(context.live, dependencies.repository, sessionId),
+    lastConversation: async (of) => lastConversation(context.live, dependencies.repository, of),
     prompt: async (sessionId, text) => candidatePrompt(context.queue, sessionId, text),
     queuePrompt: async (sessionId, text, options) =>
       queuePrompt(context.queue, { sessionId, text }, options),
@@ -280,18 +288,12 @@ export function createAgentSessions(dependencies: AgentSessionsDependencies): Ag
     end: async (sessionId) => {
       await enqueue(context.queue, sessionId, (settle) => ({ type: "end", settle }));
     },
-    remove: async (sessionId) => remove(context, sessionId),
-    stop: async (sessionId) => stopNow(context.live, sessionId),
+    remove: async (sessionId) => removeChain(context, sessionId),
+    stop: async (sessionId, options) => stopNow(context.live, sessionId, options),
     answerPermission: async (sessionId, request) => answer(context, sessionId, request),
     cancel: async (sessionId) => cancel(context, sessionId),
-    subscribe: (sessionId, listener) => {
-      const listeners = context.live.get(sessionId)?.listeners;
-      listeners?.add(listener);
-      return () => {
-        listeners?.delete(listener);
-      };
-    },
-    endInterrupted: async () => endInterrupted(context),
+    subscribe: (sessionId, listener) => subscribe(context, sessionId, listener),
+    endInterrupted: async () => endInterrupted(dependencies),
     close: async () => close(context),
   };
 }

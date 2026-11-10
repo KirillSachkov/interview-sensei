@@ -5,8 +5,11 @@ import { randomUUID } from "node:crypto";
 import type { Dispute } from "../domain/dispute.ts";
 import { latestDisputes } from "../domain/dispute.ts";
 import type { BriefHistory } from "../domain/brief.ts";
+import { continuationSummary } from "../domain/continuation.ts";
+import type { ContinuationSummary } from "../domain/continuation.ts";
 import type { HistoryFilter, HistoryPage, TopicAttempt } from "../domain/history.ts";
 import { gradeCorrections, sessionSummary, topicAttempts } from "../domain/history.ts";
+import { isActive } from "../domain/interview.ts";
 import type { Attempt, Grade, InterviewStatus, MockInterview } from "../domain/interview.ts";
 import { change } from "./context.ts";
 import type { Context, InterviewsDependencies } from "./context.ts";
@@ -22,7 +25,7 @@ export type AttemptDebrief = Attempt & {
 };
 
 /** The ending of a Mock interview for its summary Debrief; the Topic status changes come apart. */
-export interface InterviewSummary {
+interface InterviewSummary {
   readonly targetId: string;
   readonly status: InterviewStatus;
   readonly summary: string | null;
@@ -59,7 +62,7 @@ export async function debrief(
  * The Candidate opened the Debrief of the Attempt: its Grade went to the Candidate, so from now on
  * the Handoff brief of a Side thread on its question holds it too. `not_found` for an unknown Attempt.
  */
-export async function openDebrief(
+async function openDebrief(
   { repository }: InterviewsDependencies,
   id: string,
   attemptId: string,
@@ -74,7 +77,7 @@ export async function openDebrief(
 }
 
 /** The Candidate's correction of the Grade of the Mock interview's Attempt, with its reason. */
-export interface DisputeRequest {
+interface DisputeRequest {
   readonly id: string;
   readonly attemptId: string;
   readonly grade: Grade;
@@ -94,7 +97,7 @@ async function disputedQuestion(
  * Records the Candidate's Dispute of the Attempt's Grade and puts its Question on the list
  * «проверить опорный ответ»; undefined for an unknown Attempt.
  */
-export async function dispute(
+async function dispute(
   context: Context,
   { id, attemptId, grade, reason }: DisputeRequest,
 ): Promise<AttemptDebrief | undefined> {
@@ -133,7 +136,7 @@ async function summaryOf({ repository }: InterviewsDependencies, interview: Mock
 }
 
 /** One page of the Target's session history, from 1, the newest Mock interview first. */
-export async function history(
+async function history(
   dependencies: InterviewsDependencies,
   { targetId, page, filter }: { targetId: string; page: number; filter: HistoryFilter },
 ): Promise<HistoryPage> {
@@ -147,7 +150,7 @@ export async function history(
   return { items, total: found.total, page, pageSize };
 }
 
-export async function interviewSummary(
+async function interviewSummary(
   { repository }: InterviewsDependencies,
   id: string,
 ): Promise<InterviewSummary | undefined> {
@@ -168,16 +171,16 @@ export async function interviewSummary(
 }
 
 /** The Attempts of the Target's ended Mock interviews as progress counts them. */
-export async function targetTopicAttempts(
+async function targetTopicAttempts(
   { repository }: InterviewsDependencies,
   targetId: string,
 ): Promise<readonly TopicAttempt[]> {
-  const [records, disputes, running] = await Promise.all([
+  const [records, disputes, active] = await Promise.all([
     repository.targetAttempts(targetId),
     repository.targetDisputes(targetId),
-    repository.running(targetId),
+    repository.active(targetId),
   ]);
-  return topicAttempts(records, disputes, running?.id);
+  return topicAttempts(records, disputes, active?.id);
 }
 
 /** The brief's part about the Target's earlier Mock interviews and progress. */
@@ -191,7 +194,7 @@ export async function briefHistory(
     repository.targetDisputes(interview.targetId),
     progress.focus(interview.targetId),
   ]);
-  const last = latest.find((entry) => entry.id !== interview.id && entry.status !== "running");
+  const last = latest.find((entry) => entry.id !== interview.id && !isActive(entry.status));
   return {
     lastInterview:
       last === undefined
@@ -204,5 +207,64 @@ export async function briefHistory(
           },
     weakTopics: focus.map(({ id, name, status }) => ({ id, name, status })),
     gradeCorrections: gradeCorrections(records, disputes, correctionCount),
+  };
+}
+
+/**
+ * The continuation summary for the brief of a Mock interview that went on after a pause (#84):
+ * where it stopped, from the server's records; null for one never paused.
+ */
+export async function briefContinuation(
+  { repository, clock }: InterviewsDependencies,
+  interview: MockInterview,
+): Promise<ContinuationSummary | null> {
+  if (interview.resumedAt === null) {
+    return null;
+  }
+  const [asked, attempts, disputes] = await Promise.all([
+    repository.asked(interview.id),
+    repository.attempts(interview.id),
+    repository.disputes(interview.id),
+  ]);
+  return continuationSummary(interview, {
+    asked,
+    attempts,
+    disputes,
+    now: clock.now().toISOString(),
+  });
+}
+
+/** What the Candidate and progress read of recorded Mock interviews. */
+export interface Records {
+  /**
+   * The Debrief of one Attempt with its Grade and the latest Dispute; undefined until the Attempt
+   * is recorded.
+   */
+  readonly attempt: (id: string, attemptId: string) => Promise<AttemptDebrief | undefined>;
+  /** The Candidate opened the Debrief: Side threads on its question learn the Grade from now on. */
+  readonly openDebrief: (id: string, attemptId: string) => Promise<"recorded" | "not_found">;
+  /** Records the Candidate's correction of the Grade; the latest one applies. */
+  readonly dispute: (request: DisputeRequest) => Promise<AttemptDebrief | undefined>;
+  /** How the Mock interview ended, for its summary Debrief. */
+  readonly summary: (id: string) => Promise<InterviewSummary | undefined>;
+  /** One page of the Target's session history, from 1, the newest first. */
+  readonly history: (request: {
+    targetId: string;
+    page: number;
+    filter: HistoryFilter;
+  }) => Promise<HistoryPage>;
+  /** The Attempts of the Target's ended Mock interviews, Grades after Disputes, the earliest first. */
+  readonly topicAttempts: (targetId: string) => Promise<readonly TopicAttempt[]>;
+}
+
+export function createRecords(context: Context): Records {
+  const { dependencies } = context;
+  return {
+    attempt: async (id, attemptId) => debrief(dependencies, id, attemptId),
+    openDebrief: async (id, attemptId) => openDebrief(dependencies, id, attemptId),
+    dispute: async (request) => dispute(context, request),
+    summary: async (id) => interviewSummary(dependencies, id),
+    history: async (request) => history(dependencies, request),
+    topicAttempts: async (targetId) => targetTopicAttempts(dependencies, targetId),
   };
 }

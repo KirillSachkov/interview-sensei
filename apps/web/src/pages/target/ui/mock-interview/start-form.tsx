@@ -2,9 +2,10 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import type { SubmitEvent } from "react";
 
-import { fetchPlanSections, startInterview } from "@/shared/api";
+import { fetchPlanSections, finishInterview, startInterview } from "@/shared/api";
 import type { Difficulty, InterviewView, PlanSection } from "@/shared/api";
 
+import { ResumeButton } from "./pause-controls";
 import { useStartSettings } from "./start-settings";
 
 /** The Sections the Candidate checked; all enabled ones at first. */
@@ -136,23 +137,76 @@ function StartButton({
 }
 
 /**
+ * The choice of «Начать мок» while the Target has a paused Mock interview: continue it, or finish
+ * it with its summary Debrief and start a new one.
+ */
+function PausedChoice({
+  paused,
+  onFinished,
+  onCancel,
+}: {
+  paused: InterviewView;
+  onFinished: () => void;
+  onCancel: () => void;
+}) {
+  const finish = useMutation({
+    mutationFn: async () => finishInterview(paused.id),
+    onSuccess: onFinished,
+  });
+  return (
+    <dialog open className="card start-dialog" aria-label="Мок на паузе">
+      <p>По этой цели есть мок на паузе. Продолжите его или завершите, чтобы начать новый.</p>
+      <div className="dialog-actions">
+        <ResumeButton view={paused} />
+        <button
+          type="button"
+          disabled={finish.isPending}
+          onClick={() => {
+            finish.mutate();
+          }}
+        >
+          Завершить и начать новый
+        </button>
+        <button type="button" className="ghost" onClick={onCancel}>
+          Отмена
+        </button>
+      </div>
+      {finish.isError ? <p role="alert">Мок не завершился: {finish.error.message}</p> : null}
+    </dialog>
+  );
+}
+
+/** The Sections of the Target's plan for the dialog. */
+function usePlanSections(targetId: string) {
+  return useQuery({
+    queryKey: ["targets", targetId, "plan-sections"],
+    queryFn: async () => fetchPlanSections(targetId),
+  });
+}
+
+/**
  * «Начать мок» and its dialog; the button explains why it is off without enabled Sections. The
- * dialog starts with the difficulty the Target keeps.
+ * dialog starts with the difficulty the Target keeps. With a `paused` Mock interview the button
+ * first offers to continue it or to finish it; `onFinished` runs once it is finished.
  */
 export function StartMock({
   targetId,
   difficulty,
+  paused,
+  onFinished,
   onStarted,
 }: {
   targetId: string;
   difficulty: Difficulty;
+  paused: InterviewView | null;
+  onFinished: () => void;
   onStarted: (interview: InterviewView) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const sections = useQuery({
-    queryKey: ["targets", targetId, "plan-sections"],
-    queryFn: async () => fetchPlanSections(targetId),
-  });
+  const close = () => {
+    setOpen(false);
+  };
+  const sections = usePlanSections(targetId);
   if (sections.isError) {
     return <p role="alert">План цели не загрузился: {sections.error.message}</p>;
   }
@@ -166,18 +220,19 @@ export function StartMock({
           setOpen(true);
         }}
       />
-      {open ? (
+      {open && paused !== null ? (
+        <PausedChoice paused={paused} onFinished={onFinished} onCancel={close} />
+      ) : null}
+      {open && paused === null ? (
         <StartDialog
           targetId={targetId}
           sections={plan}
           difficulty={difficulty}
           onStarted={(interview) => {
-            setOpen(false);
+            close();
             onStarted(interview);
           }}
-          onCancel={() => {
-            setOpen(false);
-          }}
+          onCancel={close}
         />
       ) : null}
     </div>
