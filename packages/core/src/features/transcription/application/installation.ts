@@ -151,6 +151,9 @@ export async function status(dependencies: InstallationDependencies, state: Inst
   if (catalog === null) {
     return { available: false as const };
   }
+  // The download is taken before the markers: one that ends meanwhile has written them all.
+  const installation = installationView(state);
+  const { failure } = state;
   const installed = await store.installed(allComponents(catalog));
   return {
     available: true as const,
@@ -166,8 +169,8 @@ export async function status(dependencies: InstallationDependencies, state: Inst
       installed: catalog.shared.every((component) => installed.has(component.id)),
     },
     ytDlp: { size: componentSize(catalog.ytDlp), installed: installed.has(catalog.ytDlp.id) },
-    installation: installationView(state),
-    failure: state.failure,
+    installation,
+    failure,
     languages: recognitionLanguages.map(({ code, name }) => ({
       code,
       name,
