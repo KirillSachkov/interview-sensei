@@ -93,15 +93,27 @@ export interface InterviewQuestions {
   ) => Promise<readonly BankQuestion[]>;
   /** Adds the Question to the Target's bank. */
   readonly add: (question: NewBankQuestion) => Promise<void>;
-  /**
-   * A Dispute puts the Question on the list «проверить опорный ответ» with the Candidate's reason;
-   * nothing for a Question without a reference answer.
-   */
-  readonly requestReferenceCheck: (request: {
-    readonly questionId: string;
-    readonly comment: string;
-    readonly requestedAt: string;
-  }) => Promise<boolean>;
+}
+
+/** Why a Dispute puts its Question on the list «проверить опорный ответ». */
+interface ReferenceCheckRequest {
+  readonly questionId: string;
+  /** The Candidate's reason for the Dispute. */
+  readonly comment: string;
+  /** ISO 8601. */
+  readonly requestedAt: string;
+}
+
+/**
+ * The question-bank slice puts a disputed Question on the list «проверить опорный ответ»; nothing
+ * for a Question without a reference answer. `Transaction` is the storage's open transaction, in
+ * which the Dispute is recorded too.
+ */
+export interface ReferenceChecks<Transaction> {
+  readonly requestReferenceCheck: (
+    request: ReferenceCheckRequest,
+    transaction: Transaction,
+  ) => Promise<void>;
 }
 
 /** The agent-sessions slice runs the interviewer's AgentSession and those of its Side threads. */
@@ -156,8 +168,11 @@ export interface InterviewProgress {
   ) => Promise<readonly { readonly id: string; readonly name: string; readonly status: string }[]>;
 }
 
-/** Reads the Target's past Mock interviews for its history, its progress and the brief. */
-export interface HistoryRepository {
+/**
+ * Reads the Target's past Mock interviews for its history, its progress and the brief, and records
+ * Disputes. `Transaction` is the storage's open transaction, opaque to the domain.
+ */
+export interface HistoryRepository<Transaction> {
   /** Every running Mock interview of every Target. */
   readonly allRunning: () => Promise<readonly MockInterview[]>;
   /** One page of the Target's Mock interviews, the newest first, and how many match. */
@@ -168,7 +183,8 @@ export interface HistoryRepository {
   ) => Promise<{ readonly interviews: readonly MockInterview[]; readonly total: number }>;
   /** The Attempts of the Target's Mock interviews from the earliest to the latest. */
   readonly targetAttempts: (targetId: string) => Promise<readonly AttemptRecord[]>;
-  readonly dispute: (dispute: Dispute) => Promise<void>;
+  /** Records the Dispute in the open transaction, which also writes its reference check. */
+  readonly dispute: (dispute: Dispute, transaction?: Transaction) => Promise<void>;
   /** The Disputes in the order they were made: of one Mock interview, or of a Target. */
   readonly disputes: (interviewId: string) => Promise<readonly Dispute[]>;
   readonly targetDisputes: (targetId: string) => Promise<readonly Dispute[]>;
@@ -225,7 +241,8 @@ export interface SideThreadRepository {
  * Stores Mock interviews, their asked questions, Attempts and Side threads in the `interviews`
  * schema.
  */
-export interface InterviewRepository extends HistoryRepository, SideThreadRepository {
+export interface InterviewRepository<Transaction>
+  extends HistoryRepository<Transaction>, SideThreadRepository {
   /** `running` when the Target already has a running Mock interview; nothing is stored then. */
   readonly create: (interview: MockInterview) => Promise<"created" | "running">;
   readonly get: (id: string) => Promise<MockInterview | undefined>;

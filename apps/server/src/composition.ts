@@ -205,6 +205,8 @@ export async function composeFeatures(dependencies: FeatureDependencies) {
     sessions,
     agents: runtime,
     questions: questionBank,
+    referenceChecks: questionBank,
+    transaction: storage.transaction,
   });
   tools.bind({ interviews, progress });
   return {

@@ -25,26 +25,31 @@ export async function verifyReferenceAnswer(repository: Repository, id: string) 
   return "verified" as const;
 }
 
+/** A Dispute of the Question's Grade: the Candidate's reason and when they disputed it. */
+export interface DisputeCheck {
+  readonly questionId: string;
+  readonly comment: string;
+  /** ISO 8601. */
+  readonly requestedAt: string;
+}
+
 /**
- * Puts the Question on the list «проверить опорный ответ» with the Candidate's reason; a later
- * request replaces the earlier one. A Question without a reference answer has nothing to check:
- * resolves false then, and for an unknown Question.
+ * Puts the Question on the list «проверить опорный ответ» with the Candidate's reason, in the
+ * transaction of the Dispute; a later request replaces the earlier one. A Question without a
+ * reference answer has nothing to check, so nothing changes for it or for an unknown Question.
  */
 export async function requestReferenceCheck(
   repository: Repository,
-  {
-    questionId,
-    comment,
-    requestedAt,
-  }: { questionId: string; comment: string; requestedAt: string },
-): Promise<boolean> {
-  const question = await repository.question(questionId);
-  if (question?.referenceAnswer === null || question === undefined) {
-    return false;
+  { questionId, comment, requestedAt }: DisputeCheck,
+  transaction: Transaction,
+): Promise<void> {
+  const question = await repository.question(questionId, transaction);
+  if (question === undefined || question.referenceAnswer === null) {
+    return;
   }
-  await repository.editQuestion(question.targetId, {
-    id: questionId,
-    referenceCheck: { reason: "dispute", comment, requestedAt },
-  });
-  return true;
+  await repository.editQuestion(
+    question.targetId,
+    { id: questionId, referenceCheck: { reason: "dispute", comment, requestedAt } },
+    transaction,
+  );
 }

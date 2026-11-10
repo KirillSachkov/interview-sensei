@@ -81,25 +81,13 @@ export interface DisputeRequest {
   readonly reason: string;
 }
 
-/** A Dispute puts the disputed Question on the list «проверить опорный ответ» (#63, Q5). */
-async function requestReferenceCheck(
-  { repository, questions }: InterviewsDependencies,
-  {
-    id,
-    disputed,
-    reason,
-    disputedAt,
-  }: { id: string; disputed: Attempt; reason: string; disputedAt: string },
+/** The Question of the disputed Attempt; undefined when its asked question is gone. */
+async function disputedQuestion(
+  { repository }: InterviewsDependencies,
+  { id, attempt }: { id: string; attempt: Attempt },
 ) {
   const asked = await repository.asked(id);
-  const question = asked.find((entry) => entry.id === disputed.askedQuestionId);
-  if (question !== undefined) {
-    await questions.requestReferenceCheck({
-      questionId: question.questionId,
-      comment: reason,
-      requestedAt: disputedAt,
-    });
-  }
+  return asked.find((entry) => entry.id === attempt.askedQuestionId)?.questionId;
 }
 
 /**
@@ -117,15 +105,20 @@ export async function dispute(
       return disputed;
     }
     const disputedAt = dependencies.clock.now().toISOString();
-    await dependencies.repository.dispute({
-      id: randomUUID(),
-      interviewId: id,
-      attemptId,
-      grade,
-      reason,
-      disputedAt,
+    const questionId = await disputedQuestion(dependencies, { id, attempt: disputed });
+    // A Dispute and its reference check (#65) span two slices, so they share one transaction.
+    await dependencies.transaction(async (transaction) => {
+      await dependencies.repository.dispute(
+        { id: randomUUID(), interviewId: id, attemptId, grade, reason, disputedAt },
+        transaction,
+      );
+      if (questionId !== undefined) {
+        await dependencies.referenceChecks.requestReferenceCheck(
+          { questionId, comment: reason, requestedAt: disputedAt },
+          transaction,
+        );
+      }
     });
-    await requestReferenceCheck(dependencies, { id, disputed, reason, disputedAt });
     return debrief(dependencies, id, attemptId);
   });
 }

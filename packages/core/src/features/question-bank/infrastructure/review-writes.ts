@@ -1,6 +1,7 @@
 // The Candidate's review of Questions: a bulk review, «просмотрено», and one Question to check.
 import { and, eq, inArray } from "drizzle-orm";
 
+import { executorOf } from "../../../shared/storage/index.ts";
 import type { Database, Transaction } from "../../../shared/storage/index.ts";
 import type { QuestionRepository } from "../domain/ports.ts";
 import { questions } from "./schema.ts";
@@ -10,8 +11,11 @@ export function reviewWrites(
   database: Database,
 ): Pick<QuestionRepository<Transaction>, "review" | "markSeen" | "question"> {
   return {
-    question: async (id) => {
-      const [row] = await database.select().from(questions).where(eq(questions.id, id));
+    question: async (id, transaction) => {
+      const [row] = await executorOf(database, transaction)
+        .select()
+        .from(questions)
+        .where(eq(questions.id, id));
       return row === undefined ? undefined : toQuestion(row);
     },
     review: async (targetId, { deleted, edits }) => {

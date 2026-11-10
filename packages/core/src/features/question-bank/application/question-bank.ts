@@ -9,8 +9,9 @@ import type {
 } from "../domain/ports.ts";
 import { review } from "./question-review.ts";
 import type { Review } from "./question-review.ts";
-import { addQuestions, editQuestions, renameTopic, setTopicImportance } from "./bank-edits.ts";
+import { addQuestions, editQuestions, renameTopic } from "./bank-edits.ts";
 import { requestReferenceCheck, verifyReferenceAnswer } from "./reference-answers.ts";
+import type { DisputeCheck } from "./reference-answers.ts";
 import type { NewQuestion } from "./bank-edits.ts";
 import type { StoredQuestion, Topic, TopicImportance } from "../domain/question.ts";
 import { topicKey, validateQuestion } from "../domain/question.ts";
@@ -94,7 +95,7 @@ function setupEdits(repository: QuestionRepository<Transaction>) {
       targetId: string,
       change: { readonly topicId: string; readonly importance: TopicImportance },
       transaction?: Transaction,
-    ) => setTopicImportance(repository, targetId, { ...change, transaction }),
+    ) => repository.setImportance(targetId, change, transaction),
     renameTopic: async (
       targetId: string,
       rename: { readonly from: string; readonly to: string },
@@ -109,11 +110,8 @@ function referenceChecks(repository: QuestionRepository<Transaction>) {
     /** «проверен»: see verifyReferenceAnswer. */
     verifyReferenceAnswer: async (id: string) => verifyReferenceAnswer(repository, id),
     /** A Dispute puts the Question on the list «проверить опорный ответ». */
-    requestReferenceCheck: async (request: {
-      questionId: string;
-      comment: string;
-      requestedAt: string;
-    }) => requestReferenceCheck(repository, request),
+    requestReferenceCheck: async (request: DisputeCheck, transaction: Transaction) =>
+      requestReferenceCheck(repository, request, transaction),
   };
 }
 

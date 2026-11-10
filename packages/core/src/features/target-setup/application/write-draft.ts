@@ -7,6 +7,7 @@ import type { Clock } from "../../../shared/time/index.ts";
 import type { SetupState } from "../domain/draft.ts";
 import type { DraftQuestion, ReferenceContent } from "../domain/draft-questions.ts";
 import { latestImportance } from "../domain/draft-topics.ts";
+import type { Importance } from "../domain/target-values.ts";
 import type {
   SetupAttempts,
   SetupQuestion,
@@ -176,7 +177,7 @@ async function writeImportance(
   { targetId, transaction }: Write,
   changes: readonly {
     topicId: string;
-    importance: SetupState["importance"][number]["importance"];
+    importance: Importance;
   }[],
 ) {
   for (const change of changes) {

@@ -27,13 +27,15 @@ export function namesTopic(names: readonly string[], name: string): boolean {
 }
 
 /** The importance the draft gives a Topic, named as in the draft. */
-export interface TopicImportance {
+export interface ImportanceChange {
   readonly topic: string;
   readonly importance: Importance;
 }
 
 /** The latest importance of each Topic by topicKey, under the name that the latest change gave. */
-export function latestImportance(changes: readonly TopicImportance[]): readonly TopicImportance[] {
+export function latestImportance(
+  changes: readonly ImportanceChange[],
+): readonly ImportanceChange[] {
   const latest = new Map(changes.map((change) => [topicKey(change.topic), change]));
   return [...latest.values()];
 }

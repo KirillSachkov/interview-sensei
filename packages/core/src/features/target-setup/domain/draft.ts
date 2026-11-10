@@ -6,7 +6,7 @@ import type { DraftQuestion, NewQuestion, QuestionEdit } from "./draft-questions
 import { savedPreference } from "./draft-preferences.ts";
 import type { DraftPreference, PreferenceChange } from "./draft-preferences.ts";
 import { namesTopic, renamedTopics, topicKey } from "./draft-topics.ts";
-import type { TopicImportance, TopicRename } from "./draft-topics.ts";
+import type { ImportanceChange, TopicRename } from "./draft-topics.ts";
 import type { Level, SectionKind, Tone } from "./target-values.ts";
 
 type TargetStatus = "draft" | "active" | "archived";
@@ -47,7 +47,7 @@ export interface SetupState {
   /** The Topic renames and merges that applying makes, in order. */
   readonly topicRenames: readonly TopicRename[];
   /** The importance that applying gives Topics, in order, under their names after the renames. */
-  readonly importance: readonly TopicImportance[];
+  readonly importance: readonly ImportanceChange[];
   readonly preferences: readonly DraftPreference[];
   /** Every Question of the Target, hidden ones too, with the new ones of the draft. */
   readonly questions: readonly DraftQuestion[];
@@ -74,7 +74,7 @@ export type DraftOperation =
       readonly renameTopics?: readonly TopicRename[];
     }
   | ({ readonly type: "save_preference" } & PreferenceChange)
-  | { readonly type: "set_topic_importance"; readonly topics: readonly TopicImportance[] }
+  | { readonly type: "set_topic_importance"; readonly topics: readonly ImportanceChange[] }
   | { readonly type: "add_questions"; readonly questions: readonly NewQuestion[] }
   | { readonly type: "edit_questions"; readonly edits: readonly QuestionEdit[] };
 
@@ -143,7 +143,7 @@ function withRename(state: SetupState, rename: TopicRename): SetupState {
 }
 
 /** The Topics get their importance; a Topic that the state does not know is a problem. */
-function withImportance(state: SetupState, changes: readonly TopicImportance[]): SetupState {
+function withImportance(state: SetupState, changes: readonly ImportanceChange[]): SetupState {
   const named = namedTopics(state);
   const missing = changes
     .filter((change) => !namesTopic(named, change.topic))

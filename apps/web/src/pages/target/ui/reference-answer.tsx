@@ -14,7 +14,10 @@ export function partText(part: number | null): string {
   return part === null ? "" : `, часть ${part}`;
 }
 
-/** The reference answer, folded: its origin in the summary, then the key points and the sample. */
+/**
+ * The reference answer, folded: its origin in the summary, with the part for an answer «из
+ * материала», then the key points and the sample.
+ */
 export function ReferenceAnswerDetails({ answer }: { answer: ReferenceAnswer }) {
   return (
     <details className="reference-answer">
@@ -22,7 +25,7 @@ export function ReferenceAnswerDetails({ answer }: { answer: ReferenceAnswer }) 
         Опорный ответ{" "}
         <span className="tag">
           {origins[answer.origin]}
-          {partText(answer.part)}
+          {answer.origin === "material" ? partText(answer.part) : ""}
         </span>
       </summary>
       <ul>

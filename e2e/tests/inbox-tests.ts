@@ -141,7 +141,7 @@ async function expectVerifiedReference(page: Page) {
   await question.getByText("Опорный ответ").click();
   await expect(question).toContainText("из материала, часть 1");
   await question.getByRole("button", { name: "Проверен" }).click();
-  await expect(question).toContainText("проверен кандидатом, часть 1");
+  await expect(question.locator("summary")).toHaveText(/^Опорный ответ\s*проверен кандидатом$/u);
   await expect(question.getByRole("button", { name: "Проверен" })).toBeHidden();
 }
 

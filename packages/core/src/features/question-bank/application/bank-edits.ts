@@ -9,7 +9,6 @@ import type {
   ReferenceAnswer,
   SectionKind,
   StoredQuestion,
-  TopicImportance,
 } from "../domain/question.ts";
 import { topicKey, validateQuestion } from "../domain/question.ts";
 
@@ -108,19 +107,6 @@ export async function editQuestions(
     // oxlint-disable-next-line eslint/no-await-in-loop -- the edits share one transaction
     await repository.editQuestion(targetId, { ...edit, ...checked }, transaction);
   }
-}
-
-/** Stores the importance of the Target's Topic; nothing for a Topic of another Target. */
-export async function setTopicImportance(
-  repository: Repository,
-  targetId: string,
-  {
-    topicId,
-    importance,
-    transaction,
-  }: { topicId: string; importance: TopicImportance; transaction: Transaction | undefined },
-): Promise<void> {
-  await repository.setImportance(targetId, { topicId, importance }, transaction);
 }
 
 /**

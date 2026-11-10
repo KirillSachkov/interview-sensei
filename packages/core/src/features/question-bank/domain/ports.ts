@@ -60,7 +60,7 @@ export interface QuestionRepository<Transaction> {
     transaction?: Transaction,
   ) => Promise<void>;
   /** The Question by its id, hidden or not; undefined for an unknown id. */
-  readonly question: (id: string) => Promise<Question | undefined>;
+  readonly question: (id: string, transaction?: Transaction) => Promise<Question | undefined>;
 }
 /**
  * The new text, Topic, visibility or rating of one Question; `unconfirmed: false` confirms a

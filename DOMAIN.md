@@ -58,7 +58,7 @@ Inbox processing writes a Reference answer only from the Source itself; a Questi
 The Candidate marks a Reference answer «проверен» in the side panel of Questions, which makes its origin «проверен кандидатом», or corrects it through the draft of changes, which does the same and drops its Source.
 
 **Reference check**:
-The list «проверить опорный ответ» in the zone «Цель»: the Questions whose Reference answer the Candidate should look at again.
+The list «Проверить опорный ответ» in the zone «Цель»: the Questions whose Reference answer the Candidate should look at again.
 A Dispute of the Grade of an Attempt puts its Question there with the Candidate's reason, when the Question has a Reference answer.
 «проверен» or a corrected Reference answer takes the Question off the list; a hidden Question is not shown there.
 
