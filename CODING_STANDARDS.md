@@ -157,7 +157,7 @@ A profile that allows shell or web gets no ban for it. The permission modes stay
 
 The `sources` slice reads the text of a Source itself (#63) and cuts it into numbered parts of at most 8000 characters at paragraph borders (`textParts`); `read_source` gives one part.
 The parts lie in `targets/<Target id>/texts/<Source id>/0001.txt` and onward, beside the Sources' files, so deleting the Target removes them.
-`textFormat` picks the reader by the file's extension; a link is a web page.
+`textFormat` picks the reader by the file's extension; a link goes to the `transcription` slice first and is a web page when yt-dlp does not recognize it.
 
 | Format | Reader |
 | --- | --- |
@@ -166,6 +166,7 @@ The parts lie in `targets/<Target id>/texts/<Source id>/0001.txt` and onward, be
 | TXT, MD | the file as UTF-8 |
 | SRT, VTT | `subtitleText`: the spoken lines without numbers, times, tags and repeats |
 | HTML file, link | the page's article by `@mozilla/readability` on `linkedom`, then `htmlText`; a link's PDF or plain text by its content type |
+| Link to a video | the `transcription` slice through `transcribeLink`: the video's subtitles by `subtitleText`, or its recognized speech |
 | Video, audio file | the `transcription` slice through the `SourceTranscription` port; see [speech recognition](#speech-recognition) |
 
 A page waits at most 30 seconds on the injected `Timer` and may hold at most 20 MB.
@@ -173,6 +174,7 @@ linkedom and Readability type their DOM with TypeScript's DOM library, which ser
 So only `sources/infrastructure/page-text.ts` touches their DOM, under a file-level disable of the unsafe-value rules with that reason.
 A Source the server cannot read gets the Source status «ошибка» with the reason in Russian.
 A link to a web page is the exception: it stays «разбирается» without parts, and the Inbox processing agent opens it on the web.
+A link to a video without text is not: `UnreadableVideoError` gives it «ошибка» like a file.
 
 ### Speech recognition
 
@@ -190,7 +192,17 @@ The application never takes them from npm dependencies or the system: it downloa
 `sherpaRecognizer` loads `sherpa-onnx-node` from the data directory with `createRequire` and feeds Silero VAD; the model decodes each phrase asynchronously.
 The server's close stops a running download (`transcription.close`).
 
-`transcriptionModule` takes `components` with a catalog, an extractor and a recognizer; API tests pass stand-ins, the server passes nothing and gets the real ones.
+Links to videos (#76) go through the `VideoLinks` port, `ytDlpLinks` in `transcription/infrastructure/yt-dlp.ts`.
+yt-dlp is the component `yt-dlp`: the zipped directory build of a pinned release, unpacked by `fflate`, because the one-file build unpacks itself on every run, about 7 seconds on macOS.
+Any «Скачать» downloads it; `POST /api/transcription/install` with no model downloads it alone, so links give their subtitles without a model.
+Each run passes `--ignore-config`, `--no-plugin-dirs`, `--no-js-runtimes --js-runtimes node:<process.execPath>`, `--no-remote-components`, `--ffmpeg-location` of the downloaded ffmpeg and `--cache-dir` in the data directory, so yt-dlp never uses Deno, a system ffmpeg or the user's settings.
+The generic extractor reads only links to media files: on another page it would find an embedded video and lose the article.
+`-J` gives the video's JSON; the later runs read it back with `--load-info-json`, so the site is asked once for the data.
+The pure rules in `transcription/domain/video-link.ts` read that JSON and yt-dlp's errors and pick the method: `linkMethod` chooses the subtitles or the speech, `originalAudio` the original audio track of an auto-dubbing, `linkFailure` the reason of a private, deleted or login-only video.
+Subtitles and audio come into `transcription/downloads/<id>/`, deleted after use; the audio goes to `ffmpegExtractor` like a file.
+Before yt-dlp is downloaded, a link to a video hosting by `textFormat` gets «ошибка», and another link is a web page.
+
+`transcriptionModule` takes `components` with a catalog, an extractor, a recognizer and `links`; API tests pass stand-ins, the server passes nothing and gets the real ones.
 `buildServer({ transcription })` hands them over.
 
 ### Local requests

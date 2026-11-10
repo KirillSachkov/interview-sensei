@@ -114,7 +114,8 @@ The agent's own Inbox report moves the Sources by the same rule: a Source the ag
 **Source status**:
 Where a Source is in Inbox processing: «в Inbox» until processing starts, «разбирается» during it, «готов» after it, or «ошибка» with the reason when the Source could not be read.
 A video or audio file is «транскрибируется» with the percent heard while the server recognizes its speech on the Candidate's device, before the agent starts (#74); then it is «разбирается» with the recognized text.
-The server gives «ошибка» to a format it cannot read, archives included, to a Source without text, to a video or audio file without installed speech recognition or without sound, and to a video link: «приложите транскрипт».
+So is a link to a video whose speech the server recognizes; a video with subtitles in its language goes straight to «разбирается» with their text (#76).
+The server gives «ошибка» to a format it cannot read, archives included, to a Source without text, to a video or audio file without installed speech recognition or without sound, to a link to a video that is private, deleted or open only after a login, and to a link to a video hosting before yt-dlp is downloaded.
 The Candidate may attach the video's transcript as a Source of its own, and Inbox processing reads it as text.
 A web page the server could not read stays «разбирается» without parts: the agent opens it on the web, and its Questions have no part.
 It becomes «готов» by the agent's Inbox report and goes back to the Inbox when processing ends without one.
@@ -179,9 +180,10 @@ Inbox processing may use the web, so its agent opens pages without a request.
 **Source**:
 Material attached to a Target: a vacancy, a resume, a link, a video transcript, a file or the Candidate's own note.
 A Target can have any number of Sources of each type. Questions refer to the Sources they came from.
-The server reads the text of a Source itself, from PDF, DOCX, plain text, Markdown, subtitles and web pages, recognizes the speech of video and audio files, and keeps the text in numbered parts in the data directory.
+The server reads the text of a Source itself, from PDF, DOCX, plain text, Markdown, subtitles and web pages, recognizes the speech of video and audio files, takes the subtitles or the speech of a linked video, and keeps the text in numbered parts in the data directory.
 
 **Speech recognition**:
 The application's own recognition of speech in video and audio on the Candidate's device (#74), with no agent: ffmpeg-static extracts the sound, Silero VAD cuts it into phrases, and a speech model recognizes them through sherpa-onnx.
 The Candidate chooses the model: GigaAM v3 for Russian, Parakeet TDT 0.6B v3 for 25 European languages, or both.
+A link goes through yt-dlp (#76): one it does not recognize is a web page; a video gives its manual subtitles in its language, the automatic ones when it is Russian and GigaAM is not installed, or else the speech of its original audio track.
 Its components download only after the Candidate's consent, into the data directory, at pinned versions with checked SHA-256; nothing is installed into the system.
