@@ -763,7 +763,8 @@ textarea {
   color: var(--color-danger);
 }
 
-.inbox-line {
+.inbox-line,
+.answers-line {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -771,7 +772,8 @@ textarea {
   margin-top: var(--space-3);
 }
 
-.inbox-waiting {
+.inbox-waiting,
+.answers-status {
   display: flex;
   align-items: center;
   gap: var(--space-3);

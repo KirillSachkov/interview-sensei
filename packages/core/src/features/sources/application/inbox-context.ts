@@ -1,4 +1,5 @@
 // What every part of Inbox processing shares: its dependencies and its background work.
+import { inBackground as runInBackground } from "../../../shared/background-work/index.ts";
 import type { ToolSession } from "../../../shared/mcp/index.ts";
 import type { RunInTransaction, Transaction } from "../../../shared/storage/index.ts";
 import type { Clock, Timer } from "../../../shared/time/index.ts";
@@ -52,23 +53,9 @@ export interface InboxContext {
   readonly pending: Set<Promise<void>>;
 }
 
-/** Runs the work; its failure goes to onError. */
-async function reported(context: InboxContext, work: () => Promise<void>): Promise<void> {
-  try {
-    await work();
-  } catch (error) {
-    context.dependencies.onError(error);
-  }
-}
-
 /** Runs the work in the background until it settles; `pending` holds it meanwhile. */
 export function inBackground(context: InboxContext, work: () => Promise<void>): void {
-  const running = reported(context, work);
-  context.pending.add(running);
-  void (async () => {
-    await running;
-    context.pending.delete(running);
-  })();
+  runInBackground({ pending: context.pending, onError: context.dependencies.onError }, work);
 }
 
 /** The Target of the tool's session; a session without one has nothing to process. */

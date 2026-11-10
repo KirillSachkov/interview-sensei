@@ -16,8 +16,8 @@ export async function refreshPlanViews(queryClient: QueryClient, targetId: strin
 /**
  * Reloads everything a draft's application changes: the Target with its plan, the Target list
  * with its status, the plan's views, the Questions of the side panel with the count of «Опорные
- * ответы», and the session history, whose Attempts a Topic merge moves. Only exact keys: the prefix ["targets", id] would also open
- * the setup session again.
+ * ответы», and the session history, whose Attempts a Topic merge moves. Only exact keys: the
+ * prefix ["targets", id] would also open the setup session again.
  */
 export async function refreshAppliedViews(queryClient: QueryClient, targetId: string) {
   await Promise.all([

@@ -35,9 +35,9 @@ export async function demoApi(dataDirectory?: string, options: ServerOptions = {
   return { ...started, headers, created, target, createDemo, get, put, questions };
 }
 
-export async function model() {
-  const features = await composeFeatures({
-    dataDirectory: await temporaryDirectory(),
+async function composeForTest(dataDirectory: string) {
+  return composeFeatures({
+    dataDirectory,
     // These tests start no agent, so no skill is read.
     skillsDirectory: await temporaryDirectory(),
     clock: { now: () => new Date(fixedTime) },
@@ -47,11 +47,32 @@ export async function model() {
     origin: () => "http://127.0.0.1:4399",
     log: fastify().log,
   });
+}
+
+export async function model() {
+  const features = await composeForTest(await temporaryDirectory());
   onTestFinished(async () => {
     await features.sessions.close();
     await features.storage.close();
   });
   return features;
+}
+
+/**
+ * Opens the data directory without a server, writes data that no API writes yet, such as a
+ * reference answer «проверен кандидатом» (#65), and closes it, so a server can start on it again.
+ */
+export async function seed(
+  dataDirectory: string,
+  write: (features: Features) => Promise<void>,
+): Promise<void> {
+  const features = await composeForTest(dataDirectory);
+  try {
+    await write(features);
+  } finally {
+    await features.sessions.close();
+    await features.storage.close();
+  }
 }
 
 /** Runs the exported tools through the real MCP transport; production service-chat stays unchanged. */

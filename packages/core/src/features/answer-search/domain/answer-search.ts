@@ -8,6 +8,12 @@ export type ReferenceOrigin = "material" | "internet" | "agent" | "candidate";
 /** The origins answer search writes: with a web source, or from the agent's own knowledge. */
 export type SearchOrigin = "internet" | "agent";
 
+/** How many Questions the start window offers and «Наполнять в фоне» fills (spec #70). */
+export const defaultSearchCount = 20;
+
+/** The most Questions one answer search may fill: each one costs about one web search. */
+export const maxSearchCount = 200;
+
 /** A Question of the bank as the queue reads it. */
 export interface QueueQuestion {
   readonly id: string;

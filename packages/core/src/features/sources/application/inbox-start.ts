@@ -2,6 +2,7 @@
 // chosen Sources to «разбирается», reads their texts into numbered parts, then starts the agent.
 import { randomUUID } from "node:crypto";
 
+import { availableAgent } from "../../../shared/background-work/index.ts";
 import { UnreadableSourceError } from "../domain/inbox.ts";
 import { inboxOpening, recheckOpening } from "../domain/inbox-brief.ts";
 import type { InboxMode, InboxRun } from "../domain/inbox.ts";
@@ -33,23 +34,6 @@ export type StartOutcome =
   | { readonly type: "agent_unavailable"; readonly reason: string | null };
 
 type Refusal = Exclude<StartOutcome, { type: "started" }>;
-
-/** The Target's agent when it can run now; otherwise the refusal. */
-async function processingAgent(
-  { targets, agents }: InboxDependencies,
-  targetId: string,
-): Promise<string | Refusal> {
-  const targetAgent = await targets.agent(targetId);
-  const chosen = targetAgent?.agent ?? null;
-  const offered = chosen === null ? [] : await agents.listAgents();
-  const availability = offered.find((entry) => entry.agent === chosen);
-  if (chosen === null || availability === undefined) {
-    return { type: "agent_unavailable", reason: null };
-  }
-  return availability.available
-    ? chosen
-    : { type: "agent_unavailable", reason: availability.reason };
-}
 
 /** The chosen Sources in the Inbox, all of them without a choice; a refusal otherwise. */
 async function chosenSources(
@@ -85,7 +69,7 @@ async function checkStart(
   if ("type" in sources) {
     return sources;
   }
-  const agent = await processingAgent(dependencies, targetId);
+  const agent = await availableAgent(dependencies, targetId);
   return typeof agent === "string" ? { sources, agent } : agent;
 }
 
@@ -276,7 +260,7 @@ async function checkRecheck(
   if (!questions.some((question) => !question.hidden)) {
     return { type: "no_questions" };
   }
-  const agent = await processingAgent(dependencies, targetId);
+  const agent = await availableAgent(dependencies, targetId);
   return typeof agent === "string" ? { agent } : agent;
 }
 

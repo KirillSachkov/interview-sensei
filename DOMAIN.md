@@ -62,13 +62,13 @@ Answer search writes «из интернета» and «из знаний аге�
 The Candidate starts it with «Найти ответы» in the zone «Цель», after seeing how many Questions have no Reference answer, choosing how many to fill, 20 by default, and the warning that each Question costs about one web search of the agent's subscription.
 The server keeps the queue: first the Questions asked in a Mock interview without a Reference answer or with one «из знаний агента», then those of shaky and not started Topics, then the rest, each group from the earliest added. Hidden Questions stay out.
 An Agent session of its own takes the Questions from the queue, searches the web and writes each answer; the agent only searches and words the answers, the server keeps the rules of overwriting.
-A Target has one background work of the agent at a time, and Inbox processing goes first: an Answer search that starts while the Target's Inbox processing runs waits for its end, and an Inbox processing that starts while an Answer search runs ends that search early.
+A Target has one background work of the agent at a time, and Inbox processing goes first: an Answer search that starts while the Target's Inbox processing runs waits for its end, and so does one whose agent has not started yet when an Inbox processing starts; an Inbox processing that starts while the agent of an Answer search works ends that search early.
 «Остановить», a failed agent, an agent that ended its work without the report, a restart of the server or a started Inbox processing ends it early; the written answers stay, and the server writes a partial answer report.
 With «Наполнять в фоне» on in «Настройки», an Answer search of up to 20 Questions starts by itself after an Inbox processing ends and after a Mock interview is finished. The setting is one for the whole application and off by default, so the agent's subscription is spent only by the Candidate's choice.
 It starts none after a Recheck, after an Inbox processing that a restart of the server ended, after a Mock interview «прерван», or for an archived Target; with nothing to fill or a search already running, it starts none either.
 
 **Answer report**:
-The summary of one Answer search: how many Questions it filled of how many, by origin, the Questions it could not fill with the agent's reasons, and the agent's token usage from its last ACP `usage_update`, or «агент не сообщил расход».
+The summary of one Answer search: how many Questions it filled of how many, by origin, the Questions it could not fill with the agent's reasons, and what the agent's last ACP `usage_update` says: the tokens in its context of its context window and, when it sends one, the session's cost; or «агент не сообщил расход». ACP reports no total of spent tokens.
 
 **Mock interview**:
 The only kind of interview: the agent acts as an interviewer and asks Questions for a Target.

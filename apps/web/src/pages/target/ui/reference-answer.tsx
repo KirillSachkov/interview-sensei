@@ -1,6 +1,7 @@
 import type { ReferenceAnswer } from "@/shared/api";
 
-const origins: Readonly<Record<ReferenceAnswer["origin"], string>> = {
+/** The origin of a reference answer as the Candidate reads it. */
+export const originNames: Readonly<Record<ReferenceAnswer["origin"], string>> = {
   material: "из материала",
   internet: "из интернета",
   agent: "из знаний агента",
@@ -32,7 +33,7 @@ export function ReferenceAnswerDetails({ answer }: { answer: ReferenceAnswer }) 
       <summary>
         Опорный ответ{" "}
         <span className="tag">
-          {origins[answer.origin]}
+          {originNames[answer.origin]}
           {partText(answer.part)}
         </span>
       </summary>

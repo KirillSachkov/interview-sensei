@@ -4,6 +4,7 @@ import type { SliceMigrations } from "../../shared/storage/index.ts";
 
 export { answerSearchModule } from "./module.ts";
 export { answerTools } from "./application/answer-tools.ts";
+export { maxSearchCount } from "./domain/answer-search.ts";
 export type { AnswerSearch } from "./application/answer-search.ts";
 export type { StartOutcome as AnswerStartOutcome } from "./application/answer-start.ts";
 

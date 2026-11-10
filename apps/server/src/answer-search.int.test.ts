@@ -9,6 +9,7 @@ import {
   startSearch,
 } from "./answer-test-support.ts";
 import { browserHeaders } from "./chat-test-support.ts";
+import { cardAt, hasQuestions, interviewApi, isGraded } from "./interview-test-support.ts";
 import { demoApi, first } from "./model-test-support.ts";
 import type { Questions } from "./model-test-support.ts";
 import { demoWithMock } from "./progress-test-support.ts";
@@ -18,6 +19,48 @@ function referenceAnswers(bank: Questions) {
   return bank
     .flatMap(({ referenceAnswer }) => (referenceAnswer === null ? [] : [referenceAnswer]))
     .toSorted((left, right) => left.origin.localeCompare(right.origin));
+}
+
+/** The Topic status of the Topic in the Target's progress. */
+async function topicStatus(api: Awaited<ReturnType<typeof interviewApi>>, topicId: string) {
+  const response = await api.get(`/api/targets/${api.target.id}/progress`);
+  const { topics } = response.json<{ topics: { id: string; status: string }[] }>();
+  return topics.find((topic) => topic.id === topicId)?.status;
+}
+
+/** A finished Mock interview with a strong answer and a strong answer to its Deeper question. */
+async function strongMock(api: Awaited<ReturnType<typeof interviewApi>>) {
+  const run = await api.answered(["Опыт и резюме"], "Ответ [grade:3] [deeper]");
+  const deeper = cardAt(await run.events.waitFor(hasQuestions(2)), 1);
+  await api.answer(run.interview.id, "Ответ [grade:3] [last]");
+  const opening = cardAt(await run.events.waitFor(isGraded(1)), 0);
+  await api.finish(run.interview.id);
+  await run.chat.waitFor((view) => view.status === "ended");
+  return { opening, deeper };
+}
+
+/**
+ * The demo Target after a finished Mock interview with two strong Attempts on one Topic, one on a
+ * Deeper question, which make the Topic confident. `groupOf` tells a Question's group of the queue:
+ * asked in the mock, of the confident Topic, or of a shaky or not started one.
+ */
+async function demoWithConfidentTopic() {
+  const api = await interviewApi();
+  const { opening, deeper } = await strongMock(api);
+  const asked = new Set([opening.questionId, deeper.questionId]);
+  const bank = await api.questions();
+  const confident = new Set(
+    bank.flatMap((question) =>
+      question.topicId === deeper.topicId && !asked.has(question.id) ? [question.id] : [],
+    ),
+  );
+  const groupOf = (questionId: string) => {
+    if (asked.has(questionId)) {
+      return "asked";
+    }
+    return confident.has(questionId) ? "confident" : "weak";
+  };
+  return { api, groupOf, status: await topicStatus(api, deeper.topicId) };
 }
 
 describe("the start window of answer search", () => {
@@ -62,7 +105,7 @@ describe("the answer search", () => {
       internet: 1,
       agent: 2,
       failed: [],
-      usage: { tokens: 4321, cost: null },
+      usage: { contextTokens: 4321, contextSize: 200_000, cost: null },
     });
     const bank = await questions();
     expect(referenceAnswers(bank)).toMatchObject([
@@ -83,6 +126,18 @@ describe("the answer search", () => {
 
     const report = await latestAnswerReport(server, target.id);
     expect(first(report.questions).text).toBe(graded.text);
+  });
+
+  it("fills the Questions of shaky and not started Topics before those of confident Topics", async () => {
+    const { api, groupOf, status } = await demoWithConfidentTopic();
+    const { queued } = await answersOf(api.server, api.target.id);
+
+    await startSearch(api.server, api.target.id, queued);
+
+    const report = await latestAnswerReport(api.server, api.target.id);
+    const order = report.questions.map((question) => groupOf(question.questionId));
+    expect(status).toBe("confident");
+    expect(order.join(" ")).toMatch(/^(?:asked )+(?:weak )+(?:confident ?)+$/u);
   });
 
   it("refuses a second start while the Target's answer search runs", async () => {

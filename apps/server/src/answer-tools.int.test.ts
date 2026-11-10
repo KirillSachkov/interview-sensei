@@ -8,66 +8,29 @@ import {
   answersOf,
   bankQuestion,
   handOut,
-  idOf,
+  hideQuestion,
   internetAnswer,
   latestAnswerReport,
   manualSearch,
   manualTarget,
   reportIdOf,
-  searchEvents,
-  startSearch,
 } from "./answer-test-support.ts";
 import type { Handed } from "./answer-test-support.ts";
-import { startServer, temporaryDirectory } from "./chat-test-support.ts";
-import {
-  attach,
-  latestReportId,
-  replyStartingWith,
-  startProcessing,
-} from "./inbox-test-support.ts";
+import { answerServer, saveAnswer, takenQueue } from "./answer-save-test-support.ts";
+import { replyStartingWith } from "./inbox-test-support.ts";
 import { first } from "./model-test-support.ts";
-import { callTool, questionsOf, toolResult } from "./setup-test-support.ts";
-import type { Events } from "./setup-test-support.ts";
+import { questionsOf, toolResult } from "./setup-test-support.ts";
 
 const goroutine = "Что такое горутина?";
 const channel = "Чем буферизованный канал отличается от небуферизованного?";
 const kafka = "Как Kafka хранит смещения?";
 
-async function server() {
-  const started = await startServer(await temporaryDirectory());
-  return started.server;
-}
+const server = answerServer;
+const save = saveAnswer;
 
 /** The handed Questions by text: the three were added at once, so their order is free. */
 const byText = (questions: readonly Handed[]) =>
   questions.toSorted((left, right) => left.text.localeCompare(right.text));
-
-/** A running search of a `[manual]` Target whose agent has taken the whole queue. */
-async function takenQueue() {
-  const app = await server();
-  const search = await manualSearch(app);
-  const { questions } = await handOut(search.events);
-  return { app, ...search, ids: (text: string) => idOf(questions, text) };
-}
-
-/** Saves the answer and resolves with the tool's reply. */
-async function save(events: Events, answer: object) {
-  return callTool(events, "save_reference_answer", answer);
-}
-
-/** Processes a note into a Question with an answer «из материала»; resolves with its id. */
-async function materialQuestion(app: Awaited<ReturnType<typeof server>>, targetId: string) {
-  const body = "Что такое select?\nОн ждёт каналы.";
-  await attach(app, { targetId, name: "notes.md", body });
-  await startProcessing(app, targetId);
-  await latestReportId(app, targetId);
-  const bank = await questionsOf(app, targetId);
-  const found = bank.find((question) => question.referenceAnswer?.origin === "material");
-  if (found === undefined) {
-    throw new Error("The processing wrote no answer from the material");
-  }
-  return found.id;
-}
 
 describe("the queue of the answer search agent", () => {
   it("next_questions_without_answer hands out the run's Questions with their Topic, level and Section kind, then an empty list", async () => {
@@ -91,6 +54,26 @@ describe("the queue of the answer search agent", () => {
     await expect(answersOf(app, target.id)).resolves.toMatchObject({
       run: { status: "running", filled: 0, total: 3 },
     });
+  });
+
+  it("skips a Question hidden after the start, and the report does not count it as not filled", async () => {
+    const app = await server();
+    const { target, events } = await manualSearch(app);
+    const hidden = first(await questionsOf(app, target.id));
+    await hideQuestion(app, hidden.id);
+
+    const { questions, left, total } = await handOut(events, 5);
+    await toolResult(events, "write_answer_report", { summary: "Ничего не нашёл." });
+
+    const handed = questions.map((question) => question.id).toSorted();
+    const { failed } = await latestAnswerReport(app, target.id);
+    expect({
+      handed: handed.length,
+      hiddenHanded: handed.includes(hidden.id),
+      left,
+      total,
+      failed: failed.map((question) => question.questionId).toSorted(),
+    }).toStrictEqual({ handed: 2, hiddenHanded: false, left: 0, total: 3, failed: handed });
   });
 });
 
@@ -149,20 +132,6 @@ describe("save_reference_answer", () => {
       "Ошибка save_reference_answer: An answer with sources is from the internet: give the origin internet",
     );
   });
-
-  it("never overwrites an answer «из материала»", async () => {
-    const app = await server();
-    const { target } = await manualTarget(app);
-    const material = await materialQuestion(app, target.id);
-    await startSearch(app, target.id, 1);
-    const { events } = await searchEvents(app, target.id);
-
-    const refused = await save(events, internetAnswer(material));
-
-    expect(refused).toBe(
-      "Ошибка save_reference_answer: The Question has a reference answer from its material; it stays",
-    );
-  });
 });
 
 describe("the limits of the answer search agent", () => {
@@ -186,7 +155,7 @@ describe("the limits of the answer search agent", () => {
     const listed = await handOut(events, 10);
 
     expect(refused).toBe(
-      `Ошибка save_reference_answer: The Question ${foreign.id} is not a Question of this Target`,
+      `Ошибка save_reference_answer: The Question ${foreign.id} is not one next_questions_without_answer gave this answer search`,
     );
     expect(listed.questions.map((question) => question.id)).not.toContain(foreign.id);
     await expect(bankQuestion(app, other.id, foreign.id)).resolves.toMatchObject({
@@ -216,7 +185,7 @@ describe("the agent's answer report", () => {
       internet: 1,
       agent: 1,
       failed: [{ questionId: ids(kafka), text: kafka, reason: "не нашёл источника" }],
-      usage: { tokens: 777, cost: null },
+      usage: { contextTokens: 777, contextSize: 200_000, cost: null },
     });
     await expect(answersOf(app, target.id)).resolves.toMatchObject({
       run: null,

@@ -14,7 +14,7 @@ const usage = (fields: Record<string, unknown>): SessionEvent => ({
 });
 
 describe(sessionUsage, () => {
-  it("takes the tokens and the cost of the agent's latest usage_update", () => {
+  it("takes the context tokens, the context window and the cost of the agent's latest usage_update", () => {
     const events = journal(
       usage({ used: 1200, size: 200_000 }),
       { type: "turn_ended", stopReason: "end_turn" },
@@ -22,7 +22,8 @@ describe(sessionUsage, () => {
     );
 
     expect(sessionUsage(events)).toStrictEqual({
-      tokens: 5300,
+      contextTokens: 5300,
+      contextSize: 200_000,
       cost: { amount: 0.42, currency: "USD" },
     });
   });
@@ -35,6 +36,6 @@ describe(sessionUsage, () => {
   it("leaves out a malformed cost", () => {
     expect(
       sessionUsage(journal(usage({ used: 10, size: 100, cost: { amount: "?" } }))),
-    ).toStrictEqual({ tokens: 10, cost: null });
+    ).toStrictEqual({ contextTokens: 10, contextSize: 100, cost: null });
   });
 });

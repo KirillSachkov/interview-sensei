@@ -2,10 +2,11 @@
 // queue, a reference answer for each, and the report. Each acts only on the session's Target.
 import { randomUUID } from "node:crypto";
 
+import { endAfterTurn } from "../../../shared/background-work/index.ts";
 import type { ToolSession } from "../../../shared/mcp/index.ts";
 import type { Transaction } from "../../../shared/storage/index.ts";
 import { answerReport, withSaved } from "../domain/answer-run.ts";
-import type { AnswerReport, FailedQuestion } from "../domain/answer-run.ts";
+import type { AnswerReport, AnswerRun, FailedQuestion } from "../domain/answer-run.ts";
 import { overwriteRefusal } from "../domain/answer-search.ts";
 import type { SearchOrigin } from "../domain/answer-search.ts";
 import type { AnswerBankQuestion } from "../domain/ports.ts";
@@ -33,6 +34,32 @@ async function sectionKinds(context: AnswerContext, targetId: string) {
 }
 
 /**
+ * Takes the next visible Questions of the run's queue that the agent has not taken yet, at most
+ * `count`, and records them as handed, in the open transaction: parallel calls get different
+ * Questions. A Question hidden since the start is skipped and never counts as handed.
+ */
+async function takeNext(
+  context: AnswerContext,
+  { session, count }: { session: ToolSession; count: number },
+  opened: Transaction,
+) {
+  const { questions, repository } = context.dependencies;
+  const { targetId, run } = await runOf(context, session, opened);
+  const bank = await questions.questions(targetId, opened);
+  const visible = new Map(
+    bank.filter((question) => !question.hidden).map((question) => [question.id, question]),
+  );
+  const handed = new Set(run.handedIds);
+  const open = run.queueIds.flatMap((id) => {
+    const question = visible.get(id);
+    return question === undefined || handed.has(id) ? [] : [question];
+  });
+  const next = open.slice(0, count);
+  await repository.setHanded(run.id, [...run.handedIds, ...next.map(({ id }) => id)], opened);
+  return { targetId, next, left: open.length - next.length, total: run.queueIds.length };
+}
+
+/**
  * `next_questions_without_answer`: the next Questions of the run's queue that the agent has not
  * taken yet, at most `count`; an empty list when the queue is done.
  */
@@ -41,24 +68,16 @@ export async function nextQuestions(
   session: ToolSession,
   count: number,
 ): Promise<{ questions: NextQuestion[]; left: number; total: number }> {
-  const { questions, repository } = context.dependencies;
-  const { targetId, run } = await runOf(context, session);
-  const handed = new Set(run.handedIds);
-  const next = run.queueIds.filter((id) => !handed.has(id)).slice(0, count);
-  const [bank, topics, kindOf] = await Promise.all([
-    questions.questions(targetId),
-    questions.topics(targetId),
+  const { targetId, next, left, total } = await context.dependencies.transaction(async (opened) =>
+    takeNext(context, { session, count }, opened),
+  );
+  const [topics, kindOf] = await Promise.all([
+    context.dependencies.questions.topics(targetId),
     sectionKinds(context, targetId),
   ]);
-  const byId = new Map(bank.map((question) => [question.id, question]));
   const topicNames = new Map(topics.map((topic) => [topic.id, topic.name]));
-  const shown = next.flatMap((id) => {
-    const question = byId.get(id);
-    return question === undefined || question.hidden ? [] : [question];
-  });
-  await repository.setHanded(run.id, [...run.handedIds, ...next]);
   return {
-    questions: shown.map((question) => ({
+    questions: next.map((question) => ({
       id: question.id,
       text: question.text,
       topic: topicNames.get(question.topicId) ?? "",
@@ -66,8 +85,8 @@ export async function nextQuestions(
       sectionKind: kindOf(question),
       currentOrigin: question.referenceAnswer?.origin === "agent" ? "agent" : null,
     })),
-    left: run.queueIds.length - handed.size - next.length,
-    total: run.queueIds.length,
+    left,
+    total,
   };
 }
 
@@ -91,18 +110,25 @@ function checkLinks({ origin, links }: AnswerInput): void {
 }
 
 /**
- * Checks in the transaction that the Question is the Target's and that its current answer gives
- * way to one of the origin; rejects otherwise.
+ * Checks in the transaction that next_questions_without_answer gave the Question to this run, that
+ * it is still visible and that its current answer gives way to one of the origin; rejects
+ * otherwise. So the run writes at most the answers of its queue, never more than the Candidate
+ * chose.
  */
 async function checkWritable(
   context: AnswerContext,
-  { targetId, input }: { targetId: string; input: AnswerInput },
+  { run, input }: { run: AnswerRun; input: AnswerInput },
   opened: Transaction,
 ): Promise<void> {
-  const bank = await context.dependencies.questions.questions(targetId, opened);
+  if (!run.handedIds.includes(input.questionId)) {
+    throw new Error(
+      `The Question ${input.questionId} is not one next_questions_without_answer gave this answer search`,
+    );
+  }
+  const bank = await context.dependencies.questions.questions(run.targetId, opened);
   const question = bank.find((candidate) => candidate.id === input.questionId);
-  if (question === undefined) {
-    throw new Error(`The Question ${input.questionId} is not a Question of this Target`);
+  if (question === undefined || question.hidden) {
+    throw new Error(`The Question ${input.questionId} is hidden; it needs no reference answer`);
   }
   const refusal = overwriteRefusal(question.referenceAnswer, input.origin);
   if (refusal !== null) {
@@ -118,7 +144,7 @@ async function storeAnswer(
 ): Promise<{ filled: number; total: number }> {
   const { questions, repository } = context.dependencies;
   const { targetId, run } = await runOf(context, session, opened);
-  await checkWritable(context, { targetId, input }, opened);
+  await checkWritable(context, { run, input }, opened);
   const { questionId, points, sample, origin, links } = input;
   const referenceAnswer = { points, sample, origin, sourceId: null, part: null, links };
   await questions.editQuestions(targetId, [{ id: questionId, referenceAnswer }], opened);
@@ -171,12 +197,6 @@ export async function writeReport(
     return { report: written, run: current };
   });
   // The session ends after this turn: the tool call is part of it, so nothing waits for the end.
-  void (async () => {
-    try {
-      await sessions.end(run.sessionId ?? session.sessionId);
-    } catch (error) {
-      onError(error);
-    }
-  })();
+  endAfterTurn({ sessions, onError }, run.sessionId ?? session.sessionId);
   return report;
 }

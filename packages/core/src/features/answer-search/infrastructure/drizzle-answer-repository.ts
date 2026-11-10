@@ -1,4 +1,4 @@
-import { and, desc, eq, ne } from "drizzle-orm";
+import { and, desc, eq, isNull, ne } from "drizzle-orm";
 
 import { executorOf } from "../../../shared/storage/index.ts";
 import type { Database, Transaction } from "../../../shared/storage/index.ts";
@@ -24,7 +24,7 @@ type Repository = AnswerRepository<Transaction>;
 
 function runQueries(
   database: Database,
-): Pick<Repository, "createRun" | "activeRun" | "allActive" | "begin" | "setSession"> {
+): Pick<Repository, "createRun" | "activeRun" | "allActive" | "setSession"> {
   return {
     createRun: async (run, transaction) => {
       const rows = await transaction
@@ -49,6 +49,20 @@ function runQueries(
       const rows = await database.select().from(answerRuns).where(active);
       return rows.map((row) => toRun(row));
     },
+    setSession: async (runId, sessionId) => {
+      const rows = await database
+        .update(answerRuns)
+        .set({ sessionId })
+        .where(and(eq(answerRuns.id, runId), eq(answerRuns.status, "running")))
+        .returning({ id: answerRuns.id });
+      return rows.length > 0;
+    },
+  };
+}
+
+/** Moves a run between `waiting` and `running`. */
+function waitQueries(database: Database): Pick<Repository, "begin" | "wait"> {
+  return {
     begin: async (runId, queueIds) => {
       const rows = await database
         .update(answerRuns)
@@ -57,11 +71,17 @@ function runQueries(
         .returning({ id: answerRuns.id });
       return rows.length > 0;
     },
-    setSession: async (runId, sessionId) => {
+    wait: async (runId) => {
       const rows = await database
         .update(answerRuns)
-        .set({ sessionId })
-        .where(and(eq(answerRuns.id, runId), eq(answerRuns.status, "running")))
+        .set({ status: "waiting", queueIds: [] })
+        .where(
+          and(
+            eq(answerRuns.id, runId),
+            eq(answerRuns.status, "running"),
+            isNull(answerRuns.sessionId),
+          ),
+        )
         .returning({ id: answerRuns.id });
       return rows.length > 0;
     },
@@ -99,9 +119,10 @@ function reportQueries(
 export function drizzleAnswerRepository(database: Database): Repository {
   return {
     ...runQueries(database),
+    ...waitQueries(database),
     ...reportQueries(database),
-    setHanded: async (runId, handedIds) => {
-      await database.update(answerRuns).set({ handedIds }).where(eq(answerRuns.id, runId));
+    setHanded: async (runId, handedIds, transaction) => {
+      await transaction.update(answerRuns).set({ handedIds }).where(eq(answerRuns.id, runId));
     },
     setSaved: async (runId, saved, transaction) => {
       await transaction.update(answerRuns).set({ saved }).where(eq(answerRuns.id, runId));

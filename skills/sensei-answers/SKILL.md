@@ -39,7 +39,7 @@ Shell commands are not available.
 - `points`: 3–5 key points that a strong answer contains, each one short sentence.
   Points name facts, mechanisms, trade-offs and the usual pitfalls, at the Question's level.
 - `sample`: a short sample answer of 3–6 sentences, as a strong Candidate would say it in an interview.
-- `origin` `internet` with `links`: the URLs of the pages that support the points, one to three.
+- `origin` `internet` with `links`: the URLs of the pages that support the points: one to five, two or three are best.
 - `origin` `agent` without `links`: when no reliable page supports the answer, write it from your own knowledge.
   Such an answer is a weaker hint; never give it a link you did not read.
 - For a Question of kind `conversation`, about the Candidate's own experience, write what a strong answer shows, such as a concrete example, a personal contribution and the result.

@@ -1,13 +1,9 @@
 import { useId, useState } from "react";
 
+import { answerSearchCounts } from "@/shared/api";
 import type { AnswerState } from "@/shared/api";
 
 import { useAnswers, useStartAnswerSearch, useStopAnswerSearch } from "../model/answers";
-
-/** The number the start window offers first (spec #70). */
-const defaultCount = 20;
-/** The most Questions one answer search may fill; the server refuses more. */
-const maxCount = 200;
 
 /** «Сколько наполнить»: a whole number from 1 to the limit. */
 function CountField({
@@ -65,8 +61,8 @@ function StartWindow({
   onClose: () => void;
 }) {
   const titleId = useId();
-  const limit = Math.min(state.queued, maxCount);
-  const [count, setCount] = useState(Math.min(defaultCount, limit));
+  const limit = Math.min(state.queued, answerSearchCounts.max);
+  const [count, setCount] = useState(Math.min(answerSearchCounts.default, limit));
   const start = useStartAnswerSearch(targetId);
   const valid = Number.isInteger(count) && count >= 1 && count <= limit;
   return (
@@ -102,7 +98,7 @@ function RunLine({ targetId, run }: { targetId: string; run: NonNullable<AnswerS
   const stop = useStopAnswerSearch(targetId);
   return (
     <>
-      <p className="inbox-waiting">
+      <p className="answers-status">
         <span className="muted">
           {run.status === "waiting"
             ? `Ждёт конца разбора материалов, затем наполнит ${run.total}`
@@ -144,7 +140,7 @@ function SearchLine({ targetId, state }: { targetId: string; state: AnswerState 
     );
   }
   return (
-    <p className="inbox-waiting">
+    <p className="answers-status">
       <span>Без опорного ответа: {state.withoutAnswer}</span>
       <button
         type="button"
@@ -207,7 +203,7 @@ export function AnswersCard({
         <p role="alert">Опорные ответы не загрузились: {answers.error.message}</p>
       ) : null}
       {state === undefined ? null : (
-        <div className="inbox-line">
+        <div className="answers-line">
           <SearchLine targetId={targetId} state={state} />
           <ReportLink report={state.latestReport} onReport={onReport} />
         </div>

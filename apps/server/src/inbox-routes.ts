@@ -1,12 +1,11 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 
+import { agentUnavailableMessage } from "./agent-unavailable.ts";
 import type { ArchiveGuard } from "./archive-guard.ts";
 import type { Features, InboxStartOutcome } from "./composition.ts";
 import { params, uuid } from "./route-params.ts";
 
 type Dependencies = Pick<Features, "sources"> & { readonly archiveGuard: ArchiveGuard };
-
-const otherAgentHint = "Или выберите другого агента в меню «Агент» в верхней панели.";
 
 /** The refusals of a start that the Candidate fixes in the list. */
 const badRequests = {
@@ -45,10 +44,7 @@ function refuseStart(
     case "agent_unavailable": {
       return reply.code(400).send({
         error: outcome.type,
-        message:
-          outcome.reason === null
-            ? "Нет доступного агента. Выберите агента в меню «Агент» в верхней панели."
-            : `Агент цели недоступен. ${outcome.reason} ${otherAgentHint}`,
+        message: agentUnavailableMessage(outcome.reason),
       });
     }
     default: {

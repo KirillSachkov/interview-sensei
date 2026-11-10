@@ -2,6 +2,7 @@
 // Target's Inbox processing runs, the search waits and begins when that ends.
 import { randomUUID } from "node:crypto";
 
+import { availableAgent } from "../../../shared/background-work/index.ts";
 import { answerOpening } from "../domain/answer-run.ts";
 import type { AnswerRun } from "../domain/answer-run.ts";
 import { answerQueue } from "../domain/answer-search.ts";
@@ -44,23 +45,6 @@ export async function queueOf(
   return { queue, bank };
 }
 
-/** The Target's agent when it can run now; otherwise the refusal. */
-async function searchAgent(
-  { targets, agents }: AnswerDependencies,
-  targetId: string,
-): Promise<string | Refusal> {
-  const targetAgent = await targets.agent(targetId);
-  const chosen = targetAgent?.agent ?? null;
-  const offered = chosen === null ? [] : await agents.listAgents();
-  const availability = offered.find((entry) => entry.agent === chosen);
-  if (chosen === null || availability === undefined) {
-    return { type: "agent_unavailable", reason: null };
-  }
-  return availability.available
-    ? chosen
-    : { type: "agent_unavailable", reason: availability.reason };
-}
-
 /** Checks the start in the order the Candidate can fix it. */
 async function checkStart(
   dependencies: AnswerDependencies,
@@ -76,7 +60,7 @@ async function checkStart(
   if (queue.length === 0) {
     return { type: "nothing_to_fill" };
   }
-  const agent = await searchAgent(dependencies, targetId);
+  const agent = await availableAgent(dependencies, targetId);
   return typeof agent === "string" ? { queue } : agent;
 }
 
@@ -87,7 +71,7 @@ async function checkStart(
 async function startSession(context: AnswerContext, run: AnswerRun, total: number) {
   const { dependencies } = context;
   const target = await dependencies.targets.get(run.targetId);
-  const agent = await searchAgent(dependencies, run.targetId);
+  const agent = await availableAgent(dependencies, run.targetId);
   if (target === undefined || typeof agent !== "string") {
     await closeRun(context, run, "agent_not_started");
     return null;
@@ -140,21 +124,25 @@ async function stored({ repository, transaction }: AnswerDependencies, run: Answ
   return transaction(async (opened) => (await repository.createRun(run, opened)) === "created");
 }
 
-/** Starts the stored run's agent in the background; a waiting run waits for the Inbox processing. */
+/**
+ * Starts the stored run's agent in the background. A waiting run waits for the Inbox processing,
+ * and so does a running one when a processing started after the check: it had no search to take
+ * over, so the search waits for its end as one started during it.
+ */
 function launch(context: AnswerContext, run: AnswerRun): void {
-  if (run.status === "running") {
-    inBackground(context, async () => {
-      // An Inbox processing that started after the check found no running search to take over.
-      await ((await context.dependencies.inbox.running(run.targetId))
-        ? closeRun(context, run, "inbox_started")
-        : startAgent(context, run, run.queueIds.length));
-    });
-    return;
-  }
-  // The Inbox processing may have ended before the run was stored, and its end found no run.
+  const { inbox, repository } = context.dependencies;
   inBackground(context, async () => {
-    if (!(await context.dependencies.inbox.running(run.targetId))) {
-      await begin(context, run);
+    const processing = await inbox.running(run.targetId);
+    if (run.status === "running" && !processing) {
+      await startAgent(context, run, run.queueIds.length);
+      return;
+    }
+    if (run.status === "running" && !(await repository.wait(run.id))) {
+      return;
+    }
+    // The processing may have ended meanwhile, and its end found no waiting run.
+    if (!(await inbox.running(run.targetId))) {
+      await begin(context, { ...run, status: "waiting", queueIds: [] });
     }
   });
 }

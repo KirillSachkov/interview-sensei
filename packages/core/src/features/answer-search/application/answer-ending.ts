@@ -79,18 +79,20 @@ export function watchAgent(context: AnswerContext, run: AnswerRun, sessionId: st
 
 /**
  * An Inbox processing of the Target started: one background work of the agent per Target, and the
- * Inbox processing goes first. A running answer search closes with a partial report, its found
- * answers stay, and its agent stops at once; a waiting one keeps waiting for the processing's end.
+ * Inbox processing goes first. A running answer search whose agent has not started yet waits for
+ * the processing's end, as one started during it. Otherwise it closes with a partial report, its
+ * found answers stay, and its agent stops at once; a waiting one keeps waiting.
  */
 export async function inboxStarted(context: AnswerContext, targetId: string): Promise<void> {
-  const run = await context.dependencies.repository.activeRun(targetId);
-  if (run?.status !== "running") {
+  const { repository, sessions } = context.dependencies;
+  const run = await repository.activeRun(targetId);
+  if (run?.status !== "running" || (run.sessionId === null && (await repository.wait(run.id)))) {
     return;
   }
   const report = await closeRun(context, run, "inbox_started");
   // The report knows the session the run had at its close, even one given during this call.
   if (report?.sessionId !== null && report?.sessionId !== undefined) {
-    await context.dependencies.sessions.stop(report.sessionId);
+    await sessions.stop(report.sessionId);
   }
 }
 

@@ -40,6 +40,7 @@ export type { McpGateway } from "./composition-agents.ts";
 export { UnknownAgentError } from "./composition-targets.ts";
 export type { InboxStartOutcome } from "@interview-sensei/core/sources";
 export type { AnswerStartOutcome } from "./composition-answers.ts";
+export { maxSearchCount } from "./composition-answers.ts";
 export { grades } from "@interview-sensei/core/interviews";
 export type * from "@interview-sensei/core/interviews";
 

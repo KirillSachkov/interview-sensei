@@ -2,6 +2,7 @@
 // part, creates Topics inside Sections and writes the Inbox report; inbox-add.ts writes Questions. Each acts only on the running processing of its session's Target.
 import { randomUUID } from "node:crypto";
 
+import { endAfterTurn } from "../../../shared/background-work/index.ts";
 import type { ToolSession } from "../../../shared/mcp/index.ts";
 import type { Transaction } from "../../../shared/storage/index.ts";
 import { inboxBrief } from "../domain/inbox-brief.ts";
@@ -124,18 +125,6 @@ export async function createTopic(
   );
 }
 
-/** Ends the session after the agent's current turn; a failure goes to onError. */
-async function endAfterTurn(
-  { sessions, onError }: Pick<InboxContext["dependencies"], "sessions" | "onError">,
-  sessionId: string,
-): Promise<void> {
-  try {
-    await sessions.end(sessionId);
-  } catch (error) {
-    onError(error);
-  }
-}
-
 /** The agent's part of the Inbox report. */
 export interface ReportInput {
   readonly summary: string;
@@ -205,6 +194,6 @@ export async function writeReport(
   );
   onRunFinished({ targetId: run.targetId, mode: run.mode, interrupted: false });
   // The session ends after this turn: the tool call is part of it, so nothing waits for the end.
-  void endAfterTurn({ sessions, onError }, run.sessionId ?? session.sessionId);
+  endAfterTurn({ sessions, onError }, run.sessionId ?? session.sessionId);
   return report;
 }

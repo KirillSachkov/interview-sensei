@@ -1,4 +1,5 @@
 // What every part of answer search shares: its dependencies and its background work.
+import { inBackground as runInBackground } from "../../../shared/background-work/index.ts";
 import type { ToolSession } from "../../../shared/mcp/index.ts";
 import type { RunInTransaction, Transaction } from "../../../shared/storage/index.ts";
 import type { Clock, Timer } from "../../../shared/time/index.ts";
@@ -44,20 +45,9 @@ export interface AnswerContext {
   readonly pending: Set<Promise<void>>;
 }
 
-/** Runs the work in the background until it settles; its failure goes to onError. */
+/** Runs the work in the background until it settles; `pending` holds it meanwhile. */
 export function inBackground(context: AnswerContext, work: () => Promise<void>): void {
-  const running = (async () => {
-    try {
-      await work();
-    } catch (error) {
-      context.dependencies.onError(error);
-    }
-  })();
-  context.pending.add(running);
-  void (async () => {
-    await running;
-    context.pending.delete(running);
-  })();
+  runInBackground({ pending: context.pending, onError: context.dependencies.onError }, work);
 }
 
 /** The Target of the tool's session; a session without one has nothing to fill. */

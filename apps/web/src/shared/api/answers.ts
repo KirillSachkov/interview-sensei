@@ -21,6 +21,12 @@ export interface AnswerState {
   } | null;
 }
 
+/**
+ * The start window's numbers, as the server has them (`defaultSearchCount` and `maxSearchCount`
+ * of answer search): 20 Questions by default, at most 200, since each costs about one web search.
+ */
+export const answerSearchCounts = { default: 20, max: 200 } as const;
+
 /** The origins answer search writes: with a web source, or from the agent's own knowledge. */
 type SearchOrigin = "internet" | "agent";
 
@@ -43,9 +49,13 @@ export interface AnswerReport {
     readonly text: string;
     readonly reason: string | null;
   }[];
-  /** The agent's token usage; null when it did not report it. */
+  /**
+   * The agent's latest ACP usage_update: the tokens in its context, its context window when known
+   * and the session's cumulative cost; null when it did not report it.
+   */
   readonly usage: {
-    readonly tokens: number;
+    readonly contextTokens: number;
+    readonly contextSize: number | null;
     readonly cost: { readonly amount: number; readonly currency: string } | null;
   } | null;
   readonly createdAt: string;

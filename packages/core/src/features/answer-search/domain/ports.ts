@@ -18,9 +18,18 @@ export interface AnswerRepository<Transaction> {
   readonly allActive: () => Promise<readonly AnswerRun[]>;
   /** Moves a waiting run to `running` with its queue; false when it no longer waits. */
   readonly begin: (runId: string, queueIds: readonly string[]) => Promise<boolean>;
+  /**
+   * Moves a running run without its session back to `waiting`, its queue emptied; false when it no
+   * longer runs or its agent has started.
+   */
+  readonly wait: (runId: string) => Promise<boolean>;
   /** Gives the running run its session; false when the run no longer runs. */
   readonly setSession: (runId: string, sessionId: string) => Promise<boolean>;
-  readonly setHanded: (runId: string, handedIds: readonly string[]) => Promise<void>;
+  readonly setHanded: (
+    runId: string,
+    handedIds: readonly string[],
+    transaction: Transaction,
+  ) => Promise<void>;
   readonly setSaved: (
     runId: string,
     saved: readonly SavedAnswer[],
@@ -169,9 +178,13 @@ export interface AnswerSessions {
     listener: (view: { readonly status: string }) => void,
   ) => () => void;
   readonly view: (sessionId: string) => Promise<{ readonly status: string } | undefined>;
-  /** The tokens and cost of the agent's latest ACP usage_update; null without one. */
+  /**
+   * The tokens in the agent's context, its context window and the session's cost from its latest
+   * ACP usage_update; null without one.
+   */
   readonly usage: (sessionId: string) => Promise<{
-    readonly tokens: number;
+    readonly contextTokens: number;
+    readonly contextSize: number | null;
     readonly cost: { readonly amount: number; readonly currency: string } | null;
   } | null>;
 }

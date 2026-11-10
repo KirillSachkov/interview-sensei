@@ -51,7 +51,10 @@ export interface AgentSessions {
   /** Stops at once, even in a turn, and ends every live session of the kind for the Target. */
   readonly stopAll: (targetId: string, kind: StartRequest["kind"]) => Promise<void>;
   readonly view: (sessionId: string) => Promise<SessionView | undefined>;
-  /** The tokens and cost of the agent's latest ACP `usage_update`; null when it sent none. */
+  /**
+   * The context tokens, context window and session cost of the agent's latest ACP `usage_update`;
+   * null when it sent none.
+   */
   readonly usage: (sessionId: string) => Promise<SessionUsage | null>;
   /** Sends the Candidate's prompt to the agent; refuses it while the agent works. */
   readonly prompt: (sessionId: string, text: string) => Promise<PromptOutcome>;

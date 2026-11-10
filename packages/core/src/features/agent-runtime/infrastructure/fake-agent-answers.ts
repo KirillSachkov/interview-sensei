@@ -10,7 +10,8 @@
 // - A refused save goes to the report's `failed` with the tool's error.
 // - Then write_answer_report with a summary.
 // A failed step ends the turn with «Фейковый поисковик сломался: <error>».
-// `/usage <tokens>` sends a `usage_update` with these tokens in any session and replies «Расход: <tokens>».
+// `/usage <tokens>` sends a `usage_update` with these tokens in any session and replies
+// «Расход: <tokens>».
 import type { AgentContext } from "@agentclientprotocol/sdk/unstable";
 
 import { sendText } from "./fake-agent-text.ts";

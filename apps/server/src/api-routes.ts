@@ -2,8 +2,8 @@
 import type { FastifyInstance } from "fastify";
 
 import { registerAgentSessionRoutes } from "./agent-session-routes.ts";
-import { registerBackgroundRoutes } from "./answer-routes.ts";
 import { archiveGuard } from "./archive-guard.ts";
+import { registerBackgroundRoutes } from "./background-routes.ts";
 import type { Features } from "./composition.ts";
 import { registerInterviewRoutes } from "./interview-routes.ts";
 import { registerProgressRoutes } from "./progress-routes.ts";

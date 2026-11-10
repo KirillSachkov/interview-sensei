@@ -68,7 +68,8 @@ export interface AnswerReportView {
   readonly questions: readonly { questionId: string; text: string; origin: string }[];
   readonly failed: readonly { questionId: string; text: string; reason: string | null }[];
   readonly usage: {
-    readonly tokens: number;
+    readonly contextTokens: number;
+    readonly contextSize: number | null;
     readonly cost: { readonly amount: number; readonly currency: string } | null;
   } | null;
 }
@@ -210,6 +211,12 @@ export async function handOut(events: Events, count = 5): Promise<Batch> {
     throw new TypeError("The result is not a batch of Questions");
   }
   return result;
+}
+
+/** Hides the Question, as the side panel does. */
+export async function hideQuestion(server: FastifyInstance, questionId: string) {
+  const response = await api(server).put(`/api/questions/${questionId}/hidden`, { hidden: true });
+  expect(response.statusCode).toBe(204);
 }
 
 /** The id of the Question with the text among the handed ones. */

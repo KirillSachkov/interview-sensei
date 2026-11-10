@@ -8,7 +8,11 @@ import type { Storage, StorageOptions } from "@interview-sensei/core/storage";
 import type { AgentRuntime } from "./composition-agents.ts";
 import type { composeTargets } from "./composition-targets.ts";
 
-export { answerSearchMigrations, answerTools } from "@interview-sensei/core/answer-search";
+export {
+  answerSearchMigrations,
+  answerTools,
+  maxSearchCount,
+} from "@interview-sensei/core/answer-search";
 export type { AnswerSearch, AnswerStartOutcome } from "@interview-sensei/core/answer-search";
 
 type ModuleDependencies = Parameters<typeof answerSearchModule>[0];

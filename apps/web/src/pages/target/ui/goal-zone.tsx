@@ -33,7 +33,8 @@ export interface GoalZoneProps {
 
 /**
  * The «Цель» zone: the Target's name and level, «Настроить цель», «Готовность», the Interview plan,
- * the materials and the reference answers. The setup chat opens beside the card or the Section where the Candidate opened it.
+ * the materials and the reference answers. The setup chat opens beside the card or the Section
+ * where the Candidate opened it.
  */
 export function GoalZone({
   zone: { target, setupAnchor, onSetup, onCloseSetup, onQuestions, onReport, onAnswerReport },

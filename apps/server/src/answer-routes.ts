@@ -1,14 +1,12 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 
+import { agentUnavailableMessage } from "./agent-unavailable.ts";
 import type { ArchiveGuard } from "./archive-guard.ts";
-import { registerInboxRoutes } from "./inbox-routes.ts";
+import { maxSearchCount } from "./composition.ts";
 import type { AnswerStartOutcome, Features } from "./composition.ts";
 import { params, uuid } from "./route-params.ts";
 
 type Dependencies = Pick<Features, "answers"> & { readonly archiveGuard: ArchiveGuard };
-
-/** The most Questions one answer search may fill: each one costs about one web search. */
-const maxCount = 200;
 
 /** The refusal of a start in Russian, with what the Candidate can do. */
 function refuseStart(
@@ -41,10 +39,7 @@ function refuseStart(
     case "agent_unavailable": {
       return reply.code(400).send({
         error: outcome.type,
-        message:
-          outcome.reason === null
-            ? "Нет доступного агента. Выберите агента в меню «Агент» в верхней панели."
-            : `Агент цели недоступен. ${outcome.reason} Или выберите другого агента в меню «Агент» в верхней панели.`,
+        message: agentUnavailableMessage(outcome.reason),
       });
     }
     default: {
@@ -61,7 +56,7 @@ function registerStart(server: FastifyInstance, { answers, archiveGuard }: Depen
         params,
         body: {
           type: "object",
-          properties: { count: { type: "integer", minimum: 1, maximum: maxCount } },
+          properties: { count: { type: "integer", minimum: 1, maximum: maxSearchCount } },
           required: ["count"],
           additionalProperties: false,
         },
@@ -148,17 +143,8 @@ function registerReads(server: FastifyInstance, { answers }: Dependencies) {
  * - `GET /api/targets/:id/answer-reports/:reportId`: the report with the counts by origin, the
  *   filled and failed Questions and the token usage, null when the agent sent none.
  */
-function registerAnswerRoutes(server: FastifyInstance, dependencies: Dependencies) {
+export function registerAnswerRoutes(server: FastifyInstance, dependencies: Dependencies) {
   registerStart(server, dependencies);
   registerStop(server, dependencies);
   registerReads(server, dependencies);
-}
-
-/** The routes of the agent's background work on a Target: Inbox processing and answer search. */
-export function registerBackgroundRoutes(
-  server: FastifyInstance,
-  dependencies: Dependencies & Parameters<typeof registerInboxRoutes>[1],
-) {
-  registerInboxRoutes(server, dependencies);
-  registerAnswerRoutes(server, dependencies);
 }

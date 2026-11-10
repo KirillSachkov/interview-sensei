@@ -72,6 +72,7 @@ So a tool set may use services built after the gateway, such as `interviews`: `s
 `composeInterviews` gives `interviews` a function that calls `progress`, which exists by the first call.
 A Topic merge in a draft of changes moves the merged Topic's Attempts through `interviews` in the same transaction, so Topic status counts them under the Topic that stays.
 `topicMerges` gives `target-setup` this port the same way: `interviews` exists by the first application of a draft.
+`src/shared/background-work` holds what Inbox processing and answer search share: `availableAgent`, `inBackground` and `endAfterTurn`.
 Inbox processing in `sources` starts its agent through `agent-sessions`, which composeFeatures builds after `sources`: `inboxSessions` hands it over the same way.
 `add_bank_questions` of `sources` leaves out duplicates by the rule of `add_questions` (#45): `target-setup` exports `withoutDuplicates`, and composeFeatures passes it to `sources` as its `DuplicateFilter` port.
 `create_topic` of `sources` creates the Topic through `question-bank` and adds it to the Section through `targets`, in one shared transaction.
@@ -79,6 +80,7 @@ The bulk review of Questions in `question-bank` asks `interviews` which Question
 `answer-search` (#70) reads its queue from `question-bank`, the Attempts of `interviews` and the Topic statuses of `progress`, writes Reference answers through `question-bank` and runs its agent through `agent-sessions`.
 `composition-answers.ts` composes it after `interviews` and `progress`. `sources` tells the server that an Inbox processing ended through its `onRunFinished` callback, and composeFeatures hands that to `answers.inboxFinished`, which begins a waiting Answer search.
 `onRunStarted` of `sources` goes to `answers.inboxStarted`: a running Answer search closes with a partial report and its agent stops, because Inbox processing goes first.
+A running search whose agent has not started yet goes back to `waiting` instead, and so does a start that finds the processing running only after it stored the run.
 «Наполнять в фоне» (#79) is `fillInBackground` of `app-settings`, which `answer-search` reads through its `AnswerSettings` port.
 `answers.inboxFinished` starts a search of 20 Questions with it on, after a processing that `interrupted` (the server's start) did not end; `onFinished` of `interviews`, only for a finished Mock interview, goes to `answers.interviewFinished` the same way.
 A background start that does not happen goes to `onBackgroundSkipped`, which the server logs at `info`.
@@ -129,9 +131,12 @@ The run records each part the agent reads with `read_source` (`readParts`): only
 `answer-search` (#70) has the skill `sensei-answers`, no shell, the web, and `askCandidate: false`, as `inbox-processing`.
 Its tools are `next_questions_without_answer`, `save_reference_answer` and `write_answer_report`; there is no `get_brief`: the opening names the Target, its language and the number of Questions.
 The server keeps the queue (`answerQueue`) and the rule of overwriting (`overwriteRefusal`) in `answer-search/domain`; `save_reference_answer` checks both in one transaction with the write.
+It takes only a visible Question that `next_questions_without_answer` gave this run (`handedIds`), so a run never writes more answers than the Candidate chose.
+`next_questions_without_answer` reads and records `handedIds` in one transaction, so parallel calls get different Questions; it skips a Question hidden since the start and never records it.
 A run that starts while the Target's Inbox processing runs is `waiting`; it takes its queue and starts its agent when that processing ends.
 It ends without the agent's report through `closeRun` in `answer-search/application/answer-ending.ts`, as an Inbox processing does, and `answers.endInterrupted` runs before `inbox.endInterrupted` at the server's start, so a closed Inbox processing begins no waiting run of the last start.
-The report reads the token usage from the session's journal when it is shown (`AgentSessions.usage`): an agent may send its `usage_update` after its last tool call.
+The report reads the usage from the session's journal when it is shown (`AgentSessions.usage`): an agent may send its `usage_update` after its last tool call.
+ACP defines `used` as the tokens in the context, `size` as the context window and `cost` as the session's cumulative cost, so the report shows «Токенов в контексте агента: N из SIZE» and the cost, never a total spend.
 
 A slice adds a session kind like this:
 

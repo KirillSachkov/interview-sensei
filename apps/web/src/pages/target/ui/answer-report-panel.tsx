@@ -1,21 +1,23 @@
 import type { AnswerReport } from "@/shared/api";
 
 import { useAnswerReport } from "../model/answers";
+import { originNames } from "./reference-answer";
 
-const origins: Readonly<Record<AnswerReport["questions"][number]["origin"], string>> = {
-  internet: "из интернета",
-  agent: "из знаний агента",
-};
+const number = (value: number) => value.toLocaleString("ru-RU");
 
-/** The token usage the agent reported, or that it reported none. */
+/**
+ * What the agent reported in its latest ACP usage_update: the tokens in its context, of its context
+ * window, and the session's cost; or that it reported none. ACP gives no tokens spent in total.
+ */
 function usageText(usage: AnswerReport["usage"]): string {
   if (usage === null) {
     return "Агент не сообщил расход.";
   }
-  const tokens = `Расход: ${usage.tokens.toLocaleString("ru-RU")} токенов`;
+  const size = usage.contextSize === null ? "" : ` из ${number(usage.contextSize)}`;
+  const tokens = `Токенов в контексте агента: ${number(usage.contextTokens)}${size}.`;
   return usage.cost === null
-    ? `${tokens}.`
-    : `${tokens}, ${usage.cost.amount.toLocaleString("ru-RU")} ${usage.cost.currency}.`;
+    ? tokens
+    : `${tokens} Стоимость сессии: ${number(usage.cost.amount)} ${usage.cost.currency}.`;
 }
 
 function ReportBody({ report }: { report: AnswerReport }) {
@@ -40,7 +42,7 @@ function ReportBody({ report }: { report: AnswerReport }) {
           <ul>
             {report.questions.map((question) => (
               <li key={question.questionId}>
-                {question.text} <span className="tag">{origins[question.origin]}</span>
+                {question.text} <span className="tag">{originNames[question.origin]}</span>
               </li>
             ))}
           </ul>

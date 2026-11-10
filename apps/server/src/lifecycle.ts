@@ -6,8 +6,9 @@ import { acceptLocalRequestsOnly } from "./local-requests.ts";
 
 /**
  * Ends sessions of the last run, marks its running Mock interviews «прерван», closes its answer
- * searches and its running Inbox processing with partial reports, and registers the shutdown order, the WebSocket plugin and the check that only the Candidate's own browser reaches
- * the server.
+ * searches and its running Inbox processing with partial reports, and registers the shutdown
+ * order, the WebSocket plugin and the check that only the Candidate's own browser reaches the
+ * server.
  */
 export async function prepare(
   server: FastifyInstance,

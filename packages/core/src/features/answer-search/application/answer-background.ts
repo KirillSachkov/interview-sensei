@@ -2,13 +2,11 @@
 // by itself after an Inbox processing ends and after a Mock interview is finished. A start that
 // does not happen, such as with nothing to fill or a search that runs, is no error: the server only
 // hears why.
+import { defaultSearchCount } from "../domain/answer-search.ts";
 import type { InboxEnd } from "../domain/ports.ts";
 import { inBackground } from "./answer-context.ts";
 import type { AnswerContext } from "./answer-context.ts";
 import { beginWaiting, start } from "./answer-start.ts";
-
-/** How many Questions a start by «Наполнять в фоне» fills at most. */
-const backgroundCount = 20;
 
 /** Starts an answer search when «Наполнять в фоне» is on; an archived Target gets none. */
 async function fill(context: AnswerContext, targetId: string): Promise<void> {
@@ -21,7 +19,7 @@ async function fill(context: AnswerContext, targetId: string): Promise<void> {
     onBackgroundSkipped({ targetId, reason: "target_archived" });
     return;
   }
-  const outcome = await start(context, { targetId, count: backgroundCount });
+  const outcome = await start(context, { targetId, count: defaultSearchCount });
   if (outcome.type !== "started") {
     onBackgroundSkipped({ targetId, reason: outcome.type });
   }

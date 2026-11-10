@@ -2,7 +2,7 @@
 // search and shows its report. canvas.test.ts declares these tests after the Inbox tests: the test
 // creates «Elixir-разработчик» and works only on it.
 import { expect, test } from "@playwright/test";
-import type { Locator, Page } from "@playwright/test";
+import type { Locator, Page, Request } from "@playwright/test";
 
 import { answerDebriefTests } from "./answer-debrief-tests.ts";
 import { answersCard, onboarding } from "./canvas-support.ts";
@@ -51,14 +51,14 @@ async function openStartWindow(card: Locator) {
   return window;
 }
 
-/** Opens the latest answer report and checks its counts and the token usage. */
+/** Opens the latest answer report and checks its counts of one Question and the token usage. */
 async function expectReport(page: Page, card: Locator) {
   await card.getByRole("button", { name: "Отчёт о наполнении" }).click();
   const report = page.getByRole("complementary", { name: "Отчёт о наполнении ответов" });
-  await expect(report).toContainText("Наполнено: 2 из 2");
+  await expect(report).toContainText("Наполнено: 1 из 1");
   await expect(report).toContainText("Из интернета: 1");
-  await expect(report).toContainText("Из знаний агента: 1");
-  await expect(report).toContainText(/Расход: 4\s321 токенов/u);
+  await expect(report).toContainText("Из знаний агента: 0");
+  await expect(report).toContainText(/Токенов в контексте агента: 4\s321 из 200\s000\./u);
 }
 
 /** «Наполнять в фоне» in the open «Настройки». */
@@ -67,6 +67,11 @@ async function fillInBackground(page: Page) {
   return page
     .getByRole("menu", { name: "Настройки" })
     .getByRole("menuitemcheckbox", { name: /Наполнять в фоне/u });
+}
+
+/** The page's start of an answer search. */
+function isSearchStart(request: Request): boolean {
+  return request.method() === "POST" && request.url().endsWith("/answers/search");
 }
 
 /** Clicks «Наполнять в фоне» from the other state and waits for the stored one. */
@@ -80,15 +85,19 @@ export function answerTests() {
   test.describe("answer search from the «Цель» zone", () => {
     test.use({ viewport: { width: 1600, height: 1000 } });
 
-    test("«Найти ответы» opens the window with the count and the warning, starts the search and shows the report", async ({
+    test("«Найти ответы» opens the window with the count and the warning, starts the search of the chosen number and shows the report", async ({
       page,
     }) => {
       const card = await newElixirTarget(page);
       const window = await openStartWindow(card);
+      await window.getByRole("spinbutton", { name: "Сколько наполнить" }).fill("1");
+      const started = page.waitForRequest(isSearchStart);
 
       await window.getByRole("button", { name: "Начать поиск" }).click();
 
-      await expect(card).toContainText("Без опорного ответа: 0");
+      const request = await started;
+      expect(request.postDataJSON()).toStrictEqual({ count: 1 });
+      await expect(card).toContainText("Без опорного ответа: 1");
       await expectReport(page, card);
     });
 

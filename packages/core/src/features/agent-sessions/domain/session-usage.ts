@@ -1,10 +1,15 @@
-// The token usage an agent reports with the ACP `usage_update` (spec #70): the journal keeps every
-// update, and the latest one counts.
+// The usage an agent reports with the ACP `usage_update` (spec #70): the journal keeps every
+// update, and the latest one counts. ACP defines `used` as the tokens currently in the context, `size` as
+// the context window and `cost` as the session's cumulative cost, so `used` is no spend.
 import type { AgentUpdate, RecordedEvent } from "./session-event.ts";
 
-/** What the agent reported: the tokens it used and, when it says so, the cost. */
+/**
+ * What the agent reported: the tokens in its context, the size of its context window when known
+ * and, when it says so, the session's cumulative cost.
+ */
 export interface SessionUsage {
-  readonly tokens: number;
+  readonly contextTokens: number;
+  readonly contextSize: number | null;
   readonly cost: { readonly amount: number; readonly currency: string } | null;
 }
 
@@ -21,7 +26,11 @@ function usageOf(update: AgentUpdate): SessionUsage | null {
   if (update.sessionUpdate !== "usage_update" || typeof update.used !== "number") {
     return null;
   }
-  return { tokens: update.used, cost: costOf(update.cost) };
+  return {
+    contextTokens: update.used,
+    contextSize: typeof update.size === "number" ? update.size : null,
+    cost: costOf(update.cost),
+  };
 }
 
 /** The usage of the latest well-formed `usage_update` in the journal; null without one. */
