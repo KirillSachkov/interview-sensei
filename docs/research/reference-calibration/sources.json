@@ -1,0 +1,126 @@
+{
+  "claude": {
+    "points": [
+      "Создаём AbortController и передаём controller.signal в опции fetch. Вызов controller.abort() отменяет запрос, а если ответ уже получен, то и чтение его тела. В Node.js глобальный fetch работает без флага с v18 и перестал быть экспериментальным в v21.",
+      "abort(reason) принимает любое значение и записывает его в signal.reason. Только без аргумента причиной становится DOMException с именем \"AbortError\".",
+      "Промис fetch отклоняется именно причиной отмены (abort reason) из сигнала. Если сигнал уже отменён до вызова fetch, промис отклоняется сразу.",
+      "В catch причину отмены лучше узнавать через signal.aborted и signal.reason, а не только по err.name === 'AbortError'. Проверка по имени не сработает, если в abort передали свою причину.",
+      "signal.throwIfAborted() выбрасывает signal.reason, если сигнал уже отменён. Это удобно для проверки перед долгими шагами."
+    ],
+    "sample": "Создаю const ac = new AbortController() и вызываю fetch(url, { signal: ac.signal }). Чтобы отменить запрос, вызываю ac.abort(reason), например ac.abort(new Error('user cancelled')). Fetch отклоняет промис той причиной, которая лежит в ac.signal.reason, и при этом обрывает тело запроса и ответа. Если abort вызвать без аргумента, причиной будет DOMException с name 'AbortError', но со своей причиной это уже не так. Поэтому в catch я проверяю ac.signal.aborted и сравниваю ошибку с ac.signal.reason, а все остальные ошибки считаю сетевыми и пробрасываю дальше. В Node.js fetch глобальный и работает без флага с v18, а стабильным стал с v21.",
+    "origin": "internet",
+    "links": [
+      "https://developer.mozilla.org/en-US/docs/Web/API/AbortController/abort",
+      "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/reason",
+      "https://nodejs.org/api/globals.html",
+      "https://fetch.spec.whatwg.org/"
+    ],
+    "checks": [
+      {
+        "claim": "Причиной (reason) может быть любое значение JavaScript. Без аргумента причина — DOMException \"AbortError\".",
+        "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortController/abort"
+      },
+      {
+        "claim": "Метод abort() умеет отменять запросы fetch и чтение тела ответа.",
+        "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortController/abort"
+      },
+      {
+        "claim": "signal.reason равен undefined, пока сигнал не отменён. Если причину не задали явно, по умолчанию это \"AbortError\" DOMException.",
+        "url": "https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/reason"
+      },
+      {
+        "claim": "В Node abortController.abort([reason]) принимает аргумент типа <any>, и его можно прочитать в signal.reason (пример с Error('boom!')). throwIfAborted() выбрасывает signal.reason.",
+        "url": "https://nodejs.org/api/globals.html"
+      },
+      {
+        "claim": "Глобальный fetch в Node работает без флага --experimental-fetch с v18.0.0 и перестал быть экспериментальным в v21.0.0.",
+        "url": "https://nodejs.org/api/globals.html"
+      },
+      {
+        "claim": "Если сигнал уже отменён, промис fetch отклоняется причиной отмены (abort reason) из сигнала. «Abort the fetch() call» отклоняет промис этой ошибкой и переводит тело запроса и ответа в ошибку.",
+        "url": "https://fetch.spec.whatwg.org/"
+      }
+    ],
+    "removedClaims": [
+      {
+        "claim": "abort(reason) всегда даёт AbortError",
+        "reason": "Опровергнуто. MDN и спецификация Fetch говорят, что reason может быть любым значением и fetch отклоняется именно им. AbortError получается только тогда, когда abort вызван без аргумента."
+      },
+      {
+        "claim": "Отмена fetch имеет code ABORT_ERR",
+        "reason": "Не подтверждено ни одной прочитанной страницей. При своей причине код зависит от переданного значения, и у fetch нет отдельного кода ABORT_ERR. Код ошибки отмены у Node-стримов относится к другому API и для fetch доказательством не служит."
+      },
+      {
+        "claim": "AbortSignal.timeout() даёт TimeoutError",
+        "reason": "Встретилось только в кратком пересказе результатов поиска, саму страницу я не читал. К тому же это необязательная деталь для этого вопроса, поэтому убрано."
+      },
+      {
+        "claim": "В старом Node (#49557, v18.17.1) undici на строковую причину выдавал TypeError",
+        "reason": "Это исторический баг, известный только из пересказа результатов поиска, и к текущему поведению он не относится. Убрано."
+      }
+    ]
+  },
+  "codex": {
+    "points": [
+      "Для отмены встроенного fetch передают controller.signal в fetch(url, { signal }) и вызывают controller.abort().",
+      "При abort() без причины или с undefined причиной становится DOMException с name === 'AbortError'.",
+      "Через abort(new Error('Отменено пользователем')) можно передать собственную причину: она доступна в signal.reason и используется для отклонения ещё не завершённого fetch.",
+      "В catch для собственной причины-объекта можно проверить signal.aborted && error === signal.reason; остальные ошибки следует обрабатывать отдельно.",
+      "Проверка error.code === 'ABORT_ERR' не является универсальным способом распознавания отмены fetch."
+    ],
+    "sample": "Я создаю AbortController и передаю его signal в fetch(url, { signal: controller.signal }). Когда запрос нужно отменить, вызываю controller.abort(new Error('Отменено пользователем')). В catch проверяю signal.aborted && error === signal.reason и обрабатываю эту причину отдельно от остальных ошибок. При abort() без аргумента причиной будет DOMException с именем AbortError, но собственная причина не обязана иметь такое имя. На code === 'ABORT_ERR' для встроенного fetch я не полагаюсь.",
+    "origin": "internet",
+    "links": [
+      "https://nodejs.org/api/globals.html#abortcontrollerabortreason",
+      "https://dom.spec.whatwg.org/#interface-abortcontroller",
+      "https://fetch.spec.whatwg.org/#fetch-method",
+      "https://raw.githubusercontent.com/nodejs/node/main/deps/undici/src/lib/web/fetch/index.js",
+      "https://nodejs.org/api/errors.html#abort_err"
+    ],
+    "checks": [
+      {
+        "claim": "Сигнал передают fetch через опции запроса; abort инициирует отмену.",
+        "url": "https://fetch.spec.whatwg.org/#fetch-method"
+      },
+      {
+        "claim": "abort(reason) сохраняет причину; при undefined используется DOMException AbortError.",
+        "url": "https://dom.spec.whatwg.org/#interface-abortcontroller"
+      },
+      {
+        "claim": "В Node.js собственный Error доступен через signal.reason.",
+        "url": "https://nodejs.org/api/globals.html#abortsignalreason"
+      },
+      {
+        "claim": "Незавершённый fetch отклоняется переданной причиной; для собственного Error применимо сравнение по идентичности.",
+        "url": "https://raw.githubusercontent.com/nodejs/node/main/deps/undici/src/lib/web/fetch/index.js"
+      },
+      {
+        "claim": "Уже выполненный promise fetch не становится отклонённым после отмены.",
+        "url": "https://fetch.spec.whatwg.org/#abort-fetch"
+      },
+      {
+        "claim": "Общее описание ABORT_ERR не устанавливает обязательный code для fetch.",
+        "url": "https://nodejs.org/api/errors.html#abort_err"
+      },
+      {
+        "claim": "Собственный Error может попасть в отклонение fetch без добавления code === 'ABORT_ERR'.",
+        "url": "https://raw.githubusercontent.com/nodejs/node/main/deps/undici/src/lib/web/fetch/index.js"
+      }
+    ],
+    "removedClaims": [
+      {
+        "claim": "abort(reason) всегда даёт AbortError.",
+        "reason": "Неверно: AbortError является причиной по умолчанию при undefined; собственный Error передаётся как причина отмены."
+      },
+      {
+        "claim": "Отмена fetch имеет code === 'ABORT_ERR'.",
+        "reason": "Удалено как универсальное утверждение: документация ABORT_ERR не доказывает это для fetch, а реализация допускает отклонение собственным Error без такого code."
+      }
+    ]
+  },
+  "opencode": {
+    "outcome": "cancelled",
+    "timeoutSeconds": 240,
+    "answer": null
+  }
+}

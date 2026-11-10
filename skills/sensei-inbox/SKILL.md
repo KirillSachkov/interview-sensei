@@ -37,7 +37,10 @@ The Candidate may stop the processing at any time. The Questions you added stay,
 - Give `sourceId` and `part`: the material and the part the Question comes from.
   A Question that the material does not hold, such as an obvious next question, gets no `sourceId`, `part` or `referenceAnswer`; the app marks it «не подтверждён» until the Candidate confirms it. Add such Questions rarely.
 - Give `referenceAnswer` only when the material itself answers the Question: 3–5 key points and a short sample answer, both from the material.
-  Without an answer in the material, give none; never answer from your own knowledge.
+  Match every factual claim in the points and sample to the material, preserving its conditions, exceptions and runtime or version.
+  Keep optional enrichment out of the key points; they describe what this Question requires at its level.
+  Without enough support for an answer in the material, give none; never answer from your own knowledge.
+  Name unclear or contradictory claims in `doubtful`, with the material and part, instead of silently repairing them.
 - Use `format: "quiz"` only when the material gives clear options; otherwise keep the default open format.
 - Before adding, look for Questions with the same meaning with `search_questions`.
   The tool itself leaves out Questions with the same text and counts them as duplicates for the report.

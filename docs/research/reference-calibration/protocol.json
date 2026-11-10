@@ -1,0 +1,5 @@
+{
+  "roleAddition": "This is an owner-authorized manual diagnostic, not a live Candidate session. Follow the skill criteria but replace the normal tool workflow with the diagnostic task in the prompt. Return JSON in Russian. No application MCP tools are available. Do not ask questions.",
+  "gradingPromptPrefix": "For each fixed case below independently apply the skill Grades and Section criteria. Do not compare candidates. Return [{id,grade,coveredPoints,gaps,justification}]. All cases share exactly the same question and reference answer. Do not ask Follow-ups in this diagnostic. ",
+  "sourcesPrompt": "Use the sensei-answers point-check procedure to prepare 3–5 points and a sample for this question: Как отменить fetch в Node.js через AbortController и обработать причину отмены? Read primary sources on the web within the skill search budget. Return {points,sample,origin,links,checks:[{claim,url,passageLocation}],removedClaims}. In particular verify rather than assume these proposed claims: abort(reason) always gives AbortError; fetch abort has code ABORT_ERR. The checks are diagnostic notes, not new application fields."
+}
