@@ -158,7 +158,7 @@ The interviewer never sees a Side thread: it learns only that the Candidate disc
 The Candidate opens a Side thread at a question card, at an interviewer message or at a Debrief, also of a past Mock interview, and may select a fragment to discuss.
 A Side thread from an interviewer message discusses the Question that was shown when the message came; a message before the first Question opens none.
 The Candidate can delete a Side thread for good; the hint mark on the Attempt stays.
-When the Mock interview finishes, its Side threads whose agent waits for a message close; archiving the Target closes all of its Side threads.
+When the Mock interview finishes, its Side threads close unless their agent is working: those that wait for a message and those that a restart or a crash stopped. Archiving the Target closes all of its Side threads.
 A closed Side thread stays readable and takes no more messages, so it cannot be continued, also after the Target returns from the archive.
 After a restart or a crash of its agent, a Side thread that is not closed stays readable, and «Продолжить» starts a new Agent session of it with the Mock interview's agent, or with the Target's agent when the Mock interview's one is unavailable; the Mock interview keeps its own agent.
 The new session's chat starts with the earlier one, and its Handoff brief holds the Side thread's earlier messages. Continuing never changes the hint mark.

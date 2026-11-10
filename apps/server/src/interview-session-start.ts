@@ -5,7 +5,7 @@ import type { FastifyReply } from "fastify";
 
 import type { ArchiveGuard } from "./archive-guard.ts";
 import { SessionsClosedError } from "./composition.ts";
-import type { ContinuationRequest, Features } from "./composition.ts";
+import type { ContinuationRefusal, ContinuationRequest, Features } from "./composition.ts";
 
 type Dependencies = Pick<Features, "interviews"> & { readonly archiveGuard: ArchiveGuard };
 
@@ -54,14 +54,7 @@ export function continuationRequestOf(body: unknown): ContinuationRequest | unde
   return keys.length === 1 && typeof agent === "string" ? { agent } : undefined;
 }
 
-type AgentOutcome =
-  | { readonly type: "invalid_agent" }
-  | {
-      readonly type: "agent_unavailable";
-      readonly agent: string;
-      readonly reason: string | null;
-      readonly targetAgent: string | null;
-    };
+type AgentOutcome = ContinuationRefusal;
 
 /** What goes on: «мок» or «ветку», as the Russian messages say. */
 type Subject = "мок" | "ветку";

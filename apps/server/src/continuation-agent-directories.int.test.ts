@@ -75,6 +75,9 @@ async function crashedAndContinued(
     url: `/api/interviews/${interviewId}/side-threads/${thread.id}/continue`,
     headers: browserHeaders(api.server),
   });
+  if (response.statusCode !== 200) {
+    throw new Error(`The Side thread did not continue: ${response.statusCode} ${response.body}`);
+  }
   const next = response.json<{ sessionId: string }>();
   const continued = await openEvents(api.server, next.sessionId);
   await continued.waitFor(repliesWith("Продолжаю ветку"));

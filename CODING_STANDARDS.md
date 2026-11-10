@@ -102,7 +102,7 @@ Deleting a Side thread stops its agent at once and deletes its AgentSession, the
 «Продолжить» in a Side thread whose session is no longer live (`continueSideThread`, #85) starts a session with `continues` and moves `side_threads.session_id` to it; its first server prompt is `sideThreadContinues`, and `get_brief` adds `continuation.messages` from `AgentSessions.earlierMessages`.
 A continuation of a Mock interview or of its Side thread picks its agent with `continuingAgent` of `interviews/application/agent-choice.ts`: the Mock interview's agent, or the Target's agent the Candidate chose; both routes answer an unavailable agent with the same 409 `agent_unavailable` of `interview-session-start.ts`.
 A Side thread continued with the Target's agent leaves the Mock interview's agent as it is.
-A finished Mock interview closes its Side threads whose session is `idle` (`closeIdleSideThreads`): it sets `side_threads.closed_at` and ends their sessions; a working one goes on.
+A finished Mock interview closes its Side threads whose session neither starts nor works (`closeFinishedSideThreads`): idle ones and those that a restart or a crash stopped. It sets `side_threads.closed_at` and ends the live ones; a working one goes on. Migration `0008` closes the threads that #80 already treated as closed: those of ended Mock interviews and of archived Targets.
 `POST /api/targets/:id/archive` refuses with `session_running` only for live sessions of other kinds; it closes every Side thread of the Target (`closeTargetSideThreads`), stops the live ones with `AgentSessions.stopAll` and then archives.
 A closed Side thread stays readable and refuses «Продолжить» with 409 `side_thread_closed`, also after the Target returns from the archive.
 

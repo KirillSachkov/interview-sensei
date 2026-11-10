@@ -213,6 +213,19 @@ describe("side thread continuation", () => {
     });
   });
 
+  it("closes the side threads that stopped at a restart once the paused mock interview finishes", async () => {
+    const dataDirectory = await temporaryDirectory();
+    const thread = await threadBeforeRestart(dataDirectory);
+    const after = await interviewApi({ dataDirectory });
+    await after.finish(thread.interviewId);
+
+    const response = await continueThread(after, thread);
+
+    expect(response.json()).toMatchObject({ error: "side_thread_closed" });
+    const listed = await listedThread(after, thread);
+    expect(listed?.closedAt).not.toBeNull();
+  });
+
   it("does not continue the side threads that the archive closed, after the Target returns", async () => {
     const api = await interviewApi();
     const { thread } = await idleThread(api);

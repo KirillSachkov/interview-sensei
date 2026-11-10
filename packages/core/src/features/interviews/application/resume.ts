@@ -17,9 +17,6 @@ import { pause, pauseInterrupted, pauseRunning, watchAgent } from "./pauses.ts";
 import type { PauseOutcome } from "./pauses.ts";
 import { watchTimeLimit } from "./time-limit.ts";
 
-/** The Candidate's «Продолжить», with the agent to go on with: the Mock interview's by default. */
-export type ResumeRequest = ContinuationRequest;
-
 /**
  * - `resumed`: a new agent session goes on with the Mock interview.
  * - `not_paused`: it runs or has ended.
@@ -83,7 +80,7 @@ async function startContinuation(
 async function continueWith(
   context: Context,
   id: string,
-  request: ResumeRequest,
+  request: ContinuationRequest,
 ): Promise<MockInterview | Exclude<ResumeOutcome, { type: "resumed" }>> {
   const { dependencies } = context;
   return change(context, id, async () => {
@@ -102,7 +99,7 @@ async function continueWith(
 async function resume(
   context: Context,
   id: string,
-  request: ResumeRequest,
+  request: ContinuationRequest,
 ): Promise<ResumeOutcome> {
   const resumed = await continueWith(context, id, request);
   if ("type" in resumed) {
@@ -120,7 +117,7 @@ export interface Pauses {
   /** «Пауза»: the time stops and the agent stops at once (#84). */
   readonly pause: (id: string) => Promise<PauseOutcome>;
   /** «Продолжить»: a new agent session goes on with the paused Mock interview. */
-  readonly resume: (id: string, request: ResumeRequest) => Promise<ResumeOutcome>;
+  readonly resume: (id: string, request: ContinuationRequest) => Promise<ResumeOutcome>;
   /** Pauses every running Mock interview; call it when the server stops, before its agents stop. */
   readonly pauseRunning: () => Promise<void>;
   /** Pauses the Mock interviews that still ran when the server last stopped; call it at start. */

@@ -34,13 +34,16 @@ function SetupSession({ targetId }: { targetId: string }) {
     <Chat
       key={session.data.id}
       sessionId={session.data.id}
-      renderAboveInput={(view) => (
-        <>
-          <SourcesFollower targetId={targetId} turn={turnEnd(view)} />
-          <InboxProposal targetId={targetId} turn={turnEnd(view)} />
-          <DraftChanges targetId={targetId} turn={turnEnd(view)} />
-        </>
-      )}
+      renderAboveInput={(view) => {
+        const turn = turnEnd(view);
+        return (
+          <>
+            <SourcesFollower targetId={targetId} turn={turn} />
+            <InboxProposal targetId={targetId} turn={turn} />
+            <DraftChanges targetId={targetId} turn={turn} />
+          </>
+        );
+      }}
       attachments={attachments}
     />
   );

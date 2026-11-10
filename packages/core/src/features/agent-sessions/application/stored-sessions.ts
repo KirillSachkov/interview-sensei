@@ -1,5 +1,6 @@
 // What AgentSessions read and fix in storage: the view of a session that is no longer live, with the
 // chat of the sessions it continues, and the sessions that were live when the server last stopped.
+import type { SessionKind } from "../../../shared/session-kinds/index.ts";
 import type { Clock } from "../../../shared/time/index.ts";
 import type { SessionView } from "../domain/agent-session.ts";
 import { isLive } from "../domain/agent-session.ts";
@@ -91,7 +92,7 @@ export interface LastConversation {
 export async function lastConversation(
   live: ReadonlyMap<string, LiveSession>,
   repository: SessionRepository,
-  { kind, targetId }: { kind: string; targetId: string },
+  { kind, targetId }: { kind: SessionKind; targetId: string },
 ): Promise<LastConversation | undefined> {
   const all = await repository.list();
   const sessions = all.filter((session) => session.kind === kind && session.targetId === targetId);

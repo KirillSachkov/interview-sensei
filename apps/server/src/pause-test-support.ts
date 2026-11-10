@@ -49,15 +49,8 @@ export async function shownFirst(api: Api, settings: { limitMinutes?: number } =
   return run;
 }
 
-/**
- * Stores another agent for the Mock interview, as if an earlier run had started it with an agent
- * this server does not offer, such as Codex on a server with the fake agent. A test cannot start a
- * Mock interview with a real agent: it needs a subscription.
- */
-export async function storeAgent(
-  dataDirectory: string,
-  { interviewId, agent }: { interviewId: string; agent: string },
-) {
+/** Runs SQL on the data directory of a stopped server, as an earlier run could have left it. */
+export async function storeWith(dataDirectory: string, statements: readonly string[]) {
   const features = await composeFeatures({
     dataDirectory,
     skillsDirectory: await temporaryDirectory(),
@@ -69,11 +62,26 @@ export async function storeAgent(
     log: fastify().log,
   });
   try {
-    await features.storage.database.execute(
-      `update interviews.interviews set agent = '${agent}' where id = '${interviewId}'`,
-    );
+    for (const statement of statements) {
+      // oxlint-disable-next-line eslint/no-await-in-loop -- the statements run in order
+      await features.storage.database.execute(statement);
+    }
   } finally {
     await features.sessions.close();
     await features.storage.close();
   }
+}
+
+/**
+ * Stores another agent for the Mock interview, as if an earlier run had started it with an agent
+ * this server does not offer, such as Codex on a server with the fake agent. A test cannot start a
+ * Mock interview with a real agent: it needs a subscription.
+ */
+export async function storeAgent(
+  dataDirectory: string,
+  { interviewId, agent }: { interviewId: string; agent: string },
+) {
+  await storeWith(dataDirectory, [
+    `update interviews.interviews set agent = '${agent}' where id = '${interviewId}'`,
+  ]);
 }

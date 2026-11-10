@@ -57,6 +57,13 @@
       "when": 1794269587407,
       "tag": "0007_side_thread_closed",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794271591153,
+      "tag": "0008_side_thread_closed_backfill",
+      "breakpoints": true
     }
   ]
 }

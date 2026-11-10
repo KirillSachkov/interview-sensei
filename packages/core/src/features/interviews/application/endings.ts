@@ -1,13 +1,13 @@
 // How a Mock interview ends: the agent's finish_interview after the Candidate pressed «Завершить»,
 // or without the agent's summary (#54): the server finishes it itself when the agent does not call
 // finish_interview in time, and at once when the Candidate finishes a paused one, which has no
-// agent (#84). Its Attempts stay either way. A finished one closes its Side threads that wait (#80).
+// agent (#84). Its Attempts stay either way. A finished one closes its Side threads whose agent does not work (#80).
 // A crash of the agent or a server restart pauses it instead: pauses.ts.
 import { candidateFinished } from "../domain/agent-messages.ts";
 import type { MockInterview } from "../domain/interview.ts";
 import { change, inBackground, runningWith, tellAndShowAgentText } from "./context.ts";
 import type { Context } from "./context.ts";
-import { closeIdleSideThreads } from "./side-threads.ts";
+import { closeFinishedSideThreads } from "./side-threads.ts";
 import { assertRunning, InterviewToolError, interviewOf } from "./tool-session.ts";
 
 /** How long the server waits for `finish_interview` after the Candidate presses «Завершить». */
@@ -42,7 +42,7 @@ function awaitFinish(context: Context, interview: MockInterview): void {
       if (await end(context, interview)) {
         await Promise.all([
           sessions.end(interview.sessionId),
-          closeIdleSideThreads(context, interview.id),
+          closeFinishedSideThreads(context, interview.id),
         ]);
       }
     });
@@ -75,18 +75,21 @@ export async function finishByAgent(
       nextStep,
     });
     inBackground(context, async () => sessions.end(sessionId));
-    inBackground(context, async () => closeIdleSideThreads(context, interview.id));
+    inBackground(context, async () => closeFinishedSideThreads(context, interview.id));
     return "The mock interview is finished. End your turn.";
   });
 }
 
 export type FinishOutcome = "accepted" | "not_found" | "not_running";
 
-/** Finishes the paused Mock interview at once: it has no agent to write the summary. */
+/**
+ * Finishes the paused Mock interview at once: it has no agent to write the summary. Its Side
+ * threads close in the same change, so a «Продолжить» right after it finds them closed.
+ */
 async function finishPaused(context: Context, id: string): Promise<void> {
   const { repository, clock } = context.dependencies;
   await repository.update(id, { status: "finished", finishedAt: clock.now().toISOString() });
-  inBackground(context, async () => closeIdleSideThreads(context, id));
+  await closeFinishedSideThreads(context, id);
 }
 
 /** Asks the agent of the running Mock interview for its summary, once. */

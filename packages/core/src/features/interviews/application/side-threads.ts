@@ -163,22 +163,26 @@ export async function deleteSideThread(
   return "deleted";
 }
 
+/** Whether the Side thread's agent is busy: it starts or works on a turn. */
+const busy = (status: string | undefined) => status === "starting" || status === "working";
+
 /**
- * Closes the Side threads of a finished Mock interview whose agent waits for a message, for good;
- * a thread whose agent works or starts goes on. A closed thread stays readable and does not go on.
+ * Closes the Side threads of a finished Mock interview for good: those whose agent waits for a
+ * message, and those whose agent is gone after a restart or a crash. A thread whose agent works or
+ * starts goes on. A closed thread stays readable and does not go on.
  */
-export async function closeIdleSideThreads(
+export async function closeFinishedSideThreads(
   { dependencies: { repository, sessions, clock } }: Context,
   interviewId: string,
 ): Promise<void> {
   const threads = await repository.sideThreads(interviewId);
   const views = await Promise.all(threads.map(async ({ sessionId }) => sessions.view(sessionId)));
-  const idle = threads.filter((_thread, index) => views[index]?.status === "idle");
+  const closing = threads.filter((_thread, index) => !busy(views[index]?.status));
   await repository.closeSideThreads(
-    idle.map(({ id }) => id),
+    closing.map(({ id }) => id),
     clock.now().toISOString(),
   );
-  await Promise.all(idle.map(async ({ sessionId }) => sessions.end(sessionId)));
+  await Promise.all(closing.map(async ({ sessionId }) => sessions.end(sessionId)));
 }
 
 /**
