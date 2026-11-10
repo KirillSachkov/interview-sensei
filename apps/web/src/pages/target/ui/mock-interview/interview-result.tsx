@@ -1,6 +1,6 @@
 import type { InterviewView, QuestionCard as Card } from "@/shared/api";
 
-import { useSessionWindow } from "../../model/session-windows";
+import { sessionWindowWidths } from "../../model/session-windows";
 
 import { DiscussSeparately } from "./discuss-separately";
 import { QuestionLink } from "./question-link";
@@ -8,7 +8,7 @@ import { QuestionCard } from "./question-card";
 import { SideThreads } from "./side-threads";
 import { SummaryDebrief } from "./summary-debrief";
 
-/** An ended question keeps its own size and leaves room for the threads beside it. */
+/** An ended question leaves room for the threads beside it. */
 function ResultRow({
   interview,
   card,
@@ -18,11 +18,10 @@ function ResultRow({
   card: Card;
   number: number;
 }) {
-  const window = useSessionWindow("question", card.id);
   return (
     <li
       className="result-row"
-      style={{ gridTemplateColumns: `${window.size.width}px max-content` }}
+      style={{ gridTemplateColumns: `${sessionWindowWidths.question}px max-content` }}
     >
       {number > 1 ? <QuestionLink /> : null}
       <QuestionCard

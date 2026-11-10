@@ -191,9 +191,9 @@ export function QuestionCard({
         <div className="question-actions">
           <AttemptPart interviewId={interviewId} targetId={targetId} card={card} stage={stage} />
           <QuestionDetails targetId={targetId} questionId={card.questionId} />
+          {discuss}
         </div>
       </div>
-      {discuss}
     </SessionWindow>
   );
 }

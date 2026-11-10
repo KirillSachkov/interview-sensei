@@ -797,50 +797,34 @@
   color: var(--color-accent);
 }
 
-/* A port at the card's right edge previews the direction of a new branch. */
+/* The branch action belongs to the card's footer, alongside its information action. */
 .question-card .branch-trigger {
-  position: absolute;
-  bottom: 16px;
-  right: -20px;
-  z-index: 1;
+  position: relative;
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
-  border: 1px solid var(--color-line);
-  border-radius: 50%;
-  background: var(--color-surface);
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: var(--color-surface-muted);
   padding: 0;
   color: var(--color-muted);
   transition:
-    transform 160ms ease,
-    border-color 160ms ease,
+    background 160ms ease,
     color 160ms ease;
 }
 
 .branch-plus {
   display: block;
-  width: 24px;
-  height: 24px;
-}
-
-.branch-trigger::before {
-  content: "";
-  position: absolute;
-  left: 100%;
   width: 20px;
-  border-top: 1px solid var(--color-accent);
-  opacity: 0;
-  transform: scaleX(0);
-  transform-origin: left;
-  transition:
-    transform 160ms ease,
-    opacity 160ms ease;
+  height: 20px;
 }
 
 .branch-hint {
   position: absolute;
-  left: calc(100% + 24px);
+  bottom: calc(100% + var(--space-2));
+  right: 0;
   width: max-content;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-control);
@@ -854,14 +838,8 @@
 }
 
 .question-card .branch-trigger:is(:hover, :focus-visible) {
-  transform: translateX(3px);
-  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
   color: var(--color-accent);
-}
-
-.branch-trigger:is(:hover, :focus-visible)::before {
-  opacity: 1;
-  transform: scaleX(1);
 }
 
 .branch-trigger:is(:hover, :focus-visible) .branch-hint {
@@ -890,21 +868,20 @@
 
 @media (prefers-reduced-motion: reduce) {
   .question-card .branch-trigger,
-  .branch-trigger::before,
   .branch-hint {
     transition: none;
   }
 }
 
-/* All session windows share the same resize handle and composer. Rows grow around their sizes. */
-.resizable-window {
+/* All session windows share one frame and composer; rows follow their content. */
+.session-window {
   position: relative;
   flex: none;
   min-width: 0;
   padding-bottom: var(--space-5);
 }
 
-.resizable-window > .interviewer-lines {
+.session-window > .interviewer-lines {
   flex: 1;
   min-height: 0;
   max-height: none;
@@ -933,11 +910,6 @@
 .result-row > .side-threads {
   grid-column: 2;
   margin-left: 0;
-}
-
-.resizable-window .chat-resize {
-  border: 0;
-  padding: 0;
 }
 
 .question-link {

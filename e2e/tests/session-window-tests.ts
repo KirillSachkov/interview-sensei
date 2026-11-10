@@ -4,35 +4,25 @@ import type { Locator, Page } from "@playwright/test";
 import { zones } from "./canvas-support.ts";
 import { answer, finishMock, startMock } from "./mock-interview-tests.ts";
 
-interface WindowBox {
-  offsetWidth: number;
-  offsetHeight: number;
-}
-
-function size(window: Locator) {
-  return window.evaluate(({ offsetWidth, offsetHeight }: WindowBox) => ({
-    width: offsetWidth,
-    height: offsetHeight,
-  }));
-}
-
 async function readyWindows(page: Page) {
   await page.goto("/");
   const { sessions } = zones(page);
   await startMock(sessions);
   const question = sessions.getByRole("article", { name: "Вопрос 1" });
   await question.getByRole("button", { name: "Обсудить отдельно" }).click();
-  const thread = sessions.getByRole("complementary", { name: "Ветка к вопросу 1" });
-  await expect(thread.getByRole("textbox", { name: "Сообщение в ветку" })).toBeEnabled();
+  const threads = sessions.getByRole("complementary", { name: "Ветка к вопросу 1" });
+  await expect(threads.first().getByRole("textbox", { name: "Сообщение в ветку" })).toBeEnabled();
+  await question.getByRole("button", { name: "Обсудить отдельно" }).click();
+  await expect(threads).toHaveCount(2);
   return {
     sessions,
     question,
-    thread,
+    threads,
     interviewer: sessions.getByRole("complementary", { name: "Интервьюер" }),
   };
 }
 
-/** The same send button and writing area, with model controls outside the composer. */
+/** Inputs keep their shared appearance and models remain outside the message box. */
 async function expectSharedInput(window: Locator, sendLabel: string) {
   await expect(window.locator(".composer textarea")).toHaveCSS("min-height", "48px");
   await expect(window.getByRole("button", { name: sendLabel, exact: true })).toHaveCSS(
@@ -42,32 +32,18 @@ async function expectSharedInput(window: Locator, sendLabel: string) {
   await expect(window.locator(".composer").getByRole("combobox")).toHaveCount(0);
 }
 
-async function growWithKeyboard(window: Locator, label: string) {
-  const before = await size(window);
-  const handle = window.getByRole("button", { name: `Изменить размер ${label}` });
-  await handle.press("ArrowRight");
-  await handle.press("ArrowDown");
-  const after = await size(window);
-  expect(after.width).toBe(before.width + 32);
-  expect(after.height).toBeGreaterThan(before.height);
+/** The plus belongs inside the card's footer and no longer overlaps its outline. */
+async function expectIntegratedAction(question: Locator) {
+  const card = await question.boundingBox();
+  const action = await question.getByRole("button", { name: "Обсудить отдельно" }).boundingBox();
+  expect(action?.x ?? 0).toBeGreaterThan(card?.x ?? 0);
+  expect((action?.x ?? 0) + (action?.width ?? 0)).toBeLessThan((card?.x ?? 0) + (card?.width ?? 0));
+  expect((action?.y ?? 0) + (action?.height ?? 0)).toBeLessThan(
+    (card?.y ?? 0) + (card?.height ?? 0),
+  );
 }
 
-/** A large pointer movement still ends at the branch's bounds, at the current canvas zoom. */
-async function dragToLimit(page: Page, thread: Locator) {
-  const handle = thread.getByRole("button", { name: "Изменить размер ветки" });
-  await handle.hover();
-  const box = await handle.boundingBox();
-  if (box === null) {
-    throw new Error("Угол ветки не появился");
-  }
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(box.x + 1200, box.y + 1200, { steps: 10 });
-  await page.mouse.up();
-  await expect.poll(async () => size(thread)).toEqual({ width: 960, height: 1000 });
-}
-
-/** The connector spans the full gap even when an earlier thread makes its row much taller. */
+/** The link spans the whole gap left by a column containing two threads. */
 async function expectCompleteLink(first: Locator, second: Locator) {
   const previous = await first.boundingBox();
   const current = await second.boundingBox();
@@ -77,36 +53,35 @@ async function expectCompleteLink(first: Locator, second: Locator) {
   expect(Math.abs((link?.y ?? 0) + (link?.height ?? 0) - (current?.y ?? 0))).toBeLessThan(2);
 }
 
-async function expectNextRowBelow(sessions: Locator, thread: Locator) {
-  const second = sessions.getByRole("article", { name: "Вопрос 2" });
+async function expectConnectedRows(windows: Awaited<ReturnType<typeof readyWindows>>) {
+  await windows.sessions.page().getByRole("button", { name: "Показать всё" }).click();
+  await answer(windows.question, "Ответ с двумя ветками. [grade:3]");
+  const second = windows.sessions.getByRole("article", { name: "Вопрос 2" });
   await expect(second.getByRole("textbox", { name: "Ваш ответ" })).toBeVisible();
   const nextBox = await second.boundingBox();
-  const threadBox = await thread.boundingBox();
+  const threadBox = await windows.threads.last().boundingBox();
   expect(nextBox?.y ?? 0).toBeGreaterThan((threadBox?.y ?? 0) + (threadBox?.height ?? 0));
-  await expectCompleteLink(sessions.getByRole("article", { name: "Вопрос 1" }), second);
+  await expectCompleteLink(windows.question, second);
 }
 
-async function resizeAndCheck(page: Page, windows: Awaited<ReturnType<typeof readyWindows>>) {
+async function expectWindowPresentation(windows: Awaited<ReturnType<typeof readyWindows>>) {
   await expectSharedInput(windows.question, "Ответить");
-  await expectSharedInput(windows.thread, "Отправить");
+  await expectSharedInput(windows.threads.first(), "Отправить");
   await expectSharedInput(windows.interviewer, "Отправить");
-  await growWithKeyboard(windows.question, "карточки вопроса");
-  await growWithKeyboard(windows.interviewer, "интервьюера");
-  await page.setViewportSize({ width: 2400, height: 2200 });
-  await dragToLimit(page, windows.thread);
-  await answer(windows.question, "Ответ после растягивания. [grade:3]");
-  await expectNextRowBelow(windows.sessions, windows.thread);
+  await expect(windows.sessions.getByRole("button", { name: /^Изменить размер/u })).toHaveCount(0);
+  await expectIntegratedAction(windows.question);
+  const arrows = windows.sessions.locator(".side-thread-arrows svg");
+  await expect(arrows.locator(".connection-line[marker-end]")).toHaveCount(2);
+  await expect(arrows.locator(".connection-trunk")).toHaveCount(2);
 }
 
 export function sessionWindowTests() {
-  test("session windows share their input, resize within bounds, move neighboring rows and keep their size after reload", async ({
+  test("session windows share their input, integrate the branch action and connect multiple threads without resizing controls", async ({
     page,
   }) => {
     const windows = await readyWindows(page);
-    await resizeAndCheck(page, windows);
-    await page.reload();
-    await expect.poll(async () => size(windows.thread)).toEqual({ width: 960, height: 1000 });
-    await expect.poll(async () => size(windows.question)).toMatchObject({ width: 672 });
+    await expectWindowPresentation(windows);
+    await expectConnectedRows(windows);
     await page.getByRole("button", { name: "Показать всё" }).click();
     await finishMock(windows.sessions);
   });

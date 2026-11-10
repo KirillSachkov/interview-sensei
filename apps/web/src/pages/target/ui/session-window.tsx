@@ -1,11 +1,8 @@
 import type { ReactNode } from "react";
 
-import { useSessionWindow } from "../model/session-windows";
-import { ChatResizeHandle } from "./chat-resize";
+import { sessionWindowWidths } from "../model/session-windows";
 
-const resizeLabels = { question: "карточки вопроса", interviewer: "интервьюера", thread: "ветки" };
-
-/** One frame and resize contract for all windows in a mock interview. */
+/** One content-sized frame for every window in a mock interview. */
 export function SessionWindow({
   kind,
   id,
@@ -19,23 +16,16 @@ export function SessionWindow({
   className: string;
   children: ReactNode;
 }) {
-  const window = useSessionWindow(kind, id);
   const Element = kind === "question" ? "article" : "aside";
   return (
     <Element
-      className={`${className} resizable-window`}
-      style={window.style}
+      className={`${className} session-window`}
+      style={{ width: sessionWindowWidths[kind] }}
       aria-label={label}
       data-discuss-scope={kind === "question" ? "" : undefined}
       data-side-thread={kind === "thread" ? id : undefined}
     >
       {children}
-      <ChatResizeHandle
-        size={window.size}
-        limit={window.limit}
-        onResize={window.handleResize}
-        label={resizeLabels[kind]}
-      />
     </Element>
   );
 }

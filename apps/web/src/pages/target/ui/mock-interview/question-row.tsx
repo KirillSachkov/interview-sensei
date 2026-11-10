@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { InterviewView, QuestionCard as Card } from "@/shared/api";
-import { useSessionWindow } from "../../model/session-windows";
+import { sessionWindowWidths } from "../../model/session-windows";
 import { DiscussSeparately } from "./discuss-separately";
 import { QuestionLink } from "./question-link";
 import { QuestionCard } from "./question-card";
@@ -29,13 +29,11 @@ export function QuestionRow({
   number: number;
   chat: ReactNode;
 }) {
-  const interviewer = useSessionWindow("interviewer", view.id);
-  const question = useSessionWindow("question", card.id);
   return (
     <li
       className="mock-row"
       style={{
-        gridTemplateColumns: `${interviewer.size.width}px ${question.size.width}px max-content`,
+        gridTemplateColumns: `${sessionWindowWidths.interviewer}px ${sessionWindowWidths.question}px max-content`,
       }}
     >
       {chat}

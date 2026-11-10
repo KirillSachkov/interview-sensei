@@ -1,6 +1,7 @@
 import type { CanvasZone } from "@/shared/ui/canvas";
 
 import { activeInterview, useLatestInterviews } from "../model/latest-interviews";
+import { sessionWindowWidths } from "../model/session-windows";
 import { goalZoneWidth } from "../model/setup-chat-state";
 import { GoalZone } from "./goal-zone";
 import type { GoalZoneProps } from "./goal-zone";
@@ -13,11 +14,7 @@ export const sessionsZoneId = "sessions";
  * The zones of the Target's canvas. A slice adds its widget to a zone's `content` here and leaves
  * the canvas itself unchanged. «Сессии» stands to the right once the Target has a Mock interview.
  */
-export function targetZones(
-  goal: GoalZoneProps,
-  sessionsShown: boolean,
-  sessionsWidth: number,
-): CanvasZone[] {
+export function targetZones(goal: GoalZoneProps, sessionsShown: boolean): CanvasZone[] {
   const { target } = goal;
   const goalZone: CanvasZone = {
     id: "goal",
@@ -34,7 +31,7 @@ export function targetZones(
       id: sessionsZoneId,
       title: "Сессии",
       hint: "моки по этой цели",
-      width: sessionsWidth,
+      width: sessionWindowWidths.interviewer + sessionWindowWidths.question + 72,
       minHeight: 640,
       content: <MockInterviews targetId={target.id} />,
     },

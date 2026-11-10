@@ -63,11 +63,7 @@ export function QuestionLink() {
       }
     >
       {layout === null ? null : (
-        <ConnectionArrows
-          width={32}
-          height={layout.height}
-          paths={[`M16 0 C4 ${layout.height / 3} 4 ${(layout.height * 2) / 3} 16 ${layout.height}`]}
-        />
+        <ConnectionArrows width={32} height={layout.height} paths={[`M16 0 V${layout.height}`]} />
       )}
     </div>
   );

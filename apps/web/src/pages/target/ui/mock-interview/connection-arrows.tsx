@@ -1,14 +1,18 @@
 import { useId } from "react";
 
+const noLines: readonly string[] = [];
+
 /** One quiet, rounded, dotted arrow style for the interview flow and its branches. */
 export function ConnectionArrows({
   width,
   height,
   paths,
+  lines = noLines,
 }: {
   width: number;
   height: number;
   paths: readonly string[];
+  lines?: readonly string[];
 }) {
   const marker = useId();
   return (
@@ -27,6 +31,9 @@ export function ConnectionArrows({
           <path d="M2 1l6 4-6 4" className="connection-head" />
         </marker>
       </defs>
+      {lines.map((line) => (
+        <path key={line} d={line} className="connection-line connection-trunk" />
+      ))}
       {paths.map((path) => (
         <path key={path} d={path} className="connection-line" markerEnd={`url(#${marker})`} />
       ))}

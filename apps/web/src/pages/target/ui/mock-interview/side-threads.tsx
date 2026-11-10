@@ -2,11 +2,15 @@ import { useCallback, useState } from "react";
 
 import type { InterviewView, QuestionCard } from "@/shared/api";
 
+import { branchPaths } from "./branch-paths";
 import { ConnectionArrows } from "./connection-arrows";
 import { SideThreadChat } from "./side-thread-chat";
 
-/** Where an arrow enters its Side thread: this far below the thread's top, at its title. */
-const threadAnchor = 20;
+/** The arrow enters level with the thread title, including its actual padding and wrapping. */
+function entryOf(thread: HTMLElement): number {
+  const title = thread.querySelector<HTMLElement>(".side-thread-head h4");
+  return thread.offsetTop + (title?.offsetTop ?? 10) + (title?.offsetHeight ?? 20) / 2;
+}
 
 interface ArrowLayout {
   readonly width: number;
@@ -25,7 +29,7 @@ function measure(column: HTMLElement): ArrowLayout {
     width: column.querySelector(".side-thread-arrows")?.clientWidth ?? 0,
     height: column.scrollHeight,
     start: port === null || port === undefined ? 24 : port.offsetTop + port.offsetHeight / 2,
-    entries: threads.map((thread) => thread.offsetTop + threadAnchor),
+    entries: threads.map((thread) => entryOf(thread)),
   };
 }
 
@@ -61,16 +65,8 @@ function Arrows({ layout }: { layout: ArrowLayout | null }) {
     return null;
   }
   const { width, height, entries, start } = layout;
-  const bend = (width + 20) / 2;
-  return (
-    <ConnectionArrows
-      width={width}
-      height={height}
-      paths={entries.map(
-        (entry) => `M20 ${start} C${bend} ${start} ${bend} ${entry} ${width - 1} ${entry}`,
-      )}
-    />
-  );
+  const { paths, lines } = branchPaths(width, start, entries);
+  return <ConnectionArrows width={width} height={height} paths={paths} lines={lines} />;
 }
 
 /**
