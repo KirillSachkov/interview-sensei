@@ -1,6 +1,6 @@
-import { Panel, ReactFlow, useReactFlow, useViewport } from "@xyflow/react";
+import { Panel, ReactFlow, useNodesState, useReactFlow, useViewport } from "@xyflow/react";
 import type { Node, NodeProps, Viewport } from "@xyflow/react";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 
 /**
@@ -60,6 +60,11 @@ function zoneNodes(zones: readonly CanvasZone[]): ZoneNode[] {
     left += zone.width + (zone.overhang ?? 0) + zoneGap;
     return node;
   });
+}
+
+/** The zone's node with what React Flow added to its earlier one, such as the measured size. */
+function keepingMeasure(current: readonly ZoneNode[], node: ZoneNode): ZoneNode {
+  return { ...current.find((earlier) => earlier.id === node.id), ...node };
 }
 
 /** The zoom island in the bottom left corner: out, current scale, in, fit. */
@@ -201,11 +206,17 @@ export function Canvas({
   label: string;
   focus?: CanvasFocus;
 }) {
-  const nodes = useMemo(() => zoneNodes(zones), [zones]);
+  // React Flow hides a node until it measured it. The nodes keep what React Flow added to them, so
+  // a zone that changes, such as while the Candidate resizes the chat, never blinks.
+  const [nodes, setNodes, handleNodesChange] = useNodesState<ZoneNode>([]);
+  useEffect(() => {
+    setNodes((current) => zoneNodes(zones).map((node) => keepingMeasure(current, node)));
+  }, [zones, setNodes]);
   return (
     <section className="canvas" aria-label={label}>
       <ReactFlow
         nodes={nodes}
+        onNodesChange={handleNodesChange}
         nodeTypes={nodeTypes}
         nodesDraggable={false}
         nodesConnectable={false}

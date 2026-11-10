@@ -78,7 +78,6 @@ async function scrollToTop(list: Locator) {
 /** «Python-разработчик» with its running setup chat open and its history loaded. */
 async function openPythonChat(page: Page) {
   await openTarget(page, pythonName);
-  await zones(page).goal.getByRole("button", { name: "Настроить цель" }).click();
   const chat = setupChat(page);
   // The message box appears with the chat's history, which callTool counts.
   await expect(chat.panel.getByRole("textbox", { name: "Сообщение" })).toBeVisible();

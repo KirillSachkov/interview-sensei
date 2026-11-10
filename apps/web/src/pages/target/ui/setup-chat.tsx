@@ -43,7 +43,6 @@ function IconButton({
 const icons = {
   enlarge: "M12 3h5v5M8 17H3v-5M17 3l-6 6M3 17l6-6",
   reduce: "M8 3v5H3M12 17v-5h5M8 8 3 3M12 12l5 5",
-  hide: "M5 5l10 10M15 5 5 15",
 } as const;
 
 export interface SetupChatProps {
@@ -54,24 +53,16 @@ export interface SetupChatProps {
   readonly onResize: (size: ChatSize) => void;
   /** «Развернуть» or «Свернуть»: the largest size, or back to the default one. */
   readonly onToggleSize: () => void;
-  readonly onClose: () => void;
 }
 
 /**
  * «Настройка цели»: the chat with the Target's setup agent in the middle of the «Цель» zone, with
  * the card «Разбор материалов» and the draft of changes above its message box. It stands open; its
  * agent starts with the Candidate's first message, or at once for a draft Target. The corner
- * resizes it, «Развернуть» makes it the largest, «Скрыть» hides it and the session goes on,
- * «Завершить» ends the session.
+ * resizes it, «Развернуть» makes it the largest, «Завершить» ends the session; the chat never
+ * closes.
  */
-export function SetupChat({
-  targetId,
-  draft,
-  size,
-  onResize,
-  onToggleSize,
-  onClose,
-}: SetupChatProps) {
+export function SetupChat({ targetId, draft, size, onResize, onToggleSize }: SetupChatProps) {
   const [engagement, setEngagement] = useState<Engagement>(draft ? "session" : "auto");
   const largest = isLargest(size);
   return (
@@ -94,7 +85,6 @@ export function SetupChat({
               setEngagement("waiting");
             }}
           />
-          <IconButton label="Скрыть" path={icons.hide} onClick={onClose} />
         </div>
       </header>
       <SetupBody
@@ -106,21 +96,5 @@ export function SetupChat({
       />
       <ChatResizeHandle size={size} onResize={onResize} />
     </aside>
-  );
-}
-
-/** The hidden setup chat: what the chat is for, and the button that shows it again. */
-export function SetupInvite({ onOpen }: { onOpen: () => void }) {
-  return (
-    <section className="card setup-invite" aria-label="Чат настройки">
-      <h3 className="card-title">Чат с агентом настройки</h3>
-      <p className="muted">
-        Агент меняет план, темы и вопросы, принимает вакансию, резюме и другие материалы. Все правки
-        вы применяете сами.
-      </p>
-      <button type="button" className="primary" onClick={onOpen}>
-        Открыть чат
-      </button>
-    </section>
   );
 }

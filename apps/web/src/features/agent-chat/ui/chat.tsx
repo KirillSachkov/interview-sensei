@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
-import type { SessionView } from "@/shared/api";
+import { setSessionOptions } from "@/shared/api";
+import type { AgentOptions, SessionView } from "@/shared/api";
 
 import { agentName } from "@/entities/agent";
 import { useSessionEvents } from "@/entities/session";
@@ -9,7 +10,8 @@ import type { ChatAttachments } from "./attachments";
 import { ChatEntries } from "./chat-entries";
 import { Composer } from "./composer";
 import { AgentActivity } from "./messages";
-import { SessionOptions } from "./session-options";
+import { SessionOptions, optionsSummary } from "./session-options";
+import type { OptionChange } from "./session-options";
 
 function failureText(failure: NonNullable<SessionView["failure"]>): string {
   if (failure.reason === "agent_not_started") {
@@ -48,27 +50,48 @@ function ConnectionLost({ text, onReconnect }: { text: string; onReconnect: () =
 /** What a chat of a session kind shows between the messages and the message form. */
 type RenderAboveInput = (view: SessionView) => ReactNode;
 
-/** The message written before the session started; `onSent` forgets it once the agent got it. */
+/**
+ * The message written before the session started, with the model and level chosen for it;
+ * `onSent` forgets it once the agent got it.
+ */
 interface FirstMessage {
   readonly text: string | undefined;
+  readonly options: OptionChange | undefined;
   readonly onSent: () => void;
+}
+
+/** Sets the chosen model and level, then sends the text; a refused choice does not hold the text. */
+async function sendFirst(
+  sessionId: string,
+  { text, options }: { text: string; options: OptionChange | undefined },
+  prompt: (text: string) => void,
+) {
+  if (options !== undefined && (options.model !== undefined || options.effort !== undefined)) {
+    await setSessionOptions(sessionId, options).catch(() => null);
+  }
+  prompt(text);
 }
 
 /** Sends the first message once, as soon as the agent waits for a message. */
 function useFirstMessage(
-  { text, onSent }: FirstMessage,
-  { waits, prompt }: { waits: boolean; prompt: (text: string) => void },
+  { text, options, onSent }: FirstMessage,
+  {
+    sessionId,
+    waits,
+    prompt,
+  }: { sessionId: string; waits: boolean; prompt: (text: string) => void },
 ) {
   useEffect(() => {
     if (text !== undefined && waits) {
       onSent();
-      prompt(text);
+      void sendFirst(sessionId, { text, options }, prompt);
     }
-  }, [text, onSent, waits, prompt]);
+  }, [text, options, onSent, sessionId, waits, prompt]);
 }
 
 /** Who answers: the agent's initial in a circle and its name. */
-function ChatAgent({ agent }: { agent: string }) {
+function ChatAgent({ agent, options }: { agent: string; options: AgentOptions | undefined }) {
+  const summary = optionsSummary(options);
   return (
     <p className="chat-agent">
       <span className="agent-avatar" aria-hidden="true">
@@ -77,6 +100,7 @@ function ChatAgent({ agent }: { agent: string }) {
       <span>
         <span className="visually-hidden">Агент: </span>
         <span className="chat-agent-name">{agentName(agent)}</span>
+        {summary === "" ? null : <span className="chat-agent-options"> · {summary}</span>}
       </span>
     </p>
   );
@@ -97,7 +121,7 @@ function ChatConnection({
   first: FirstMessage;
 }) {
   const { view, notice, lost, prompt, cancel, answerPermission } = useSessionEvents(sessionId);
-  useFirstMessage(first, { waits: lost === null && view?.status === "idle", prompt });
+  useFirstMessage(first, { sessionId, waits: lost === null && view?.status === "idle", prompt });
   const connectionLost =
     lost === null ? null : <ConnectionLost text={lost} onReconnect={onReconnect} />;
   if (view === null) {
@@ -105,7 +129,7 @@ function ChatConnection({
   }
   return (
     <section className="chat" aria-label={`Чат с агентом «${agentName(view.agent)}»`}>
-      <ChatAgent agent={view.agent} />
+      <ChatAgent agent={view.agent} options={view.options} />
       <ChatEntries
         entries={view.entries}
         canAnswer={lost === null && view.status === "working"}
@@ -138,12 +162,15 @@ export function Chat({
   renderAboveInput,
   attachments,
   firstMessage,
+  firstOptions,
 }: {
   sessionId: string;
   renderAboveInput?: RenderAboveInput;
   attachments?: ChatAttachments;
   /** A message the Candidate wrote before the session started; the agent gets it once it waits. */
   firstMessage?: string | undefined;
+  /** The model and level the Candidate chose with that message; set before it goes. */
+  firstOptions?: OptionChange | undefined;
 }) {
   const [attempt, setAttempt] = useState(0);
   // Forgotten once sent: a reconnect mounts the connection anew and must not send it again.
@@ -157,7 +184,7 @@ export function Chat({
       sessionId={sessionId}
       renderAboveInput={renderAboveInput}
       attachments={attachments}
-      first={{ text: first, onSent: forgetFirst }}
+      first={{ text: first, options: firstOptions, onSent: forgetFirst }}
       onReconnect={() => {
         setAttempt((current) => current + 1);
       }}

@@ -78,7 +78,6 @@ export async function openGoSetup(page: Page) {
   await page.getByRole("menuitemradio", { name: "Go-разработчик" }).click();
   const materials = zones(page).goal.getByRole("article", { name: "Материалы" });
   await expect(materials).toContainText("Материалов пока нет");
-  await zones(page).goal.getByRole("button", { name: "Настроить цель" }).click();
   const chat = setupChat(page);
   const attached = chat.panel
     .getByRole("list", { name: "Прикреплённые файлы" })
@@ -104,7 +103,6 @@ export async function openGoChat(page: Page) {
   await page.goto("/");
   await page.getByRole("button", { name: demoName }).click();
   await page.getByRole("menuitemradio", { name: "Go-разработчик" }).click();
-  await zones(page).goal.getByRole("button", { name: "Настроить цель" }).click();
   const chat = setupChat(page);
   // The message box appears with the chat's history, which callTool counts.
   await expect(chat.panel.getByRole("textbox", { name: "Сообщение" })).toBeVisible();

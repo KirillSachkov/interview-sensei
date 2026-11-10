@@ -84,7 +84,6 @@ export async function archiveCurrent(page: Page) {
 
 /** Ends the Target's setup session with «Завершить»; its draft of changes is empty. */
 export async function finishSetup(page: Page) {
-  await zones(page).goal.getByRole("button", { name: "Настроить цель" }).click();
   const chat = setupChat(page);
   await chat.panel.getByRole("button", { name: "Завершить" }).click();
   // The chat stays open and waits for the first message of a new session.

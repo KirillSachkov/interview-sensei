@@ -1,5 +1,5 @@
 export { fetchAgentOptions, fetchAgents } from "./agents";
-export type { AgentAvailability, OptionChoice } from "./agents";
+export type { AgentAvailability, AgentOptions, OptionChoice } from "./agents";
 export { fetchHealth } from "./health";
 export {
   applyDraft,

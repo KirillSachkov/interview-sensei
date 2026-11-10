@@ -87,12 +87,8 @@ async function expectReferenceAnswer(added: Locator) {
   );
 }
 
-/** Hides the chat, opens the latest Inbox report from «Материалы» and checks what it shows. */
-async function expectReport(
-  page: Page,
-  { chat, materials }: { chat: SetupChat; materials: Locator },
-) {
-  await chat.panel.getByRole("button", { name: "Скрыть" }).click();
+/** Opens the latest Inbox report from «Материалы» and checks what it shows. */
+async function expectReport(page: Page, { materials }: { materials: Locator }) {
   // The card may end up under the zoom island: «Показать всё» fits the view to the zone.
   await page.getByRole("button", { name: "Показать всё" }).click();
   await materials.getByRole("button", { name: "Отчёт о разборе" }).click();
@@ -119,7 +115,6 @@ async function openRustReport(page: Page) {
 /** The setup agent gives «Владение» a high importance, and the Candidate applies it (#65). */
 async function raiseOwnership(page: Page) {
   await openTarget(page, rustName);
-  await zones(page).goal.getByRole("button", { name: "Настроить цель" }).click();
   const chat = setupChat(page);
   await expect(chat.panel.getByRole("textbox", { name: "Сообщение" })).toBeVisible();
   await chat.callTool("set_topic_importance", {
@@ -127,7 +122,6 @@ async function raiseOwnership(page: Page) {
   });
   await expect(chat.changes).toContainText(["Важность тем: «Владение» — высокая"]);
   await chat.panel.getByRole("button", { name: "Применить (1)" }).click();
-  await chat.panel.getByRole("button", { name: "Скрыть" }).click();
   await page.getByRole("button", { name: "Показать всё" }).click();
 }
 
@@ -172,7 +166,7 @@ export function inboxTests() {
       await expect(card).toBeHidden();
       await expect(materials.getByRole("listitem")).toContainText(["готов"]);
       await expect(materials).not.toContainText("Не разобрано");
-      await expectReport(page, { chat, materials });
+      await expectReport(page, { materials });
     });
 
     test("the plan shows a Topic's high importance, and «Проверен» in the side panel marks the reference answer", async ({

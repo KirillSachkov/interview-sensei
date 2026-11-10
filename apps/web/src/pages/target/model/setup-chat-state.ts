@@ -9,9 +9,8 @@ import {
 } from "./chat-size";
 import type { ChatSize } from "./chat-size";
 
-/** The setup chat in the middle of the zone: whether it is shown, and its size. */
+/** The setup chat in the middle of the zone: its size. */
 export interface SetupChatState {
-  readonly shown: boolean;
   readonly size: ChatSize;
 }
 
@@ -23,9 +22,9 @@ export function goalZoneWidth(chat: SetupChatState): number {
   return 960 + chat.size.width;
 }
 
-/** The chat's state of this page: shown at first, with the size the browser keeps. */
+/** The chat's state of this page: the size the browser keeps. */
 export function useSetupChat(): [SetupChatState, (next: SetupChatState) => void] {
-  const [chat, setChat] = useState<SetupChatState>(() => ({ shown: true, size: storedChatSize() }));
+  const [chat, setChat] = useState<SetupChatState>(() => ({ size: storedChatSize() }));
   const change = useCallback((next: SetupChatState) => {
     rememberChatSize(next.size);
     setChat(next);

@@ -425,14 +425,7 @@ textarea {
   min-width: 0;
 }
 
-.goal-tile-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.start-tile,
-.setup-invite {
+.start-tile {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -444,8 +437,7 @@ textarea {
   background: var(--color-accent-soft);
 }
 
-.start-tile p,
-.setup-invite p {
+.start-tile p {
   margin: 0;
 }
 

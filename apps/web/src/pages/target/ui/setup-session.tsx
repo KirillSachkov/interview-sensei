@@ -1,12 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
 import { Chat, Composer } from "@/features/agent-chat";
+import type { OptionChange } from "@/features/agent-chat";
 import { fetchSessions, openSetupSession } from "@/shared/api";
 
 import { useSourceAttachments, useSourcesAfterTurn } from "../model/source-attachments";
 import { turnEnd } from "../model/turn-end";
 import { DraftChanges } from "./draft-changes";
 import { InboxProposal } from "./inbox-proposal";
+import { WaitingOptions } from "./waiting-options";
 
 /** Follows the agent's turns for the materials; shows nothing. */
 function SourcesFollower({ targetId, turn }: { targetId: string; turn: number | null }) {
@@ -15,10 +18,11 @@ function SourcesFollower({ targetId, turn }: { targetId: string; turn: number | 
 }
 
 /**
- * Opens the Target's running setup session, or a new one, and shows its chat. `firstMessage` is
- * the message the Candidate wrote before the session started: the agent gets it once it waits.
+ * Opens the Target's running setup session, or a new one, and shows its chat. `first` is the
+ * message the Candidate wrote before the session started, with the model and level chosen for it:
+ * the agent gets it once it waits.
  */
-function SetupSession({ targetId, firstMessage }: { targetId: string; firstMessage?: string }) {
+function SetupSession({ targetId, first }: { targetId: string; first?: FirstMessage }) {
   const attachments = useSourceAttachments(targetId);
   const session = useQuery({
     queryKey: ["targets", targetId, "setup-session"],
@@ -36,7 +40,8 @@ function SetupSession({ targetId, firstMessage }: { targetId: string; firstMessa
     <Chat
       key={session.data.id}
       sessionId={session.data.id}
-      firstMessage={firstMessage}
+      firstMessage={first?.text}
+      firstOptions={first?.options}
       renderAboveInput={(view) => {
         const turn = turnEnd(view);
         return (
@@ -56,8 +61,15 @@ function SetupSession({ targetId, firstMessage }: { targetId: string; firstMessa
  * The chat before its agent starts: the draft of changes and the message box. The first message
  * starts the setup session, so an open chat spends no subscription until the Candidate writes.
  */
-function WaitingChat({ targetId, onSend }: { targetId: string; onSend: (text: string) => void }) {
+function WaitingChat({
+  targetId,
+  onSend,
+}: {
+  targetId: string;
+  onSend: (first: FirstMessage) => void;
+}) {
   const attachments = useSourceAttachments(targetId);
+  const [options, setOptions] = useState<OptionChange>({});
   return (
     <section className="chat" aria-label="Чат с агентом настройки">
       <div className="chat-empty">
@@ -71,10 +83,13 @@ function WaitingChat({ targetId, onSend }: { targetId: string; onSend: (text: st
       <DraftChanges targetId={targetId} turn={null} />
       <Composer
         status="idle"
-        onSend={onSend}
+        onSend={(text) => {
+          onSend({ text, options });
+        }}
         label="Сообщение"
         placeholder="Напишите агенту"
         attachments={attachments}
+        tools={<WaitingOptions targetId={targetId} choice={options} onChange={setOptions} />}
       />
     </section>
   );
@@ -105,7 +120,13 @@ function useLiveSetup(targetId: string) {
  * draft Target. `waiting`: the message box without a session, after «Завершить». An object: the
  * Candidate's first message, which starts the session.
  */
-export type Engagement = "auto" | "session" | "waiting" | { readonly first: string };
+export type Engagement = "auto" | "session" | "waiting" | { readonly first: FirstMessage };
+
+/** The message that starts the session, with the model and level chosen for it. */
+export interface FirstMessage {
+  readonly text: string;
+  readonly options: OptionChange;
+}
 
 export function SetupBody({
   targetId,
@@ -114,11 +135,11 @@ export function SetupBody({
 }: {
   targetId: string;
   engagement: Engagement;
-  onFirst: (text: string) => void;
+  onFirst: (first: FirstMessage) => void;
 }) {
   const live = useLiveSetup(targetId);
   if (typeof engagement === "object") {
-    return <SetupSession targetId={targetId} firstMessage={engagement.first} />;
+    return <SetupSession targetId={targetId} first={engagement.first} />;
   }
   if (engagement === "auto" && live.data === undefined) {
     return <p className="muted">Открываем чат настройки…</p>;

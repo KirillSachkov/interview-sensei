@@ -27,17 +27,16 @@ async function newElixirTarget(page: Page) {
   });
   await chat.callTool("apply_changes", {});
   await expect(page.getByRole("button", { name: elixirName })).toBeVisible();
-  await hideAfterTurn(chat);
+  await turnEnded(chat);
   return answersCard(page);
 }
 
 /**
- * Hides the setup chat once the agent's turn ends: the page reloads the Target's views then, and a
- * hidden chat would miss it. The fake agent streams the long reply of apply_changes word by word.
+ * Waits until the agent's turn ends: the page reloads the Target's views then. The fake agent
+ * streams the long reply of apply_changes word by word.
  */
-async function hideAfterTurn(chat: ReturnType<typeof setupChat>) {
+async function turnEnded(chat: ReturnType<typeof setupChat>) {
   await expect(chat.panel.getByText("Агент работает…")).toBeHidden({ timeout: 20_000 });
-  await chat.panel.getByRole("button", { name: "Скрыть" }).click();
 }
 
 /** Opens the start window and checks its count, its default choice and its warning. */

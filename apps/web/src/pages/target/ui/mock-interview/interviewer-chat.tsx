@@ -1,3 +1,4 @@
+import { agentName } from "@/entities/agent";
 import { useSessionEvents } from "@/entities/session";
 import {
   AgentActivity,
@@ -6,6 +7,7 @@ import {
   ChatNote,
   Composer,
   SessionOptions,
+  optionsSummary,
 } from "@/features/agent-chat";
 import type { ChatEntry } from "@/shared/api";
 
@@ -76,7 +78,12 @@ export function InterviewerChat({
   const status = lost === null ? (view?.status ?? null) : null;
   return (
     <aside className="interviewer" aria-label="Интервьюер">
-      <h4>Интервьюер</h4>
+      <h4>
+        Интервьюер
+        {view === null
+          ? null
+          : ` · ${[agentName(view.agent), optionsSummary(view.options)].filter(Boolean).join(" · ")}`}
+      </h4>
       <ol className="chat-entries interviewer-lines nowheel" aria-label="Сообщения интервьюера">
         {(view?.entries ?? []).map((entry, index) => (
           <li key={entry.id}>
