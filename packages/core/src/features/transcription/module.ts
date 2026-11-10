@@ -5,7 +5,7 @@ import type { AudioExtractor, SpeechRecognizer, VideoLinks } from "./domain/port
 import { componentStore } from "./infrastructure/component-store.ts";
 import { ffmpegExtractor } from "./infrastructure/ffmpeg-extractor.ts";
 import { sherpaRecognizer } from "./infrastructure/sherpa-recognizer.ts";
-import { ytDlpLinks } from "./infrastructure/yt-dlp.ts";
+import { removeDownloads, ytDlpLinks } from "./infrastructure/yt-dlp.ts";
 
 /**
  * Stand-ins for the real components: API tests pass a catalog of small files on a local HTTP
@@ -36,7 +36,7 @@ export function transcriptionModule({
   /** The real components by default. */
   components?: TranscriptionComponents | undefined;
 }) {
-  return createTranscription({
+  const transcription = createTranscription({
     catalog:
       components.catalog === undefined
         ? pinnedCatalog(`${process.platform}-${process.arch}`)
@@ -47,4 +47,9 @@ export function transcriptionModule({
     links: components.links ?? ytDlpLinks(dataDirectory),
     onError,
   });
+  return {
+    ...transcription,
+    /** Deletes the temporary audio and subtitles of an interrupted process; call it at start. */
+    removeLeftovers: async () => removeDownloads(dataDirectory),
+  };
 }

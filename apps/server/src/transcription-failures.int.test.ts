@@ -2,10 +2,19 @@
 // finished transcript that is never recognized again, the refusal to download and the model of
 // the file's language. The components come from a local HTTP server; stubs stand for ffmpeg and
 // the model.
+import { access, mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
+
 import type { FastifyInstance } from "fastify";
 import { describe, expect, it, vi } from "vitest";
 
-import { agentTexts, isIdle, openEvents, startServer } from "./chat-test-support.ts";
+import {
+  agentTexts,
+  isIdle,
+  openEvents,
+  startServer,
+  temporaryDirectory,
+} from "./chat-test-support.ts";
 import {
   addLink,
   attach,
@@ -137,6 +146,22 @@ describe("a running transcription", () => {
     await expect(readParts(events, link, 1)).resolves.toStrictEqual([
       "Расскажите про горутины. Что такое канал?",
     ]);
+  });
+});
+
+describe("the start of the server", () => {
+  it("deletes the temporary audio and subtitles that an interrupted process left", async () => {
+    const dataDirectory = await temporaryDirectory();
+    const left = path.join(dataDirectory, "transcription", "downloads", "interrupted");
+    await mkdir(left, { recursive: true });
+    await writeFile(path.join(left, "audio.webm"), "звук");
+    const stub = await stubTranscription();
+
+    await startServer(dataDirectory, { transcription: stub.components });
+
+    await expect(access(path.join(dataDirectory, "transcription", "downloads"))).rejects.toThrow(
+      /ENOENT/u,
+    );
   });
 });
 

@@ -2,7 +2,7 @@
 // yt-dlp solves YouTube's JavaScript with the application's own Node and no other runtime, reads
 // no user config or plugins, keeps its cache in the data directory and finds only the downloaded
 // ffmpeg. Subtitles and audio come into a directory of their own under `transcription/downloads/`,
-// deleted after use.
+// deleted after use; the server's start deletes what an interrupted process left.
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
@@ -14,6 +14,19 @@ import { TranscriptionError } from "../domain/recognition.ts";
 import { linkFailure } from "../domain/video-link.ts";
 import { componentsDirectory } from "./component-store.ts";
 import { ffmpegPath } from "./ffmpeg-extractor.ts";
+
+/** The directory of the temporary subtitles and audio. */
+function downloadsDirectory(dataDirectory: string): string {
+  return path.join(componentsDirectory(dataDirectory), "downloads");
+}
+
+/**
+ * Deletes the temporary subtitles and audio that an interrupted process left. Call it at start,
+ * before any link is read.
+ */
+export async function removeDownloads(dataDirectory: string): Promise<void> {
+  await rm(downloadsDirectory(dataDirectory), { recursive: true, force: true });
+}
 
 /** A link to a media file by its extension: only yt-dlp's generic extractor reads it. */
 const mediaFile = /\.(?:mp4|m4v|mov|mkv|webm|avi|mp3|m4a|wav|ogg|oga|opus|flac|aac)$/iu;
@@ -94,7 +107,7 @@ async function workDirectory(
   dataDirectory: string,
   { json, name }: { json: string; name: string },
 ) {
-  const directory = path.join(componentsDirectory(dataDirectory), "downloads", randomUUID());
+  const directory = path.join(downloadsDirectory(dataDirectory), randomUUID());
   await mkdir(directory, { recursive: true });
   const info = path.join(directory, "video.info.json");
   await writeFile(info, json);
