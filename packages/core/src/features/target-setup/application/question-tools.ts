@@ -45,7 +45,7 @@ export function editQuestions(setup: TargetSetup) {
   return sessionTool({
     name: "edit_questions",
     description:
-      "Records edits of the Target's Questions in the draft of changes, by the ids from search_questions or add_questions: rephrase with `text`, move to the Topic of another name with `topic`, hide or show again with `hidden`, rate with `rating` (null clears it). Give only the fields to change. The Target stays unchanged until the draft is applied.",
+      "Records edits of the Target's Questions in the draft of changes, by the ids from search_questions or add_questions: rephrase with `text`, move to the Topic of another name with `topic`, hide or show again with `hidden`, rate with `rating` (null clears it), correct or add the reference answer with `referenceAnswer`: 3–5 key points and a short sample answer. Applying gives a corrected reference answer the origin «проверен кандидатом» and takes the Question off the list «проверить опорный ответ». Give only the fields to change. The Target stays unchanged until the draft is applied.",
     input: z.strictObject({
       edits: z
         .array(
@@ -55,17 +55,24 @@ export function editQuestions(setup: TargetSetup) {
             topic: z.string().trim().min(1).optional(),
             hidden: z.boolean().optional(),
             rating: z.enum(ratings).nullable().optional(),
+            referenceAnswer: z
+              .strictObject({
+                points: z.array(z.string().trim().min(1)).min(3).max(5),
+                sample: z.string().trim().min(1),
+              })
+              .optional(),
           }),
         )
         .min(1),
     }),
     run: async ({ edits }, session) => {
-      const given = edits.map(({ id, text, topic, hidden, rating }) => ({
+      const given = edits.map(({ id, text, topic, hidden, rating, referenceAnswer }) => ({
         id,
         ...(text === undefined ? {} : { text }),
         ...(topic === undefined ? {} : { topic }),
         ...(hidden === undefined ? {} : { hidden }),
         ...(rating === undefined ? {} : { rating }),
+        ...(referenceAnswer === undefined ? {} : { referenceAnswer }),
       }));
       if (given.some((edit) => Object.keys(edit).length < 2)) {
         throw new Error("Give at least one field to change for each Question");

@@ -10,8 +10,10 @@ import type {
 import { review } from "./question-review.ts";
 import type { Review } from "./question-review.ts";
 import { addQuestions, editQuestions, renameTopic } from "./bank-edits.ts";
+import { requestReferenceCheck, verifyReferenceAnswer } from "./reference-answers.ts";
+import type { DisputeCheck } from "./reference-answers.ts";
 import type { NewQuestion } from "./bank-edits.ts";
-import type { StoredQuestion, Topic } from "../domain/question.ts";
+import type { StoredQuestion, Topic, TopicImportance } from "../domain/question.ts";
 import { topicKey, validateQuestion } from "../domain/question.ts";
 
 /** One Topic per distinct name: the existing one, or a new one with the name. */
@@ -76,6 +78,43 @@ async function seed(
   await repository.seed(topics, questions);
 }
 
+/** The writes of the Target setup's draft of changes, in its transaction. */
+function setupEdits(repository: QuestionRepository<Transaction>) {
+  return {
+    addQuestions: async (
+      targetId: string,
+      questions: readonly NewQuestion[],
+      transaction?: Transaction,
+    ) => addQuestions(repository, targetId, { questions, transaction }),
+    editQuestions: async (
+      targetId: string,
+      edits: readonly QuestionEdit[],
+      transaction?: Transaction,
+    ) => editQuestions(repository, targetId, { edits, transaction }),
+    setImportance: async (
+      targetId: string,
+      change: { readonly topicId: string; readonly importance: TopicImportance },
+      transaction?: Transaction,
+    ) => repository.setImportance(targetId, change, transaction),
+    renameTopic: async (
+      targetId: string,
+      rename: { readonly from: string; readonly to: string },
+      transaction?: Transaction,
+    ) => renameTopic(repository, targetId, { ...rename, transaction }),
+  };
+}
+
+/** «проверен» and the list «проверить опорный ответ». */
+function referenceChecks(repository: QuestionRepository<Transaction>) {
+  return {
+    /** «проверен»: see verifyReferenceAnswer. */
+    verifyReferenceAnswer: async (id: string) => verifyReferenceAnswer(repository, id),
+    /** A Dispute puts the Question on the list «проверить опорный ответ». */
+    requestReferenceCheck: async (request: DisputeCheck, transaction: Transaction) =>
+      requestReferenceCheck(repository, request, transaction),
+  };
+}
+
 export function createQuestionBank(
   repository: QuestionRepository<Transaction>,
   attempts: QuestionAttempts,
@@ -109,21 +148,8 @@ export function createQuestionBank(
     /** Every Question of the Target, hidden ones too. */
     questions: async (targetId: string, transaction?: Transaction) =>
       repository.questions(targetId, transaction),
-    addQuestions: async (
-      targetId: string,
-      questions: readonly NewQuestion[],
-      transaction?: Transaction,
-    ) => addQuestions(repository, targetId, { questions, transaction }),
-    editQuestions: async (
-      targetId: string,
-      edits: readonly QuestionEdit[],
-      transaction?: Transaction,
-    ) => editQuestions(repository, targetId, { edits, transaction }),
-    renameTopic: async (
-      targetId: string,
-      rename: { readonly from: string; readonly to: string },
-      transaction?: Transaction,
-    ) => renameTopic(repository, targetId, { ...rename, transaction }),
+    ...setupEdits(repository),
+    ...referenceChecks(repository),
   };
 }
 export type QuestionBank = ReturnType<typeof createQuestionBank>;

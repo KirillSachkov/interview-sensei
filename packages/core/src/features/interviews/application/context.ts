@@ -1,3 +1,4 @@
+import type { RunInTransaction, Transaction } from "../../../shared/storage/index.ts";
 import type { Clock, Timer } from "../../../shared/time/index.ts";
 import type { MockInterview } from "../domain/interview.ts";
 import { interviewView } from "../domain/interview-view.ts";
@@ -9,13 +10,18 @@ import type {
   InterviewRepository,
   InterviewSessions,
   InterviewTargets,
+  ReferenceChecks,
 } from "../domain/ports.ts";
 
 export interface InterviewsDependencies {
-  readonly repository: InterviewRepository;
+  readonly repository: InterviewRepository<Transaction>;
   readonly targets: InterviewTargets;
   readonly agents: InterviewAgents;
   readonly questions: InterviewQuestions;
+  /** The list «проверить опорный ответ»: the question-bank module. */
+  readonly referenceChecks: ReferenceChecks<Transaction>;
+  /** A Dispute and its reference check are written in one transaction. */
+  readonly transaction: RunInTransaction;
   readonly sessions: InterviewSessions;
   readonly clock: Clock;
   /** Runs the reminder before the time limit, the end of the limit and the wait for `finish_interview`. */

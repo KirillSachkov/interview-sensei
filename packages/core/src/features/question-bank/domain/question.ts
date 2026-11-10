@@ -58,6 +58,18 @@ interface ReviewDetails {
   readonly unseen: boolean;
 }
 
+/**
+ * Why the Question waits in the list «проверить опорный ответ» of the zone «Цель»: the Candidate
+ * disputed the Grade of an Attempt on it, with their reason. «проверен» or a corrected reference
+ * answer takes it off the list.
+ */
+export interface ReferenceCheck {
+  readonly reason: "dispute";
+  readonly comment: string;
+  /** ISO 8601. */
+  readonly requestedAt: string;
+}
+
 /** What Inbox processing adds to a Question; other writers leave them null. */
 interface InboxDetails {
   /** The part of the first Source that the Question came from, from 1; null when unknown. */
@@ -65,6 +77,8 @@ interface InboxDetails {
   /** The Section kind the Question fits; null when nobody set it. */
   readonly sectionKind: SectionKind | null;
   readonly referenceAnswer: ReferenceAnswer | null;
+  /** In the list «проверить опорный ответ»; null when it is not there. */
+  readonly referenceCheck: ReferenceCheck | null;
 }
 
 export type Question = QuestionContent & QuestionRecord & InboxDetails & ReviewDetails;
@@ -78,12 +92,17 @@ export type StoredQuestion = QuestionContent &
   Partial<InboxDetails> &
   Partial<ReviewDetails>;
 
+/** How much a Topic matters for the Target: the setup agent takes it from the vacancy. */
+export type TopicImportance = "high" | "normal" | "low";
+
+/** A Topic to store: it starts with the importance «обычная». */
 export interface Topic {
   readonly id: string;
   readonly targetId: string;
   readonly name: string;
 }
 export interface TopicSummary extends Topic {
+  readonly importance: TopicImportance;
   readonly questionCount: number;
 }
 

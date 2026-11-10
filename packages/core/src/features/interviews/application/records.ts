@@ -84,7 +84,19 @@ interface DisputeRequest {
   readonly reason: string;
 }
 
-/** Records the Candidate's Dispute of the Attempt's Grade; undefined for an unknown Attempt. */
+/** The Question of the disputed Attempt; undefined when its asked question is gone. */
+async function disputedQuestion(
+  { repository }: InterviewsDependencies,
+  { id, attempt }: { id: string; attempt: Attempt },
+) {
+  const asked = await repository.asked(id);
+  return asked.find((entry) => entry.id === attempt.askedQuestionId)?.questionId;
+}
+
+/**
+ * Records the Candidate's Dispute of the Attempt's Grade and puts its Question on the list
+ * «проверить опорный ответ»; undefined for an unknown Attempt.
+ */
 async function dispute(
   context: Context,
   { id, attemptId, grade, reason }: DisputeRequest,
@@ -95,13 +107,20 @@ async function dispute(
     if (disputed === undefined) {
       return disputed;
     }
-    await dependencies.repository.dispute({
-      id: randomUUID(),
-      interviewId: id,
-      attemptId,
-      grade,
-      reason,
-      disputedAt: dependencies.clock.now().toISOString(),
+    const disputedAt = dependencies.clock.now().toISOString();
+    const questionId = await disputedQuestion(dependencies, { id, attempt: disputed });
+    // A Dispute and its reference check (#65) span two slices, so they share one transaction.
+    await dependencies.transaction(async (transaction) => {
+      await dependencies.repository.dispute(
+        { id: randomUUID(), interviewId: id, attemptId, grade, reason, disputedAt },
+        transaction,
+      );
+      if (questionId !== undefined) {
+        await dependencies.referenceChecks.requestReferenceCheck(
+          { questionId, comment: reason, requestedAt: disputedAt },
+          transaction,
+        );
+      }
     });
     return debrief(dependencies, id, attemptId);
   });

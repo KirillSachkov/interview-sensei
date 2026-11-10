@@ -24,11 +24,13 @@ interface QuestionQuery {
   topicId?: string;
   sectionId?: string;
   hidden?: boolean;
+  referenceCheck?: boolean;
 }
 
 /**
  * `GET /api/targets/:id/questions`: the Target's visible Questions, or its hidden ones with
- * `hidden=true`; `topicId` or `sectionId` keeps those of one Topic or of one Section's Topics.
+ * `hidden=true`; `topicId` or `sectionId` keeps those of one Topic or of one Section's Topics, and
+ * `referenceCheck=true` those of the list «проверить опорный ответ».
  */
 function registerQuestions(server: FastifyInstance, { targets, questionBank }: Dependencies) {
   const uuid = { type: "string", format: "uuid" } as const;
@@ -39,7 +41,12 @@ function registerQuestions(server: FastifyInstance, { targets, questionBank }: D
         params,
         querystring: {
           type: "object",
-          properties: { topicId: uuid, sectionId: uuid, hidden: { type: "boolean" } },
+          properties: {
+            topicId: uuid,
+            sectionId: uuid,
+            hidden: { type: "boolean" },
+            referenceCheck: { type: "boolean" },
+          },
           additionalProperties: false,
         },
       },
@@ -61,7 +68,10 @@ function registerQuestions(server: FastifyInstance, { targets, questionBank }: D
   );
 }
 
-/** The rating and visibility of one Question, and the bulk review of several. */
+/**
+ * The rating and visibility of one Question, «проверен» of its reference answer, and the bulk
+ * review of several.
+ */
 function registerQuestionWrites(server: FastifyInstance, dependencies: Dependencies) {
   const { questionBank } = dependencies;
   registerQuestionReviewRoutes(server, dependencies);

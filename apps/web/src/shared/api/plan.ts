@@ -1,9 +1,16 @@
+import type { ReferenceAnswer } from "./inbox";
 import { request } from "./request";
 import { isTargetView } from "./targets";
 import type { TargetView } from "./targets";
 
 /** The Candidate's opinion of a Question: useful, irrelevant or wrong. */
 export type QuestionRating = "useful" | "irrelevant" | "wrong";
+
+/** Why the Question is on the list «проверить опорный ответ»: the Candidate's Dispute. */
+interface ReferenceCheck {
+  readonly reason: "dispute";
+  readonly comment: string;
+}
 
 /** A Question of the Target's bank as the side panel shows it. */
 export interface Question {
@@ -12,6 +19,8 @@ export interface Question {
   readonly text: string;
   readonly hidden: boolean;
   readonly rating: QuestionRating | null;
+  readonly referenceAnswer: ReferenceAnswer | null;
+  readonly referenceCheck: ReferenceCheck | null;
 }
 
 function isQuestion(value: unknown): value is Question {
@@ -23,8 +32,18 @@ function isQuestion(value: unknown): value is Question {
     "text" in value &&
     typeof value.text === "string" &&
     "hidden" in value &&
-    typeof value.hidden === "boolean"
+    typeof value.hidden === "boolean" &&
+    "referenceAnswer" in value &&
+    "referenceCheck" in value
   );
+}
+
+async function questionList(targetId: string, query: URLSearchParams): Promise<Question[]> {
+  const body = await request(`${target(targetId)}/questions?${query.toString()}`);
+  if (!Array.isArray(body) || !body.every((item: unknown) => isQuestion(item))) {
+    throw new Error("неожиданный ответ");
+  }
+  return body;
 }
 
 function target(id: string): string {
@@ -58,12 +77,19 @@ export async function fetchQuestions(
   scope: QuestionScope,
   hidden: boolean,
 ): Promise<Question[]> {
-  const query = new URLSearchParams({ ...scope, hidden: String(hidden) });
-  const body = await request(`${target(targetId)}/questions?${query.toString()}`);
-  if (!Array.isArray(body) || !body.every((item: unknown) => isQuestion(item))) {
-    throw new Error("неожиданный ответ");
-  }
-  return body;
+  return questionList(targetId, new URLSearchParams({ ...scope, hidden: String(hidden) }));
+}
+
+/** The visible Questions of the list «проверить опорный ответ». */
+export async function fetchReferenceChecks(targetId: string): Promise<Question[]> {
+  return questionList(targetId, new URLSearchParams({ referenceCheck: "true" }));
+}
+
+/** «проверен»: the reference answer becomes «проверен кандидатом» and leaves the list. */
+export async function verifyReferenceAnswer(questionId: string): Promise<void> {
+  await request(`/api/questions/${encodeURIComponent(questionId)}/reference-answer/verified`, {
+    method: "POST",
+  });
 }
 
 /** Hides the Question from the plan and the mocks, or returns it. */

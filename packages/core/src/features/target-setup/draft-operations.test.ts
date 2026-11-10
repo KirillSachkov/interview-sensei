@@ -14,7 +14,7 @@ const newGoroutine = {
   correctOptionIds: [],
   level: "middle",
 } as const;
-const goroutine = { ...newGoroutine, hidden: false, rating: null } as const;
+const goroutine = { ...newGoroutine, hidden: false, rating: null, referenceAnswer: null } as const;
 
 const target: SetupState = {
   name: "Go-разработчик",
@@ -50,6 +50,7 @@ const target: SetupState = {
   ],
   topics: ["Горутины", "Каналы", "Kafka", "Мьютексы"],
   topicRenames: [],
+  importance: [],
   preferences: [
     { id: "rule-1", text: "Меньше определений", rejectedQuestionIds: [], active: true },
   ],
@@ -228,8 +229,21 @@ describe("the Questions in the draft", () => {
     expect(state.questions).toStrictEqual([
       { ...goroutine, text: "Чем горутина отличается от потока?", rating: "useful" },
       { ...goroutine, id: "question-2", topic: "Каналы", text: "Что такое мьютекс?", hidden: true },
-      { ...added, topic: "Каналы", hidden: false, rating: null },
+      { ...added, topic: "Каналы", hidden: false, rating: null, referenceAnswer: null },
     ]);
+    expect(draftProblems(state)).toStrictEqual([]);
+  });
+
+  it("corrects the reference answer of a Question", () => {
+    const answer = {
+      points: ["Лёгкий поток", "Планировщик Go", "Стек растёт"],
+      sample: "Горутина…",
+    };
+    const state = stateAfter(target, [
+      { type: "edit_questions", edits: [{ id: "question-1", referenceAnswer: answer }] },
+    ]);
+
+    expect(state.questions[0]).toStrictEqual({ ...goroutine, referenceAnswer: answer });
     expect(draftProblems(state)).toStrictEqual([]);
   });
 

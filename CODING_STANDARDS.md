@@ -76,6 +76,7 @@ Inbox processing in `sources` starts its agent through `agent-sessions`, which c
 `add_bank_questions` of `sources` leaves out duplicates by the rule of `add_questions` (#45): `target-setup` exports `withoutDuplicates`, and composeFeatures passes it to `sources` as its `DuplicateFilter` port.
 `create_topic` of `sources` creates the Topic through `question-bank` and adds it to the Section through `targets`, in one shared transaction.
 The bulk review of Questions in `question-bank` asks `interviews` which Questions have Attempts through its `QuestionAttempts` port: deleting such a Question hides it. `topicMerges` hands `interviews` over the same way as for a Topic merge.
+A Dispute in `interviews` puts the disputed Question on the list «Проверить опорный ответ» through its `ReferenceChecks` port, which `question-bank` supplies (#65). The Dispute and this write share one transaction: `composeFeatures` passes `storage.transaction` to `interviews`.
 
 ### Session profiles
 
