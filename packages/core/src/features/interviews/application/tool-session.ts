@@ -23,6 +23,9 @@ export async function interviewOf(
 }
 
 export function assertRunning(interview: MockInterview): void {
+  if (interview.status === "paused") {
+    throw new InterviewToolError("The mock interview is paused: end your turn.");
+  }
   if (interview.status !== "running") {
     throw new InterviewToolError("The mock interview has ended.");
   }

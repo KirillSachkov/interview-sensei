@@ -1,7 +1,19 @@
 // The Mock interview and its Attempts (#9). An Attempt is never changed after it is recorded.
 
-/** `running` until the agent finishes it; `interrupted` when its agent is gone first. */
-export type InterviewStatus = "running" | "finished" | "interrupted";
+/**
+ * `running` until the Candidate finishes it; `paused` while it waits for «Продолжить» after
+ * «Пауза», a crash of its agent or a server restart (#84). `interrupted` is only for Mock interviews
+ * that ended before pauses existed: a new one never gets it.
+ */
+export type InterviewStatus = "running" | "paused" | "finished" | "interrupted";
+
+/** Whether the Mock interview has not ended yet: it runs or waits on a pause. */
+export function isActive(status: InterviewStatus): boolean {
+  return status === "running" || status === "paused";
+}
+
+/** Why a Mock interview is paused: «Пауза», a crash of its agent, or a server stop. */
+export type PauseReason = "candidate" | "agent_failed" | "server_stopped";
 
 /** How the Candidate shifts the level of the questions against the Target's level. */
 export type Difficulty = "easier" | "as_is" | "harder";
@@ -23,8 +35,12 @@ export type GradedBy = "agent" | "quiz" | "skip";
 export interface MockInterview {
   readonly id: string;
   readonly targetId: string;
-  /** The AgentSession of the kind `mock-interview` whose agent is the interviewer. */
+  /**
+   * The current AgentSession of the kind `mock-interview` whose agent is the interviewer. Each
+   * continuation after a pause starts a new one that continues the previous one.
+   */
   readonly sessionId: string;
+  /** The interviewer's agent; a continuation with the Target's agent changes it. */
   readonly agent: string;
   readonly status: InterviewStatus;
   /** The Sections the Candidate selected, in the plan's order. */
@@ -35,6 +51,14 @@ export interface MockInterview {
   readonly difficulty: Difficulty;
   /** ISO 8601. */
   readonly startedAt: string;
+  /** When the current pause began; null while it runs. */
+  readonly pausedAt: string | null;
+  /** The time of the earlier pauses in milliseconds: the time limit counts only the running time. */
+  readonly pausedMs: number;
+  /** Why it is paused; null while it runs. */
+  readonly pauseReason: PauseReason | null;
+  /** When the last continuation after a pause began; null for a Mock interview never paused. */
+  readonly resumedAt: string | null;
   /** When the Candidate pressed «Завершить»; null before. */
   readonly finishRequestedAt: string | null;
   readonly finishedAt: string | null;

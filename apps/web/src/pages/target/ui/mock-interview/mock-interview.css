@@ -67,8 +67,23 @@
   font-size: var(--font-size-card-title);
 }
 
-.mock-head button {
+.mock-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
   margin-left: auto;
+}
+
+/* Why the Mock interview is paused. */
+.paused-note {
+  margin: 0;
+}
+
+.resume-dialog {
+  position: static;
+  margin: var(--space-2) 0 0;
+  color: inherit;
 }
 
 .mock-questions {
@@ -532,4 +547,15 @@
 .discuss-form textarea {
   width: 100%;
   resize: none;
+}
+
+.side-thread-continue {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.side-thread-continue p {
+  margin: 0;
 }

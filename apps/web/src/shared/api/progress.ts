@@ -28,7 +28,7 @@ export interface TargetProgress {
 
 /** The summary Debrief of a Mock interview. */
 export interface InterviewSummary {
-  readonly status: "running" | "finished" | "interrupted";
+  readonly status: "running" | "paused" | "finished" | "interrupted";
   /** Null when the agent wrote no summary. */
   readonly summary: string | null;
   readonly nextStep: string | null;
@@ -45,7 +45,7 @@ export interface InterviewSummary {
 /** A Mock interview as a collapsed card of the session history. */
 export interface SessionSummary {
   readonly id: string;
-  readonly status: "running" | "finished" | "interrupted";
+  readonly status: "running" | "paused" | "finished" | "interrupted";
   readonly startedAt: string;
   readonly finishedAt: string | null;
   readonly sectionIds: readonly string[];

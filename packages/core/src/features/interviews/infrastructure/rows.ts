@@ -15,6 +15,8 @@ export function toInterview(row: typeof interviews.$inferSelect): MockInterview 
   return {
     ...row,
     startedAt: row.startedAt.toISOString(),
+    pausedAt: row.pausedAt?.toISOString() ?? null,
+    resumedAt: row.resumedAt?.toISOString() ?? null,
     finishRequestedAt: row.finishRequestedAt?.toISOString() ?? null,
     finishedAt: row.finishedAt?.toISOString() ?? null,
   };

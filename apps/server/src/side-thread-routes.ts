@@ -4,9 +4,14 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 
 import type { ArchiveGuard } from "./archive-guard.ts";
-import { SessionsClosedError } from "./composition.ts";
-import type { Features, SideThreadOutcome, SideThreadRequest } from "./composition.ts";
+import type { ContinueOutcome, Features, SideThreadOutcome } from "./composition.ts";
 import { sideThreadRequestOf } from "./interview-requests.ts";
+import {
+  continuationRequestOf,
+  refuseAgent,
+  startForInterview,
+} from "./interview-session-start.ts";
+import type { StartRefusal } from "./interview-session-start.ts";
 import { params, uuid } from "./route-params.ts";
 
 type Dependencies = Pick<Features, "interviews"> & { readonly archiveGuard: ArchiveGuard };
@@ -18,33 +23,7 @@ const threadParams = {
   required: ["id", "threadId"],
 } as const;
 
-type OpenOrClosing =
-  SideThreadOutcome | { readonly type: "server_closing" } | { readonly type: "target_archived" };
-
-/**
- * Opens the Side thread as a new agent session of the Mock interview's Target: an archived Target
- * refuses it, as it refuses its setup session and a Mock interview.
- */
-async function openOrClosing(
-  { interviews, archiveGuard }: Dependencies,
-  { id, request }: { id: string; request: SideThreadRequest },
-): Promise<OpenOrClosing> {
-  const interview = await interviews.view(id);
-  if (interview === undefined) {
-    return { type: "interview_not_found" };
-  }
-  try {
-    const outcome = await archiveGuard.startSession(interview.targetId, async () =>
-      interviews.openSideThread(id, request),
-    );
-    return outcome === "target_archived" ? { type: outcome } : outcome;
-  } catch (error) {
-    if (error instanceof SessionsClosedError) {
-      return { type: "server_closing" };
-    }
-    throw error;
-  }
-}
+type OpenOrClosing = SideThreadOutcome | StartRefusal;
 
 /** The refusal of an opening in Russian. */
 function refuseOpening(reply: FastifyReply, outcome: Exclude<OpenOrClosing, { type: "opened" }>) {
@@ -88,6 +67,74 @@ function refuseOpening(reply: FastifyReply, outcome: Exclude<OpenOrClosing, { ty
   }
 }
 
+type ContinueOrClosing = ContinueOutcome | StartRefusal;
+
+/** The refusal of «Продолжить» in Russian. */
+function refuseContinuation(
+  reply: FastifyReply,
+  outcome: Exclude<ContinueOrClosing, { type: "continued" }>,
+) {
+  switch (outcome.type) {
+    case "not_found": {
+      return reply.code(404).send({ error: "side_thread_not_found" });
+    }
+    case "running": {
+      return reply.code(409).send({
+        error: "side_thread_running",
+        message: "Агент ветки ещё работает: пишите в ветку как обычно.",
+      });
+    }
+    case "target_archived": {
+      return reply.code(409).send({
+        error: outcome.type,
+        message: "Цель в архиве. Верните её из архива, чтобы продолжить ветку.",
+      });
+    }
+    case "server_closing": {
+      return reply.code(503).send({
+        error: outcome.type,
+        message: "Сервер завершает работу и не продолжает ветки.",
+      });
+    }
+    case "closed": {
+      return reply.code(409).send({
+        error: "side_thread_closed",
+        message: "Ветка закрыта: её можно только читать. Откройте новую ветку.",
+      });
+    }
+    case "invalid_agent":
+    case "agent_unavailable": {
+      return refuseAgent(reply, outcome, "ветку");
+    }
+    default: {
+      return outcome satisfies never;
+    }
+  }
+}
+
+/** `POST /api/interviews/:id/side-threads/:threadId/continue` `{ agent? }`; see registerSideThreadRoutes. */
+function registerContinuation(server: FastifyInstance, dependencies: Dependencies) {
+  const { interviews } = dependencies;
+  server.post<{ Params: { id: string; threadId: string }; Body: unknown }>(
+    "/api/interviews/:id/side-threads/:threadId/continue",
+    { schema: { params: threadParams } },
+    async (request, reply) => {
+      const continuation = continuationRequestOf(request.body);
+      if (continuation === undefined) {
+        return reply.code(400).send({ error: "invalid_request" });
+      }
+      const { id, threadId } = request.params;
+      const outcome = await startForInterview(dependencies, id, {
+        start: async () => interviews.continueSideThread(id, threadId, continuation),
+        notFound: { type: "not_found" } as const,
+      });
+      return outcome.type === "continued"
+        ? reply.code(200).send(outcome.thread)
+        : refuseContinuation(reply, outcome);
+    },
+  );
+}
+
 /**
  * - `POST /api/interviews/:id/side-threads` `{ origin: { kind, id }, fragment?, question? }`:
  *   «Обсудить отдельно» with the selected fragment and the Candidate's question. The origin is a
@@ -98,8 +145,16 @@ function refuseOpening(reply: FastifyReply, outcome: Exclude<OpenOrClosing, { ty
  *   503 `server_closing`.
  * - `GET /api/interviews/:id/side-threads`: the Side threads in the order they were opened; the
  *   view of the Mock interview holds them too.
- * - `DELETE /api/interviews/:id/side-threads/:threadId`: ✕ deletes the Side thread with its
- *   AgentSession and journal for good; the hint mark stays. 204, or 404 `side_thread_not_found`.
+ * - `POST /api/interviews/:id/side-threads/:threadId/continue` `{ agent? }`: «Продолжить» in a Side
+ *   thread whose agent is gone after a restart or a crash (#85): a new session of the thread
+ *   continues its chat, with the Mock interview's agent or the Target's agent the Candidate chose.
+ *   200 with the Side thread and its new `sessionId`. 409 `agent_unavailable` gives `agent`,
+ *   `reason` and `targetAgent`, as «Продолжить» of a Mock interview. 400 `invalid_request` or
+ *   `invalid_agent`, 404 `side_thread_not_found`, 409 `side_thread_running`, `side_thread_closed`
+ *   or `target_archived`, 503 `server_closing`.
+ * - `DELETE /api/interviews/:id/side-threads/:threadId`: ✕ deletes the Side thread with every
+ *   AgentSession of its chat and their journals for good; the hint mark stays. 204, or 404
+ *   `side_thread_not_found`.
  */
 export function registerSideThreadRoutes(server: FastifyInstance, dependencies: Dependencies) {
   const { interviews } = dependencies;
@@ -118,15 +173,17 @@ export function registerSideThreadRoutes(server: FastifyInstance, dependencies: 
       if (opening === undefined) {
         return reply.code(400).send({ error: "invalid_request" });
       }
-      const outcome = await openOrClosing(dependencies, {
-        id: request.params.id,
-        request: opening,
+      const { id } = request.params;
+      const outcome = await startForInterview(dependencies, id, {
+        start: async () => interviews.openSideThread(id, opening),
+        notFound: { type: "interview_not_found" } as const,
       });
       return outcome.type === "opened"
         ? reply.code(201).send(outcome.thread)
         : refuseOpening(reply, outcome);
     },
   );
+  registerContinuation(server, dependencies);
   server.delete<{ Params: { id: string; threadId: string } }>(
     "/api/interviews/:id/side-threads/:threadId",
     { schema: { params: threadParams } },

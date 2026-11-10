@@ -20,7 +20,7 @@ import {
   planOf,
   recordedAlready,
 } from "./tool-session.ts";
-import { briefHistory } from "./records.ts";
+import { briefContinuation, briefHistory } from "./records.ts";
 
 export interface Interviewer {
   /** The brief as JSON. */
@@ -39,11 +39,14 @@ export interface Interviewer {
 
 async function brief(context: Context, sessionId: string): Promise<string> {
   const interview = await interviewOf(context, sessionId);
-  const [plan, past] = await Promise.all([
+  const [plan, past, continuation] = await Promise.all([
     planOf(context, interview),
     briefHistory(context.dependencies, interview),
+    briefContinuation(context.dependencies, interview),
   ]);
-  return JSON.stringify(interviewBrief(interview, plan, past));
+  return JSON.stringify(
+    interviewBrief(interview, plan, continuation === null ? past : { ...past, continuation }),
+  );
 }
 
 async function record(context: Context, sessionId: string, judgment: Judgment) {

@@ -41,6 +41,20 @@ export function createContext(dependencies: InterviewsDependencies): Context {
   return { dependencies, listeners: new Map(), changes: new Map() };
 }
 
+/**
+ * The Mock interview while it still runs with the agent session; undefined once it is paused,
+ * finished, or goes on in a later session. Tasks of an earlier session check it before they act.
+ */
+export async function runningWith(
+  { repository }: InterviewsDependencies,
+  { id, sessionId }: Pick<MockInterview, "id" | "sessionId">,
+): Promise<MockInterview | undefined> {
+  const interview = await repository.get(id);
+  return interview?.status === "running" && interview.sessionId === sessionId
+    ? interview
+    : undefined;
+}
+
 export async function viewOf(
   { repository, clock }: InterviewsDependencies,
   interview: MockInterview,

@@ -4,9 +4,15 @@ import type { AgentSession, ChatEntry, SessionStatus, SessionView } from "./agen
 import { isLive } from "./agent-session.ts";
 import type { AgentUpdate, RecordedEvent, SessionEvent } from "./session-event.ts";
 
-/** The view of a session before its first journal entry. */
-export function emptyView(session: AgentSession): SessionView {
-  return { ...session, entries: [], failure: null, agentText: "new" };
+/**
+ * The view of a session before its first journal entry. A session that continues an earlier one
+ * starts with the earlier chat: journal ids are unique over every session, so entry ids stay unique.
+ */
+export function emptyView(
+  session: AgentSession,
+  earlierEntries: readonly ChatEntry[] = [],
+): SessionView {
+  return { ...session, entries: earlierEntries, failure: null, agentText: "new" };
 }
 
 /** The status after the event, the same rule for the live session and for the stored one. */
@@ -212,11 +218,49 @@ export function applyEvent(view: SessionView, recorded: RecordedEvent): SessionV
   };
 }
 
-/** Replays a stored journal into the view; `session.status` is the stored status. */
-export function replay(session: AgentSession, journal: readonly RecordedEvent[]): SessionView {
+/**
+ * Replays a stored journal into the view; `session.status` is the stored status. `earlierEntries`
+ * is the chat of the sessions this one continues.
+ */
+export function replay(
+  session: AgentSession,
+  journal: readonly RecordedEvent[],
+  earlierEntries: readonly ChatEntry[] = [],
+): SessionView {
   const view = journal.reduce(
     (current, recorded) => applyEvent(current, recorded),
-    emptyView({ ...session, status: "starting" }),
+    emptyView({ ...session, status: "starting" }, earlierEntries),
   );
   return { ...view, status: session.status };
+}
+
+/** One message of a conversation: the Candidate's or the agent's text of the chat. */
+export interface ConversationMessage {
+  readonly from: "candidate" | "agent";
+  readonly text: string;
+}
+
+/** The chat entry as a message of the conversation; null for entries that are no message. */
+function messageOf(entry: ChatEntry): ConversationMessage | null {
+  switch (entry.type) {
+    case "candidate_message": {
+      return { from: "candidate", text: entry.text };
+    }
+    case "agent_message": {
+      return { from: "agent", text: entry.text };
+    }
+    case "turn_interrupted":
+    case "turn_failed":
+    case "permission_request": {
+      return null;
+    }
+    default: {
+      return entry satisfies never;
+    }
+  }
+}
+
+/** The Candidate's and the agent's messages of the chat in order, without other entries. */
+export function conversationOf(entries: readonly ChatEntry[]): ConversationMessage[] {
+  return entries.map((entry) => messageOf(entry)).filter((message) => message !== null);
 }

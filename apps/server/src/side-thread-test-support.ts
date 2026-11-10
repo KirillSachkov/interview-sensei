@@ -17,6 +17,8 @@ export interface SideThread {
   readonly question: string | null;
   readonly hinted: boolean;
   readonly createdAt: string;
+  /** When the server closed the Side thread for good; null while it may go on. */
+  readonly closedAt: string | null;
 }
 
 type Api = Awaited<ReturnType<typeof interviewApi>>;

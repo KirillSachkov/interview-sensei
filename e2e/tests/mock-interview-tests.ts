@@ -122,6 +122,35 @@ async function expectReadiness(goal: Locator) {
 
 const disputeReason = "Я назвал сбои и наблюдаемость.";
 
+// Spec #83, ticket #84: «Пауза» stops the mock with the question in place; «Продолжить» goes on in
+// a new interviewer session, and the chat keeps the earlier messages.
+
+/** Starts a mock and resolves with its first card, once it takes the answer, and its question. */
+async function firstQuestion(sessions: Locator) {
+  await startMock(sessions);
+  const mock = sessions.getByRole("region", { name: "Мок-собеседование" });
+  const first = mock.getByRole("article", { name: "Вопрос 1" });
+  await expect(first.getByRole("textbox", { name: "Ваш ответ" })).toBeVisible();
+  const question = String(await first.locator(".question-text").textContent());
+  return { first, question };
+}
+
+/** Pauses the mock: the card waits for «Продолжить» and the timer state says so. */
+async function pauseMock(sessions: Locator, card: Locator) {
+  await sessions.getByRole("button", { name: "Пауза" }).click();
+  await expect(sessions.getByText("на паузе", { exact: true })).toBeVisible();
+  await expect(card).toContainText("Ответ — после «Продолжить».");
+  await expect(card.getByRole("textbox", { name: "Ваш ответ" })).toHaveCount(0);
+}
+
+/** Continues the mock: the same card takes the answer again, and the chat keeps the first session. */
+async function continueMock(sessions: Locator, card: Locator) {
+  await sessions.getByRole("button", { name: "Продолжить" }).click();
+  await expect(card.getByRole("textbox", { name: "Ваш ответ" })).toBeVisible();
+  const interviewer = sessions.getByRole("complementary", { name: "Интервьюер" });
+  await expect(interviewer).toContainText("Начинаем мок-собеседование.");
+}
+
 /** Declares the mock interview tests in the calling test file, in its order. */
 export function mockInterviewTests() {
   test("the Candidate starts a mock, answers, opens the Debrief and finishes the mock", async ({
@@ -153,5 +182,21 @@ export function mockInterviewTests() {
     await expectCorrected(first, disputeReason);
     await finishWithSummaryDebrief(sessions);
     await expectReadiness(goal);
+  });
+
+  test("the Candidate pauses the mock, continues it and answers the same question", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const { sessions } = zones(page);
+    const { first, question } = await firstQuestion(sessions);
+
+    await pauseMock(sessions, first);
+    await continueMock(sessions, first);
+    await answer(first, "Ответ после паузы. [grade:2]");
+
+    await expect(first.locator(".question-text")).toHaveText(question);
+    await openDebrief(first, "2 из 3");
+    await finishMock(sessions);
   });
 }

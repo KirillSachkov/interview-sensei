@@ -25,6 +25,11 @@ export interface AgentSession {
   /** Absent for the skeleton service chat and existing sessions. */
   readonly targetId?: string | null;
   readonly status: SessionStatus;
+  /**
+   * The earlier session of the same conversation that this one continues with a new agent process,
+   * such as a Mock interview after a pause; its chat comes first in this session's chat.
+   */
+  readonly continuesSessionId?: string;
   /** ISO 8601. */
   readonly createdAt: string;
 }
