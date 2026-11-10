@@ -97,8 +97,16 @@ export function continuationSummary(
             },
           ];
     }),
+    // The interviewer grades the presented question against its reference answer, as before the
+    // pause.
     presentedQuestion:
-      presented === undefined ? null : { ...shown(presented), waitingFor: waitingFor(presented) },
+      presented === undefined
+        ? null
+        : {
+            ...shown(presented),
+            referenceAnswer: presented.referenceAnswer,
+            waitingFor: waitingFor(presented),
+          },
   };
 }
 

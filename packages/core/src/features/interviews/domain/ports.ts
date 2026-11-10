@@ -13,6 +13,14 @@ import type {
   PauseReason,
 } from "./interview.ts";
 
+export type * from "./bank-ports.ts";
+
+/** How much a Topic matters for the Target: high, normal or low. */
+export type TopicImportance = "high" | "normal" | "low";
+
+/** How well the Candidate knows a Topic, from the Attempts of ended Mock interviews. */
+export type TopicStatus = "not_started" | "shaky" | "confident";
+
 /** One Section of the Target's Interview plan, with its Topics. */
 export interface PlanSection {
   readonly id: string;
@@ -22,7 +30,11 @@ export interface PlanSection {
   readonly gradingCriteria: string;
   readonly enabled: boolean;
   readonly topicIds: readonly string[];
-  readonly topics: readonly { readonly id: string; readonly name: string }[];
+  readonly topics: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly importance: TopicImportance;
+  }[];
 }
 
 /** What a Mock interview reads of its Target. */
@@ -53,68 +65,6 @@ export interface InterviewAgents {
       | { readonly agent: string; readonly available: false; readonly reason: string }
     )[]
   >;
-}
-
-/** A Question of the Target's bank, as the question-bank slice gives it. */
-export interface BankQuestion {
-  readonly id: string;
-  readonly topicId: string;
-  readonly text: string;
-  readonly format: "open" | "quiz";
-  readonly options: readonly { readonly id: string; readonly text: string }[];
-  readonly correctOptionIds: readonly string[];
-  readonly level: Level;
-  readonly hidden: boolean;
-  readonly rating: "useful" | "irrelevant" | "wrong" | null;
-}
-
-/** A Question the agent made up when no candidate fitted: open, with no Source, unconfirmed. */
-export interface NewBankQuestion {
-  readonly id: string;
-  readonly targetId: string;
-  readonly topicId: string;
-  readonly text: string;
-  readonly format: "open";
-  readonly options: readonly [];
-  readonly correctOptionIds: readonly [];
-  readonly level: BankQuestion["level"];
-  readonly sourceIds: readonly [];
-  readonly unconfirmed: true;
-  readonly hidden: false;
-  readonly rating: null;
-  /** ISO 8601. */
-  readonly createdAt: string;
-}
-
-/** The question-bank slice supplies the Target's Questions that are not hidden. */
-export interface InterviewQuestions {
-  readonly search: (
-    targetId: string,
-    filter: { readonly topicIds: readonly string[] },
-  ) => Promise<readonly BankQuestion[]>;
-  /** Adds the Question to the Target's bank. */
-  readonly add: (question: NewBankQuestion) => Promise<void>;
-}
-
-/** Why a Dispute puts its Question on the list «проверить опорный ответ». */
-interface ReferenceCheckRequest {
-  readonly questionId: string;
-  /** The Candidate's reason for the Dispute. */
-  readonly comment: string;
-  /** ISO 8601. */
-  readonly requestedAt: string;
-}
-
-/**
- * The question-bank slice puts a disputed Question on the list «проверить опорный ответ»; nothing
- * for a Question without a reference answer. `Transaction` is the storage's open transaction, in
- * which the Dispute is recorded too.
- */
-export interface ReferenceChecks<Transaction> {
-  readonly requestReferenceCheck: (
-    request: ReferenceCheckRequest,
-    transaction: Transaction,
-  ) => Promise<void>;
 }
 
 /** The agent-sessions slice runs the interviewer's AgentSession and those of its Side threads. */
@@ -182,11 +132,17 @@ export interface InterviewSessions {
   >;
 }
 
-/** The progress slice supplies the Topics «подтянуть в первую очередь» for the brief. */
+/**
+ * The progress slice supplies the Topics «подтянуть в первую очередь» for the brief, and the Topic
+ * status of every Topic of the plan for the question selection.
+ */
 export interface InterviewProgress {
   readonly focus: (
     targetId: string,
   ) => Promise<readonly { readonly id: string; readonly name: string; readonly status: string }[]>;
+  readonly topicStatuses: (
+    targetId: string,
+  ) => Promise<readonly { readonly id: string; readonly status: TopicStatus }[]>;
 }
 
 /**
@@ -287,6 +243,9 @@ export interface InterviewRepository<Transaction>
   /** Replaces the Follow-ups of the asked question. */
   readonly followUps: (askedQuestionId: string, followUps: readonly FollowUp[]) => Promise<void>;
   readonly attempts: (interviewId: string) => Promise<readonly Attempt[]>;
-  /** `exists` when the asked question already has its Attempt; nothing is stored then. */
-  readonly record: (attempt: Attempt) => Promise<"recorded" | "exists">;
+  /**
+   * `exists` when the asked question already has its Attempt; nothing is stored then. In the open
+   * transaction when the interviewer's disagreement with the reference answer is written too.
+   */
+  readonly record: (attempt: Attempt, transaction?: Transaction) => Promise<"recorded" | "exists">;
 }

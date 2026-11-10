@@ -14,6 +14,8 @@ function record(id: string, interviewId: string, grade: Grade): AttemptRecord {
       askedQuestionId: `asked-${id}`,
       gradedBy: "agent",
       hinted: false,
+      referencePoints: null,
+      referenceDisagreement: null,
       recordedAt: "2026-03-01T12:00:00.000Z",
       grade,
       gaps: "",

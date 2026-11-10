@@ -17,6 +17,20 @@ const hintAfterQuestion = "Подсказка до ответа: вспомни�
 /** The Topic of the question each session showed last. */
 const lastTopics = new Map<string, string>();
 
+/** How many key points the reference answer of each session's shown question has; 0 without one. */
+const referencePoints = new Map<string, number>();
+
+/** The number of key points in the result of present_question; 0 without a reference answer. */
+const pointsIn = (result: string) => result.match(/^\d+\. /gmu)?.length ?? 0;
+
+/** The key points of the reference answer of the session's shown question; 0 without one. */
+export const referencePointCount = (sessionId: string) => referencePoints.get(sessionId) ?? 0;
+
+/** Remembers the reference answer of a question that a continuation shows again. */
+export function rememberReferencePoints(sessionId: string, count: number): void {
+  referencePoints.set(sessionId, count);
+}
+
 interface Candidate {
   readonly id: string;
   readonly format: string;
@@ -36,7 +50,11 @@ function isCandidate(candidate: unknown): candidate is Candidate {
   );
 }
 
-function candidatesOf(text: string): readonly Candidate[] {
+/** The candidates in the tool's JSON; null when the tool refused with an error text. */
+function candidatesOf(text: string): readonly Candidate[] | null {
+  if (!text.startsWith("{")) {
+    return null;
+  }
   const parsed: unknown = JSON.parse(text);
   if (
     typeof parsed !== "object" ||
@@ -58,7 +76,8 @@ export interface NextQuestion {
 
 /** Shows the question, remembers its Topic and sends the hint the app must hide. */
 async function show(actions: InterviewerActions, input: object, topicId: string): Promise<void> {
-  await actions.call("present_question", input);
+  const result = await actions.call("present_question", input);
+  referencePoints.set(actions.sessionId, pointsIn(result));
   lastTopics.set(actions.sessionId, topicId);
   await actions.say(hintAfterQuestion);
 }
@@ -73,8 +92,29 @@ async function showMadeUp(
     return false;
   }
   const parent = parentAttemptId === undefined ? {} : { parentAttemptId };
-  await show(actions, { text, topicId, ...parent }, topicId);
+  const reason = "Фейковый интервьюер: среди кандидатов нет подходящего.";
+  await show(actions, { text, topicId, reason, ...parent }, topicId);
   return true;
+}
+
+/**
+ * The candidates of the current Section, or of the last Topic for a Deeper question; null after
+ * the refusal, which the fake agent tells.
+ */
+async function candidatesFor(
+  actions: InterviewerActions,
+  parentAttemptId: string | undefined,
+): Promise<readonly Candidate[] | null> {
+  const topicId = parentAttemptId === undefined ? undefined : lastTopics.get(actions.sessionId);
+  const result = await actions.call(
+    "next_question_candidates",
+    topicId === undefined ? {} : { topicId },
+  );
+  const candidates = candidatesOf(result);
+  if (candidates === null) {
+    await actions.say(`Кандидаты не получены: ${result}`);
+  }
+  return candidates;
 }
 
 /**
@@ -91,10 +131,10 @@ export async function presentNext(
   ) {
     return;
   }
-  const topicId = parentAttemptId === undefined ? undefined : lastTopics.get(actions.sessionId);
-  const candidates = candidatesOf(
-    await actions.call("next_question_candidates", topicId === undefined ? {} : { topicId }),
-  );
+  const candidates = await candidatesFor(actions, parentAttemptId);
+  if (candidates === null) {
+    return;
+  }
   const next = candidates.find((candidate) => candidate.format === format) ?? candidates[0];
   if (next !== undefined) {
     const parent = parentAttemptId === undefined ? {} : { parentAttemptId };

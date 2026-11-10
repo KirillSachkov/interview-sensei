@@ -21,6 +21,8 @@ import type {
   GradedBy,
   InterviewStatus,
   PauseReason,
+  ReferenceAnswer,
+  ReferencePoint,
 } from "../domain/interview.ts";
 
 /** The Postgres schema that the interviews slice owns. */
@@ -75,6 +77,8 @@ export const askedQuestions = interviewsSchema.table(
     format: text("format").$type<AskedQuestion["format"]>().notNull(),
     options: jsonb("options").$type<AskedQuestion["options"]>().notNull(),
     correctOptionIds: jsonb("correct_option_ids").$type<readonly string[]>().notNull(),
+    /** The Question's reference answer when shown (#64); null without one and before #64. */
+    referenceAnswer: jsonb("reference_answer").$type<ReferenceAnswer>(),
     parentAttemptId: uuid("parent_attempt_id"),
     presentedAt: moment("presented_at").notNull(),
     answer: jsonb("answer").$type<CandidateAnswer>(),
@@ -108,6 +112,10 @@ export const attempts = interviewsSchema.table("attempts", {
   justification: text("justification").notNull(),
   strongAnswer: text("strong_answer").notNull(),
   hinted: boolean("hinted").notNull().default(false),
+  /** The reference answer's key points with whether the answer covered them (#64). */
+  referencePoints: jsonb("reference_points").$type<readonly ReferencePoint[]>(),
+  /** Why the interviewer disagrees with the reference answer; null when it agrees. */
+  referenceDisagreement: text("reference_disagreement"),
   recordedAt: moment("recorded_at").notNull(),
 });
 

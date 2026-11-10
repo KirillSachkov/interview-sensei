@@ -27,6 +27,7 @@ function asked(position: number, changes: Partial<AskedQuestion> = {}): AskedQue
     format: "open",
     options: [],
     correctOptionIds: [],
+    referenceAnswer: null,
     parentAttemptId: null,
     presentedAt: "2026-03-01T10:01:00.000Z",
     answer: {
@@ -54,6 +55,8 @@ function attempt(position: number, grade: Attempt["grade"]): Attempt {
     justification: "Обоснование",
     strongAnswer: "Сильный ответ",
     hinted: false,
+    referencePoints: null,
+    referenceDisagreement: null,
     recordedAt: "2026-03-01T10:03:00.000Z",
   };
 }

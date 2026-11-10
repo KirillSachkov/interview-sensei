@@ -1,13 +1,16 @@
 // `present_question`: a Question of the bank, or a new one the agent made up when no candidate
-// fits; the bank keeps a new one as unconfirmed. A Deeper question names its parent Attempt.
+// fits, with the reason; the bank keeps a new one as unconfirmed. A Deeper question names its parent
+// Attempt. A Topic gets at most three questions in a row, one more when it is shaky (#64). The agent
+// gets the reference answer of the shown question for its judgment.
 import { randomUUID } from "node:crypto";
 
 import { candidateLevel } from "../domain/candidates.ts";
-import type { MockInterview } from "../domain/interview.ts";
+import type { MockInterview, ReferenceAnswer } from "../domain/interview.ts";
 import { presentedQuestion } from "../domain/interview.ts";
 import type { BankQuestion, NewBankQuestion, PlanSection, TargetPlan } from "../domain/ports.ts";
 import { change } from "./context.ts";
 import type { Context } from "./context.ts";
+import { planTopics, topicAtLimit, topicLimitRule, topicName } from "./question-candidates.ts";
 import {
   assertNotFinishing,
   assertRunning,
@@ -23,6 +26,8 @@ export interface PresentRequest {
   readonly text?: string | undefined;
   readonly topicId?: string | undefined;
   readonly parentAttemptId?: string | undefined;
+  /** Why no candidate fits; required for a new question. */
+  readonly reason?: string | undefined;
 }
 
 /** Refuses a new question while the presented one waits for its answer or its Attempt. */
@@ -125,6 +130,7 @@ function madeUpQuestion(
     unconfirmed: true,
     hidden: false,
     rating: null,
+    referenceAnswer: null,
     createdAt: context.dependencies.clock.now().toISOString(),
   };
 }
@@ -134,11 +140,16 @@ type Choice =
   | { readonly kind: "bank"; readonly questionId: string }
   | { readonly kind: "new"; readonly text: string; readonly topicId: string };
 
-function choiceOf({ questionId, text, topicId }: PresentRequest): Choice {
+function choiceOf({ questionId, text, topicId, reason }: PresentRequest): Choice {
   if (questionId !== undefined && text === undefined && topicId === undefined) {
     return { kind: "bank", questionId };
   }
   if (questionId === undefined && text !== undefined && topicId !== undefined) {
+    if (reason === undefined) {
+      throw new InterviewToolError(
+        "A new question needs reason: why none of the candidates from next_question_candidates fits. Prefer a candidate when one fits.",
+      );
+    }
     return { kind: "new", text, topicId };
   }
   throw new InterviewToolError(
@@ -146,21 +157,34 @@ function choiceOf({ questionId, text, topicId }: PresentRequest): Choice {
   );
 }
 
+/** Refuses a question in the Topic that already had its limit of questions in a row. */
+async function assertTopicNotFull(
+  context: Context,
+  { interview, plan }: { interview: MockInterview; plan: TargetPlan },
+  topicId: string,
+): Promise<void> {
+  const topics = await planTopics(context, plan);
+  if ((await topicAtLimit(context, { interview, topics })) === topicId) {
+    throw new InterviewToolError(topicLimitRule(topicName(plan, topicId), topics.get(topicId)));
+  }
+}
+
 /**
- * The selected Section of the Topic; refuses a Topic outside them, and a Deeper question outside
- * the Topic of its parent Attempt.
+ * The selected Section of the Topic; refuses a Topic outside them, one that had its limit of
+ * questions in a row, and a Deeper question outside the Topic of its parent Attempt.
  */
 async function placed(
   context: Context,
-  { interview, sections }: { interview: MockInterview; sections: readonly PlanSection[] },
+  { interview, plan }: { interview: MockInterview; plan: TargetPlan },
   { topicId, parentAttemptId }: { topicId: string; parentAttemptId: string | undefined },
 ): Promise<PlanSection> {
-  const section = sectionOf(sections, interview, topicId);
+  const section = sectionOf(selected(plan, interview), interview, topicId);
   if (section === undefined) {
     throw new InterviewToolError(
       "This Topic is not in the selected Sections of the mock interview.",
     );
   }
+  await assertTopicNotFull(context, { interview, plan }, topicId);
   const parent = await parentTopic(context, interview, parentAttemptId);
   if (parent !== undefined && parent !== topicId) {
     throw new InterviewToolError(
@@ -196,13 +220,39 @@ async function questionToShow(
   const { question, made } = await chosenQuestion(context, { interview, plan }, choice);
   const section = await placed(
     context,
-    { interview, sections: selected(plan, interview) },
+    { interview, plan },
     { topicId: question.topicId, parentAttemptId: request.parentAttemptId },
   );
   if (made !== null) {
     await context.dependencies.questions.add(made);
   }
   return { question, section };
+}
+
+/** The reference answer the interviewer judges an open question by; a quiz has none. */
+function referenceOf(question: BankQuestion): ReferenceAnswer | null {
+  if (question.format === "quiz" || question.referenceAnswer === null) {
+    return null;
+  }
+  const { points, sample, origin } = question.referenceAnswer;
+  return { points, sample, origin };
+}
+
+/** What the agent learns once the question is shown: wait, and the reference answer to judge by. */
+function shownText(reference: ReferenceAnswer | null): string {
+  const wait =
+    "The question is shown to the Candidate. End your turn now and wait for the Candidate's answer.";
+  if (reference === null) {
+    return `${wait} It has no reference answer: judge the answer from your own knowledge.`;
+  }
+  const points = reference.points.map((point, index) => `${index + 1}. ${point}`).join("\n");
+  return [
+    wait,
+    `Its reference answer, origin «${reference.origin}», for your judgment only: never show it or hint at it before the Debrief.`,
+    `Key points:\n${points}`,
+    `Sample answer: ${reference.sample}`,
+    "In record_attempt, give coveredPoints, the numbers of the key points the answer covered. When you think the reference answer itself is wrong or incomplete, also give disagreement with why.",
+  ].join("\n");
 }
 
 /** Shows the Question as a card; the agent's text stays out of the chat until the answer. */
@@ -219,6 +269,7 @@ export async function present(
     assertNotFinishing(interview);
     const position = await assertNothingPresented(context, interview);
     const { question, section } = await questionToShow(context, interview, request);
+    const reference = referenceOf(question);
     // Until the Candidate answers, the agent's text could hint at the answer, its replies to the
     // Candidate's chat messages included; the chat leaves it out. The chat then holds every message
     // of the agent before the question, so its length tells which question a message came under.
@@ -235,6 +286,7 @@ export async function present(
       format: question.format,
       options: question.options,
       correctOptionIds: question.correctOptionIds,
+      referenceAnswer: reference,
       parentAttemptId: request.parentAttemptId ?? null,
       presentedAt: clock.now().toISOString(),
       answer: null,
@@ -243,6 +295,6 @@ export async function present(
       debriefOpened: false,
       chatPosition: chat?.entries.length ?? null,
     });
-    return "The question is shown to the Candidate. End your turn now and wait for the Candidate's answer.";
+    return shownText(reference);
   });
 }

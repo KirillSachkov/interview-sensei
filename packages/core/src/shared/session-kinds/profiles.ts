@@ -78,7 +78,7 @@ export const sessionProfiles: Readonly<Record<SessionKind, SessionProfile>> = {
     askCandidate: false,
     instructions: [
       "Interview Sensei tools for this mock interview; they act only on this session's mock interview.",
-      "Call get_brief first. Pick questions with next_question_candidates and show them with present_question.",
+      "Call get_brief first. Pick questions from next_question_candidates and show them with present_question; make up your own only when no candidate fits.",
       "Clarify an answer with ask_follow_up, record your judgment of it with record_attempt, and move between Sections with set_current_section.",
       "Call finish_interview when the Candidate finishes.",
     ].join(" "),

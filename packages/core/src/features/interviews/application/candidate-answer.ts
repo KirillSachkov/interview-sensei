@@ -114,6 +114,12 @@ async function recordByApp(
     ...judgment,
     gradedBy: skipped ? "skip" : "quiz",
     hinted: question.hinted,
+    // «Не знаю» covers none of the reference answer's key points; a quiz is graded by its options.
+    referencePoints:
+      skipped && question.referenceAnswer !== null
+        ? question.referenceAnswer.points.map((text) => ({ text, covered: false }))
+        : null,
+    referenceDisagreement: null,
     recordedAt: clock.now().toISOString(),
   });
   tellAndShowAgentText(

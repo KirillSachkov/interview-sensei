@@ -3,6 +3,7 @@ import type { GradeCorrection } from "./history.ts";
 import { candidateLevel } from "./candidates.ts";
 import type { MockInterview } from "./interview.ts";
 import type { TargetPlan } from "./ports.ts";
+import { sectionShares } from "./section-shares.ts";
 
 /** What the brief tells of the Target's earlier Mock interviews and progress. */
 export interface BriefHistory {
@@ -23,7 +24,7 @@ export interface BriefHistory {
 
 /**
  * The brief of a Mock interview for `get_brief`: the Target, the selected Sections with their
- * criteria and Topics, the tone, the language, the active Preferences, the last Mock interview's
+ * criteria, shares and Topics with their importance, the tone, the language, the active Preferences, the last Mock interview's
  * summary, the weak Topics and the Candidate's Grade corrections. After a pause it also holds the
  * continuation summary (#84); a Mock interview never paused has none.
  */
@@ -35,6 +36,7 @@ export function interviewBrief(
   const selected = interview.sectionIds.flatMap((id) =>
     target.sections.filter((section) => section.id === id),
   );
+  const shares = sectionShares(selected);
   return {
     target: { name: target.name, level: target.level },
     tone: target.tone,
@@ -46,13 +48,21 @@ export function interviewBrief(
       questionLevel: candidateLevel(target.level, interview.difficulty),
       currentSectionId: interview.currentSectionId,
     },
-    sections: selected.map((section) => ({
-      id: section.id,
-      name: section.name,
-      kind: section.kind,
-      gradingCriteria: section.gradingCriteria,
-      topics: section.topics.map((topic) => ({ id: topic.id, name: topic.name })),
-    })),
+    sections: selected.map((section, index) => {
+      const share = shares[index]?.share ?? 0;
+      return {
+        id: section.id,
+        name: section.name,
+        kind: section.kind,
+        gradingCriteria: section.gradingCriteria,
+        /** The Section's part of the interview, in percent. */
+        sharePercent: Math.round(share * 100),
+        /** Its part of the time limit in whole minutes; null without a limit. */
+        minutes:
+          interview.limitMinutes === null ? null : Math.round(share * interview.limitMinutes),
+        topics: section.topics.map(({ id, name, importance }) => ({ id, name, importance })),
+      };
+    }),
     ...past,
   };
 }
