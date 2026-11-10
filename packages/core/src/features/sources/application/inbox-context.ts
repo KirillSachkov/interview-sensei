@@ -2,7 +2,7 @@
 import type { ToolSession } from "../../../shared/mcp/index.ts";
 import type { RunInTransaction, Transaction } from "../../../shared/storage/index.ts";
 import type { Clock, Timer } from "../../../shared/time/index.ts";
-import type { InboxMode, InboxRun } from "../domain/inbox.ts";
+import type { InboxRun, InboxRunFinished, InboxRunStarted } from "../domain/inbox.ts";
 import type {
   DuplicateFilter,
   InboxAgents,
@@ -35,13 +35,15 @@ export interface InboxDependencies {
   /** Receives errors of background work. */
   readonly onError: (error: unknown) => void;
   /**
+   * Hears that a run of the Target started, once it is stored: it takes over the Target's running
+   * answer search.
+   */
+  readonly onRunStarted: (started: InboxRunStarted) => void;
+  /**
    * Hears that a run of the Target ended, by the agent's report or early, once its transaction is
    * committed; a waiting answer search begins then.
    */
-  readonly onRunFinished: (finished: {
-    readonly targetId: string;
-    readonly mode: InboxMode;
-  }) => void;
+  readonly onRunFinished: (finished: InboxRunFinished) => void;
 }
 
 export interface InboxContext {

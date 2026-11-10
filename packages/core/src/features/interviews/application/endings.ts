@@ -33,11 +33,12 @@ async function end(
  * Finishes the Mock interview without the agent's summary unless the agent finishes it within
  * the wait; the summary Debrief then shows only the Topic status changes.
  */
-function awaitFinish(context: Context, { id, sessionId }: MockInterview): void {
-  const { timer, sessions } = context.dependencies;
+function awaitFinish(context: Context, { id, targetId, sessionId }: MockInterview): void {
+  const { timer, sessions, onFinished } = context.dependencies;
   timer.after(finishWaitMs, () => {
     inBackground(context, async () => {
       if (await end(context, id, "finished")) {
+        onFinished({ targetId });
         await Promise.all([sessions.end(sessionId), closeIdleSideThreads(context, id)]);
       }
     });
@@ -54,7 +55,7 @@ export async function finishByAgent(
   { summary, nextStep }: { summary: string; nextStep: string },
 ) {
   const found = await interviewOf(context, sessionId);
-  const { repository, sessions, clock } = context.dependencies;
+  const { repository, sessions, clock, onFinished } = context.dependencies;
   return change(context, found.id, async () => {
     const interview = await interviewOf(context, sessionId);
     assertRunning(interview);
@@ -69,6 +70,7 @@ export async function finishByAgent(
       summary,
       nextStep,
     });
+    onFinished({ targetId: interview.targetId });
     inBackground(context, async () => sessions.end(sessionId));
     inBackground(context, async () => closeIdleSideThreads(context, interview.id));
     return "The mock interview is finished. End your turn.";

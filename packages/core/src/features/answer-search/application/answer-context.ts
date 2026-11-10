@@ -10,6 +10,7 @@ import type {
   AnswerQuestions,
   AnswerRepository,
   AnswerSessions,
+  AnswerSettings,
   AnswerTargets,
 } from "../domain/ports.ts";
 
@@ -22,6 +23,7 @@ export interface AnswerDependencies {
   readonly progress: AnswerProgress;
   readonly inbox: AnswerInbox;
   readonly sessions: AnswerSessions;
+  readonly settings: AnswerSettings;
   /** A reference answer and the run's record of it change in one transaction. */
   readonly transaction: RunInTransaction;
   readonly clock: Clock;
@@ -29,6 +31,11 @@ export interface AnswerDependencies {
   readonly timer: Timer;
   /** Receives errors of background work. */
   readonly onError: (error: unknown) => void;
+  /** Hears that a start by «Наполнять в фоне» did not happen, and why. */
+  readonly onBackgroundSkipped: (skipped: {
+    readonly targetId: string;
+    readonly reason: string;
+  }) => void;
 }
 
 export interface AnswerContext {

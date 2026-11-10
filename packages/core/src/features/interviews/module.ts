@@ -32,6 +32,8 @@ export interface InterviewsModuleDependencies {
   readonly sessions: InterviewSessions;
   /** Receives errors of background work. */
   readonly onError: (error: unknown) => void;
+  /** Hears that a Mock interview of the Target is finished; not when it ends «прерван». */
+  readonly onFinished: (finished: { readonly targetId: string }) => void;
 }
 
 /**

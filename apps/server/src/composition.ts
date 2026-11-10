@@ -178,8 +178,11 @@ function targetDependencies(
     sessions: inboxSessions(later.sessions),
     onError: (error: unknown) =>
       log.error({ err: error }, "An Inbox processing failed in the background"),
-    onInboxFinished: ({ targetId }: { targetId: string }) => {
-      later.answers().inboxFinished(targetId);
+    onInboxStarted: ({ targetId }: { targetId: string }) => {
+      later.answers().inboxStarted(targetId);
+    },
+    onInboxFinished: (end: Parameters<AnswerSearch["inboxFinished"]>[0]) => {
+      later.answers().inboxFinished(end);
     },
   };
 }
@@ -208,8 +211,12 @@ function composeSessionWork(
     sessions,
     agents: runtime,
     questions: slices.questionBank,
+    // «Наполнять в фоне»: answer search is built below and exists by the first finished mock.
+    onFinished: ({ targetId }) => {
+      answers.interviewFinished(targetId);
+    },
   });
-  const answers = composeAnswers(storage, {
+  const answers: AnswerSearch = composeAnswers(storage, {
     clock,
     timer,
     slices,
@@ -218,6 +225,8 @@ function composeSessionWork(
     interviews,
     progress,
     onError: (error) => log.error({ err: error }, "An answer search failed in the background"),
+    onBackgroundSkipped: (skipped) =>
+      log.info(skipped, "«Наполнять в фоне» started no answer search"),
   });
   return { interviews, progress, answers };
 }

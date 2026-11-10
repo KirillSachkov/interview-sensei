@@ -131,6 +131,21 @@ export interface AnswerProgress {
   >;
 }
 
+/** The app-settings slice: whether «Наполнять в фоне» is on. */
+export interface AnswerSettings {
+  readonly fillInBackground: () => Promise<boolean>;
+}
+
+/**
+ * How an Inbox processing of the Target ended, as the sources slice tells it: its mode, and whether
+ * the server's start closed it because it ran when the server last stopped.
+ */
+export interface InboxEnd {
+  readonly targetId: string;
+  readonly mode: "processing" | "recheck";
+  readonly interrupted: boolean;
+}
+
 /** The sources slice: whether the Target's Inbox processing, a Recheck included, runs now. */
 export interface AnswerInbox {
   readonly running: (targetId: string) => Promise<boolean>;

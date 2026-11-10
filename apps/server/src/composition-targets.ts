@@ -62,6 +62,8 @@ export interface TargetSliceDependencies {
   readonly sessions: InboxSessions;
   /** Receives the failures of background work. */
   readonly onError: (error: unknown) => void;
+  /** Hears that an Inbox processing of the Target started: it takes over a running answer search. */
+  readonly onInboxStarted: Parameters<typeof sourcesModule>[0]["onRunStarted"];
   /** Hears that an Inbox processing of the Target ended: a waiting answer search begins. */
   readonly onInboxFinished: Parameters<typeof sourcesModule>[0]["onRunFinished"];
 }
@@ -81,6 +83,7 @@ export function composeTargets(
     attempts,
     sessions,
     onError,
+    onInboxStarted,
     onInboxFinished,
   }: TargetSliceDependencies,
   runtime: AgentRuntime,
@@ -115,6 +118,7 @@ export function composeTargets(
     duplicates: { withoutDuplicates },
     sessions,
     onError,
+    onRunStarted: onInboxStarted,
     onRunFinished: onInboxFinished,
   });
   return { questionBank, targets, targetSetup, appSettings, sources };

@@ -217,10 +217,12 @@ function newRun(
 
 /**
  * Stores the run, moves its Sources to «разбирается» and closes the open proposal, in one
- * transaction; false when another start of the Target won the race.
+ * transaction, then tells the server that the run started; false when another start of the Target
+ * won the race.
  */
-async function stored({ repository, inbox, transaction }: InboxDependencies, run: InboxRun) {
-  return transaction(async (opened) => {
+async function stored(dependencies: InboxDependencies, run: InboxRun) {
+  const { repository, inbox, transaction, onRunStarted } = dependencies;
+  const created = await transaction(async (opened) => {
     if ((await inbox.createRun(run, opened)) === "running") {
       return false;
     }
@@ -229,6 +231,10 @@ async function stored({ repository, inbox, transaction }: InboxDependencies, run
     await inbox.closeProposal(run.targetId, { status: "started", mode: run.mode }, opened);
     return true;
   });
+  if (created) {
+    onRunStarted({ targetId: run.targetId, mode: run.mode });
+  }
+  return created;
 }
 
 /**

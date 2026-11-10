@@ -2,6 +2,8 @@ import type { InboxMode, InboxProposal, InboxReport, InboxRun } from "./inbox.ts
 import type { Source, SourceStatus } from "./source.ts";
 import type { TextFormat } from "./source-text.ts";
 
+export type { InboxRunFinished, InboxRunStarted } from "./inbox.ts";
+
 /**
  * Stores the Sources of each Target in the order they were added. `Transaction` is the storage's
  * open transaction, opaque to the domain: deleting a Target erases the data of every slice in it.

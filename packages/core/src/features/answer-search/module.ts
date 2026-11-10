@@ -8,6 +8,7 @@ import type {
   AnswerProgress,
   AnswerQuestions,
   AnswerSessions,
+  AnswerSettings,
   AnswerTargets,
 } from "./domain/ports.ts";
 import { drizzleAnswerRepository } from "./infrastructure/drizzle-answer-repository.ts";
@@ -41,6 +42,10 @@ interface AnswerSearchModuleDependencies {
   inbox: AnswerInbox;
   /** The agent-sessions slice. */
   sessions: AnswerSessions;
+  /** The app-settings slice: «Наполнять в фоне». */
+  settings: AnswerSettings;
   /** Receives errors of background work. */
   onError: (error: unknown) => void;
+  /** Hears that a start by «Наполнять в фоне» did not happen, and why. */
+  onBackgroundSkipped: (skipped: { readonly targetId: string; readonly reason: string }) => void;
 }

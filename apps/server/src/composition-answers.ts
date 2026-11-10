@@ -23,9 +23,13 @@ interface AnswerSliceDependencies {
   readonly interviews: ModuleDependencies["attempts"];
   readonly progress: ModuleDependencies["progress"];
   readonly onError: (error: unknown) => void;
+  readonly onBackgroundSkipped: ModuleDependencies["onBackgroundSkipped"];
 }
 
-/** Answer search over the composed slices; it waits while the Target's Inbox processing runs. */
+/**
+ * Answer search over the composed slices; it waits while the Target's Inbox processing runs, and
+ * «Наполнять в фоне» of the app settings starts it by itself.
+ */
 export function composeAnswers(
   storage: Storage,
   {
@@ -37,6 +41,7 @@ export function composeAnswers(
     interviews,
     progress,
     onError,
+    onBackgroundSkipped,
   }: AnswerSliceDependencies,
 ) {
   const { inbox } = slices.sources;
@@ -57,6 +62,8 @@ export function composeAnswers(
       },
     },
     sessions,
+    settings: slices.appSettings,
     onError,
+    onBackgroundSkipped,
   });
 }

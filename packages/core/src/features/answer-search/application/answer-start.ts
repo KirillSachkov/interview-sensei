@@ -143,7 +143,12 @@ async function stored({ repository, transaction }: AnswerDependencies, run: Answ
 /** Starts the stored run's agent in the background; a waiting run waits for the Inbox processing. */
 function launch(context: AnswerContext, run: AnswerRun): void {
   if (run.status === "running") {
-    inBackground(context, async () => startAgent(context, run, run.queueIds.length));
+    inBackground(context, async () => {
+      // An Inbox processing that started after the check found no running search to take over.
+      await ((await context.dependencies.inbox.running(run.targetId))
+        ? closeRun(context, run, "inbox_started")
+        : startAgent(context, run, run.queueIds.length));
+    });
     return;
   }
   // The Inbox processing may have ended before the run was stored, and its end found no run.
@@ -206,11 +211,9 @@ export async function start(
 /**
  * The Target's Inbox processing ended: its waiting answer search begins. Does nothing without one.
  */
-export function inboxFinished(context: AnswerContext, targetId: string): void {
-  inBackground(context, async () => {
-    const run = await context.dependencies.repository.activeRun(targetId);
-    if (run?.status === "waiting") {
-      await begin(context, run);
-    }
-  });
+export async function beginWaiting(context: AnswerContext, targetId: string): Promise<void> {
+  const run = await context.dependencies.repository.activeRun(targetId);
+  if (run?.status === "waiting") {
+    await begin(context, run);
+  }
 }

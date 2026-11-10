@@ -34,8 +34,9 @@ export interface AnswerRun {
 
 /**
  * Why an answer search ended without the agent's report: «Остановить», a failed agent, an agent
- * that stayed idle without the report, a restart of the server, an agent that did not start, or a
- * queue that was empty once the waiting search began.
+ * that stayed idle without the report, a restart of the server, an agent that did not start, a
+ * queue that was empty once the waiting search began, or an Inbox processing of the Target that
+ * started and took over: one background work of the agent per Target.
  */
 export type RunEnding =
   | "stopped"
@@ -43,7 +44,8 @@ export type RunEnding =
   | "agent_finished"
   | "interrupted"
   | "agent_not_started"
-  | "nothing_left";
+  | "nothing_left"
+  | "inbox_started";
 
 /** A Question the run could not fill, with the agent's reason when it gave one. */
 export interface FailedQuestion {
@@ -76,6 +78,7 @@ const endingSummaries: Readonly<Record<RunEnding, string>> = {
   interrupted: "Приложение перезапустилось, наполнение остановлено.",
   agent_not_started: "Агент не запустился.",
   nothing_left: "Вопросов без опорного ответа не осталось.",
+  inbox_started: "Начался разбор Inbox, наполнение остановлено. Найденные ответы сохранены.",
 };
 
 /**

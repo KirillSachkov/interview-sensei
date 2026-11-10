@@ -61,7 +61,11 @@ export async function closeRun(
     return current?.id === run.id ? storePartial(context, { run: current, reason }, opened) : null;
   });
   if (report !== null) {
-    context.dependencies.onRunFinished({ targetId: run.targetId, mode: run.mode });
+    context.dependencies.onRunFinished({
+      targetId: run.targetId,
+      mode: run.mode,
+      interrupted: reason === "interrupted",
+    });
   }
   return report;
 }

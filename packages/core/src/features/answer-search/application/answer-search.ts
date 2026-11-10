@@ -2,9 +2,12 @@
 // MCP tools, «Остановить» and the report.
 import type { ToolSession } from "../../../shared/mcp/index.ts";
 import type { Transaction } from "../../../shared/storage/index.ts";
+import { inBackground } from "./answer-context.ts";
 import type { AnswerContext, AnswerDependencies } from "./answer-context.ts";
-import { endInterrupted, stop } from "./answer-ending.ts";
-import { inboxFinished, start } from "./answer-start.ts";
+import type { InboxEnd } from "../domain/ports.ts";
+import { inboxFinished, interviewFinished } from "./answer-background.ts";
+import { endInterrupted, inboxStarted, stop } from "./answer-ending.ts";
+import { start } from "./answer-start.ts";
 import { answerState, reportView } from "./answer-views.ts";
 import { nextQuestions, saveAnswer, writeReport } from "./answer-work.ts";
 import type { AnswerInput, ReportInput } from "./answer-work.ts";
@@ -17,9 +20,20 @@ export function createAnswerSearch(dependencies: AnswerDependencies) {
      * runs; call inboxFinished when it ends.
      */
     start: async (request: { targetId: string; count: number }) => start(context, request),
-    /** The Target's Inbox processing or Recheck ended: a waiting answer search begins. */
-    inboxFinished: (targetId: string) => {
-      inboxFinished(context, targetId);
+    /**
+     * The Target's Inbox processing or Recheck ended: a waiting answer search begins. With
+     * «Наполнять в фоне» on, a processing that was not interrupted by a restart starts one.
+     */
+    inboxFinished: (end: InboxEnd) => {
+      inboxFinished(context, end);
+    },
+    /** The Target's Inbox processing or Recheck started: it takes over a running answer search. */
+    inboxStarted: (targetId: string) => {
+      inBackground(context, async () => inboxStarted(context, targetId));
+    },
+    /** A Mock interview of the Target is finished: «Наполнять в фоне» starts an answer search. */
+    interviewFinished: (targetId: string) => {
+      interviewFinished(context, targetId);
     },
     /** «Остановить»: a partial report; the written answers stay. */
     stop: async (targetId: string) => stop(context, targetId),

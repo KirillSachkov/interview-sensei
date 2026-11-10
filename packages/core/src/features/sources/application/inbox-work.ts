@@ -203,7 +203,7 @@ export async function writeReport(
   const { report, run } = await context.dependencies.transaction(async (opened) =>
     storeReport(context, { session, input }, opened),
   );
-  onRunFinished({ targetId: run.targetId, mode: run.mode });
+  onRunFinished({ targetId: run.targetId, mode: run.mode, interrupted: false });
   // The session ends after this turn: the tool call is part of it, so nothing waits for the end.
   void endAfterTurn({ sessions, onError }, run.sessionId ?? session.sessionId);
   return report;

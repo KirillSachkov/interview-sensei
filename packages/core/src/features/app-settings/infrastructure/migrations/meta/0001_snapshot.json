@@ -1,0 +1,53 @@
+{
+  "id": "2f589391-1251-4c21-ba62-e7f0cb2e059d",
+  "prevId": "c7850cb7-caa0-4400-9bf8-6f1da5f9a10e",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "app_settings.settings": {
+      "name": "settings",
+      "schema": "app_settings",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "default_agent": {
+          "name": "default_agent",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fill_in_background": {
+          "name": "fill_in_background",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {
+    "app_settings": "app_settings"
+  },
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
