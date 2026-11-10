@@ -53,7 +53,7 @@ codex-acp использует SDK `~2.1.0`, OpenCode — `1.6.0`; версии 
 | Адаптер | `PromptResponse.usage` в ACP v1 | Ограничение |
 | --- | --- | --- |
 | Claude ACP 0.101.0 | `inputTokens`, `outputTokens`, `cachedReadTokens`, `cachedWriteTokens`, `totalTokens` | Основной цикл агента. Более широкий охват есть отдельно в `_meta.quota.model_usage`. |
-| codex-acp 2.5.0 | Те же поля и `thoughtTokens`; `usage: null`, если Codex не сообщил данные | Счётчики текущего хода основного thread; дочерние native threads не прибавляются к нему. |
+| codex-acp 2.5.0 | Те же поля и `thoughtTokens`; `usage: null`, если Codex не сообщил данные | Счётчики текущего хода основной беседы Codex (thread); дочерние беседы не прибавляются к ней. |
 | OpenCode 2.2.6 | `inputTokens`, `outputTokens`, `totalTokens`; cache/thought поля при значении больше нуля | Сумма шагов основной сессии в текущем ходе; без шагов `usage` отсутствует. |
 
 Таблица следует из [формирования ответа Claude][claude-turn],
@@ -70,7 +70,7 @@ codex-acp использует SDK `~2.1.0`, OpenCode — `1.6.0`; версии 
 Приложение импортирует `@agentclientprotocol/sdk/unstable`; этот entrypoint
 выбирает ACP v1, `PROTOCOL_VERSION` равен `1`. Оно отправляет эту версию при
 initialize, а затем берёт из `session/prompt` только `stopReason`.
-В журнал и отчёты попадает последнее корректное `usage_update`.
+Журнал сохраняет все уведомления; отчёты используют последнее корректное `usage_update`.
 Это подтверждают [запуск ACP][app-prompt], [модель расхода][app-usage]
 и [exports SDK 2.4.0][acp-package]. Следовательно, данные #66 не позволяют
 восстановить отброшенные счётчики. Возможность адаптера не означает, что тот
@@ -83,8 +83,8 @@ Claude и Codex также переносят usage в `state_update` при ACP
 ## Различия, которые нельзя скрывать общей суммой
 
 **Claude.** SDK `result.usage` охватывает основной цикл и относится к ходу;
-`result.modelUsage` — накопленные суммы по моделям, включая Task subagents,
-sidechains и compaction. Внешние для query pipeline служебные вызовы SDK
+`result.modelUsage` — накопленные суммы по моделям, включая дочерних агентов Task, вспомогательные цепочки запросов (sidechains)
+и сжатие контекста (compaction). Служебные вызовы SDK вне обработки запроса
 из них исключены. `total_cost_usd` и `modelUsage` — оценки, не платёжная выписка.
 См. опубликованные типы [SDKResultSuccess/SDKResultError][claude-sdk-types].
 
@@ -99,8 +99,7 @@ subagents. Автономные результаты исключены из с�
 **Codex.** Native `inputTokens` включает cache read/write. Адаптер вычитает оба
 счётчика и возвращает свежий input отдельно; повторно вычитать cache на стороне
 приложения нельзя. `outputTokens` уже включает reasoning; `thoughtTokens` — его
-часть, добавлять её к total нельзя. Расход хода получается из разности thread
-totals; при неизвестной базе или сбросе используются последние запросы с защитой
+часть, добавлять её к total нельзя. Расход хода получается из разности накопленных сумм основной беседы; при неизвестной базе или сбросе используются последние запросы с защитой
 от повторных уведомлений. На первом ходе после resume compaction может быть
 принята за базу и недосчитана. Это явно описано в [TokenCount][codex-count]
 и [обработчике событий][codex-events]. `cacheWriteInputTokens` уже поддерживается
