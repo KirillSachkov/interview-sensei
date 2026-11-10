@@ -149,7 +149,7 @@ describe("«Наполнять в фоне»", () => {
     expect(report.questions.map((question) => question.questionId)).toContain(run.card.questionId);
   });
 
-  it("on, starts nothing after a Mock interview that ended «прерван»", async () => {
+  it("on, starts nothing after a Mock interview that paused when its agent crashed", async () => {
     const dataDirectory = await temporaryDirectory();
     const mock = await interviewApi({ dataDirectory });
     await fillInBackground(mock.server, true);
@@ -158,11 +158,30 @@ describe("«Наполнять в фоне»", () => {
 
     await run.chat.waitFor(saysWhenIdle("Ответ получен."));
     run.chat.send({ type: "prompt", text: "/crash" });
-    await run.events.waitFor((view) => view.status === "interrupted");
+    await run.events.waitFor((view) => view.status === "paused");
 
     await expect(
       searchAfterClose({ dataDirectory, stop: mock.stop }, mock.target.id),
     ).resolves.toStrictEqual(noSearch);
+  });
+
+  it("on, fills the Questions once the Candidate finishes a paused Mock interview", async () => {
+    const mock = await interviewApi();
+    await fillInBackground(mock.server, true);
+    const run = await mock.answered(["Опыт и резюме"], "Ответ [grade:2] [last]");
+    await run.events.waitFor(isGraded(0));
+    await run.chat.waitFor(saysWhenIdle("Ответ получен."));
+    run.chat.send({ type: "prompt", text: "/crash" });
+    await run.events.waitFor((view) => view.status === "paused");
+
+    await mock.finish(run.interview.id);
+    await run.events.waitFor((view) => view.status === "finished");
+
+    await expect(latestAnswerReport(mock.server, mock.target.id)).resolves.toMatchObject({
+      partial: false,
+      total: 20,
+      filled: 20,
+    });
   });
 });
 

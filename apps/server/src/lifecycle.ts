@@ -5,10 +5,9 @@ import type { Features } from "./composition.ts";
 import { acceptLocalRequestsOnly } from "./local-requests.ts";
 
 /**
- * Ends sessions of the last run, marks its running Mock interviews «прерван», closes its answer
- * searches and its running Inbox processing with partial reports, and registers the shutdown
- * order, the WebSocket plugin and the check that only the Candidate's own browser reaches the
- * server.
+ * Ends sessions of the last run, pauses its running Mock interviews, closes its answer searches
+ * and its running Inbox processing with partial reports, and registers the shutdown order, the
+ * WebSocket plugin and the check that only the Candidate's own browser reaches the server.
  */
 export async function prepare(
   server: FastifyInstance,
@@ -24,11 +23,12 @@ export async function prepare(
   },
 ) {
   acceptLocalRequestsOnly(server, { allowedOrigins, exemptRoutes });
-  // Agents stop and their sessions end before the final dump closes the database. A started Inbox
-  // processing first finishes reading its texts and hands its agent to the sessions; so does a
-  // started answer search.
+  // Agents stop and their sessions end before the final dump closes the database. Running Mock
+  // interviews pause first, so their time stops now. A started Inbox processing first finishes
+  // reading its texts and hands its agent to the sessions; so does a started answer search.
   server.addHook("onClose", async () => {
     try {
+      await interviews.pauseRunning();
       await sources.inbox.settle();
       await answers.settle();
       await sessions.close();
@@ -38,7 +38,7 @@ export async function prepare(
   });
   try {
     await sessions.endInterrupted();
-    await interviews.endInterrupted();
+    await interviews.pauseInterrupted();
     // Before the Inbox processing: its closed runs would begin the waiting answer searches.
     await answers.endInterrupted();
     await sources.inbox.endInterrupted();

@@ -213,7 +213,7 @@ describe("side threads of past sessions", () => {
     await expect(listed(api, api.interviewId)).resolves.toStrictEqual([]);
   });
 
-  it("archives the Target while a side thread's agent works: the side thread stops and stays readable", async () => {
+  it("archives the Target while a side thread's agent works: the side thread stops, closes and stays readable", async () => {
     const api = await demoWithMock();
     const opened = await openedSideThread(api, {
       interviewId: api.interviewId,
@@ -225,7 +225,9 @@ describe("side threads of past sessions", () => {
 
     expect(response.statusCode).toBe(200);
     await opened.chat.waitFor((view) => view.status === "ended");
-    await expect(listed(api, api.interviewId)).resolves.toStrictEqual([opened.thread]);
+    const [thread] = await listed(api, api.interviewId);
+    expect(thread).toStrictEqual({ ...opened.thread, closedAt: thread?.closedAt });
+    expect(thread?.closedAt).not.toBeNull();
     await expect(sessionStatus(api, opened.thread)).resolves.toBe("ended");
   });
 

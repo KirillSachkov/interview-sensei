@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import type { RunInTransaction, Transaction } from "../../../shared/storage/index.ts";
 import type { Clock } from "../../../shared/time/index.ts";
-import { onboardingPrompt, setupBrief } from "../domain/brief.ts";
+import { continuationPrompt, onboardingPrompt, setupBrief } from "../domain/brief.ts";
 import { draftProblems, stateAfter } from "../domain/draft.ts";
 import type { DraftChange, DraftOperation } from "../domain/draft.ts";
 import { planReplacement } from "../domain/draft-plan.ts";
@@ -11,6 +11,7 @@ import type { NewQuestion } from "../domain/draft-questions.ts";
 import type {
   DraftRepository,
   SetupAttempts,
+  SetupMessage,
   SetupQuestions,
   SetupTarget,
   SetupTargets,
@@ -232,17 +233,26 @@ export function createTargetSetup(dependencies: TargetSetupDependencies) {
       transaction(async (opened) => applyIn(dependencies, targetId, opened)),
     /** Erases the Target's draft when the Target is deleted for good. */
     eraseTarget: async (targetId: string, opened: Transaction) => drafts.clear(targetId, opened),
-    /** The brief of the Target's setup session; undefined for an unknown Target. */
-    brief: async (targetId: string) => {
+    /**
+     * The brief of the Target's setup session, with the last messages of the earlier conversation
+     * when the session continues one; undefined for an unknown Target.
+     */
+    brief: async (targetId: string, earlier: readonly SetupMessage[] = []) => {
       const target = await targets.get(targetId);
-      return target === undefined ? undefined : setupBrief(target, await drafts.changes(targetId));
+      return target === undefined
+        ? undefined
+        : setupBrief(target, await drafts.changes(targetId), earlier);
     },
     /**
-     * The application's first prompt of a new setup session: the onboarding prompt for a draft
-     * Target; undefined otherwise, and for an unknown Target.
+     * The application's first prompt of a new setup session: the continuation prompt when it
+     * continues an earlier conversation, the onboarding prompt for a draft Target; undefined
+     * otherwise, and for an unknown Target.
      */
-    opening: async (targetId: string) => {
+    opening: async (targetId: string, { continues = false } = {}) => {
       const target = await targets.get(targetId);
+      if (target !== undefined && continues) {
+        return continuationPrompt;
+      }
       return target?.status === "draft" ? onboardingPrompt : undefined;
     },
   };

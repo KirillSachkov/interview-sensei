@@ -60,8 +60,11 @@ function GivenAnswer({ card }: { card: Card }) {
   );
 }
 
-/** Whether the Mock interview takes answers, or runs without them while it finishes, or ended. */
-type Stage = "answering" | "finishing" | "ended";
+/**
+ * Whether the Mock interview takes answers, runs without them while it finishes, waits on a pause,
+ * or ended.
+ */
+type Stage = "answering" | "finishing" | "paused" | "ended";
 
 /** What the card shows below the question: the answer form, or the answer and what follows it. */
 function AnswerPart({
@@ -77,6 +80,9 @@ function AnswerPart({
 }) {
   const canAnswer = stage === "answering";
   if (card.answer === null) {
+    if (stage === "paused") {
+      return <p className="muted">Ответ — после «Продолжить».</p>;
+    }
     return canAnswer ? (
       <OpenAnswer interviewId={interviewId} card={card} />
     ) : (
@@ -87,12 +93,7 @@ function AnswerPart({
     <>
       <GivenAnswer card={card} />
       <FollowUps interviewId={interviewId} card={card} canAnswer={canAnswer} />
-      <AttemptPart
-        interviewId={interviewId}
-        targetId={targetId}
-        card={card}
-        ended={stage === "ended"}
-      />
+      <AttemptPart interviewId={interviewId} targetId={targetId} card={card} stage={stage} />
     </>
   );
 }
@@ -105,12 +106,12 @@ function AttemptPart({
   interviewId,
   targetId,
   card,
-  ended,
+  stage,
 }: {
   interviewId: string;
   targetId: string;
   card: Card;
-  ended: boolean;
+  stage: Stage;
 }) {
   if (card.attemptId !== null) {
     return (
@@ -121,8 +122,11 @@ function AttemptPart({
       />
     );
   }
-  if (ended) {
+  if (stage === "ended") {
     return <p className="muted">Без оценки</p>;
+  }
+  if (stage === "paused") {
+    return <p className="muted">Интервьюер оценит ответ после «Продолжить».</p>;
   }
   // A Follow-up waits for the Candidate, not for the interviewer.
   return card.followUps.at(-1)?.answer === null ? null : (

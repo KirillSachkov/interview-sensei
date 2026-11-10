@@ -56,13 +56,15 @@ const sliceMigrations: readonly SliceMigrations[] = [
 ];
 
 /**
- * The services of the tools of the mock interview, the Side thread and the answer search;
- * composeFeatures builds them after the gateway.
+ * The services of the tools of the mock interview, the Side thread and the answer search, and the
+ * AgentSessions that the setup's `get_brief` reads the earlier conversation from; composeFeatures
+ * builds them after the gateway.
  */
 interface InterviewServices {
   interviews: Interviews;
   progress: Progress;
   answers: AnswerSearch;
+  sessions: Pick<AgentSessions, "earlierMessages">;
 }
 
 /**
@@ -72,7 +74,6 @@ interface InterviewServices {
  * thread their services once composeFeatures has built them, after the gateway.
  */
 function sessionTools(slices: ReturnType<typeof composeTargets>) {
-  const { getTarget, searchQuestions, listSources, getSource, setup, inbox } = targetTools(slices);
   let services: InterviewServices | null = null;
   const built = () => {
     if (services === null) {
@@ -80,6 +81,10 @@ function sessionTools(slices: ReturnType<typeof composeTargets>) {
     }
     return services;
   };
+  const { getTarget, searchQuestions, listSources, getSource, setup, inbox } = targetTools(
+    slices,
+    async (sessionId) => built().sessions.earlierMessages(sessionId),
+  );
   const sets: SessionToolSets = {
     "service-chat": [getBrief],
     "target-setup": setup,
@@ -267,7 +272,7 @@ export async function composeFeatures(dependencies: FeatureDependencies) {
     runtime,
     sessions,
   });
-  tools.bind({ interviews, progress, answers });
+  tools.bind({ interviews, progress, answers, sessions });
   return {
     storage,
     runtime,

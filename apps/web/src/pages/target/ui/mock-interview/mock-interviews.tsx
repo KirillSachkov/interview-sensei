@@ -39,7 +39,10 @@ function useLatestInterviews(targetId: string) {
 function useShownSession(latest: readonly InterviewView[] | undefined) {
   const [chosen, setChosen] = useState<{ id: string | null; focus: number } | null>(null);
   const [current] = latest ?? [];
-  const newest = current === undefined || current.status === "running" ? null : current.id;
+  const newest =
+    current === undefined || current.status === "running" || current.status === "paused"
+      ? null
+      : current.id;
   const handleShow = (id: string | null, from: "card" | "history") => {
     setChosen((previous) => ({
       id,
@@ -57,9 +60,10 @@ function useShownSession(latest: readonly InterviewView[] | undefined) {
 }
 
 /**
- * The «Сессии» zone: the running Mock interview, or «Начать мок»; then the last ended sessions as
- * collapsed cards, and the one the Candidate opened, the newest by default. A Target has at most
- * one running Mock interview.
+ * The «Сессии» zone: the running or paused Mock interview, and «Начать мок» unless one runs; then
+ * the last ended sessions as collapsed cards, and the one the Candidate opened, the newest by
+ * default. A Target has at most one Mock interview that runs or is paused: with a paused one,
+ * «Начать мок» offers to continue it or to finish it and start a new one.
  */
 export function MockInterviews({ targetId }: { targetId: string }) {
   const { latest, refresh, started } = useLatestInterviews(targetId);
@@ -71,14 +75,18 @@ export function MockInterviews({ targetId }: { targetId: string }) {
     return null;
   }
   const [current] = latest.data;
+  const active = current?.status === "running" || current?.status === "paused";
   return (
     <div className="mock-zone">
-      {current?.status === "running" ? (
-        <InterviewArea key={current.id} interview={current} onEnded={refresh} />
-      ) : (
+      {current !== undefined && active ? (
+        <InterviewArea key={current.id} interview={current} onChanged={refresh} />
+      ) : null}
+      {current?.status === "running" ? null : (
         <StartMock
           targetId={targetId}
           difficulty={current?.difficulty ?? "as_is"}
+          paused={current?.status === "paused" ? current : null}
+          onFinished={refresh}
           onStarted={(interview) => {
             shown.reset();
             started(interview);

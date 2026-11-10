@@ -2,6 +2,8 @@
 // which it knows by its first sentence, as a real explaining agent would.
 // - «The Candidate opened a side thread from a mock interview.»: `get_brief`, then «Разбираю
 //   вопрос кандидата: «<candidateQuestion of the brief>»».
+// - «The side thread continues in a new session.»: `get_brief`, then «Продолжаю ветку: N сообщения
+//   до перерыва», where N counts the messages of the brief's continuation.
 // - A prompt that starts with the server's note «The Candidate discussed question N in a side
 //   thread.» first gets «Отметка: <note> », then the reply to the rest of the prompt.
 // A failed step ends the turn with «Фейковый агент ветки сломался: <error>».
@@ -21,15 +23,37 @@ function candidateQuestionOf(brief: string): string {
   return typeof question === "string" ? question : "?";
 }
 
+/** The number of messages in the continuation of the Handoff brief; 0 without one. */
+function earlierCountOf(brief: string): number {
+  const parsed: unknown = JSON.parse(brief);
+  const continuation =
+    typeof parsed === "object" && parsed !== null && "continuation" in parsed
+      ? parsed.continuation
+      : null;
+  const messages =
+    typeof continuation === "object" && continuation !== null && "messages" in continuation
+      ? continuation.messages
+      : [];
+  return Array.isArray(messages) ? messages.length : 0;
+}
+
+const continued: Steps = async (actions) => {
+  const brief = await actions.call("get_brief", {});
+  await actions.say(`Продолжаю ветку: ${earlierCountOf(brief)} сообщения до перерыва`);
+};
+
 const opened: Steps = async (actions) => {
   const brief = await actions.call("get_brief", {});
   await actions.say(`Разбираю вопрос кандидата: «${candidateQuestionOf(brief)}»`);
 };
 
-/** The explaining agent's turn for the server's opening message, or null for another prompt. */
+/** The explaining agent's turn for the server's first message, or null for another prompt. */
 export function sideThreadTurn(text: string) {
-  return text.startsWith("The Candidate opened a side thread from a mock interview.")
-    ? turnOf(opened, "Фейковый агент ветки сломался")
+  if (text.startsWith("The Candidate opened a side thread from a mock interview.")) {
+    return turnOf(opened, "Фейковый агент ветки сломался");
+  }
+  return text.startsWith("The side thread continues in a new session.")
+    ? turnOf(continued, "Фейковый агент ветки сломался")
     : null;
 }
 

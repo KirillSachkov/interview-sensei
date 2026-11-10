@@ -13,6 +13,7 @@ import type {
 } from "./composition.ts";
 import { onlyField, replyOf, startRequestOf } from "./interview-requests.ts";
 import { attemptParams, params } from "./route-params.ts";
+import { registerPauseRoutes } from "./pause-routes.ts";
 import { registerSideThreadRoutes } from "./side-thread-routes.ts";
 
 type Dependencies = Pick<Features, "interviews" | "targets"> & {
@@ -64,6 +65,14 @@ function refuseStart(reply: FastifyReply, outcome: Exclude<StartOrClosing, { typ
       return reply.code(409).send({
         error: outcome.type,
         message: "По этой цели уже идёт мок. Завершите его, чтобы начать новый.",
+      });
+    }
+    case "interview_paused": {
+      return reply.code(409).send({
+        error: outcome.type,
+        interviewId: outcome.interviewId,
+        message:
+          "По этой цели есть мок на паузе. Продолжите его или завершите, чтобы начать новый.",
       });
     }
     default: {
@@ -245,14 +254,16 @@ function registerReads(server: FastifyInstance, dependencies: Dependencies) {
  * - `POST /api/targets/:id/interviews` `{ sectionIds, limitMinutes?, difficulty? }`: starts a Mock
  *   interview with the Target's agent; the limit is null, 30 or 60, the difficulty `easier`,
  *   `as_is` or `harder`, by default the one of the Target's last Mock interview. 400 `invalid_sections` or `agent_unavailable`, 409 `interview_running`, 503
- *   `server_closing`, each with a Russian `message`.
+ *   `server_closing`, each with a Russian `message`. A paused Mock interview of the Target gives 409
+ *   `interview_paused` with its `interviewId`: the Candidate continues or finishes it first.
  * - `GET /api/targets/:id/interviews`: the Target's five newest Mock interviews, the newest first.
  * - `GET /api/interviews/:id`: the view. It never holds a Grade.
  * - `POST /api/interviews/:id/answer` `{ text }`, `{ optionIds }` or `{ skipped: true }` for
  *   «Не знаю»: the Candidate's answer to the presented question; 204, or 400 or 409 with the reason
  *   and a Russian `message`.
  * - `POST /api/interviews/:id/follow-up` `{ text }`: the answer to the agent's last Follow-up.
- * - `POST /api/interviews/:id/finish`: «Завершить»; 202, then the agent writes its summary.
+ * - `POST /api/interviews/:id/finish`: «Завершить»; 202, then the agent writes its summary. A
+ *   paused Mock interview finishes at once without the agent's summary.
  * - `GET /api/interviews/:id/attempts/:attemptId`: the Debrief of an Attempt with its Grade.
  * - `POST /api/interviews/:id/attempts/:attemptId/debrief-opened`: the Candidate opened the
  *   Debrief, so Side threads on its question learn the Grade; 204, or 404 `attempt_not_found`.
@@ -263,6 +274,8 @@ export function registerInterviewRoutes(server: FastifyInstance, dependencies: D
   registerStart(server, dependencies);
   registerCandidateActions(server, dependencies);
   registerReads(server, dependencies);
+  // «Пауза» and «Продолжить»: pause-routes.ts.
+  registerPauseRoutes(server, dependencies);
   // Side threads of the Mock interview: side-thread-routes.ts.
   registerSideThreadRoutes(server, dependencies);
 }

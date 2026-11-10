@@ -3,7 +3,6 @@ import { useEffect, useMemo } from "react";
 
 import type { ChatAttachments } from "@/features/agent-chat";
 import { maxSourceFileBytes, uploadSource } from "@/shared/api";
-import type { SessionView } from "@/shared/api";
 
 /** The query of the Target's materials, which the «Материалы» card shows. */
 export function sourcesQueryKey(targetId: string) {
@@ -31,12 +30,12 @@ export function useSourceAttachments(targetId: string): ChatAttachments {
   );
 }
 
-/** Reloads the materials whenever the agent ends a turn: `add_sources` adds them during it. */
-export function useSourcesAfterTurn(targetId: string, status: SessionView["status"]) {
+/** Reloads the materials whenever the agent ends a turn (see turnEnd): `add_sources` adds them during it. */
+export function useSourcesAfterTurn(targetId: string, turn: number | null) {
   const queryClient = useQueryClient();
   useEffect(() => {
-    if (status === "idle") {
+    if (turn !== null) {
       void queryClient.invalidateQueries({ queryKey: sourcesQueryKey(targetId) });
     }
-  }, [queryClient, targetId, status]);
+  }, [queryClient, targetId, turn]);
 }

@@ -36,14 +36,35 @@ async function availableAgent({ targets, runtime }: Dependencies, targetId: stri
   return agent;
 }
 
-/** The Target's running setup session, or a new one with its agent and onboarding prompt. */
+/**
+ * The Target's last setup session that a new one continues (#85): the newest one that no later
+ * session continues, unless the Candidate ended it with «Завершить». The server ended it at a
+ * restart or shutdown, or its agent failed. `talked` when its chat has messages. Null when the
+ * Target has none.
+ */
+async function setupToContinue({ sessions }: Dependencies, targetId: string) {
+  const last = await sessions.lastConversation({ kind: "target-setup", targetId });
+  return last === undefined || last.endedByCandidate
+    ? null
+    : { id: last.sessionId, talked: last.messages.length > 0 };
+}
+
+/**
+ * The Target's running setup session, or a new one with its agent: it continues the last one
+ * after a restart, and starts a draft Target's onboarding otherwise.
+ */
 async function openSetup(dependencies: Dependencies, targetId: string) {
   const { sessions, targetSetup } = dependencies;
   try {
     return await sessions.open({ kind: "target-setup", targetId }, async () => {
       const agent = await availableAgent(dependencies, targetId);
-      const opening = await targetSetup.opening(targetId);
-      return { agent, ...(opening === undefined ? {} : { opening }) };
+      const earlier = await setupToContinue(dependencies, targetId);
+      const opening = await targetSetup.opening(targetId, { continues: earlier?.talked === true });
+      return {
+        agent,
+        ...(opening === undefined ? {} : { opening }),
+        ...(earlier === null ? {} : { continues: earlier.id }),
+      };
     });
   } catch (error) {
     if (error instanceof AgentUnavailableError) {
@@ -95,8 +116,10 @@ function registerSetupEnd(server: FastifyInstance, { targets, sessions }: Depend
       const setups = all.filter(
         (session) => session.kind === "target-setup" && session.targetId === id,
       );
-      // Only the live one ends; the others ended before.
-      await Promise.all(setups.map(async (session) => sessions.stop(session.id)));
+      // Only the live one ends; the others ended before. The next opening starts afresh.
+      await Promise.all(
+        setups.map(async (session) => sessions.stop(session.id, { byCandidate: true })),
+      );
       return reply.code(204).send();
     },
   );
@@ -180,14 +203,17 @@ function registerDraft(server: FastifyInstance, { targets, targetSetup }: Depend
 /**
  * The HTTP API of the Target setup:
  * - `POST /api/targets/:id/setup-session`: the Target's running setup session, 200, or a new one,
- *   201; a draft Target's new session starts with the onboarding. 400 `agent_unavailable` when
+ *   201. A new session continues the last one unless the Candidate ended it with «Завершить»
+ *   (#85): its `continuesSessionId` names it, its chat starts with the earlier one, and its
+ *   `get_brief` holds the last messages. Otherwise a draft Target's new session starts with the
+ *   onboarding. 400 `agent_unavailable` when
  *   the Target's agent cannot start, 409 `target_archived` for an archived Target, 503
  *   `server_closing` once the server shuts down.
  * - `GET /api/targets/:id/draft`: `{ changes }`, the draft of changes in the order of recording.
  * - `POST /api/targets/:id/draft/apply`: writes the whole draft and answers the Target; 409
  *   `draft_empty`, or 409 `draft_invalid` with `problems` and the Target unchanged.
  * - `POST /api/targets/:id/setup-session/end`: «Завершить», 204; ends the running setup session,
- *   and the draft stays.
+ *   and the draft stays; the next session starts afresh.
  * - `DELETE /api/targets/:id/draft/changes/:changeId`: ✕ of one change, 204; 404
  *   `change_not_found` when the Target's draft has no such change.
  * - `DELETE /api/targets/:id/draft`: «Отменить изменения», 204; empties the draft.

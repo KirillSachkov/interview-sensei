@@ -3,7 +3,6 @@
 // `finish_interview` on the injected Timer; the tests run that task by hand.
 import { describe, expect, it } from "vitest";
 
-import { temporaryDirectory } from "./chat-test-support.ts";
 import type { SessionView } from "./chat-test-support.ts";
 import {
   cardAt,
@@ -100,44 +99,6 @@ describe("mock interview ending", () => {
       topicChanges: [{ name: experience, before: "not_started", after: "shaky" }],
     });
     await expect(api.start([api.sectionId("Проектирование")])).resolves.toMatchObject({
-      statusCode: 201,
-    });
-  });
-
-  it("becomes interrupted when the agent crashes, and keeps its Attempts and their Debriefs", async () => {
-    const api = await interviewApi();
-    const { interview, events, chat, graded } = await secondQuestionShown(api, "Ответ [grade:3]");
-
-    chat.send({ type: "prompt", text: "/crash" });
-
-    const interrupted = await events.waitFor(isEnded("interrupted"));
-    expect(cardAt(interrupted, 0).attemptId).toBe(graded.attemptId);
-    await expect(api.debrief(interview.id, graded)).resolves.toMatchObject({ grade: 3 });
-    await expect(summaryOf(api, interview.id)).resolves.toMatchObject({
-      status: "interrupted",
-      answered: 1,
-      unanswered: 1,
-    });
-    await expect(api.start([api.sectionId("Проектирование")])).resolves.toMatchObject({
-      statusCode: 201,
-    });
-  });
-
-  it("becomes interrupted after a server restart, and keeps its Attempts and their Debriefs", async () => {
-    const dataDirectory = await temporaryDirectory();
-    const before = await interviewApi({ dataDirectory });
-    const { interview, events } = await before.answered(["Опыт и резюме"], "Ответ [grade:3]");
-    const graded = cardAt(await events.waitFor(isGraded(0)), 0);
-    await before.stop();
-
-    const after = await interviewApi({ dataDirectory });
-
-    await expect(storedView(after, interview.id)).resolves.toMatchObject({
-      status: "interrupted",
-      questions: [{ attemptId: graded.attemptId }],
-    });
-    await expect(after.debrief(interview.id, graded)).resolves.toMatchObject({ grade: 3 });
-    await expect(after.start([after.sectionId("Проектирование")])).resolves.toMatchObject({
       statusCode: 201,
     });
   });

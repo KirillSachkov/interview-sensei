@@ -26,7 +26,7 @@ export interface InterviewsDependencies {
   readonly onError: (error: unknown) => void;
   /**
    * Hears that a Mock interview of the Target is finished, by the agent's finish_interview or by the
-   * server after the wait; not when it ends «прерван».
+   * server after the wait, or by the Candidate at a pause; not when it pauses or ends «прерван».
    */
   readonly onFinished: (finished: { readonly targetId: string }) => void;
 }
@@ -44,6 +44,20 @@ export interface Context {
 
 export function createContext(dependencies: InterviewsDependencies): Context {
   return { dependencies, listeners: new Map(), changes: new Map() };
+}
+
+/**
+ * The Mock interview while it still runs with the agent session; undefined once it is paused,
+ * finished, or goes on in a later session. Tasks of an earlier session check it before they act.
+ */
+export async function runningWith(
+  { repository }: InterviewsDependencies,
+  { id, sessionId }: Pick<MockInterview, "id" | "sessionId">,
+): Promise<MockInterview | undefined> {
+  const interview = await repository.get(id);
+  return interview?.status === "running" && interview.sessionId === sessionId
+    ? interview
+    : undefined;
 }
 
 export async function viewOf(

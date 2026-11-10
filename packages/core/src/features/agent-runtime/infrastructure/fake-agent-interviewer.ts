@@ -13,6 +13,10 @@
 // - A quiz result or «Не знаю»: «Квиз оценён: N.» or «Вопрос пропущен.», then the next question.
 // - «Five minutes of the time limit are left.»: «Осталось 5 минут: веду интервью к концу.».
 // - «The Candidate finished the mock interview.»: `finish_interview`, then «Итог записан.».
+// - «The mock interview continues after a pause.»: `get_brief`, then by the presented question of its
+//   continuation: one that waits for an answer gets «Продолжаем после паузы: жду ответа.», an
+//   answered one «Продолжаем после паузы.» and the Attempt as above, and none «Продолжаем после
+//   паузы.» and the next question, unless the last answer had `[last]`.
 // The next question comes from fake-agent-interviewer-questions.ts: `[quiz]`, `[deeper]` and `[new]`
 // choose a quiz, a Deeper question or a made-up one; then the hint «Подсказка до ответа: …» in the
 // same turn, which the app keeps out of the chat.
@@ -89,6 +93,50 @@ async function noteAndGoOn(actions: InterviewerActions, note: string): Promise<v
 
 const gradeIn = (text: string) => /Grade (?<grade>[0-3]) of 3/u.exec(text)?.groups?.grade ?? "?";
 
+/** A field of a parsed JSON object; undefined for anything else. */
+const fieldOf = (value: unknown, key: string): unknown =>
+  typeof value === "object" && value !== null ? Reflect.get(value, key) : undefined;
+
+/** The answer text of a question of the continuation; empty without one. */
+function answerText(question: unknown): string {
+  const text = fieldOf(fieldOf(question, "answer"), "text");
+  return typeof text === "string" ? text : "";
+}
+
+/**
+ * The brief's continuation: what its presented question waits for, with its answer text, and the
+ * answer to the last asked question.
+ */
+function continuationOf(brief: string) {
+  const continuation = fieldOf(JSON.parse(brief), "continuation");
+  const presented = fieldOf(continuation, "presentedQuestion");
+  const asked = fieldOf(continuation, "askedQuestions");
+  const waitingFor = fieldOf(presented, "waitingFor");
+  return {
+    waitingFor: typeof waitingFor === "string" ? waitingFor : null,
+    answer: answerText(presented),
+    lastAnswer: Array.isArray(asked) ? answerText(asked.at(-1)) : "",
+  };
+}
+
+/**
+ * Goes on after a pause from where the brief's continuation says the interview stopped; `[last]`
+ * in the last answer keeps it from showing a next question.
+ */
+async function continueAfterPause(actions: InterviewerActions): Promise<void> {
+  const { waitingFor, answer, lastAnswer } = continuationOf(await actions.call("get_brief", {}));
+  const note = "Продолжаем после паузы.";
+  if (waitingFor === "attempt") {
+    await judge(actions, answer, note);
+  } else if (waitingFor !== null) {
+    await actions.say("Продолжаем после паузы: жду ответа.");
+  } else if (lastAnswer.includes("[last]")) {
+    await actions.say(note);
+  } else {
+    await noteAndGoOn(actions, note);
+  }
+}
+
 async function finish(actions: InterviewerActions): Promise<void> {
   await actions.call("finish_interview", {
     summary: "Фейковый интервьюер: мок завершён.",
@@ -149,6 +197,7 @@ const turns: readonly (readonly [string, (text: string) => Steps])[] = [
     () => async (actions) => actions.say("Осталось 5 минут: веду интервью к концу."),
   ],
   ["The Candidate finished the mock interview.", () => finish],
+  ["The mock interview continues after a pause.", () => continueAfterPause],
 ];
 
 /** The interviewer's turn for a template message, or null for another prompt. */

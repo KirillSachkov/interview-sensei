@@ -123,9 +123,38 @@ function debriefTest() {
   });
 }
 
+/** `/crash` in the Side thread: its agent exits, and the thread offers «Продолжить». */
+async function crashThreadAgent(thread: Locator) {
+  await thread.getByRole("textbox", { name: "Сообщение в ветку" }).fill("/crash");
+  await thread.getByRole("button", { name: "Отправить" }).click();
+  await expect(thread).toContainText("Агент ветки недоступен или упал");
+}
+
+// Ticket #85: «Продолжить» in a Side thread whose agent is gone starts a new agent, and the chat
+// keeps the earlier messages. A crash of the agent stands for a restart: the e2e server keeps
+// running between tests.
+function continueTest() {
+  test("the Candidate continues a side thread whose agent stopped, and the chat keeps its messages", async ({
+    page,
+  }) => {
+    const { sessions, first, thread } = await startedMock(page);
+    await discussSeparately(first, "Что значит «вклад»?");
+    await writeInThread(thread, "А пример?");
+    await crashThreadAgent(thread);
+
+    await thread.getByRole("button", { name: "Продолжить" }).click();
+
+    await expect(thread).toContainText("Продолжаю ветку:");
+    await expect(thread).toContainText("Фейковый агент получил: «А пример?»");
+    await writeInThread(thread, "Ещё вопрос");
+    await finishMock(sessions);
+  });
+}
+
 /** Declares the Side thread tests in the calling test file, in its order. */
 export function sideThreadTests() {
   discussTest();
   deleteTest();
   debriefTest();
+  continueTest();
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "interviews"."side_threads" ADD COLUMN "closed_at" timestamp with time zone;

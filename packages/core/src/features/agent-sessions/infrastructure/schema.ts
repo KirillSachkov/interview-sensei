@@ -17,6 +17,8 @@ export const sessions = agentSessionsSchema.table("sessions", {
   targetId: uuid("target_id"),
   acpSessionId: text("acp_session_id"),
   status: text("status").$type<SessionStatus>().notNull(),
+  /** The earlier session that this one continues, such as a Mock interview after a pause. */
+  continuesSessionId: uuid("continues_session_id"),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "date" }).notNull(),
 });
 

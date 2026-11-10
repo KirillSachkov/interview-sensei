@@ -1,7 +1,7 @@
 // The Side thread (#7, #80): a separate AgentSession with the Mock interview's agent that explains.
 // It starts from a Handoff brief (handoff-brief.ts) and never changes Attempts or Grades.
 import type { AskedQuestion, Attempt, MockInterview } from "./interview.ts";
-import { presentedQuestion } from "./interview.ts";
+import { isActive, presentedQuestion } from "./interview.ts";
 
 /**
  * Where the Candidate opened the Side thread (#80):
@@ -13,6 +13,12 @@ import { presentedQuestion } from "./interview.ts";
 export interface SideThreadOrigin {
   readonly kind: "question" | "message" | "debrief";
   readonly id: string;
+}
+
+/** One message of the Side thread's chat before its continuation. */
+export interface ThreadMessage {
+  readonly from: "candidate" | "agent";
+  readonly text: string;
 }
 
 export interface SideThread {
@@ -31,11 +37,18 @@ export interface SideThread {
   readonly hinted: boolean;
   /** ISO 8601. */
   readonly createdAt: string;
+  /**
+   * When the server closed the Side thread for good (#80): its agent waited for a message when the
+   * Mock interview finished, or its Target went to the archive. A closed Side thread stays readable
+   * and takes no more messages, so it does not go on; null for one that may.
+   */
+  readonly closedAt: string | null;
 }
 
 /**
  * Whether a Side thread opened now on the asked question gives a hint: the question is the
- * presented one of a running Mock interview and waits for the Candidate's answer. After the answer,
+ * presented one of a running or paused Mock interview and waits for the Candidate's answer: after a
+ * pause the Candidate answers it. After the answer,
  * during Follow-ups, once the Candidate finishes and for an earlier question there is no hint.
  */
 export function givesHint(
@@ -45,7 +58,7 @@ export function givesHint(
 ): boolean {
   const presented = presentedQuestion(asked, attempts);
   return (
-    interview.status === "running" &&
+    isActive(interview.status) &&
     interview.finishRequestedAt === null &&
     presented?.id === askedQuestionId &&
     presented.answer === null

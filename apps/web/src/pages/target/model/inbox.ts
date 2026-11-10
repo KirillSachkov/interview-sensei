@@ -9,7 +9,6 @@ import {
   startRecheck,
   stopInboxProcessing,
 } from "@/shared/api";
-import type { SessionView } from "@/shared/api";
 
 import { refreshAppliedViews } from "./plan-views";
 import { sourcesQueryKey } from "./source-attachments";
@@ -98,12 +97,12 @@ export function useStopProcessing(targetId: string) {
   });
 }
 
-/** Reloads the proposal whenever the setup agent ends a turn: it proposes during the turn. */
-export function useInboxAfterTurn(targetId: string, status: SessionView["status"]) {
+/** Reloads the proposal whenever the setup agent ends a turn (see turnEnd): it proposes during the turn. */
+export function useInboxAfterTurn(targetId: string, turn: number | null) {
   const queryClient = useQueryClient();
   useEffect(() => {
-    if (status === "idle") {
+    if (turn !== null) {
       void queryClient.invalidateQueries({ queryKey: inboxQueryKey(targetId) });
     }
-  }, [queryClient, targetId, status]);
+  }, [queryClient, targetId, turn]);
 }
