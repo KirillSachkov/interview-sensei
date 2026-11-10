@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import type { ArchiveGuard } from "./archive-guard.ts";
 import type { Features } from "./composition.ts";
 import { deleteTarget } from "./target-deletion.ts";
+import { onlyField, params } from "./route-params.ts";
 
 type Dependencies = Pick<
   Features,
@@ -10,12 +11,6 @@ type Dependencies = Pick<
 > & {
   readonly archiveGuard: ArchiveGuard;
 };
-
-const params = {
-  type: "object",
-  properties: { id: { type: "string", format: "uuid" } },
-  required: ["id"],
-} as const;
 
 const sessionRunningMessage =
   "Цель нельзя убрать в архив, пока по ней идёт сессия агента. Завершите сессию и повторите.";
@@ -25,8 +20,7 @@ function typedName(body: unknown): string | undefined | null {
   if (body === undefined || body === null) {
     return undefined;
   }
-  const name: unknown =
-    typeof body === "object" && Object.keys(body).length === 1 && "name" in body ? body.name : null;
+  const name = onlyField(body, "name");
   return typeof name === "string" ? name : null;
 }
 

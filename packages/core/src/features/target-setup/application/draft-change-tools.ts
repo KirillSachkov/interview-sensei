@@ -10,7 +10,7 @@ export function getDraft(setup: TargetSetup) {
   return sessionTool({
     name: "get_draft",
     description:
-      "Returns the draft of changes of this session's Target: every change not applied yet, in the order of recording, with its id.",
+      "Returns the draft of changes of this session's Target: every change not applied yet, in the order of recording, with its id. A plan change lists in `merges` the `from` names of its renames that merge into a Topic the Target has.",
     input: z.strictObject({}),
     run: async (_input, session) => {
       const changes = await setup.draft(sessionTarget(session));

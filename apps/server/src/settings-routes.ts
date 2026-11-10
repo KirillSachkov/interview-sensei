@@ -1,14 +1,12 @@
 import type { FastifyInstance } from "fastify";
 
 import type { Features } from "./composition.ts";
+import { onlyField } from "./route-params.ts";
 import { registerTranscriptionRoutes } from "./transcription-routes.ts";
 
 /** The agent in a body that has only this field: a string, or null to clear the choice. */
 function agentOf(body: unknown): string | null | undefined {
-  const agent: unknown =
-    typeof body === "object" && body !== null && Object.keys(body).length === 1 && "agent" in body
-      ? body.agent
-      : undefined;
+  const agent = onlyField(body, "agent");
   return agent === null || typeof agent === "string" ? agent : undefined;
 }
 

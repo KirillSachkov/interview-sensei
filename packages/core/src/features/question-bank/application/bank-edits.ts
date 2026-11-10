@@ -10,7 +10,7 @@ import type {
   SectionKind,
   StoredQuestion,
 } from "../domain/question.ts";
-import { topicKey, validateQuestion } from "../domain/question.ts";
+import { questionContent, topicKey, validateQuestion } from "../domain/question.ts";
 
 /**
  * A new Question of a Target: its content is checked before it is stored. The Target setup gives
@@ -57,13 +57,9 @@ async function checkTopics(
 
 function stored(targetId: string, question: NewQuestion): StoredQuestion {
   validateQuestion(question);
-  const content: QuestionContent =
-    question.format === "open"
-      ? { format: "open", options: [], correctOptionIds: [] }
-      : { format: "quiz", options: question.options, correctOptionIds: question.correctOptionIds };
   return {
     ...question,
-    ...content,
+    ...questionContent(question),
     targetId,
     sourceIds: question.sourceIds ?? [],
     unconfirmed: question.unconfirmed ?? false,

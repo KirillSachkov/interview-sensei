@@ -3,12 +3,14 @@
 import type { AgentContext, PermissionOption } from "@agentclientprotocol/sdk/unstable";
 
 /**
- * The options of every permission request, one of each ACP kind. Their names are in English, as
- * real adapters send them, so a test sees that the page names the options by their kind.
+ * The options of every permission request: one of each ACP kind and a second `allow_always`, as a
+ * real agent may offer. Their names are in English, as real adapters send them, so a test sees that the
+ * page names the options by their kind and tells the two of one kind apart.
  */
 export const permissionOptions: PermissionOption[] = [
   { optionId: "allow-once", name: "Allow once", kind: "allow_once" },
   { optionId: "allow-always", name: "Always allow", kind: "allow_always" },
+  { optionId: "allow-always-command", name: "Always allow this command", kind: "allow_always" },
   { optionId: "reject-once", name: "Reject", kind: "reject_once" },
   { optionId: "reject-always", name: "Always reject", kind: "reject_always" },
 ];

@@ -1,5 +1,6 @@
 // The Questions in the draft of changes: new ones, edits of existing ones, and the rule that
 // finds duplicates by text.
+import { topicKey } from "./draft-topics.ts";
 import type { Level } from "./target-values.ts";
 
 /**
@@ -63,6 +64,12 @@ export interface DraftQuestion extends NewQuestion {
   readonly rating: QuestionRating | null;
   /** The content of its reference answer; null without one. */
   readonly referenceAnswer: ReferenceContent | null;
+  /**
+   * An edit of the draft moved it to another Topic. A Topic merge may bring the Topic it left to
+   * the same place, so applying cannot tell the move by the Topic alone, and the move confirms a
+   * made-up Question.
+   */
+  readonly moved?: true;
 }
 
 /**
@@ -87,10 +94,12 @@ export function editedQuestions(
     .filter((edit) => !questions.some((question) => question.id === edit.id))
     .map((edit) => `Вопроса ${edit.id} нет в цели.`);
   const edited = questions.map((question) => {
-    const current = { ...question };
+    const current: { -readonly [Key in keyof DraftQuestion]: DraftQuestion[Key] } = { ...question };
     for (const { id, ...fields } of edits) {
       if (id === question.id) {
-        Object.assign(current, fields);
+        const moved =
+          fields.topic !== undefined && topicKey(fields.topic) !== topicKey(current.topic);
+        Object.assign(current, fields, moved ? { moved: true } : {});
       }
     }
     return current;

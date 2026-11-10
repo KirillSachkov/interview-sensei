@@ -33,6 +33,12 @@ interface ProposedSection {
   readonly topics?: readonly string[] | undefined;
 }
 
+/** `from` becomes `to`: the Section keeps its id, so its Mock interviews and Attempts stay with it. */
+export interface SectionRename {
+  readonly from: string;
+  readonly to: string;
+}
+
 /** What a draft can change in a Target. */
 export interface SetupState {
   readonly name: string;
@@ -70,6 +76,8 @@ export type DraftOperation =
   | {
       readonly type: "set_interview_plan";
       readonly sections: readonly ProposedSection[];
+      /** Section renames: the plan names a renamed Section by `to`. */
+      readonly renameSections?: readonly SectionRename[];
       /** Topic renames and merges, made before the plan's Topics are created. */
       readonly renameTopics?: readonly TopicRename[];
     }
@@ -93,13 +101,29 @@ function sectionKey(name: string): string {
 }
 
 /**
- * The new plan replaces the old one. A Section with the name of an old one keeps its id and the
- * values that the plan leaves out.
+ * The new plan replaces the old one. A Section with the name of an old one, or with the new name
+ * that `renames` gives an old one, keeps its id and the values that the plan leaves out. A rename
+ * of a Section the state does not have is a problem.
  */
-function withPlan(state: SetupState, sections: readonly ProposedSection[]): SetupState {
+function withPlan(
+  state: SetupState,
+  sections: readonly ProposedSection[],
+  renames: readonly SectionRename[],
+): SetupState {
   const current = new Map(state.sections.map((section) => [sectionKey(section.name), section]));
+  const missing: string[] = [];
+  for (const { from, to } of renames) {
+    const renamed = current.get(sectionKey(from));
+    if (renamed === undefined) {
+      missing.push(`Секции «${from.trim()}» нет в цели.`);
+    } else {
+      current.delete(sectionKey(from));
+      current.set(sectionKey(to), renamed);
+    }
+  }
   return {
     ...state,
+    missing: [...state.missing, ...missing],
     sections: sections.map((section) => {
       const kept = current.get(sectionKey(section.name));
       return {
@@ -115,7 +139,7 @@ function withPlan(state: SetupState, sections: readonly ProposedSection[]): Setu
 }
 
 /** The names of every Topic the state knows: the Target's, the plan's and the Questions'. */
-function namedTopics(state: SetupState): readonly string[] {
+export function namedTopics(state: SetupState): readonly string[] {
   return [
     ...state.topics,
     ...state.sections.flatMap((section) => section.topics),
@@ -191,7 +215,7 @@ function applyOperation(state: SetupState, operation: DraftOperation): SetupStat
     case "set_interview_plan": {
       return (operation.renameTopics ?? []).reduce(
         (current, rename) => withRename(current, rename),
-        withPlan(state, operation.sections),
+        withPlan(state, operation.sections, operation.renameSections ?? []),
       );
     }
     case "save_preference": {

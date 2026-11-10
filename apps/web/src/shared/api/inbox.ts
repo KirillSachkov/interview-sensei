@@ -1,5 +1,4 @@
-import { isObject } from "./http";
-import { request } from "./request";
+import { isObject, request } from "./http";
 import type { SourceType } from "./sources";
 
 /** One material of the proposal card: its type and size from the server, the agent's assessment. */

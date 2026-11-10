@@ -90,7 +90,24 @@ export function getSource(sources: Sources) {
   });
 }
 
+/** `set_source_type`: marks a material as a vacancy or a resume once the agent has read it. */
+function setSourceType(sources: Sources) {
+  return sessionTool({
+    name: "set_source_type",
+    description:
+      "Marks one material of this session's Target as a vacancy or a resume, such as a file the Candidate attached, which the app adds as a file. Call it once you have read the material.",
+    input: z.strictObject({ id: z.uuid(), type: z.enum(["vacancy", "resume"]) }),
+    run: async ({ id, type }, session) => {
+      const source = await sources.setType(sessionTarget(session), id, type);
+      if (source === undefined) {
+        throw new Error("Source not found");
+      }
+      return JSON.stringify(listed(source));
+    },
+  });
+}
+
 /** The tools of the Target's materials for a Target setup session. */
 export function sourceTools(sources: Sources) {
-  return [addSources(sources), listSources(sources), getSource(sources)];
+  return [addSources(sources), listSources(sources), getSource(sources), setSourceType(sources)];
 }

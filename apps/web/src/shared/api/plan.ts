@@ -1,5 +1,5 @@
 import type { ReferenceAnswer } from "./inbox";
-import { request } from "./request";
+import { request } from "./http";
 import { isTargetView } from "./targets";
 import type { TargetView } from "./targets";
 

@@ -4,9 +4,11 @@ import { agentRuntimeModule } from "@interview-sensei/core/agent-runtime";
 import type { UserEnvironment } from "@interview-sensei/core/agent-runtime";
 import { agentSessionsModule } from "@interview-sensei/core/agent-sessions";
 import { mcpGatewayModule } from "@interview-sensei/core/mcp-gateway";
-import type { Storage, StorageOptions } from "@interview-sensei/core/storage";
+import type { Storage } from "@interview-sensei/core/storage";
+import type { Clock, Timer } from "@interview-sensei/core/time";
 
 export type { AgentRuntime, UserEnvironment } from "@interview-sensei/core/agent-runtime";
+export type { Clock, Timer } from "@interview-sensei/core/time";
 export { opencodeLoginModule } from "@interview-sensei/core/agent-runtime";
 export {
   agentSessionsMigrations,
@@ -19,10 +21,17 @@ export type { McpGateway } from "@interview-sensei/core/mcp-gateway";
 /** The MCP tool set of each session kind, as the gateway takes it. */
 export type SessionToolSets = Parameters<typeof mcpGatewayModule>[0]["tools"];
 
+/** What the features write to the server's logger. */
+export interface ServerLog {
+  readonly info: (details: object, message: string) => void;
+  readonly warn: (details: object | string, message?: string) => void;
+  readonly error: (details: object, message: string) => void;
+}
+
 /** What the server gives the features; composition.ts names it FeatureDependencies. */
 export interface AgentDependencies {
-  clock: StorageOptions["clock"];
-  timer: StorageOptions["timer"];
+  clock: Clock;
+  timer: Timer;
   /** The data directory this server owns; see resolveDataDirectory. */
   dataDirectory: string;
   /** The application's skills for the agents; see ServerDependencies. */
@@ -34,11 +43,7 @@ export interface AgentDependencies {
   /** The server's own loopback origin for the MCP addresses; throws before it listens. */
   origin: () => string;
   /** Receives the failures of background work: the server's logger. */
-  log: {
-    readonly info: (details: object, message: string) => void;
-    readonly warn: (details: object | string, message?: string) => void;
-    readonly error: (details: object, message: string) => void;
-  };
+  log: ServerLog;
 }
 
 /** The agents that the Candidate can run. */

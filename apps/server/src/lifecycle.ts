@@ -11,7 +11,9 @@ type LifecycleFeatures = Pick<
 
 /**
  * What the last run of the server left: its sessions end, its running Mock interviews pause, its
- * answer searches and Inbox processing close with partial reports, its temporary audio goes.
+ * answer searches and Inbox processing close with partial reports, its temporary audio goes, and
+ * so do the files of a Target whose deletion it did not finish: its sessions' directories and its
+ * materials.
  */
 async function endLastRun({
   sessions,
@@ -26,12 +28,14 @@ async function endLastRun({
   await answers.endInterrupted();
   await sources.inbox.endInterrupted();
   await transcription.removeLeftovers();
+  await sessions.removeLeftovers();
+  await sources.removeLeftovers();
 }
 
 /**
  * Ends sessions of the last run, pauses its running Mock interviews, closes its answer searches
  * and its running Inbox processing with partial reports, deletes the temporary audio of its
- * transcriptions, and registers the shutdown order, the WebSocket plugin and the check that only
+ * transcriptions and the files of a deletion it did not finish, and registers the shutdown order, the WebSocket plugin and the check that only
  * the Candidate's own browser reaches the server.
  */
 export async function prepare(

@@ -4,12 +4,7 @@ import type { WebSocket } from "ws";
 
 import { SessionsClosedError } from "./composition.ts";
 import type { AgentRuntime, AgentSessions, SessionView } from "./composition.ts";
-
-const sessionParams = {
-  type: "object",
-  properties: { id: { type: "string", format: "uuid" } },
-  required: ["id"],
-} as const;
+import { params } from "./route-params.ts";
 
 /** What the browser sends over the session's WebSocket. */
 type Command =
@@ -203,7 +198,7 @@ export function registerAgentSessionRoutes(
   server.get("/api/sessions", async () => sessions.list());
   server.get<{ Params: { id: string } }>(
     "/api/sessions/:id",
-    { schema: { params: sessionParams } },
+    { schema: { params } },
     async (request, reply) => {
       const view = await sessions.view(request.params.id);
       return view ?? reply.code(404).send({ error: "session_not_found" });
@@ -211,7 +206,7 @@ export function registerAgentSessionRoutes(
   );
   server.get<{ Params: { id: string } }>(
     "/api/sessions/:id/events",
-    { websocket: true, schema: { params: sessionParams } },
+    { websocket: true, schema: { params } },
     async (socket, request) => serveEvents(socket, request.params.id, { sessions, onError }),
   );
 }

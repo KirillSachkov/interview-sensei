@@ -1,5 +1,5 @@
 // Spec #45, seam 1, ticket #50: the agent of the Target setup reads and adds the materials of its
-// own Target with our MCP tools. The fake agent's `/tool <name> <json>` stands for its calls.
+// own Target with our MCP tools, and marks an attached file as a vacancy or a resume (#88). The fake agent's `/tool <name> <json>` stands for its calls.
 import path from "node:path";
 
 import type { FastifyInstance } from "fastify";
@@ -129,6 +129,23 @@ describe("materials for the agent of the Target setup", () => {
     });
   });
 
+  it("marks an attached file as a resume once the agent has read it", async () => {
+    const { server } = await startServer(await temporaryDirectory());
+    const target = await newTarget(server);
+    const attached = await upload(server, { targetId: target.id, name: "cv.pdf", body: "CV" });
+    const events = await setupChat(server, target.id);
+
+    const marked = await callTool(events, "set_source_type", {
+      id: attached.json<SourceView>().id,
+      type: "resume",
+    });
+
+    expect(JSON.parse(marked)).toMatchObject({ title: "cv.pdf", type: "resume" });
+    await expect(sources(server, target.id)).resolves.toMatchObject([
+      { title: "cv.pdf", type: "resume" },
+    ]);
+  });
+
   it("shows the agent only the materials of its own Target", async () => {
     const { server } = await startServer(await temporaryDirectory());
     const own = await newTarget(server);
@@ -143,7 +160,13 @@ describe("materials for the agent of the Target setup", () => {
     const listed = await callTool(events, "list_sources");
     const read = await callTool(events, "get_source", { id: attached.json<SourceView>().id });
 
+    const marked = await callTool(events, "set_source_type", {
+      id: attached.json<SourceView>().id,
+      type: "vacancy",
+    });
+
     expect(JSON.parse(listed)).toStrictEqual([]);
     expect(read).toBe("Ошибка: Source not found");
+    expect(marked).toBe("Ошибка: Source not found");
   });
 });

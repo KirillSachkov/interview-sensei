@@ -1,10 +1,26 @@
 import { createWriteStream } from "node:fs";
-import { mkdir, rm, stat } from "node:fs/promises";
+import { mkdir, readdir, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 
-import type { FilePlace, SourceFiles } from "../domain/ports.ts";
+import type { FilePlace, SourceFiles } from "../domain/source-files.ts";
+
+/** A directory name that is an id; any other directory is not a Target's. */
+const uuidName = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+
+/** The names of the directories in `directory` that are ids; none when it does not exist. */
+async function idDirectories(directory: string): Promise<string[]> {
+  const entries = await readdir(directory, { withFileTypes: true }).catch((error: unknown) => {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return [];
+    }
+    throw error;
+  });
+  return entries
+    .filter((entry) => entry.isDirectory() && uuidName.test(entry.name))
+    .map((entry) => entry.name);
+}
 
 /** The bytes passed the limit; the partial file is removed. */
 class FileTooLargeError extends Error {
@@ -61,6 +77,7 @@ export function sourceFileStore(dataDirectory: string): SourceFiles {
     removeTarget: async (targetId) => {
       await rm(absolute(path.join("targets", targetId)), { recursive: true, force: true });
     },
+    targetIds: async () => idDirectories(path.join(dataDirectory, "targets")),
     absolute,
     size: async (file) => {
       try {

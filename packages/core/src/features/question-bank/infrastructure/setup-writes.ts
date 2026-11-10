@@ -4,15 +4,12 @@ import { and, asc, eq } from "drizzle-orm";
 import { executorOf } from "../../../shared/storage/index.ts";
 import type { Database, Transaction } from "../../../shared/storage/index.ts";
 import type { QuestionRepository } from "../domain/ports.ts";
-import type { Question, QuestionContent } from "../domain/question.ts";
+import { questionContent } from "../domain/question.ts";
+import type { Question } from "../domain/question.ts";
 import { questions, topics } from "./schema.ts";
 
 export function toQuestion(row: typeof questions.$inferSelect): Question {
-  const content: QuestionContent =
-    row.format === "open"
-      ? { format: "open", options: [], correctOptionIds: [] }
-      : { format: "quiz", options: row.options, correctOptionIds: row.correctOptionIds };
-  return { ...row, ...content, createdAt: row.createdAt.toISOString() };
+  return { ...row, ...questionContent(row), createdAt: row.createdAt.toISOString() };
 }
 
 export function setupWrites(

@@ -5,7 +5,7 @@ import type { Clock } from "../../../shared/time/index.ts";
 import { continuationPrompt, onboardingPrompt, setupBrief } from "../domain/brief.ts";
 import { draftProblems, stateAfter } from "../domain/draft.ts";
 import type { DraftChange, DraftOperation } from "../domain/draft.ts";
-import { planReplacement } from "../domain/draft-plan.ts";
+import { changeViews, planReplacement } from "../domain/draft-plan.ts";
 import { withoutDuplicates } from "../domain/draft-questions.ts";
 import type { NewQuestion } from "../domain/draft-questions.ts";
 import type {
@@ -217,9 +217,14 @@ async function addQuestionsIn(
 export function createTargetSetup(dependencies: TargetSetupDependencies) {
   const { drafts, targets, transaction } = dependencies;
   return {
-    /** The Target's draft in the order of recording; undefined for an unknown Target. */
-    draft: async (targetId: string) =>
-      (await targets.get(targetId)) === undefined ? undefined : drafts.changes(targetId),
+    /**
+     * The Target's draft in the order of recording, each plan change with the renames that merge
+     * Topics; undefined for an unknown Target.
+     */
+    draft: async (targetId: string) => {
+      const current = await withDraft(dependencies, targetId);
+      return current === null ? undefined : changeViews(current.state, current.changes);
+    },
     record: async (targetId: string, operation: DraftOperation) =>
       record(dependencies, targetId, operation),
     addQuestions: async (targetId: string, questions: readonly Omit<NewQuestion, "id">[]) =>

@@ -1,4 +1,4 @@
-import type { DraftOperation } from "@/shared/api";
+import type { DraftChange, DraftOperation } from "@/shared/api";
 
 const levelNames = { junior: "Junior", middle: "Middle", senior: "Senior" } as const;
 const toneNames = { friendly: "дружелюбный", neutral: "нейтральный", strict: "строгий" } as const;
@@ -34,21 +34,40 @@ function targetText(operation: Operation<"update_target">): string {
   return `Цель: ${parts.filter((part) => part !== null).join(", ")}`;
 }
 
-function planText(operation: Operation<"set_interview_plan">): string {
-  const sections = counted(operation.sections.length, ["секция", "секции", "секций"]);
-  const renames = operation.renameTopics ?? [];
-  return renames.length === 0 ? `План: ${sections}` : `План: ${sections}, переименование тем`;
+/** What the plan's Topic renames do: rename Topics, merge them into others, or both. */
+function renamesText(renames: number, merges: number): string | null {
+  if (renames === 0) {
+    return null;
+  }
+  if (merges === 0) {
+    return "переименование тем";
+  }
+  return merges === renames ? "объединение тем" : "переименование и объединение тем";
 }
 
-/** Each Section of the plan with its Topics, then the Topic renames. */
-function planDetails(operation: Operation<"set_interview_plan">): string[] {
+function planText(operation: Operation<"set_interview_plan">, merges: readonly string[]): string {
+  const sections = counted(operation.sections.length, ["секция", "секции", "секций"]);
+  const renames = renamesText(operation.renameTopics?.length ?? 0, merges.length);
+  return renames === null ? `План: ${sections}` : `План: ${sections}, ${renames}`;
+}
+
+/** Each Section of the plan with its Topics, then the Section renames, the Topic renames and merges. */
+function planDetails(
+  operation: Operation<"set_interview_plan">,
+  merges: readonly string[],
+): string[] {
   const sections = operation.sections.map(({ name, topics }) =>
     topics === undefined || topics.length === 0 ? `«${name}»` : `«${name}»: ${quoted(topics)}`,
   );
-  const renames = (operation.renameTopics ?? []).map(
-    ({ from, to }) => `Тема «${from}» станет «${to}»`,
+  const sectionRenames = (operation.renameSections ?? []).map(
+    ({ from, to }) => `Секция «${from}» станет «${to}»`,
   );
-  return [...sections, ...renames];
+  const renames = (operation.renameTopics ?? []).map(({ from, to }) =>
+    merges.includes(from)
+      ? `Тема «${from}» объединится с «${to}»`
+      : `Тема «${from}» станет «${to}»`,
+  );
+  return [...sections, ...sectionRenames, ...renames];
 }
 
 function preferenceText(operation: Operation<"save_preference">): string {
@@ -84,29 +103,36 @@ function importanceText(operation: Operation<"set_topic_importance">): string {
   return `Важность тем: ${topics.join(", ")}`;
 }
 
-/**
- * One change of the draft as the Candidate reads it in the list above the message form: a short
- * line, whose details `changeDetails` gives.
- */
-export function changeText(operation: DraftOperation): string {
+/** A change's short line and the lines under it that the Candidate opens; no details for a short one. */
+interface ChangeLines {
+  readonly text: string;
+  readonly details: readonly string[];
+}
+
+const short = (text: string): ChangeLines => ({ text, details: [] });
+
+function changeLines({ operation, merges = [] }: DraftChange): ChangeLines {
   switch (operation.type) {
     case "update_target": {
-      return targetText(operation);
+      return short(targetText(operation));
     }
     case "set_interview_plan": {
-      return planText(operation);
+      return { text: planText(operation, merges), details: planDetails(operation, merges) };
     }
     case "save_preference": {
-      return preferenceText(operation);
+      return short(preferenceText(operation));
     }
     case "set_topic_importance": {
-      return importanceText(operation);
+      return short(importanceText(operation));
     }
     case "add_questions": {
-      return `Вопросы: добавить ${counted(operation.questions.length, ["вопрос", "вопроса", "вопросов"])}`;
+      return {
+        text: `Вопросы: добавить ${counted(operation.questions.length, ["вопрос", "вопроса", "вопросов"])}`,
+        details: operation.questions.map((question) => `«${question.topic}»: ${question.text}`),
+      };
     }
     case "edit_questions": {
-      return editsText(operation);
+      return short(editsText(operation));
     }
     default: {
       return operation satisfies never;
@@ -114,23 +140,9 @@ export function changeText(operation: DraftOperation): string {
   }
 }
 
+/** One change of the draft as the Candidate reads it in the list above the message form. */
+export const changeText = (change: DraftChange): string => changeLines(change).text;
+
 /** The lines under the change's short line that the Candidate opens: what a long change holds. */
-export function changeDetails(operation: DraftOperation): readonly string[] {
-  switch (operation.type) {
-    case "set_interview_plan": {
-      return planDetails(operation);
-    }
-    case "add_questions": {
-      return operation.questions.map((question) => `«${question.topic}»: ${question.text}`);
-    }
-    case "update_target":
-    case "save_preference":
-    case "set_topic_importance":
-    case "edit_questions": {
-      return [];
-    }
-    default: {
-      return operation satisfies never;
-    }
-  }
-}
+export const changeDetails = (change: DraftChange): readonly string[] =>
+  changeLines(change).details;

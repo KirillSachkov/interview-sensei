@@ -13,12 +13,12 @@ import type {
   InboxQuestions,
   InboxRepository,
   InboxSessions,
-  SourceFiles,
   SourceRepository,
   SourceTargets,
   SourceTexts,
   TextExtractor,
 } from "../domain/ports.ts";
+import type { SourceFiles } from "../domain/source-files.ts";
 import type { SourceTranscription } from "../domain/transcription-port.ts";
 
 export interface InboxDependencies {

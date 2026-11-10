@@ -60,7 +60,7 @@ The fake agent streams a reply in chunks; the prompt `/wait` waits for a cancel,
 It replies «Результат <name>: <text>», or «Ошибка <name>: <text>» when the tool reports an error, in one chunk: a long brief costs no pause per word.
 API tests drive an agent's work with our tools this way, such as `/tool update_target {"name":"Go"}` in a Target setup session.
 `/permission` asks permission for a foreign tool and replies with the name of the Candidate's choice.
-It offers one option of each ACP kind, named in English as real agents name them, such as «Allow once»; the page names them by kind.
+It offers one option of each ACP kind and a second `allow_always`, as a real agent may, named in English as real agents name them, such as «Allow once»; the page names them by kind and adds the agent's name to two options of one kind.
 `/mcp` replies with the session's MCP server name and address.
 `/markdown` replies with Markdown, raw HTML, a `javascript:` link and a remote image, so a test checks how the chat shows the agent's text.
 `/late` asks permission after its turn ends and sends the outcome it gets, which is `cancelled`.

@@ -43,13 +43,15 @@ test("the chat shows the agent's error answer and takes the next message", async
 
 /**
  * The fake agent names its options in English, as real agents do: the buttons take Russian names
- * by the option's kind, and the agent's own name stays as the tooltip.
+ * by the option's kind, and the agent's own name stays as the tooltip. Two options of one kind add
+ * the agent's name, so their buttons differ.
  */
 async function expectOptionsByKind(request: Locator) {
   const buttons = request.getByRole("button");
   await expect(buttons).toHaveText([
     "Разрешить один раз",
-    "Разрешать всегда",
+    "Разрешать всегда — Always allow",
+    "Разрешать всегда — Always allow this command",
     "Запретить",
     "Запрещать всегда",
   ]);

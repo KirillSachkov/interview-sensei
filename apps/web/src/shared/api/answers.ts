@@ -1,5 +1,4 @@
-import { isObject } from "./http";
-import { request } from "./request";
+import { isObject, request } from "./http";
 
 /**
  * The Target's answer search: `withoutAnswer` Questions without a reference answer, `queued` in the

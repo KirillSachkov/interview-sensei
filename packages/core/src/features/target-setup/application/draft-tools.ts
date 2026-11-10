@@ -79,7 +79,7 @@ export function setInterviewPlan(setup: TargetSetup) {
   return sessionTool({
     name: "set_interview_plan",
     description:
-      "Records the whole Interview plan in the draft of changes: every Section in order, with its kind, short grading criteria and Topics by name. It replaces the previous plan, so it also deletes, reorders and switches Sections; it also replaces the earlier plan change of the draft and keeps that change's `renameTopics`. A Section with the name of an existing one keeps it. An omitted `gradingCriteria`, `enabled` or `topics` keeps the Section's current value; a new Section gets no criteria and no Topics and is enabled. Applying creates new Topics and reuses a Topic of the same name; a Topic left out of the plan keeps its Questions. `renameTopics` renames a Topic, keeping its Questions, or merges it into the existing Topic named `to`; name the Topic by its new name in the plan. The Target stays unchanged until the draft is applied.",
+      "Records the whole Interview plan in the draft of changes: every Section in order, with its kind, short grading criteria and Topics by name. It replaces the previous plan, so it also deletes, reorders and switches Sections; it also replaces the earlier plan change of the draft and keeps that change's `renameTopics` and `renameSections`. A Section with the name of an existing one keeps it. `renameSections` renames a Section, keeping it with its Mock interviews; name the Section by its new name in the plan. An omitted `gradingCriteria`, `enabled` or `topics` keeps the Section's current value; a new Section gets no criteria and no Topics and is enabled. Applying creates new Topics and reuses a Topic of the same name; a Topic left out of the plan keeps its Questions. `renameTopics` renames a Topic, keeping its Questions, or merges it into the existing Topic named `to`; name the Topic by its new name in the plan. The Target stays unchanged until the draft is applied.",
     input: z.strictObject({
       sections: z
         .array(
@@ -92,11 +92,14 @@ export function setInterviewPlan(setup: TargetSetup) {
           }),
         )
         .min(1),
+      renameSections: z
+        .array(z.strictObject({ from: z.string().trim().min(1), to: z.string().trim().min(1) }))
+        .default([]),
       renameTopics: z
         .array(z.strictObject({ from: z.string().trim().min(1), to: z.string().trim().min(1) }))
         .default([]),
     }),
-    run: async ({ sections, renameTopics }, session) => {
+    run: async ({ sections, renameSections, renameTopics }, session) => {
       const problems = planProblems(sections);
       if (problems.length > 0) {
         throw new Error(problems.join(" "));
@@ -104,6 +107,7 @@ export function setInterviewPlan(setup: TargetSetup) {
       return recordIn(setup, session, {
         type: "set_interview_plan",
         sections,
+        ...(renameSections.length === 0 ? {} : { renameSections }),
         ...(renameTopics.length === 0 ? {} : { renameTopics }),
       });
     },

@@ -14,7 +14,7 @@ import { openStorage } from "@interview-sensei/core/storage";
 import { transcriptionModule } from "@interview-sensei/core/transcription";
 import type { TranscriptionComponents } from "@interview-sensei/core/transcription";
 import type { SliceMigrations } from "@interview-sensei/core/storage";
-import type { Interviews, interviewsModule } from "@interview-sensei/core/interviews";
+import type { interviewsModule } from "@interview-sensei/core/interviews";
 import type { Progress } from "@interview-sensei/core/progress";
 
 import { answerSearchMigrations, answerTools } from "./composition-answers.ts";
@@ -61,48 +61,62 @@ const sliceMigrations: readonly SliceMigrations[] = [
 ];
 
 /**
- * The services of the tools of the mock interview, the Side thread and the answer search, and the
- * AgentSessions that the setup's `get_brief` reads the earlier conversation from; composeFeatures
- * builds them after the gateway.
+ * The services that composeFeatures builds after the Target slices and the gateway, which call
+ * them: the Mock interviews, progress, answer search and the AgentSessions.
  */
-interface InterviewServices {
-  interviews: Interviews;
-  progress: Progress;
-  answers: AnswerSearch;
-  sessions: Pick<AgentSessions, "earlierMessages">;
+interface LaterServices {
+  readonly interviews: ReturnType<typeof interviewsModule>;
+  readonly progress: Progress;
+  readonly answers: AnswerSearch;
+  readonly sessions: AgentSessions;
+}
+
+/** The services built later; it throws before composeFeatures binds them. */
+type Later = () => LaterServices;
+
+/**
+ * The services built later: `get` gives them once `bind` has, and throws before, so a call during
+ * the composition fails with a clear message instead of reaching an unset variable.
+ */
+function laterServices() {
+  let services: LaterServices | null = null;
+  return {
+    get: (): LaterServices => {
+      if (services === null) {
+        throw new Error("A service was called before the server composed its features");
+      }
+      return services;
+    },
+    bind: (ready: LaterServices) => {
+      services = ready;
+    },
+  };
 }
 
 /**
  * The MCP tool set of each session kind. A slice exports its tools from its index.ts; add them to
  * the kinds that need them. It compiles only while every session kind has an entry. The gateway
- * reads a set when a session starts; `bind` gives the sets of the mock interview and the Side
- * thread their services once composeFeatures has built them, after the gateway.
+ * reads a set when a session starts; the sets of the mock interview, the Side thread and the answer
+ * search take their services from `later`, which composeFeatures binds after the gateway.
  */
-function sessionTools(slices: ReturnType<typeof composeTargets>) {
-  let services: InterviewServices | null = null;
-  const built = () => {
-    if (services === null) {
-      throw new Error("A session started before the server composed its features");
-    }
-    return services;
-  };
+function sessionTools(slices: ReturnType<typeof composeTargets>, later: Later) {
   const { getTarget, searchQuestions, listSources, getSource, setup, inbox } = targetTools(
     slices,
-    async (sessionId) => built().sessions.earlierMessages(sessionId),
+    async (sessionId) => later().sessions.earlierMessages(sessionId),
   );
   const sets: SessionToolSets = {
     "service-chat": [getBrief],
     "target-setup": setup,
     "inbox-processing": inbox,
     get "mock-interview"() {
-      const { interviews, progress } = built();
+      const { interviews, progress } = later();
       return [...interviewTools(interviews), getTarget, searchQuestions, getProgress(progress)];
     },
     get "answer-search"() {
-      return answerTools(built().answers);
+      return answerTools(later().answers);
     },
     get "side-thread"() {
-      const { interviews, progress } = built();
+      const { interviews, progress } = later();
       return [
         ...sideThreadTools(interviews),
         getTarget,
@@ -115,9 +129,6 @@ function sessionTools(slices: ReturnType<typeof composeTargets>) {
   };
   return {
     sets,
-    bind: (ready: InterviewServices) => {
-      services = ready;
-    },
     /** The reading tools that the model tests call directly. */
     modelTools: { getTarget, searchQuestions },
   };
@@ -130,9 +141,10 @@ export interface FeatureDependencies extends AgentDependencies {
 
 /**
  * Inbox processing starts its agent through `sessions`, which composeFeatures builds after the
- * sources slice; it exists by the first start.
+ * sources slice and binds in `later` before the first start.
  */
-function inboxSessions(sessions: () => AgentSessions) {
+function inboxSessions(later: Later) {
+  const sessions = () => later().sessions;
   return {
     start: async (request: Parameters<AgentSessions["start"]>[0]) => sessions().start(request),
     end: async (sessionId: string) => sessions().end(sessionId),
@@ -145,28 +157,23 @@ function inboxSessions(sessions: () => AgentSessions) {
 
 /**
  * The Topic merges of a draft move the Attempts of `interviews`, and the question bank asks it which
- * Questions have Attempts. composeFeatures builds it after these slices; it exists by the first call.
+ * Questions have Attempts. composeFeatures builds it after these slices and binds it in `later`.
  */
-function topicMerges(interviews: () => ReturnType<typeof interviewsModule>) {
+function topicMerges(later: Later) {
   return {
     mergeTopic: async (...merge: Parameters<ReturnType<typeof interviewsModule>["mergeTopic"]>) =>
-      interviews().mergeTopic(...merge),
+      later().interviews.mergeTopic(...merge),
     attempted: async (targetId: string, questionIds: readonly string[]) =>
-      interviews().attempted(targetId, questionIds),
+      later().interviews.attempted(targetId, questionIds),
   };
 }
 
 /**
- * What the Target slices take from the server; `interviews` and `sessions` are built after them and
- * exist by the first call.
+ * What the Target slices take from the server; `later` gives the services built after them.
  */
 function targetDependencies(
   { clock, timer, dataDirectory, log, transcription }: FeatureDependencies,
-  later: {
-    interviews: () => ReturnType<typeof interviewsModule>;
-    sessions: () => AgentSessions;
-    answers: () => AnswerSearch;
-  },
+  later: Later,
 ) {
   return {
     clock,
@@ -177,15 +184,15 @@ function targetDependencies(
       components: transcription,
       onError: (error) => log.error({ err: error }, "A download of speech recognition failed"),
     }),
-    attempts: topicMerges(later.interviews),
-    sessions: inboxSessions(later.sessions),
+    attempts: topicMerges(later),
+    sessions: inboxSessions(later),
     onError: (error: unknown) =>
       log.error({ err: error }, "An Inbox processing failed in the background"),
     onInboxStarted: ({ targetId }: { targetId: string }) => {
-      later.answers().inboxStarted(targetId);
+      later().answers.inboxStarted(targetId);
     },
     onInboxFinished: (end: Parameters<AnswerSearch["inboxFinished"]>[0]) => {
-      later.answers().inboxFinished(end);
+      later().answers.inboxFinished(end);
     },
   };
 }
@@ -204,17 +211,9 @@ export async function composeFeatures(dependencies: FeatureDependencies) {
     onDumpFailed: (error) => log.error({ err: error }, "The periodic database dump failed"),
   });
   const runtime = composeRuntime(dependencies);
-  const slices = composeTargets(
-    storage,
-    targetDependencies(dependencies, {
-      interviews: () => interviews,
-      sessions: () => sessions,
-      answers: () => answers,
-    }),
-    runtime,
-  );
-  const { targets, questionBank, targetSetup, sources } = slices;
-  const tools = sessionTools(slices);
+  const later = laterServices();
+  const slices = composeTargets(storage, targetDependencies(dependencies, later.get), runtime);
+  const tools = sessionTools(slices, later.get);
   const { mcp, sessions } = composeSessions(storage, {
     ...dependencies,
     runtime,
@@ -225,7 +224,7 @@ export async function composeFeatures(dependencies: FeatureDependencies) {
     runtime,
     sessions,
   });
-  tools.bind({ interviews, progress, answers, sessions });
+  later.bind({ interviews, progress, answers, sessions });
   return {
     storage,
     runtime,
@@ -236,8 +235,16 @@ export async function composeFeatures(dependencies: FeatureDependencies) {
     progress,
     answers,
     /** Every slice that keeps data of a Target: deleting the Target erases it in each of them. */
-    targetData: [interviews, questionBank, targetSetup, sources, answers, sessions, targets],
-    createDemo: demoCreator({ targets, questionBank, clock }),
+    targetData: [
+      interviews,
+      slices.questionBank,
+      slices.targetSetup,
+      slices.sources,
+      answers,
+      sessions,
+      slices.targets,
+    ],
+    createDemo: demoCreator({ ...slices, clock }),
     modelTools: tools.modelTools,
     health: healthModule({ clock }),
   };

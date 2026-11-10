@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { demoQuestions, demoTarget } from "../domain/demo-data.ts";
+import { questionContent } from "../domain/question.ts";
 import type { StoredQuestion, Topic } from "../domain/question.ts";
 
 /** The demo Question as a Question of the Target's bank. */
@@ -8,14 +9,7 @@ function demoQuestion(
   question: (typeof demoQuestions)[number],
   common: Omit<StoredQuestion, "format" | "options" | "correctOptionIds">,
 ): StoredQuestion {
-  return question.format === "open"
-    ? { ...common, format: "open", options: [], correctOptionIds: [] }
-    : {
-        ...common,
-        format: "quiz",
-        options: question.options,
-        correctOptionIds: question.correctOptionIds,
-      };
+  return { ...common, ...questionContent(question) };
 }
 
 /**

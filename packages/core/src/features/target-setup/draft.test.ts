@@ -72,6 +72,33 @@ describe("draft of changes", () => {
     expect(state.sections[0]?.enabled).toBe(true);
   });
 
+  it("keeps the id, criteria and Topics of a Section that the plan renames", () => {
+    const current: SetupState = { ...newTarget, sections: [{ id: "section-1", ...goSection }] };
+
+    const state = stateAfter(current, [
+      {
+        type: "set_interview_plan",
+        sections: [{ name: "Go", kind: "topics" }],
+        renameSections: [{ from: "go и конкурентность", to: "Go" }],
+      },
+    ]);
+
+    expect(state.sections).toStrictEqual([{ ...goSection, id: "section-1", name: "Go" }]);
+    expect(draftProblems(state)).toStrictEqual([]);
+  });
+
+  it("refuses to rename a Section the Target does not have", () => {
+    const state = stateAfter(newTarget, [
+      {
+        type: "set_interview_plan",
+        sections: [{ name: "Go", kind: "topics" }],
+        renameSections: [{ from: "Rust", to: "Go" }],
+      },
+    ]);
+
+    expect(draftProblems(state)).toContain("Секции «Rust» нет в цели.");
+  });
+
   it("leaves a draft Target a draft until it has a name, a level and an enabled Section", () => {
     const disabledPlan: DraftOperation = {
       type: "set_interview_plan",

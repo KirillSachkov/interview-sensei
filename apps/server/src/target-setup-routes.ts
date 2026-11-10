@@ -4,16 +4,11 @@ import { serverClosingMessage } from "./agent-session-routes.ts";
 import type { ArchiveGuard } from "./archive-guard.ts";
 import { SessionsClosedError } from "./composition.ts";
 import type { Features } from "./composition.ts";
+import { params, uuid } from "./route-params.ts";
 
 type Dependencies = Pick<Features, "targets" | "targetSetup" | "sessions" | "runtime"> & {
   readonly archiveGuard: ArchiveGuard;
 };
-
-const params = {
-  type: "object",
-  properties: { id: { type: "string", format: "uuid" } },
-  required: ["id"],
-} as const;
 
 /** The Target's agent cannot start: none is available, or the chosen one is not. */
 class AgentUnavailableError extends Error {
@@ -128,8 +123,8 @@ function registerSetupEnd(server: FastifyInstance, { targets, sessions }: Depend
 const changeParams = {
   type: "object",
   properties: {
-    id: { type: "string", format: "uuid" },
-    changeId: { type: "string", format: "uuid" },
+    id: uuid,
+    changeId: uuid,
   },
   required: ["id", "changeId"],
 } as const;
@@ -209,7 +204,8 @@ function registerDraft(server: FastifyInstance, { targets, targetSetup }: Depend
  *   onboarding. 400 `agent_unavailable` when
  *   the Target's agent cannot start, 409 `target_archived` for an archived Target, 503
  *   `server_closing` once the server shuts down.
- * - `GET /api/targets/:id/draft`: `{ changes }`, the draft of changes in the order of recording.
+ * - `GET /api/targets/:id/draft`: `{ changes }`, the draft of changes in the order of recording;
+ *   a plan change has `merges`, the `from` names of its renames that merge into a Topic.
  * - `POST /api/targets/:id/draft/apply`: writes the whole draft and answers the Target; 409
  *   `draft_empty`, or 409 `draft_invalid` with `problems` and the Target unchanged.
  * - `POST /api/targets/:id/setup-session/end`: «Завершить», 204; ends the running setup session,

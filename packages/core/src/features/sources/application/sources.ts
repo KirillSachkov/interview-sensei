@@ -2,7 +2,8 @@ import { randomUUID } from "node:crypto";
 
 import type { Transaction } from "../../../shared/storage/index.ts";
 import type { Clock } from "../../../shared/time/index.ts";
-import type { SourceFiles, SourceRepository, SourceTargets } from "../domain/ports.ts";
+import type { SourceRepository, SourceTargets } from "../domain/ports.ts";
+import type { SourceFiles } from "../domain/source-files.ts";
 import { maxFileBytes, safeFileName, withoutControlCharacters } from "../domain/source.ts";
 import type { Source, SourceType } from "../domain/source.ts";
 
@@ -125,6 +126,39 @@ async function addOne(dependencies: SourcesDependencies, targetId: string, added
   return source;
 }
 
+/**
+ * Removes the files of Targets that no longer exist: a server that stopped after a Target's
+ * deletion and before `eraseTargetFiles` left them.
+ */
+async function removeLeftovers({ files, targets }: SourcesDependencies): Promise<void> {
+  const targetIds = await files.targetIds();
+  const exist = await Promise.all(
+    targetIds.map(async (id) => (await targets.get(id)) !== undefined),
+  );
+  await Promise.all(
+    targetIds
+      .filter((_id, index) => exist[index] === false)
+      .map(async (id) => files.removeTarget(id)),
+  );
+}
+
+/**
+ * Gives the Target's Source the type, such as a vacancy for an attached file, which is a «файл»
+ * until the agent reads it; undefined when the Target has no such Source.
+ */
+async function typed(
+  { repository, files }: SourcesDependencies,
+  { targetId, id }: { targetId: string; id: string },
+  type: SourceView["type"],
+): Promise<SourceView | undefined> {
+  const source = await repository.get(targetId, id);
+  if (source === undefined) {
+    return source;
+  }
+  await repository.setType(targetId, id, type);
+  return viewOf(files, { ...source, type });
+}
+
 /** The materials of each Target: files in the data directory and links. */
 export function createSources(dependencies: SourcesDependencies) {
   const { repository, files, targets } = dependencies;
@@ -132,8 +166,8 @@ export function createSources(dependencies: SourcesDependencies) {
     /** Erases the Target's Sources when the Target is deleted for good; the files go after. */
     eraseTarget: async (targetId: string, transaction: Transaction) =>
       repository.erase(targetId, transaction),
-    /** Removes the files of the Target's Sources once their rows are erased. */
     eraseTargetFiles: async (targetId: string) => files.removeTarget(targetId),
+    removeLeftovers: async () => removeLeftovers(dependencies),
     /** The Target's Sources in the order they were added; undefined for an unknown Target. */
     list: async (targetId: string): Promise<SourceView[] | undefined> => {
       if ((await targets.get(targetId)) === undefined) {
@@ -162,6 +196,8 @@ export function createSources(dependencies: SourcesDependencies) {
       }
       return stored;
     },
+    setType: async (targetId: string, id: string, type: SourceView["type"]) =>
+      typed(dependencies, { targetId, id }, type),
     /** Saves an attached file of up to 100 MB in the Target's data directory as a Source. */
     saveFile: async (targetId: string, attached: AttachedFile) =>
       saveFile(dependencies, targetId, attached),

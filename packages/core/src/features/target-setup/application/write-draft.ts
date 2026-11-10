@@ -68,7 +68,8 @@ function referenceEdit(before: SetupQuestion, after: DraftQuestion) {
 
 /**
  * The fields of the Question that the draft changed; null when it changed none. An edit that
- * confirms a made-up Question also takes off its mark «не подтверждён».
+ * confirms a made-up Question also takes off its mark «не подтверждён», and so does a move to
+ * another Topic that a merge of its old Topic hides.
  */
 function editOf(before: SetupQuestion, after: DraftQuestion, topicId: string) {
   const fields = {
@@ -78,7 +79,10 @@ function editOf(before: SetupQuestion, after: DraftQuestion, topicId: string) {
     ...(after.rating === before.rating ? {} : { rating: after.rating }),
     ...referenceEdit(before, after),
   };
-  const confirmed = before.unconfirmed && confirms(fields) ? { unconfirmed: false as const } : {};
+  const confirmed =
+    before.unconfirmed && (confirms(fields) || after.moved === true)
+      ? { unconfirmed: false as const }
+      : {};
   const edit: SetupQuestionEdit = { id: before.id, ...fields, ...confirmed };
   return Object.keys(edit).length > 1 ? edit : null;
 }

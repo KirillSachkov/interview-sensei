@@ -1,4 +1,4 @@
-import { request } from "./request";
+import { request } from "./http";
 
 /** The application's settings from «Настройки». */
 export interface AppSettings {

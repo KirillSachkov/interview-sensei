@@ -1,4 +1,4 @@
-import { request } from "./request";
+import { request } from "./http";
 import { isTargetView } from "./targets";
 import type { Level, TargetView, TopicImportance } from "./targets";
 
@@ -33,6 +33,7 @@ export type DraftOperation =
   | {
       readonly type: "set_interview_plan";
       readonly sections: readonly ProposedSection[];
+      readonly renameSections?: readonly { readonly from: string; readonly to: string }[];
       readonly renameTopics?: readonly { readonly from: string; readonly to: string }[];
     }
   | {
@@ -62,6 +63,8 @@ export type DraftOperation =
 export interface DraftChange {
   readonly id: string;
   readonly operation: DraftOperation;
+  /** The `from` names of a plan change's renames that merge into a Topic the Target has. */
+  readonly merges?: readonly string[];
 }
 
 /** The draft cannot be applied; the Target did not change. */
