@@ -10,6 +10,8 @@ export interface ProposalItem {
   readonly url: string | null;
   /** The file's size in bytes; null for a link. */
   readonly size: number | null;
+  /** A video or audio file: the server recognizes its speech before the agent reads it. */
+  readonly video: boolean;
   readonly assessment: string;
 }
 

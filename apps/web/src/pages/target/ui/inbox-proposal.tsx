@@ -9,8 +9,10 @@ import {
   useInboxAfterTurn,
   useStartProcessing,
 } from "../model/inbox";
+import { useTranscription } from "../model/transcription";
 import { ProposalActions } from "./proposal-actions";
 import { RecheckProposal } from "./recheck-proposal";
+import { TranscriptionConsent } from "./transcription-consent";
 
 /** One material of the card: its checkbox, title, type, size and the agent's assessment. */
 function ProposalLine({
@@ -61,6 +63,12 @@ function useUnticked() {
   return { unticked, toggle };
 }
 
+/** Whether the components of speech recognition download now. */
+function useDownloading(): boolean {
+  const { data } = useTranscription();
+  return data?.available === true && data.installation !== null;
+}
+
 function ProposalCard({
   targetId,
   proposal,
@@ -73,6 +81,9 @@ function ProposalCard({
   const { unticked, toggle } = useUnticked();
   const chosen = proposal.items.filter((item) => !unticked.has(item.sourceId));
   const busy = start.isPending || dismiss.isPending;
+  const withVideo = chosen.some((item) => item.video);
+  // A video waits for the download of speech recognition; without it the video gets «ошибка».
+  const downloading = useDownloading();
   return (
     <section className="draft-changes inbox-proposal" aria-label="Разбор материалов">
       <h3>Разбор материалов</h3>
@@ -89,11 +100,12 @@ function ProposalCard({
           />
         ))}
       </ul>
+      {withVideo ? <TranscriptionConsent /> : null}
       {start.error === null ? null : <p role="alert">Разбор не начался: {start.error.message}</p>}
       <ProposalActions
         startLabel="Запустить разбор"
         disabled={busy}
-        canStart={chosen.length > 0}
+        canStart={chosen.length > 0 && !(withVideo && downloading)}
         onStart={() => {
           start.mutate(chosen.map((item) => item.sourceId));
         }}
