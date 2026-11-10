@@ -1,0 +1,2187 @@
+{
+  "author": "Агент (Codex): вызовы отбора и показа, без мыслей агента и адресов MCP",
+  "agents": {
+    "claude": [],
+    "codex": [
+      {
+        "sessionId": "cae139fa-57a9-401b-b1af-5f5bf0cb61ec",
+        "tool": "next_question_candidates",
+        "input": {},
+        "status": "completed"
+      },
+      {
+        "sessionId": "cae139fa-57a9-401b-b1af-5f5bf0cb61ec",
+        "tool": "present_question",
+        "input": {
+          "questionId": "27b8aad1-432b-4ebd-b28c-1f8cc6962fcb"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "cae139fa-57a9-401b-b1af-5f5bf0cb61ec",
+        "tool": "next_question_candidates",
+        "input": {},
+        "status": "completed"
+      },
+      {
+        "sessionId": "cae139fa-57a9-401b-b1af-5f5bf0cb61ec",
+        "tool": "present_question",
+        "input": {
+          "questionId": "49f8f9a2-e46a-4c4d-a1c8-da602e9d81e2"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "cae139fa-57a9-401b-b1af-5f5bf0cb61ec",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "cae139fa-57a9-401b-b1af-5f5bf0cb61ec",
+        "tool": "present_question",
+        "input": {
+          "questionId": "cb3fbe04-a2c0-4bd4-9613-14d75909f756"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "cae139fa-57a9-401b-b1af-5f5bf0cb61ec",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "cae139fa-57a9-401b-b1af-5f5bf0cb61ec",
+        "tool": "present_question",
+        "input": {
+          "questionId": "76e3534e-b743-452d-92dd-dd1b91343b83"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "cae139fa-57a9-401b-b1af-5f5bf0cb61ec",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "cae139fa-57a9-401b-b1af-5f5bf0cb61ec",
+        "tool": "present_question",
+        "input": {
+          "questionId": "bf978fea-b9fe-45e0-aa55-40fd61b9d3a7"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "cae139fa-57a9-401b-b1af-5f5bf0cb61ec",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "cae139fa-57a9-401b-b1af-5f5bf0cb61ec",
+        "tool": "present_question",
+        "input": {
+          "text": "Чем отличаются типы unknown и any в TypeScript? Приведите пример, когда стоит использовать unknown.",
+          "reason": "Список кандидатов пуст. После слабых ответов нужен базовый вопрос уровня junior в другом Topic для проверки понимания типов.",
+          "topicId": "ef285c33-e8e6-488c-9dfe-601622f4a85b"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "cae139fa-57a9-401b-b1af-5f5bf0cb61ec",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "cae139fa-57a9-401b-b1af-5f5bf0cb61ec",
+        "tool": "present_question",
+        "input": {
+          "text": "Что такое транзакция в базе данных? Приведите пример операции, для которой она нужна.",
+          "reason": "Список кандидатов пуст. Базовый вопрос уровня junior по данным и надёжности позволяет сменить Topic после слабого ответа и проверить понимание атомарности операций.",
+          "topicId": "1f5e1730-059c-4836-9088-a64567189c47"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "dbf3007b-578e-4e05-aa4b-535188c8e5b6",
+        "tool": "next_question_candidates",
+        "input": {},
+        "status": "completed"
+      },
+      {
+        "sessionId": "dbf3007b-578e-4e05-aa4b-535188c8e5b6",
+        "tool": "present_question",
+        "input": {
+          "questionId": "27b8aad1-432b-4ebd-b28c-1f8cc6962fcb"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "dbf3007b-578e-4e05-aa4b-535188c8e5b6",
+        "tool": "next_question_candidates",
+        "input": {},
+        "status": "completed"
+      },
+      {
+        "sessionId": "dbf3007b-578e-4e05-aa4b-535188c8e5b6",
+        "tool": "present_question",
+        "input": {
+          "questionId": "91d53426-ed3f-4c7d-8234-a743056a3d40"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "dbf3007b-578e-4e05-aa4b-535188c8e5b6",
+        "tool": "next_question_candidates",
+        "input": {
+          "topicId": "ef285c33-e8e6-488c-9dfe-601622f4a85b"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "dbf3007b-578e-4e05-aa4b-535188c8e5b6",
+        "tool": "present_question",
+        "input": {
+          "text": "Допустим, вы написали функцию isUser(value: unknown): value is User для проверки HTTP JSON. Гарантирует ли TypeScript корректность этой проверки? Что произойдёт, если функция ошибочно вернёт true, и как вы снизите этот риск?",
+          "reason": "Единственный кандидат уже содержательно раскрыт в предыдущем ответе. Нужен более глубокий вопрос об ограничениях упомянутого кандидатом type guard.",
+          "topicId": "ef285c33-e8e6-488c-9dfe-601622f4a85b",
+          "parentAttemptId": "47105dd8-4b8a-4dcb-9533-ad509537e4d2"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "dbf3007b-578e-4e05-aa4b-535188c8e5b6",
+        "tool": "next_question_candidates",
+        "input": {},
+        "status": "completed"
+      },
+      {
+        "sessionId": "dbf3007b-578e-4e05-aa4b-535188c8e5b6",
+        "tool": "present_question",
+        "input": {
+          "questionId": "49f8f9a2-e46a-4c4d-a1c8-da602e9d81e2"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "dbf3007b-578e-4e05-aa4b-535188c8e5b6",
+        "tool": "next_question_candidates",
+        "input": {
+          "topicId": "1f5e1730-059c-4836-9088-a64567189c47"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "dbf3007b-578e-4e05-aa4b-535188c8e5b6",
+        "tool": "present_question",
+        "input": {
+          "text": "Провайдер успешно списал деньги, но ваш сервис упал до сохранения результата в своей базе. Клиент повторяет запрос с тем же idempotency key. Как сервис определит исход платежа и завершит обработку? Какие состояния и механизм восстановления вы предусмотрите?",
+          "reason": "Единственный кандидат спрашивает базовое определение транзакции и не углубляет полный ответ об идемпотентности. Нужен вопрос о восстановлении после сбоя между внешним платежом и локальным сохранением.",
+          "topicId": "1f5e1730-059c-4836-9088-a64567189c47",
+          "parentAttemptId": "19450fc8-2f9c-4ab9-94ab-d9d304243f94"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "dbf3007b-578e-4e05-aa4b-535188c8e5b6",
+        "tool": "next_question_candidates",
+        "input": {},
+        "status": "completed"
+      },
+      {
+        "sessionId": "dbf3007b-578e-4e05-aa4b-535188c8e5b6",
+        "tool": "present_question",
+        "input": {
+          "questionId": "76e3534e-b743-452d-92dd-dd1b91343b83"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "dbf3007b-578e-4e05-aa4b-535188c8e5b6",
+        "tool": "next_question_candidates",
+        "input": {
+          "topicId": "c59db23c-a33c-4b1e-b312-d4bbfca4d819"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "dbf3007b-578e-4e05-aa4b-535188c8e5b6",
+        "tool": "present_question",
+        "input": {
+          "questionId": "bf978fea-b9fe-45e0-aa55-40fd61b9d3a7",
+          "parentAttemptId": "9eb12857-7d7a-4205-8df2-5dc20a76d724"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "5bc9ce6b-34f3-41eb-9343-1a4f9c0a5bd5",
+        "tool": "next_question_candidates",
+        "input": {},
+        "status": "completed"
+      },
+      {
+        "sessionId": "5bc9ce6b-34f3-41eb-9343-1a4f9c0a5bd5",
+        "tool": "present_question",
+        "input": {
+          "questionId": "1abb9a62-2064-4d37-ad13-24d04b9cf981"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "5bc9ce6b-34f3-41eb-9343-1a4f9c0a5bd5",
+        "tool": "next_question_candidates",
+        "input": {},
+        "status": "completed"
+      },
+      {
+        "sessionId": "5bc9ce6b-34f3-41eb-9343-1a4f9c0a5bd5",
+        "tool": "present_question",
+        "input": {
+          "questionId": "4df965b6-08d6-4ff9-993f-945e3be1eb3d"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "5bc9ce6b-34f3-41eb-9343-1a4f9c0a5bd5",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "5bc9ce6b-34f3-41eb-9343-1a4f9c0a5bd5",
+        "tool": "present_question",
+        "input": {
+          "questionId": "27b8aad1-432b-4ebd-b28c-1f8cc6962fcb"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "5bc9ce6b-34f3-41eb-9343-1a4f9c0a5bd5",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "5bc9ce6b-34f3-41eb-9343-1a4f9c0a5bd5",
+        "tool": "present_question",
+        "input": {
+          "questionId": "cb3fbe04-a2c0-4bd4-9613-14d75909f756"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "5bc9ce6b-34f3-41eb-9343-1a4f9c0a5bd5",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "5bc9ce6b-34f3-41eb-9343-1a4f9c0a5bd5",
+        "tool": "present_question",
+        "input": {
+          "questionId": "bf978fea-b9fe-45e0-aa55-40fd61b9d3a7"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "5bc9ce6b-34f3-41eb-9343-1a4f9c0a5bd5",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "5bc9ce6b-34f3-41eb-9343-1a4f9c0a5bd5",
+        "tool": "present_question",
+        "input": {
+          "questionId": "0f8fad17-c66a-450b-88c1-7798a6d76341"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "5bc9ce6b-34f3-41eb-9343-1a4f9c0a5bd5",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "5bc9ce6b-34f3-41eb-9343-1a4f9c0a5bd5",
+        "tool": "present_question",
+        "input": {
+          "text": "Что такое Promise в JavaScript и какие состояния у него бывают?",
+          "reason": "Список кандидатов пуст; выбран базовый вопрос уровня junior по другому Topic после неуверенного ответа.",
+          "topicId": "c59db23c-a33c-4b1e-b312-d4bbfca4d819"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "next_question_candidates",
+        "input": {},
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "present_question",
+        "input": {
+          "text": "Расскажите о недавней задаче по backend-разработке на TypeScript: какую проблему нужно было решить, за что отвечали лично вы, какие решения приняли и какого результата добились?",
+          "reason": "В текущем разделе список кандидатов пуст; нужен вводный вопрос о конкретном опыте, личном вкладе и результате.",
+          "topicId": "a3b917f5-1d9e-49bb-9ad2-d1f6250b6277"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "next_question_candidates",
+        "input": {},
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "present_question",
+        "input": {
+          "text": "Вспомните ошибку или сбой в backend-сервисе, который вам довелось разбирать. Как вы нашли причину, что исправили лично и как проверили результат?",
+          "reason": "Список кандидатов текущего раздела пуст. После пропуска общего вопроса об опыте предлагается более узкий вопрос о конкретном случае диагностики и исправления сбоя.",
+          "topicId": "a3b917f5-1d9e-49bb-9ad2-d1f6250b6277"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "set_current_section",
+        "input": {
+          "sectionId": "322b7ff9-487b-45bb-acc2-b9fc70b384dd"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "present_question",
+        "input": {
+          "questionId": "0f8fad17-c66a-450b-88c1-7798a6d76341"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "present_question",
+        "input": {
+          "questionId": "cb3fbe04-a2c0-4bd4-9613-14d75909f756"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "present_question",
+        "input": {
+          "questionId": "2dc07dcc-c056-45ef-8c50-2b8de915a27e"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "present_question",
+        "input": {
+          "questionId": "91d53426-ed3f-4c7d-8234-a743056a3d40"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "present_question",
+        "input": {
+          "questionId": "4df965b6-08d6-4ff9-993f-945e3be1eb3d"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "present_question",
+        "input": {
+          "questionId": "27b8aad1-432b-4ebd-b28c-1f8cc6962fcb"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "set_current_section",
+        "input": {
+          "sectionId": "9a203b46-6938-41ec-8e91-4e39d40da6ec"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "present_question",
+        "input": {
+          "questionId": "5720d14f-3358-4d9e-b770-a67450b82e3c"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "present_question",
+        "input": {
+          "text": "Как бы вы спроектировали небольшой сервис сокращения ссылок? Начните с требований и ожидаемой нагрузки, затем опишите основные компоненты, хранение данных и то, как будете обнаруживать сбои.",
+          "reason": "В текущем разделе список кандидатов пуст. После пропуска вопроса о защите от медленного API нужен базовый вопрос по проектированию сервиса на уровне junior.",
+          "topicId": "dfaf5cb6-d6cc-4d94-9f49-42ec420f71d5"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "set_current_section",
+        "input": {
+          "sectionId": "09285fb3-d4d8-479e-a8b9-29915a1f9f87"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "present_question",
+        "input": {
+          "text": "Расскажите о небольшой задаче, которую вы самостоятельно довели до конца в рабочем или учебном проекте. Что требовалось сделать, какие решения вы приняли и как убедились, что задача решена?",
+          "reason": "Начался следующий раунд вопросов по долям разделов. Список кандидатов пуст; вопрос уровня junior допускает учебный проект и небольшой объём работы.",
+          "topicId": "a3b917f5-1d9e-49bb-9ad2-d1f6250b6277"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "present_question",
+        "input": {
+          "text": "Приведите пример, когда вам пришлось уточнить неясное требование к задаче. Что было непонятно, что вы сделали лично и как это повлияло на результат?",
+          "reason": "Список кандидатов пуст. Второй вопрос раздела в текущем раунде посвящён отдельному аспекту опыта — уточнению требований — и допускает простой пример уровня junior.",
+          "topicId": "a3b917f5-1d9e-49bb-9ad2-d1f6250b6277"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "set_current_section",
+        "input": {
+          "sectionId": "322b7ff9-487b-45bb-acc2-b9fc70b384dd"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3f56ee20-b23b-473b-8b7b-595135d5aaf9",
+        "tool": "present_question",
+        "input": {
+          "questionId": "1abb9a62-2064-4d37-ad13-24d04b9cf981"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "1432cdd1-1f60-44b9-b111-bd4acd1d096c",
+        "tool": "next_question_candidates",
+        "input": {},
+        "status": "completed"
+      },
+      {
+        "sessionId": "1432cdd1-1f60-44b9-b111-bd4acd1d096c",
+        "tool": "present_question",
+        "input": {
+          "questionId": "0f8fad17-c66a-450b-88c1-7798a6d76341"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "1432cdd1-1f60-44b9-b111-bd4acd1d096c",
+        "tool": "next_question_candidates",
+        "input": {},
+        "status": "completed"
+      },
+      {
+        "sessionId": "1432cdd1-1f60-44b9-b111-bd4acd1d096c",
+        "tool": "present_question",
+        "input": {
+          "questionId": "27b8aad1-432b-4ebd-b28c-1f8cc6962fcb"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "1432cdd1-1f60-44b9-b111-bd4acd1d096c",
+        "tool": "next_question_candidates",
+        "input": {
+          "topicId": "c59db23c-a33c-4b1e-b312-d4bbfca4d819"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "1432cdd1-1f60-44b9-b111-bd4acd1d096c",
+        "tool": "present_question",
+        "input": {
+          "questionId": "76e3534e-b743-452d-92dd-dd1b91343b83",
+          "parentAttemptId": "fc2a5fe4-1010-46a6-8c07-503a8b7cd40a"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "1432cdd1-1f60-44b9-b111-bd4acd1d096c",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "senior",
+          "topicId": "c59db23c-a33c-4b1e-b312-d4bbfca4d819"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "1432cdd1-1f60-44b9-b111-bd4acd1d096c",
+        "tool": "present_question",
+        "input": {
+          "text": "В Node.js пул выполняет до пяти HTTP-запросов одновременно. При первой ошибке нужно прекратить всю обработку. Как вы организуете остановку запуска новых задач, отмену уже выполняющихся запросов и ожидание их завершения, чтобы не осталось необработанных отклонений промисов? Что произойдёт, если одна из задач не поддерживает отмену?",
+          "reason": "Оба оставшихся кандидата проверяют базовые понятия и не углубляют уверенный ответ о пуле задач на повышенном уровне senior.",
+          "topicId": "c59db23c-a33c-4b1e-b312-d4bbfca4d819",
+          "parentAttemptId": "f2cce2b9-f5e6-475b-9b38-491e560c2b12"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3d44929b-1bf3-48d9-b8e9-f376d8464e28",
+        "tool": "next_question_candidates",
+        "input": {},
+        "status": "completed"
+      },
+      {
+        "sessionId": "3d44929b-1bf3-48d9-b8e9-f376d8464e28",
+        "tool": "present_question",
+        "input": {
+          "questionId": "49f8f9a2-e46a-4c4d-a1c8-da602e9d81e2"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3d44929b-1bf3-48d9-b8e9-f376d8464e28",
+        "tool": "next_question_candidates",
+        "input": {
+          "topicId": "1f5e1730-059c-4836-9088-a64567189c47"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3d44929b-1bf3-48d9-b8e9-f376d8464e28",
+        "tool": "present_question",
+        "input": {
+          "text": "Провайдер успешно списал деньги, но ваш сервис упал до сохранения результата в базе. После перезапуска приходит повтор запроса с тем же ключом. Как организовать обработку и восстановление, чтобы не списать деньги дважды и получить достоверный итог платежа?",
+          "reason": "В текущей теме кандидаты отсутствуют; углубление после уверенного ответа об идемпотентности платежа.",
+          "topicId": "1f5e1730-059c-4836-9088-a64567189c47",
+          "parentAttemptId": "c6f41f86-035f-41b7-90b2-46e83bbe85a9"
+        },
+        "status": "completed"
+      },
+      {
+        "sessionId": "3d44929b-1bf3-48d9-b8e9-f376d8464e28",
+        "tool": "next_question_candidates",
+        "input": {},
+        "status": "completed"
+      },
+      {
+        "sessionId": "3d44929b-1bf3-48d9-b8e9-f376d8464e28",
+        "tool": "present_question",
+        "input": {
+          "text": "Чем unknown отличается от any в TypeScript? Покажите на примере обработки JSON из внешнего API, как безопасно получить из неизвестного значения объект с полем name типа string.",
+          "reason": "Список кандидатов пуст; переход к другой теме после неуверенного ответа на углублённый вопрос.",
+          "topicId": "ef285c33-e8e6-488c-9dfe-601622f4a85b"
+        },
+        "status": "completed"
+      }
+    ],
+    "opencode": [
+      {
+        "sessionId": "7a57520d-ec2a-4eaa-a25a-0df47865936e",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": null,
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": [
+            {
+              "id": "07b6cef2-0e76-4f4b-9ad4-b272f43eda0b",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["topic not started", "topic not covered in this interview yet"]
+            },
+            {
+              "id": "6ceda67a-3491-485b-a898-b157136144ca",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["topic not started", "topic not covered in this interview yet"]
+            },
+            {
+              "id": "82db187a-3d2f-41a7-9857-2802f6c00395",
+              "topicId": "d2116577-5c65-4884-9511-862b9200b190",
+              "reasons": ["topic not started", "topic not covered in this interview yet"]
+            },
+            {
+              "id": "8b67ecf3-cd31-40d3-ac6c-17b7e0a3d0da",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["topic not started", "topic not covered in this interview yet"]
+            },
+            {
+              "id": "a980936a-e360-4226-a2b7-d4f17ed877f3",
+              "topicId": "d2116577-5c65-4884-9511-862b9200b190",
+              "reasons": ["topic not started", "topic not covered in this interview yet"]
+            }
+          ]
+        }
+      },
+      {
+        "sessionId": "7a57520d-ec2a-4eaa-a25a-0df47865936e",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "07b6cef2-0e76-4f4b-9ad4-b272f43eda0b"
+        }
+      },
+      {
+        "sessionId": "7a57520d-ec2a-4eaa-a25a-0df47865936e",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": null,
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": [
+            {
+              "id": "82db187a-3d2f-41a7-9857-2802f6c00395",
+              "topicId": "d2116577-5c65-4884-9511-862b9200b190",
+              "reasons": ["topic not started", "topic not covered in this interview yet"]
+            },
+            {
+              "id": "a980936a-e360-4226-a2b7-d4f17ed877f3",
+              "topicId": "d2116577-5c65-4884-9511-862b9200b190",
+              "reasons": ["topic not started", "topic not covered in this interview yet"]
+            },
+            {
+              "id": "c1324edc-a1c1-434f-929d-71c932381234",
+              "topicId": "f84a3f0a-edec-4887-80a1-acecbe06fd29",
+              "reasons": ["topic not started", "topic not covered in this interview yet"]
+            },
+            {
+              "id": "d3879de5-27de-40aa-845c-f7c4ff98cbb1",
+              "topicId": "f84a3f0a-edec-4887-80a1-acecbe06fd29",
+              "reasons": ["topic not started", "topic not covered in this interview yet"]
+            },
+            {
+              "id": "6ceda67a-3491-485b-a898-b157136144ca",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["topic not started"]
+            }
+          ]
+        }
+      },
+      {
+        "sessionId": "7a57520d-ec2a-4eaa-a25a-0df47865936e",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "82db187a-3d2f-41a7-9857-2802f6c00395"
+        }
+      },
+      {
+        "sessionId": "7a57520d-ec2a-4eaa-a25a-0df47865936e",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": [
+            {
+              "id": "c1324edc-a1c1-434f-929d-71c932381234",
+              "topicId": "f84a3f0a-edec-4887-80a1-acecbe06fd29",
+              "reasons": ["topic not started", "topic not covered in this interview yet"]
+            },
+            {
+              "id": "d3879de5-27de-40aa-845c-f7c4ff98cbb1",
+              "topicId": "f84a3f0a-edec-4887-80a1-acecbe06fd29",
+              "reasons": ["topic not started", "topic not covered in this interview yet"]
+            },
+            {
+              "id": "6ceda67a-3491-485b-a898-b157136144ca",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["topic not started"]
+            },
+            {
+              "id": "8b67ecf3-cd31-40d3-ac6c-17b7e0a3d0da",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["topic not started"]
+            },
+            {
+              "id": "fb07daf0-ff7f-42a0-a1c3-33fa792818be",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["topic not started"]
+            }
+          ]
+        }
+      },
+      {
+        "sessionId": "7a57520d-ec2a-4eaa-a25a-0df47865936e",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "d3879de5-27de-40aa-845c-f7c4ff98cbb1"
+        }
+      },
+      {
+        "sessionId": "7a57520d-ec2a-4eaa-a25a-0df47865936e",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": [
+            {
+              "id": "6ceda67a-3491-485b-a898-b157136144ca",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["topic not started"]
+            },
+            {
+              "id": "8b67ecf3-cd31-40d3-ac6c-17b7e0a3d0da",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["topic not started"]
+            },
+            {
+              "id": "fb07daf0-ff7f-42a0-a1c3-33fa792818be",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["topic not started"]
+            },
+            {
+              "id": "a980936a-e360-4226-a2b7-d4f17ed877f3",
+              "topicId": "d2116577-5c65-4884-9511-862b9200b190",
+              "reasons": ["topic not started"]
+            },
+            {
+              "id": "c1324edc-a1c1-434f-929d-71c932381234",
+              "topicId": "f84a3f0a-edec-4887-80a1-acecbe06fd29",
+              "reasons": ["topic not started"]
+            }
+          ]
+        }
+      },
+      {
+        "sessionId": "7a57520d-ec2a-4eaa-a25a-0df47865936e",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "6ceda67a-3491-485b-a898-b157136144ca"
+        }
+      },
+      {
+        "sessionId": "7a57520d-ec2a-4eaa-a25a-0df47865936e",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": [
+            {
+              "id": "a980936a-e360-4226-a2b7-d4f17ed877f3",
+              "topicId": "d2116577-5c65-4884-9511-862b9200b190",
+              "reasons": ["topic not started"]
+            },
+            {
+              "id": "c1324edc-a1c1-434f-929d-71c932381234",
+              "topicId": "f84a3f0a-edec-4887-80a1-acecbe06fd29",
+              "reasons": ["topic not started"]
+            },
+            {
+              "id": "8b67ecf3-cd31-40d3-ac6c-17b7e0a3d0da",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["topic not started"]
+            },
+            {
+              "id": "fb07daf0-ff7f-42a0-a1c3-33fa792818be",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["topic not started"]
+            }
+          ]
+        }
+      },
+      {
+        "sessionId": "7a57520d-ec2a-4eaa-a25a-0df47865936e",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "a980936a-e360-4226-a2b7-d4f17ed877f3"
+        }
+      },
+      {
+        "sessionId": "7a57520d-ec2a-4eaa-a25a-0df47865936e",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": [
+            {
+              "id": "c1324edc-a1c1-434f-929d-71c932381234",
+              "topicId": "f84a3f0a-edec-4887-80a1-acecbe06fd29",
+              "reasons": ["topic not started"]
+            },
+            {
+              "id": "8b67ecf3-cd31-40d3-ac6c-17b7e0a3d0da",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["topic not started"]
+            },
+            {
+              "id": "fb07daf0-ff7f-42a0-a1c3-33fa792818be",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["topic not started"]
+            }
+          ]
+        }
+      },
+      {
+        "sessionId": "7a57520d-ec2a-4eaa-a25a-0df47865936e",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "8b67ecf3-cd31-40d3-ac6c-17b7e0a3d0da"
+        }
+      },
+      {
+        "sessionId": "7a57520d-ec2a-4eaa-a25a-0df47865936e",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": [
+            {
+              "id": "c1324edc-a1c1-434f-929d-71c932381234",
+              "topicId": "f84a3f0a-edec-4887-80a1-acecbe06fd29",
+              "reasons": ["topic not started"]
+            },
+            {
+              "id": "fb07daf0-ff7f-42a0-a1c3-33fa792818be",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["topic not started"]
+            }
+          ]
+        }
+      },
+      {
+        "sessionId": "7a57520d-ec2a-4eaa-a25a-0df47865936e",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "fb07daf0-ff7f-42a0-a1c3-33fa792818be"
+        }
+      },
+      {
+        "sessionId": "e4accbba-fe05-4fd7-9d01-fb2a4f9ad8b5",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": null,
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": [
+            {
+              "id": "d3879de5-27de-40aa-845c-f7c4ff98cbb1",
+              "topicId": "f84a3f0a-edec-4887-80a1-acecbe06fd29",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            },
+            {
+              "id": "82db187a-3d2f-41a7-9857-2802f6c00395",
+              "topicId": "d2116577-5c65-4884-9511-862b9200b190",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            },
+            {
+              "id": "a980936a-e360-4226-a2b7-d4f17ed877f3",
+              "topicId": "d2116577-5c65-4884-9511-862b9200b190",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            },
+            {
+              "id": "07b6cef2-0e76-4f4b-9ad4-b272f43eda0b",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            },
+            {
+              "id": "6ceda67a-3491-485b-a898-b157136144ca",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "sessionId": "e4accbba-fe05-4fd7-9d01-fb2a4f9ad8b5",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "d3879de5-27de-40aa-845c-f7c4ff98cbb1"
+        }
+      },
+      {
+        "sessionId": "e4accbba-fe05-4fd7-9d01-fb2a4f9ad8b5",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": null,
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": [
+            {
+              "id": "82db187a-3d2f-41a7-9857-2802f6c00395",
+              "topicId": "d2116577-5c65-4884-9511-862b9200b190",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            },
+            {
+              "id": "a980936a-e360-4226-a2b7-d4f17ed877f3",
+              "topicId": "d2116577-5c65-4884-9511-862b9200b190",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            },
+            {
+              "id": "07b6cef2-0e76-4f4b-9ad4-b272f43eda0b",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            },
+            {
+              "id": "6ceda67a-3491-485b-a898-b157136144ca",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            },
+            {
+              "id": "8b67ecf3-cd31-40d3-ac6c-17b7e0a3d0da",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "sessionId": "e4accbba-fe05-4fd7-9d01-fb2a4f9ad8b5",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "82db187a-3d2f-41a7-9857-2802f6c00395"
+        }
+      },
+      {
+        "sessionId": "e4accbba-fe05-4fd7-9d01-fb2a4f9ad8b5",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": {
+          "topicId": "d2116577-5c65-4884-9511-862b9200b190"
+        },
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": [
+            {
+              "id": "a980936a-e360-4226-a2b7-d4f17ed877f3",
+              "topicId": "d2116577-5c65-4884-9511-862b9200b190",
+              "reasons": ["retry after a mistake", "weak topic"]
+            }
+          ]
+        }
+      },
+      {
+        "sessionId": "e4accbba-fe05-4fd7-9d01-fb2a4f9ad8b5",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "a980936a-e360-4226-a2b7-d4f17ed877f3",
+          "parentAttemptId": "7d5e22fd-bb62-42e3-bdd5-7e1c95c101a4"
+        }
+      },
+      {
+        "sessionId": "e4accbba-fe05-4fd7-9d01-fb2a4f9ad8b5",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": {
+          "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f"
+        },
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": [
+            {
+              "id": "07b6cef2-0e76-4f4b-9ad4-b272f43eda0b",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            },
+            {
+              "id": "6ceda67a-3491-485b-a898-b157136144ca",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            },
+            {
+              "id": "8b67ecf3-cd31-40d3-ac6c-17b7e0a3d0da",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            },
+            {
+              "id": "fb07daf0-ff7f-42a0-a1c3-33fa792818be",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["weak topic", "topic not covered in this interview yet"]
+            }
+          ]
+        }
+      },
+      {
+        "sessionId": "e4accbba-fe05-4fd7-9d01-fb2a4f9ad8b5",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "07b6cef2-0e76-4f4b-9ad4-b272f43eda0b"
+        }
+      },
+      {
+        "sessionId": "e4accbba-fe05-4fd7-9d01-fb2a4f9ad8b5",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "6ceda67a-3491-485b-a898-b157136144ca",
+          "parentAttemptId": "2df2b6dc-0f6d-4b11-837c-fe69f877ec51"
+        }
+      },
+      {
+        "sessionId": "e4accbba-fe05-4fd7-9d01-fb2a4f9ad8b5",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": {
+          "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f"
+        },
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": [
+            {
+              "id": "8b67ecf3-cd31-40d3-ac6c-17b7e0a3d0da",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["retry after a mistake", "weak topic"]
+            },
+            {
+              "id": "fb07daf0-ff7f-42a0-a1c3-33fa792818be",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["weak topic"]
+            }
+          ]
+        }
+      },
+      {
+        "sessionId": "e4accbba-fe05-4fd7-9d01-fb2a4f9ad8b5",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "fb07daf0-ff7f-42a0-a1c3-33fa792818be"
+        }
+      },
+      {
+        "sessionId": "e4accbba-fe05-4fd7-9d01-fb2a4f9ad8b5",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": {
+          "topicId": "f84a3f0a-edec-4887-80a1-acecbe06fd29"
+        },
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": [
+            {
+              "id": "c1324edc-a1c1-434f-929d-71c932381234",
+              "topicId": "f84a3f0a-edec-4887-80a1-acecbe06fd29",
+              "reasons": ["weak topic"]
+            }
+          ]
+        }
+      },
+      {
+        "sessionId": "e4accbba-fe05-4fd7-9d01-fb2a4f9ad8b5",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "c1324edc-a1c1-434f-929d-71c932381234"
+        }
+      },
+      {
+        "sessionId": "68417cfa-701b-433a-b370-62512fa10f34",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": null,
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": [
+            {
+              "id": "8b67ecf3-cd31-40d3-ac6c-17b7e0a3d0da",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            },
+            {
+              "id": "fb07daf0-ff7f-42a0-a1c3-33fa792818be",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            },
+            {
+              "id": "c1324edc-a1c1-434f-929d-71c932381234",
+              "topicId": "f84a3f0a-edec-4887-80a1-acecbe06fd29",
+              "reasons": ["weak topic", "topic not covered in this interview yet"]
+            }
+          ]
+        }
+      },
+      {
+        "sessionId": "68417cfa-701b-433a-b370-62512fa10f34",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "8b67ecf3-cd31-40d3-ac6c-17b7e0a3d0da"
+        }
+      },
+      {
+        "sessionId": "68417cfa-701b-433a-b370-62512fa10f34",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": null,
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": [
+            {
+              "id": "fb07daf0-ff7f-42a0-a1c3-33fa792818be",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["retry after a mistake", "weak topic"]
+            },
+            {
+              "id": "c1324edc-a1c1-434f-929d-71c932381234",
+              "topicId": "f84a3f0a-edec-4887-80a1-acecbe06fd29",
+              "reasons": ["weak topic", "topic not covered in this interview yet"]
+            }
+          ]
+        }
+      },
+      {
+        "sessionId": "68417cfa-701b-433a-b370-62512fa10f34",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "c1324edc-a1c1-434f-929d-71c932381234"
+        }
+      },
+      {
+        "sessionId": "68417cfa-701b-433a-b370-62512fa10f34",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": [
+            {
+              "id": "fb07daf0-ff7f-42a0-a1c3-33fa792818be",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["retry after a mistake", "weak topic"]
+            }
+          ]
+        }
+      },
+      {
+        "sessionId": "68417cfa-701b-433a-b370-62512fa10f34",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "82db187a-3d2f-41a7-9857-2802f6c00395"
+        }
+      },
+      {
+        "sessionId": "68417cfa-701b-433a-b370-62512fa10f34",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": [
+            {
+              "id": "fb07daf0-ff7f-42a0-a1c3-33fa792818be",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["retry after a mistake", "weak topic"]
+            }
+          ]
+        }
+      },
+      {
+        "sessionId": "68417cfa-701b-433a-b370-62512fa10f34",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "fb07daf0-ff7f-42a0-a1c3-33fa792818be"
+        }
+      },
+      {
+        "sessionId": "68417cfa-701b-433a-b370-62512fa10f34",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "d3879de5-27de-40aa-845c-f7c4ff98cbb1"
+        }
+      },
+      {
+        "sessionId": "68417cfa-701b-433a-b370-62512fa10f34",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": []
+        }
+      },
+      {
+        "sessionId": "68417cfa-701b-433a-b370-62512fa10f34",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "text": "Что произойдёт с сервисом на Node.js, если в обработчике запроса выполнить тяжёлую синхронную операцию на несколько секунд?",
+          "reason": "Кандидатские вопросы по секции закончились, а уровень снижен после серии ответов «Не знаю»: нужен более простой вопрос по асинхронности.",
+          "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f"
+        }
+      },
+      {
+        "sessionId": "68417cfa-701b-433a-b370-62512fa10f34",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "text": "Что такое идемпотентность и почему она важна при повторных запросах к сервису?",
+          "reason": "Вопросы секции исчерпаны, а после серии «Не знаю» нужен более простой вход в тему надёжности данных.",
+          "topicId": "d2116577-5c65-4884-9511-862b9200b190"
+        }
+      },
+      {
+        "sessionId": "480c299a-42eb-4aea-8f4e-402fd4c6dd53",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": null,
+        "selection": {
+          "sectionId": "06741ebe-b09f-4b52-88f9-81ab22712882",
+          "sectionHint": null,
+          "candidates": []
+        }
+      },
+      {
+        "sessionId": "480c299a-42eb-4aea-8f4e-402fd4c6dd53",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "text": "Расскажи о своём последнем проекте на TypeScript и Node.js: какую задачу решала команда, что конкретно делал ты сам и к какому результату это привело?",
+          "reason": "В секции «Опыт и резюме» нет готовых вопросов, поэтому задаю открытый вопрос по теме «Опыт разработки».",
+          "topicId": "cd955cf8-d00a-4c8d-ad40-495b30964fdc"
+        }
+      },
+      {
+        "sessionId": "480c299a-42eb-4aea-8f4e-402fd4c6dd53",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "text": "Тогда возьмём более узкий пример: вспомни любую задачу из своей практики на Node.js, которую ты делал сам, — что нужно было сделать, как ты это реализовал и чем всё закончилось?",
+          "reason": "В секции «Опыт и резюме» нет готовых вопросов, поэтому задаю открытый вопрос по теме «Опыт разработки» — более узкий, чтобы получить конкретный пример.",
+          "topicId": "cd955cf8-d00a-4c8d-ad40-495b30964fdc"
+        }
+      },
+      {
+        "sessionId": "480c299a-42eb-4aea-8f4e-402fd4c6dd53",
+        "status": "completed",
+        "tool": "set_current_section",
+        "input": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568"
+        }
+      },
+      {
+        "sessionId": "480c299a-42eb-4aea-8f4e-402fd4c6dd53",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "012b5747-8105-4325-adaa-b47499b99d1c"
+        }
+      },
+      {
+        "sessionId": "480c299a-42eb-4aea-8f4e-402fd4c6dd53",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior",
+          "topicId": "d2116577-5c65-4884-9511-862b9200b190"
+        },
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": [
+            {
+              "id": "82db187a-3d2f-41a7-9857-2802f6c00395",
+              "topicId": "d2116577-5c65-4884-9511-862b9200b190",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            },
+            {
+              "id": "a980936a-e360-4226-a2b7-d4f17ed877f3",
+              "topicId": "d2116577-5c65-4884-9511-862b9200b190",
+              "reasons": ["weak topic", "topic not covered in this interview yet"]
+            },
+            {
+              "id": "af28bbd0-a9ec-4284-aac3-ebf18dad148d",
+              "topicId": "d2116577-5c65-4884-9511-862b9200b190",
+              "reasons": ["weak topic", "topic not covered in this interview yet"]
+            }
+          ]
+        }
+      },
+      {
+        "sessionId": "480c299a-42eb-4aea-8f4e-402fd4c6dd53",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "af28bbd0-a9ec-4284-aac3-ebf18dad148d"
+        }
+      },
+      {
+        "sessionId": "480c299a-42eb-4aea-8f4e-402fd4c6dd53",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior",
+          "topicId": "f84a3f0a-edec-4887-80a1-acecbe06fd29"
+        },
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": [
+            {
+              "id": "c1324edc-a1c1-434f-929d-71c932381234",
+              "topicId": "f84a3f0a-edec-4887-80a1-acecbe06fd29",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            },
+            {
+              "id": "d3879de5-27de-40aa-845c-f7c4ff98cbb1",
+              "topicId": "f84a3f0a-edec-4887-80a1-acecbe06fd29",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "sessionId": "480c299a-42eb-4aea-8f4e-402fd4c6dd53",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "d3879de5-27de-40aa-845c-f7c4ff98cbb1"
+        }
+      },
+      {
+        "sessionId": "480c299a-42eb-4aea-8f4e-402fd4c6dd53",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior",
+          "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f"
+        },
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": [
+            {
+              "id": "8b67ecf3-cd31-40d3-ac6c-17b7e0a3d0da",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["retry after a mistake", "weak topic"]
+            },
+            {
+              "id": "fb07daf0-ff7f-42a0-a1c3-33fa792818be",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["retry after a mistake", "weak topic"]
+            },
+            {
+              "id": "07b6cef2-0e76-4f4b-9ad4-b272f43eda0b",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["weak topic"]
+            },
+            {
+              "id": "6ceda67a-3491-485b-a898-b157136144ca",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["weak topic"]
+            }
+          ]
+        }
+      },
+      {
+        "sessionId": "480c299a-42eb-4aea-8f4e-402fd4c6dd53",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "8b67ecf3-cd31-40d3-ac6c-17b7e0a3d0da"
+        }
+      },
+      {
+        "sessionId": "480c299a-42eb-4aea-8f4e-402fd4c6dd53",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "07b6cef2-0e76-4f4b-9ad4-b272f43eda0b"
+        }
+      },
+      {
+        "sessionId": "480c299a-42eb-4aea-8f4e-402fd4c6dd53",
+        "status": "completed",
+        "tool": "set_current_section",
+        "input": {
+          "sectionId": "b1241ad5-b7eb-4e7a-80c0-492693aa831b"
+        }
+      },
+      {
+        "sessionId": "480c299a-42eb-4aea-8f4e-402fd4c6dd53",
+        "status": "completed",
+        "tool": "set_current_section",
+        "input": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568"
+        },
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": [
+            {
+              "id": "82db187a-3d2f-41a7-9857-2802f6c00395",
+              "topicId": "d2116577-5c65-4884-9511-862b9200b190",
+              "reasons": ["retry after a mistake", "weak topic"]
+            },
+            {
+              "id": "a980936a-e360-4226-a2b7-d4f17ed877f3",
+              "topicId": "d2116577-5c65-4884-9511-862b9200b190",
+              "reasons": ["weak topic"]
+            }
+          ]
+        }
+      },
+      {
+        "sessionId": "480c299a-42eb-4aea-8f4e-402fd4c6dd53",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "82db187a-3d2f-41a7-9857-2802f6c00395"
+        }
+      },
+      {
+        "sessionId": "480c299a-42eb-4aea-8f4e-402fd4c6dd53",
+        "status": "completed",
+        "tool": "set_current_section",
+        "input": {
+          "sectionId": "b1241ad5-b7eb-4e7a-80c0-492693aa831b"
+        }
+      },
+      {
+        "sessionId": "480c299a-42eb-4aea-8f4e-402fd4c6dd53",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "text": "Возьмём другой пример: сервис принимает вебхуки от внешнего провайдера. Как ты обеспечишь, что события не потеряются и не обработаются дважды?",
+          "reason": "В секции «Проектирование» нет готовых вопросов, поэтому задаю открытый вопрос по теме «Проектирование сервисов» — про приём вебхуков, чтобы продолжить секцию.",
+          "topicId": "cf4fc75b-88f1-4fa4-9e10-eda9f7249251"
+        }
+      },
+      {
+        "sessionId": "480c299a-42eb-4aea-8f4e-402fd4c6dd53",
+        "status": "completed",
+        "tool": "set_current_section",
+        "input": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568"
+        }
+      },
+      {
+        "sessionId": "480c299a-42eb-4aea-8f4e-402fd4c6dd53",
+        "status": "completed",
+        "tool": "set_current_section",
+        "input": {
+          "sectionId": "06741ebe-b09f-4b52-88f9-81ab22712882"
+        }
+      },
+      {
+        "sessionId": "480c299a-42eb-4aea-8f4e-402fd4c6dd53",
+        "status": "completed",
+        "tool": "set_current_section",
+        "input": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568"
+        }
+      },
+      {
+        "sessionId": "480c299a-42eb-4aea-8f4e-402fd4c6dd53",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior",
+          "topicId": "f84a3f0a-edec-4887-80a1-acecbe06fd29"
+        },
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": []
+        }
+      },
+      {
+        "sessionId": "480c299a-42eb-4aea-8f4e-402fd4c6dd53",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": [
+            {
+              "id": "fb07daf0-ff7f-42a0-a1c3-33fa792818be",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["retry after a mistake", "weak topic"]
+            },
+            {
+              "id": "6ceda67a-3491-485b-a898-b157136144ca",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["weak topic"]
+            },
+            {
+              "id": "a980936a-e360-4226-a2b7-d4f17ed877f3",
+              "topicId": "d2116577-5c65-4884-9511-862b9200b190",
+              "reasons": ["weak topic"]
+            }
+          ]
+        }
+      },
+      {
+        "sessionId": "480c299a-42eb-4aea-8f4e-402fd4c6dd53",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "fb07daf0-ff7f-42a0-a1c3-33fa792818be"
+        }
+      },
+      {
+        "sessionId": "5e306cfc-bb15-41f0-8e93-df22b6ef08d6",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": null,
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": [
+            {
+              "id": "82db187a-3d2f-41a7-9857-2802f6c00395",
+              "topicId": "d2116577-5c65-4884-9511-862b9200b190",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            },
+            {
+              "id": "af28bbd0-a9ec-4284-aac3-ebf18dad148d",
+              "topicId": "d2116577-5c65-4884-9511-862b9200b190",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            },
+            {
+              "id": "c1324edc-a1c1-434f-929d-71c932381234",
+              "topicId": "f84a3f0a-edec-4887-80a1-acecbe06fd29",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            },
+            {
+              "id": "d3879de5-27de-40aa-845c-f7c4ff98cbb1",
+              "topicId": "f84a3f0a-edec-4887-80a1-acecbe06fd29",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            },
+            {
+              "id": "012b5747-8105-4325-adaa-b47499b99d1c",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "sessionId": "5e306cfc-bb15-41f0-8e93-df22b6ef08d6",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "82db187a-3d2f-41a7-9857-2802f6c00395"
+        }
+      },
+      {
+        "sessionId": "5e306cfc-bb15-41f0-8e93-df22b6ef08d6",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": {
+          "topicId": "d2116577-5c65-4884-9511-862b9200b190"
+        },
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": [
+            {
+              "id": "af28bbd0-a9ec-4284-aac3-ebf18dad148d",
+              "topicId": "d2116577-5c65-4884-9511-862b9200b190",
+              "reasons": ["retry after a mistake", "weak topic"]
+            },
+            {
+              "id": "a980936a-e360-4226-a2b7-d4f17ed877f3",
+              "topicId": "d2116577-5c65-4884-9511-862b9200b190",
+              "reasons": ["weak topic"]
+            }
+          ]
+        }
+      },
+      {
+        "sessionId": "5e306cfc-bb15-41f0-8e93-df22b6ef08d6",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "af28bbd0-a9ec-4284-aac3-ebf18dad148d",
+          "parentAttemptId": "3c655a4e-9498-4fa4-a9da-d18e7f94277b"
+        }
+      },
+      {
+        "sessionId": "5e306cfc-bb15-41f0-8e93-df22b6ef08d6",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": null,
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": [
+            {
+              "id": "c1324edc-a1c1-434f-929d-71c932381234",
+              "topicId": "f84a3f0a-edec-4887-80a1-acecbe06fd29",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            },
+            {
+              "id": "d3879de5-27de-40aa-845c-f7c4ff98cbb1",
+              "topicId": "f84a3f0a-edec-4887-80a1-acecbe06fd29",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            },
+            {
+              "id": "012b5747-8105-4325-adaa-b47499b99d1c",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            },
+            {
+              "id": "07b6cef2-0e76-4f4b-9ad4-b272f43eda0b",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            },
+            {
+              "id": "8b67ecf3-cd31-40d3-ac6c-17b7e0a3d0da",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "sessionId": "5e306cfc-bb15-41f0-8e93-df22b6ef08d6",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "012b5747-8105-4325-adaa-b47499b99d1c"
+        }
+      },
+      {
+        "sessionId": "5e306cfc-bb15-41f0-8e93-df22b6ef08d6",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": [
+            {
+              "id": "c1324edc-a1c1-434f-929d-71c932381234",
+              "topicId": "f84a3f0a-edec-4887-80a1-acecbe06fd29",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            },
+            {
+              "id": "d3879de5-27de-40aa-845c-f7c4ff98cbb1",
+              "topicId": "f84a3f0a-edec-4887-80a1-acecbe06fd29",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            },
+            {
+              "id": "07b6cef2-0e76-4f4b-9ad4-b272f43eda0b",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["retry after a mistake", "weak topic"]
+            },
+            {
+              "id": "8b67ecf3-cd31-40d3-ac6c-17b7e0a3d0da",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["retry after a mistake", "weak topic"]
+            },
+            {
+              "id": "fb07daf0-ff7f-42a0-a1c3-33fa792818be",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": ["retry after a mistake", "weak topic"]
+            }
+          ]
+        }
+      },
+      {
+        "sessionId": "5e306cfc-bb15-41f0-8e93-df22b6ef08d6",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "d3879de5-27de-40aa-845c-f7c4ff98cbb1"
+        }
+      },
+      {
+        "sessionId": "4f021e3c-ca7e-402e-a72e-5988056f5b79",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": null,
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": [
+            {
+              "id": "07b6cef2-0e76-4f4b-9ad4-b272f43eda0b",
+              "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f",
+              "reasons": [
+                "retry after a mistake",
+                "weak topic",
+                "topic not covered in this interview yet"
+              ]
+            },
+            {
+              "id": "a980936a-e360-4226-a2b7-d4f17ed877f3",
+              "topicId": "d2116577-5c65-4884-9511-862b9200b190",
+              "reasons": ["weak topic", "topic not covered in this interview yet"]
+            }
+          ]
+        }
+      },
+      {
+        "sessionId": "4f021e3c-ca7e-402e-a72e-5988056f5b79",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "07b6cef2-0e76-4f4b-9ad4-b272f43eda0b"
+        }
+      },
+      {
+        "sessionId": "4f021e3c-ca7e-402e-a72e-5988056f5b79",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": {
+          "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f"
+        },
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": []
+        }
+      },
+      {
+        "sessionId": "4f021e3c-ca7e-402e-a72e-5988056f5b79",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "questionId": "a980936a-e360-4226-a2b7-d4f17ed877f3"
+        }
+      },
+      {
+        "sessionId": "4f021e3c-ca7e-402e-a72e-5988056f5b79",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "senior",
+          "topicId": "d2116577-5c65-4884-9511-862b9200b190"
+        },
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": []
+        }
+      },
+      {
+        "sessionId": "4f021e3c-ca7e-402e-a72e-5988056f5b79",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "senior"
+        },
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": []
+        }
+      },
+      {
+        "sessionId": "4f021e3c-ca7e-402e-a72e-5988056f5b79",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": null,
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": []
+        }
+      },
+      {
+        "sessionId": "4f021e3c-ca7e-402e-a72e-5988056f5b79",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "text": "В сервис приходит JSON от внешнего API, поле имеет тип unknown. Как безопасно до него добраться и где заканчиваются гарантии TypeScript?",
+          "reason": "Подходящие вопросы раздела закончились, а тема «Система типов TypeScript» слабая и в прошлом собеседовании осталась без ответа.",
+          "topicId": "f84a3f0a-edec-4887-80a1-acecbe06fd29"
+        }
+      },
+      {
+        "sessionId": "c6406896-2949-406e-9dcb-9f92e069c2af",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": null
+      },
+      {
+        "sessionId": "c6406896-2949-406e-9dcb-9f92e069c2af",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "text": "Как в TypeScript безопасно прочитать данные типа unknown, пришедшие из внешнего API, и сузить их до конкретного типа? Приведите пример из практики.",
+          "reason": "Готовых вопросов в текущем разделе нет, а тема «Система типов TypeScript» слабая и осталась не разобранной в прошлом интервью.",
+          "topicId": "f84a3f0a-edec-4887-80a1-acecbe06fd29"
+        }
+      },
+      {
+        "sessionId": "c6406896-2949-406e-9dcb-9f92e069c2af",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": null,
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": []
+        }
+      },
+      {
+        "sessionId": "c6406896-2949-406e-9dcb-9f92e069c2af",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "text": "Почему тяжёлая синхронная операция в обработчике запроса на Node.js подвешивает весь сервис, а не только этот запрос? Как решить эту проблему и какие ограничения есть у каждого способа?",
+          "reason": "В разделе нет готовых вопросов, а тему системы типов кандидат пропустил, поэтому перехожу к следующей теме раздела — асинхронности Node.js.",
+          "topicId": "ee0530b2-656f-4b86-83da-d73033005c3f"
+        }
+      },
+      {
+        "sessionId": "c6406896-2949-406e-9dcb-9f92e069c2af",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": []
+        }
+      },
+      {
+        "sessionId": "c6406896-2949-406e-9dcb-9f92e069c2af",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "text": "Что такое транзакция в базе данных и зачем она нужна? Приведите пример операции из сервиса, где без транзакции данные станут несогласованными.",
+          "reason": "Готовых вопросов нет, а после двух пропусков перехожу к третьей теме раздела — работе с данными — на более базовом уровне.",
+          "topicId": "d2116577-5c65-4884-9511-862b9200b190"
+        }
+      },
+      {
+        "sessionId": "c6406896-2949-406e-9dcb-9f92e069c2af",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": []
+        }
+      },
+      {
+        "sessionId": "c6406896-2949-406e-9dcb-9f92e069c2af",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "text": "Чем TypeScript отличается от JavaScript и что происходит с типами при сборке проекта?",
+          "reason": "Готовых вопросов в разделе нет, а после трёх пропусков нужен самый базовый вопрос по системе типов, чтобы найти стартовую точку.",
+          "topicId": "f84a3f0a-edec-4887-80a1-acecbe06fd29"
+        }
+      },
+      {
+        "sessionId": "c6406896-2949-406e-9dcb-9f92e069c2af",
+        "status": "completed",
+        "tool": "next_question_candidates",
+        "input": {
+          "level": "junior"
+        },
+        "selection": {
+          "sectionId": "36bfeb81-e95e-4207-af9f-814e7061b568",
+          "sectionHint": null,
+          "candidates": []
+        }
+      },
+      {
+        "sessionId": "c6406896-2949-406e-9dcb-9f92e069c2af",
+        "status": "completed",
+        "tool": "present_question",
+        "input": {
+          "text": "Как вы обычно проверяете, что написанный вами код работает? Расскажите на конкретном примере из своей практики.",
+          "reason": "Готовых вопросов нет, а после серии пропусков нужен вопрос без теории, чтобы кандидату было за что зацепиться.",
+          "topicId": "d2116577-5c65-4884-9511-862b9200b190"
+        }
+      }
+    ]
+  }
+}
