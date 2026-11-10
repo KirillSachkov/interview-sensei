@@ -64,7 +64,7 @@ The Candidate marks a Reference answer «проверен» in the side panel of
 **Reference check**:
 The list «Проверить опорный ответ» in the zone «Цель»: the Questions whose Reference answer the Candidate should look at again.
 A Dispute of the Grade of an Attempt puts its Question there with the Candidate's reason, when the Question has a Reference answer.
-«проверен» or a corrected Reference answer takes the Question off the list; a hidden Question is not shown there.
+«проверен» or a corrected Reference answer takes the Question off the list; an answer that Answer search writes keeps it there; a hidden Question is not shown there.
 
 **Answer search**:
 «Наполнение ответов»: the background work that finds Reference answers on the web for the Questions of a Target.
