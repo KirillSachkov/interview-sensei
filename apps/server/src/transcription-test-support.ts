@@ -17,6 +17,7 @@ import { componentServer, newHold } from "./component-server-test-support.ts";
 import { stubExtractor } from "./ffmpeg-stub-test-support.ts";
 import { stubLinks } from "./video-link-test-support.ts";
 import { api, appliedTarget } from "./setup-test-support.ts";
+import { sources } from "./source-test-support.ts";
 
 /** The size of each made-up component file: the models are the larger ones, as in life. */
 const sizes: Readonly<Record<Component["id"], number>> = {
@@ -244,6 +245,30 @@ export async function transcriptionTarget(models: readonly ModelId[] = ["gigaam-
   }
   const { target, events: setup } = await appliedTarget(server);
   return { server, stop, dataDirectory, target, setup, ...stub };
+}
+
+/**
+ * The Target's first Source while the stub model holds at «[ждать]» after the first of four
+ * seconds: «транскрибируется» at 25 %. The hold keeps the percent, so the wait has no time limit
+ * of its own: it reads the Sources once per turn of the event loop until the server stored the
+ * percent, and only the test's timeout bounds it.
+ */
+export async function heldAtQuarter(
+  server: FastifyInstance,
+  { targetId, model }: { targetId: string; model: { waiting: () => Promise<unknown> } },
+) {
+  await model.waiting();
+  for (;;) {
+    // oxlint-disable-next-line eslint/no-await-in-loop -- one read per turn until the write lands
+    const [listed] = await sources(server, targetId);
+    if (listed?.status === "transcribing" && listed.progress === 25) {
+      return listed;
+    }
+    // oxlint-disable-next-line eslint/no-await-in-loop -- lets the server's progress write run
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
+  }
 }
 
 /** A stub video whose recognition waits at «[ждать]» until the test lets it go on. */

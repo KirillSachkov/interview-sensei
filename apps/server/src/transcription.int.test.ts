@@ -6,7 +6,7 @@ import { access } from "node:fs/promises";
 import path from "node:path";
 
 import type { FastifyInstance } from "fastify";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { startServer, temporaryDirectory } from "./chat-test-support.ts";
 import {
@@ -24,6 +24,7 @@ import {
   installModels,
   stubTranscription,
   transcriptionStatus,
+  heldAtQuarter,
   waitMark,
 } from "./transcription-test-support.ts";
 
@@ -164,18 +165,6 @@ async function targetWithGigaam() {
   return { ...stub, target };
 }
 
-/** The Target's first Source once it is «транскрибируется» at 25 %. */
-async function transcribing(server: FastifyInstance, targetId: string) {
-  return vi.waitFor(
-    async () => {
-      const [listed] = await sources(server, targetId);
-      expect(listed).toMatchObject({ status: "transcribing", progress: 25 });
-      return listed;
-    },
-    { timeout: 10_000, interval: 20 },
-  );
-}
-
 describe("a video or audio file in Inbox processing", () => {
   it("is «транскрибируется» with the percent heard, then the agent reads its recognized text", async () => {
     const { server, target, model } = await targetWithGigaam();
@@ -185,8 +174,8 @@ describe("a video or audio file in Inbox processing", () => {
       body: `Расскажите про горутины.\n${waitMark}\nЧто такое канал?\nСпасибо.\n`,
     });
 
-    await Promise.all([startProcessing(server, target.id), model.waiting()]);
-    const during = await transcribing(server, target.id);
+    await startProcessing(server, target.id);
+    const during = await heldAtQuarter(server, { targetId: target.id, model });
     model.continueSpeech();
     const { events } = await processingEvents(server, target.id);
 

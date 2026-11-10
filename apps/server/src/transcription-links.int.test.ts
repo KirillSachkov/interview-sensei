@@ -10,7 +10,12 @@ import { addLink, processingEvents, readParts, startProcessing } from "./inbox-t
 import { localPage } from "./material-test-support.ts";
 import { appliedTarget } from "./setup-test-support.ts";
 import { sources } from "./source-test-support.ts";
-import { installed, stubTranscription, waitMark } from "./transcription-test-support.ts";
+import {
+  heldAtQuarter,
+  installed,
+  stubTranscription,
+  waitMark,
+} from "./transcription-test-support.ts";
 import { vtt } from "./video-link-test-support.ts";
 import type { StubVideo } from "./video-link-test-support.ts";
 
@@ -76,18 +81,6 @@ const dubbedVideo = {
   ],
   speech: `Расскажите про горутины.\n${waitMark}\nЧто такое канал?\nСпасибо.\n`,
 };
-
-/** The Target's first Source once it is «транскрибируется» at 25 %. */
-async function transcribing(server: FastifyInstance, targetId: string) {
-  return vi.waitFor(
-    async () => {
-      const [listed] = await sources(server, targetId);
-      expect(listed).toMatchObject({ status: "transcribing", progress: 25 });
-      return listed;
-    },
-    { timeout: 10_000, interval: 20 },
-  );
-}
 
 const article = [
   "<html><body><nav>Меню сайта</nav><article><h1>Модель памяти Go</h1>",
@@ -169,8 +162,8 @@ describe("a link in Inbox processing", () => {
   it("a video without subtitles downloads only the original audio track of its auto-dubbing, is «транскрибируется» with the percent, and its audio is deleted", async () => {
     const { server, target, link, links, model } = await targetWithLink(["gigaam-v3"], dubbedVideo);
 
-    await Promise.all([startProcessing(server, target.id), model.waiting()]);
-    const during = await transcribing(server, target.id);
+    await startProcessing(server, target.id);
+    const during = await heldAtQuarter(server, { targetId: target.id, model });
     model.continueSpeech();
     const { events } = await processingEvents(server, target.id);
 

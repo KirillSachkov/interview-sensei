@@ -20,6 +20,8 @@ export interface SourceView {
   readonly status: string;
   readonly failure: string | null;
   readonly parts: number | null;
+  /** The percent of a running transcription; null in any other status. */
+  readonly progress?: number | null;
   readonly createdAt: string;
 }
 
