@@ -177,10 +177,11 @@ const longPlan = {
   })),
 };
 
-// Issue #88: the canvas fitted its view only when it opened, so a long plan that appeared later
-// went under the zoom island.
+// Issue #88: a long plan that appeared after the canvas opened went under the zoom island. Since
+// #113 the view stays where the Candidate left it when the plan appears (the owner's remark in
+// #109), and «Показать всё» fits the long plan above the zoom island.
 function longPlanTest() {
-  test("a long plan of a new Target appears above the zoom island", async ({ page }) => {
+  test("«Показать всё» puts a new Target's long plan above the zoom island", async ({ page }) => {
     await page.goto("/");
     await page.getByRole("button", { name: "Новая цель" }).click();
     const chat = await onboarding(page);
@@ -192,6 +193,7 @@ function longPlanTest() {
     const plan = zones(page).goal.getByRole("list", { name: "План собеседования" });
     const zoom = page.getByLabel("Масштаб", { exact: true });
     await expect(plan.getByRole("list", { name: "Темы" })).toHaveCount(5);
+    await page.getByRole("button", { name: "Показать всё" }).click();
     await expect(async () => {
       const [planBox, zoomBox] = await Promise.all([box(plan), box(zoom)]);
       expect(planBox.y + planBox.height).toBeLessThanOrEqual(zoomBox.y);
@@ -214,17 +216,17 @@ async function expectLeftOf(left: Locator, right: Locator) {
   expect(leftBox.x + leftBox.width).toBeLessThan(rightBox.x);
 }
 
-// Issue #71: the open setup chat used to cover the left part of the «Сессии» zone.
+// Issue #71: the open setup chat used to cover the left part of the «Сессии» zone. Since #113 the
+// zone appears with «Начать мок-собеседование» of the «Цель» zone, which opens its start dialog.
 function sessionsZoneTest() {
-  test("the open setup chat leaves the «Сессии» zone free, and «Начать мок» works", async ({
+  test("«Начать мок-собеседование» shows the «Сессии» zone beside the open setup chat", async ({
     page,
   }) => {
     const chat = await openPythonChat(page);
-    const { sessions } = zones(page);
-    const start = sessions.getByRole("button", { name: "Начать мок" });
+    const { goal, sessions } = zones(page);
+    await expect(sessions).toHaveCount(0);
 
-    await expect(start).toBeVisible();
-    await start.click();
+    await goal.getByRole("button", { name: "Начать мок-собеседование" }).click();
 
     await expect(sessions.getByRole("dialog", { name: "Начать мок" })).toBeVisible();
     await expect(chat.panel).toBeVisible();

@@ -1,4 +1,10 @@
-import { request } from "./http";
+import { path, request } from "./http";
+
+/** The Candidate's default model and reasoning level of one agent; null means the agent's own. */
+export interface AgentModelChoice {
+  readonly model: string | null;
+  readonly effort: string | null;
+}
 
 /** The application's settings from «Настройки». */
 export interface AppSettings {
@@ -6,6 +12,8 @@ export interface AppSettings {
   readonly defaultAgent: string | null;
   /** «Наполнять в фоне»: answer search starts by itself after an Inbox processing and a mock. */
   readonly fillInBackground: boolean;
+  /** The default model and reasoning level by agent; only agents with a stored choice. */
+  readonly agentModels: Readonly<Record<string, AgentModelChoice>>;
 }
 
 function isSettings(value: unknown): value is AppSettings {
@@ -15,7 +23,10 @@ function isSettings(value: unknown): value is AppSettings {
     "defaultAgent" in value &&
     (value.defaultAgent === null || typeof value.defaultAgent === "string") &&
     "fillInBackground" in value &&
-    typeof value.fillInBackground === "boolean"
+    typeof value.fillInBackground === "boolean" &&
+    "agentModels" in value &&
+    typeof value.agentModels === "object" &&
+    value.agentModels !== null
   );
 }
 
@@ -41,6 +52,18 @@ export async function setFillInBackground(enabled: boolean): Promise<AppSettings
   const body = await request("/api/settings/fill-in-background", {
     method: "PUT",
     body: { enabled },
+  });
+  if (!isSettings(body)) {
+    throw new Error("неожиданный ответ");
+  }
+  return body;
+}
+
+/** Stores the agent's default model and reasoning level; null returns to the agent's own. */
+export async function setAgentModel(agent: string, choice: AgentModelChoice): Promise<AppSettings> {
+  const body = await request(`/api/settings/agent-models/${path(agent)}`, {
+    method: "PUT",
+    body: choice,
   });
   if (!isSettings(body)) {
     throw new Error("неожиданный ответ");

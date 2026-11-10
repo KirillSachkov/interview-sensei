@@ -10,8 +10,7 @@ import { TargetSwitcher } from "./target-switcher";
 
 /**
  * The bar over the canvas: the Target switcher, «Меню цели» and «Новая цель» on the left; the
- * Target's agent, «Настройки» and the link to «Проверка агента» on the right. Without a Target only
- * «Настройки» and the link remain.
+ * Target's agent and «Настройки» on the right. Without a Target only «Настройки» remains.
  */
 export function TopBar({ target }: { target: TargetSummary | null }) {
   return (
@@ -28,15 +27,12 @@ export function TopBar({ target }: { target: TargetSummary | null }) {
       <div className="island top-island">
         {target === null ? null : <AgentPicker targetId={target.id} />}
         <SettingsMenu />
-        <Link to="/agent-check" className="button ghost">
-          Проверка агента
-        </Link>
       </div>
     </header>
   );
 }
 
-/** The bar of «Проверка агента»: only the way back to the canvas. */
+/** The bar of the service page `/agent-check`: only the way back to the canvas. */
 export function BackToCanvasBar() {
   return (
     <header className="top-bar">

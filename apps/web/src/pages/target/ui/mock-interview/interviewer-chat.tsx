@@ -5,6 +5,7 @@ import {
   CandidateMessage,
   ChatNote,
   Composer,
+  SessionOptions,
 } from "@/features/agent-chat";
 import type { ChatEntry } from "@/shared/api";
 
@@ -100,6 +101,7 @@ export function InterviewerChat({
         onSend={prompt}
         label="Сообщение интервьюеру"
         placeholder="Уточнить вопрос"
+        tools={<SessionOptions view={lost === null ? view : null} />}
       />
     </aside>
   );

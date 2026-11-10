@@ -149,31 +149,18 @@ function RecognitionState({ status }: { status: TranscriptionStatus }) {
  * beside the other model, and its deletion, which frees the disk space. Components download into
  * the application's data directory only on the Candidate's button.
  */
-export function SpeechRecognitionDialog({ onClose }: { onClose: () => void }) {
+export function SpeechRecognitionSettings() {
   const { data: status, error } = useTranscription();
   return (
-    <div className="dialog-backdrop">
-      <dialog
-        open
-        aria-modal="true"
-        aria-labelledby="speech-recognition-title"
-        className="island dialog speech-recognition"
-      >
-        <h2 id="speech-recognition-title">Распознавание речи</h2>
-        <p className="muted">
-          Приложение распознаёт речь видео и аудио на этом устройстве: GigaAM v3 — русскую речь,
-          Parakeet — 25 европейских языков. При обеих моделях русская речь идёт в GigaAM. yt-dlp
-          читает ссылки на видео: без модели они разбираются по ручным субтитрам. Компоненты лежат в
-          каталоге данных приложения, видео и звук не покидают устройство.
-        </p>
-        {error === null ? null : <p role="alert">Состояние не загрузилось: {error.message}</p>}
-        {status === undefined ? null : <RecognitionState status={status} />}
-        <div className="dialog-actions">
-          <button type="button" className="ghost" onClick={onClose}>
-            Закрыть
-          </button>
-        </div>
-      </dialog>
+    <div className="speech-recognition">
+      <p className="muted">
+        Приложение распознаёт речь видео и аудио на этом устройстве: GigaAM v3 — русскую речь,
+        Parakeet — 25 европейских языков. При обеих моделях русская речь идёт в GigaAM. yt-dlp
+        читает ссылки на видео: без модели они разбираются по ручным субтитрам. Компоненты лежат в
+        каталоге данных приложения, видео и звук не покидают устройство.
+      </p>
+      {error === null ? null : <p role="alert">Состояние не загрузилось: {error.message}</p>}
+      {status === undefined ? null : <RecognitionState status={status} />}
     </div>
   );
 }

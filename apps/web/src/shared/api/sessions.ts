@@ -1,4 +1,5 @@
-import { request, sent } from "./http";
+import type { AgentOptions } from "./agents";
+import { path, request, sent } from "./http";
 
 /** One line of the chat; the server folds the agent's events into these. */
 export type ChatEntry =
@@ -51,6 +52,8 @@ export interface SessionView {
   readonly failure: SessionFailure | null;
   /** `hidden` while the agent's text stays out of the chat, such as before the answer in a mock. */
   readonly agentText: "continues" | "new" | "hidden";
+  /** The session's model and reasoning level; both null until the agent reports them. */
+  readonly options?: AgentOptions;
 }
 
 /** An AgentSession without its chat, from GET /api/sessions. */
@@ -133,4 +136,12 @@ export async function endSetupSession(targetId: string): Promise<void> {
 export function sessionEventsUrl(sessionId: string): string {
   const protocol = globalThis.location.protocol === "https:" ? "wss:" : "ws:";
   return `${protocol}//${globalThis.location.host}/api/sessions/${sessionId}/events`;
+}
+
+/** Changes the model or the reasoning level of a session whose agent waits for a message. */
+export async function setSessionOptions(
+  sessionId: string,
+  choice: { readonly model?: string; readonly effort?: string },
+): Promise<void> {
+  await request(`/api/sessions/${path(sessionId)}/options`, { method: "PUT", body: choice });
 }

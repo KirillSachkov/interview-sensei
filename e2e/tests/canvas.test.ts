@@ -55,7 +55,9 @@ test("without Targets the Candidate opens the demo Target onto its canvas", asyn
   await expect(goal.getByRole("article", { name: "Название и уровень" })).toContainText(
     "Уровень: Middle",
   );
-  await expect(sessions).toContainText("Сессий пока нет");
+  // «Сессии» stays off the canvas until the Target has a Mock interview.
+  await expect(sessions).toHaveCount(0);
+  await expect(goal.getByRole("button", { name: "Начать мок-собеседование" })).toBeEnabled();
 });
 
 test("the app opens on the canvas of the Target", async ({ page }) => {
@@ -94,10 +96,9 @@ test("the chosen agent of the Target stays after a reload", async ({ page }) => 
   await expect(agentButton(page)).toContainText("по умолчанию");
 });
 
-test("the top bar leads to «Проверка агента», where the fake agent answers", async ({ page }) => {
-  await page.goto("/");
-
-  await page.getByRole("link", { name: "Проверка агента" }).click();
+test("the service page /agent-check has a chat where the fake agent answers", async ({ page }) => {
+  // The top bar no longer links to it (#110); the page stays as the service chat.
+  await page.goto("/agent-check");
 
   await expect(page.getByRole("heading", { name: "Проверка агента" })).toBeVisible();
   await greetFakeAgent(page);

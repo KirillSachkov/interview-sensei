@@ -2,13 +2,15 @@
 import { expect, test } from "@playwright/test";
 import type { Locator, Page, Request } from "@playwright/test";
 
+import { startedChat } from "./canvas-support.ts";
+
 /** Opens the page, starts a chat with the fake agent and returns its message list items. */
 async function startNewChat(page: Page) {
   await page.goto("/agent-check");
   await page
     .getByRole("combobox", { name: "Агент", exact: true })
     .selectOption({ label: "Фейковый агент" });
-  await page.getByRole("button", { name: "Новый чат" }).click();
+  await startedChat(page);
   // The new chat replaces the latest one of other tests and has no messages yet.
   const messages = page.getByRole("list", { name: "Сообщения" }).getByRole("listitem");
   await expect(messages).toHaveCount(0);
@@ -81,7 +83,7 @@ test("the Candidate answers the agent's permission request in the chat", async (
 
 /** The bold text, list, code block, table and safe link of the fake agent's `/markdown`. */
 async function expectFormatted(reply: Locator) {
-  await expect(reply.getByRole("strong")).toHaveText(["Агент:", "Жирный"]);
+  await expect(reply.getByRole("strong")).toHaveText(["Жирный"]);
   await expect(reply.getByRole("list").getByRole("listitem")).toHaveText([
     "первый пункт",
     "второй пункт",

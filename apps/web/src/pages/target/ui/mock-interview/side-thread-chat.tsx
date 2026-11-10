@@ -9,6 +9,7 @@ import {
   ChatNote,
   Composer,
   PermissionRequest,
+  SessionOptions,
 } from "@/features/agent-chat";
 import { AgentUnavailableError, continueSideThread, deleteSideThread } from "@/shared/api";
 import type { ChatEntry, SessionView, SideThread } from "@/shared/api";
@@ -210,6 +211,7 @@ export function SideThreadChat({ thread, number }: { thread: SideThread; number:
         onStop={cancel}
         label="Сообщение в ветку"
         placeholder="Спросить ещё"
+        tools={<SessionOptions view={lost === null ? view : null} />}
       />
     </aside>
   );

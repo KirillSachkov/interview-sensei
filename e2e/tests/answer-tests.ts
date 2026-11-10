@@ -61,12 +61,13 @@ async function expectReport(page: Page, card: Locator) {
   await expect(report).toContainText(/Токенов в контексте агента: 4\s321 из 200\s000\./u);
 }
 
-/** «Наполнять в фоне» in the open «Настройки». */
+/** «Наполнять в фоне» in the section «Опорные ответы» of the window «Настройки». */
 async function fillInBackground(page: Page) {
   await page.getByRole("button", { name: "Настройки" }).click();
-  return page
-    .getByRole("menu", { name: "Настройки" })
-    .getByRole("menuitemcheckbox", { name: /Наполнять в фоне/u });
+  const settings = page.getByRole("dialog", { name: "Настройки" });
+  await settings.getByRole("button", { name: "Опорные ответы" }).click();
+  await expect(settings).toContainText("Расходует лимиты подписки агента");
+  return settings.getByRole("checkbox", { name: "Наполнять в фоне" });
 }
 
 /** The page's start of an answer search. */
@@ -75,10 +76,10 @@ function isSearchStart(request: Request): boolean {
 }
 
 /** Clicks «Наполнять в фоне» from the other state and waits for the stored one. */
-async function switchFill(toggle: Locator, to: "true" | "false") {
-  await expect(toggle).toHaveAttribute("aria-checked", to === "true" ? "false" : "true");
+async function switchFill(toggle: Locator, to: boolean) {
+  await expect(toggle).toBeChecked({ checked: !to });
   await toggle.click();
-  await expect(toggle).toHaveAttribute("aria-checked", to);
+  await expect(toggle).toBeChecked({ checked: to });
 }
 
 export function answerTests() {
@@ -106,15 +107,14 @@ export function answerTests() {
     }) => {
       await page.goto("/");
       const toggle = await fillInBackground(page);
-      await expect(toggle).toContainText("расходует лимиты подписки агента");
 
-      await switchFill(toggle, "true");
+      await switchFill(toggle, true);
       await page.reload();
 
       const reloaded = await fillInBackground(page);
-      await expect(reloaded).toHaveAttribute("aria-checked", "true");
+      await expect(reloaded).toBeChecked();
       // The tests after this one expect no answer search after their Inbox processings and mocks.
-      await switchFill(reloaded, "false");
+      await switchFill(reloaded, false);
     });
 
     answerDebriefTests();

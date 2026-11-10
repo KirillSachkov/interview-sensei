@@ -1,5 +1,5 @@
-export { fetchAgents } from "./agents";
-export type { AgentAvailability } from "./agents";
+export { fetchAgentOptions, fetchAgents } from "./agents";
+export type { AgentAvailability, AgentOptions, OptionChoice } from "./agents";
 export { fetchHealth } from "./health";
 export {
   applyDraft,
@@ -53,6 +53,7 @@ export {
   isSessionView,
   openSetupSession,
   sessionEventsUrl,
+  setSessionOptions,
   startServiceChat,
 } from "./sessions";
 export {
@@ -110,5 +111,6 @@ export {
   verifyReferenceAnswer,
 } from "./plan";
 export type { Question, QuestionRating, QuestionScope } from "./plan";
-export { chooseDefaultAgent, fetchSettings, setFillInBackground } from "./settings";
+export { chooseDefaultAgent, fetchSettings, setAgentModel, setFillInBackground } from "./settings";
+export type { AgentModelChoice, AppSettings } from "./settings";
 export { archiveTarget, deleteTarget, fetchArchivedTargets, restoreTarget } from "./target-archive";

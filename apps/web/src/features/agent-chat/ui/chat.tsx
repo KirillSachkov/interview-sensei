@@ -9,6 +9,7 @@ import type { ChatAttachments } from "./attachments";
 import { ChatEntries } from "./chat-entries";
 import { Composer } from "./composer";
 import { AgentActivity } from "./messages";
+import { SessionOptions } from "./session-options";
 
 function failureText(failure: NonNullable<SessionView["failure"]>): string {
   if (failure.reason === "agent_not_started") {
@@ -91,6 +92,7 @@ function ChatConnection({
         label="Сообщение"
         placeholder="Напишите агенту"
         attachments={attachments}
+        tools={<SessionOptions view={lost === null ? view : null} />}
       />
     </section>
   );

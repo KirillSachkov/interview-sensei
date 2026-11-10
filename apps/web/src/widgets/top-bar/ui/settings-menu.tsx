@@ -1,141 +1,166 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { agentName } from "@/entities/agent";
-import { chooseDefaultAgent, fetchAgents, fetchSettings, setFillInBackground } from "@/shared/api";
+import { fetchSettings, setFillInBackground } from "@/shared/api";
 
-import { Menu, MenuCheckbox, MenuChoice, MenuItem } from "./menu";
-import { SpeechRecognitionDialog } from "./speech-recognition";
+import { AgentSettings } from "./agent-settings";
+import { SpeechRecognitionSettings } from "./speech-recognition";
 
 /** The settings of the whole app, not of one Target. */
 export function useSettings() {
   return useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
 }
 
-/** The default agent's choices: the first available agent, then each agent. */
-function DefaultAgentChoices({
-  current,
-  onChoose,
-}: {
-  current: string | null;
-  onChoose: (agent: string | null) => void;
-}) {
-  const agents = useQuery({ queryKey: ["agents"], queryFn: fetchAgents });
-  return (
-    <>
-      <p className="menu-heading">Агент по умолчанию</p>
-      <MenuChoice
-        checked={current === null}
-        onChoose={() => {
-          onChoose(null);
-        }}
-      >
-        <span>Первый доступный</span>
-        <span className="hint">как найдёт приложение</span>
-      </MenuChoice>
-      {(agents.data ?? []).map((option) => (
-        <MenuChoice
-          key={option.agent}
-          checked={option.agent === current}
-          onChoose={() => {
-            onChoose(option.agent);
-          }}
-        >
-          <span>{agentName(option.agent)}</span>
-          <span className="hint">
-            <span aria-hidden="true" className={option.available ? "dot dot-ok" : "dot dot-off"} />
-            {option.available ? "доступен" : option.reason}
-          </span>
-        </MenuChoice>
-      ))}
-    </>
-  );
-}
-
 /**
  * «Наполнять в фоне», off by default: with it on, the answer search fills up to 20 Questions by
  * itself after an Inbox processing and after a mock, and spends the agent's subscription.
  */
-function FillInBackground() {
+function AnswerSettings({ enabled }: { enabled: boolean }) {
   const queryClient = useQueryClient();
-  const settings = useSettings();
   const fill = useMutation({
     mutationFn: setFillInBackground,
     onSuccess: (saved) => {
       queryClient.setQueryData(["settings"], saved);
     },
   });
-  const on = settings.data?.fillInBackground ?? false;
   return (
-    <>
-      <p className="menu-heading">Опорные ответы</p>
-      <MenuCheckbox
-        checked={on}
-        onToggle={() => {
-          fill.mutate(!on);
-        }}
-      >
-        <span>Наполнять в фоне</span>
-        <span className="hint">
-          до 20 вопросов после разбора и мока; расходует лимиты подписки агента
+    <div className="settings-block">
+      <label className="settings-switch">
+        <input
+          type="checkbox"
+          aria-label="Наполнять в фоне"
+          checked={enabled}
+          onChange={() => {
+            fill.mutate(!enabled);
+          }}
+        />
+        <span>
+          <strong>Наполнять в фоне</strong>
+          <span className="hint">
+            Поиск опорных ответов сам запускается после разбора материалов и после мока, до 20
+            вопросов за раз. Расходует лимиты подписки агента.
+          </span>
         </span>
-      </MenuCheckbox>
+      </label>
       {fill.isError ? <p role="alert">Настройка не сохранена: {fill.error.message}</p> : null}
-    </>
+    </div>
+  );
+}
+
+const sections = [
+  { id: "agents", title: "Агенты" },
+  { id: "answers", title: "Опорные ответы" },
+  { id: "speech", title: "Распознавание речи" },
+] as const;
+
+type SectionId = (typeof sections)[number]["id"];
+
+/** The chosen section of «Настройки». */
+function SectionBody({ section }: { section: SectionId }) {
+  const settings = useSettings();
+  if (section === "speech") {
+    return <SpeechRecognitionSettings />;
+  }
+  if (settings.isError) {
+    return <p role="alert">Настройки не загрузились: {settings.error.message}</p>;
+  }
+  if (settings.data === undefined) {
+    return null;
+  }
+  return section === "agents" ? (
+    <AgentSettings settings={settings.data} />
+  ) : (
+    <AnswerSettings enabled={settings.data.fillInBackground} />
+  );
+}
+
+/** Closes the window on Escape. */
+function useEscape(onClose: () => void) {
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [onClose]);
+}
+
+/** The window «Настройки» in the middle of the page: the sections at the left, one open. */
+function SettingsDialog({ onClose }: { onClose: () => void }) {
+  const [section, setSection] = useState<SectionId>("agents");
+  useEscape(onClose);
+  return (
+    <div className="dialog-backdrop">
+      <dialog
+        open
+        aria-modal="true"
+        aria-labelledby="settings-title"
+        className="island dialog settings-dialog"
+      >
+        <header className="settings-head">
+          <h2 id="settings-title">Настройки</h2>
+          <button type="button" className="ghost" aria-label="Закрыть настройки" onClick={onClose}>
+            ✕
+          </button>
+        </header>
+        <div className="settings-layout">
+          <nav className="settings-nav" aria-label="Разделы настроек">
+            {sections.map(({ id, title }) => (
+              <button
+                key={id}
+                type="button"
+                className="ghost"
+                aria-current={section === id ? "page" : undefined}
+                onClick={() => {
+                  setSection(id);
+                }}
+              >
+                {title}
+              </button>
+            ))}
+          </nav>
+          <section
+            className="settings-section"
+            aria-label={sections.find(({ id }) => id === section)?.title}
+          >
+            <SectionBody section={section} />
+          </section>
+        </div>
+      </dialog>
+    </div>
   );
 }
 
 /**
- * «Настройки»: the default agent of every Target without its own agent, «Наполнять в фоне» and
+ * «Настройки» in the top bar opens the settings window: the agents with their availability, the
+ * default agent and each agent's default model and reasoning level; «Наполнять в фоне»; and
  * «Распознавание речи».
- * Without the default agent a Target takes the first available agent.
  */
 export function SettingsMenu() {
-  const [recognition, setRecognition] = useState(false);
-  const queryClient = useQueryClient();
-  const settings = useSettings();
-  const choose = useMutation({
-    mutationFn: chooseDefaultAgent,
-    onSuccess: async (saved) => {
-      queryClient.setQueryData(["settings"], saved);
-      // A Target without its own agent now shows the new default agent.
-      await queryClient.invalidateQueries({ predicate: (query) => query.queryKey[2] === "agent" });
-    },
-  });
+  const [open, setOpen] = useState(false);
   return (
     <>
-      <Menu label="Настройки" button="Настройки">
-        {(close) => (
-          <>
-            <DefaultAgentChoices
-              current={settings.data?.defaultAgent ?? null}
-              onChoose={(agent) => {
-                close();
-                choose.mutate(agent);
-              }}
-            />
-            <FillInBackground />
-            <p className="menu-heading">Видео и аудио</p>
-            <MenuItem
-              hint="модели, установка и удаление"
-              onChoose={() => {
-                close();
-                setRecognition(true);
-              }}
-            >
-              Распознавание речи
-            </MenuItem>
-          </>
-        )}
-      </Menu>
-      {recognition ? (
-        <SpeechRecognitionDialog
+      <button
+        type="button"
+        className="ghost"
+        aria-haspopup="dialog"
+        onClick={() => {
+          setOpen(true);
+        }}
+      >
+        Настройки
+      </button>
+      {open ? (
+        <SettingsDialog
           onClose={() => {
-            setRecognition(false);
+            setOpen(false);
           }}
         />
       ) : null}
-      {choose.isError ? <p role="alert">Настройка не сохранена: {choose.error.message}</p> : null}
     </>
   );
 }

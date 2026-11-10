@@ -238,3 +238,35 @@
 .composer .attached-files {
   margin: 0;
 }
+
+/* The session's model and reasoning level in the message box */
+
+.session-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.session-options select {
+  max-width: 220px;
+  border-color: transparent;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-small);
+  color: var(--color-muted);
+  cursor: pointer;
+  text-overflow: ellipsis;
+}
+
+.session-options select:hover:enabled {
+  background: var(--color-hover);
+  color: var(--color-ink);
+}
+
+.session-options [role="alert"] {
+  margin: 0;
+  font-size: var(--font-size-small);
+}

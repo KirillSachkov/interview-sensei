@@ -1251,7 +1251,7 @@ button.danger {
 /* «Распознавание речи» in «Настройки» */
 
 .speech-recognition {
-  width: min(560px, 100%);
+  width: 100%;
 }
 
 .speech-models {
@@ -1285,4 +1285,130 @@ button.danger {
   flex-wrap: wrap;
   align-items: baseline;
   gap: var(--space-2);
+}
+
+/* «Настройки»: the settings window in the middle of the page */
+
+.settings-dialog {
+  width: min(1040px, calc(100vw - 96px));
+  max-width: none;
+  height: min(760px, calc(100vh - 96px));
+  border: 0;
+  padding: 0;
+  gap: 0;
+}
+
+.settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--color-line-soft);
+  padding: var(--space-4) var(--space-5);
+}
+
+.settings-layout {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 260px 1fr;
+  min-height: 0;
+}
+
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  border-right: 1px solid var(--color-line-soft);
+  background: var(--color-surface-muted);
+  padding: var(--space-4) var(--space-3);
+  border-bottom-left-radius: var(--radius-island);
+}
+
+.settings-nav button[aria-current="page"] {
+  background: var(--color-surface);
+  box-shadow: var(--shadow-island);
+  font-weight: 600;
+}
+
+.settings-section {
+  overflow-y: auto;
+  padding: var(--space-5);
+}
+
+.settings-section p {
+  margin: 0;
+}
+
+.agent-settings,
+.settings-block,
+.settings-section .speech-recognition {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.agent-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.agent-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.agent-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.agent-row-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.agent-default,
+.settings-switch {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  cursor: pointer;
+}
+
+.agent-default {
+  align-items: center;
+}
+
+.settings-switch input {
+  margin-top: 6px;
+}
+
+.settings-switch > span {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.agent-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.agent-option {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--font-size-small);
+}
+
+.agent-option select {
+  min-width: 260px;
 }

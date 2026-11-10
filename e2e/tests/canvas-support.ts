@@ -115,12 +115,27 @@ export function unapplied(chat: ReturnType<typeof setupChat>, count: number) {
   return chat.panel.getByRole("heading", { name: `Есть неприменённые изменения (${count})` });
 }
 
+/**
+ * «Новый чат» on the service page, until the server created the chat. The page shows the latest
+ * chat meanwhile, which may be another test's empty one: a message typed into it would be lost.
+ */
+export async function startedChat(page: Page) {
+  const created = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      new URL(response.url()).pathname === "/api/sessions",
+  );
+  await page.getByRole("button", { name: "Новый чат" }).click();
+  // The page puts the new chat in place of the latest one as soon as it gets this answer.
+  await (await created).finished();
+}
+
 /** Starts a chat with the fake agent on «Проверка агента», sends «Привет» and gets the reply. */
 export async function greetFakeAgent(page: Page) {
   await page
     .getByRole("combobox", { name: "Агент", exact: true })
     .selectOption({ label: "Фейковый агент" });
-  await page.getByRole("button", { name: "Новый чат" }).click();
+  await startedChat(page);
   const messages = page.getByRole("list", { name: "Сообщения" }).getByRole("listitem");
   await expect(messages).toHaveCount(0);
   await page.getByLabel("Сообщение").fill("Привет");
