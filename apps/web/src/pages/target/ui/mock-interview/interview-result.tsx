@@ -1,5 +1,6 @@
 import type { InterviewView } from "@/shared/api";
 
+import { DiscussSeparately } from "./discuss-separately";
 import { QuestionCard } from "./question-card";
 import { SideThreads } from "./side-threads";
 import { SummaryDebrief } from "./summary-debrief";
@@ -30,6 +31,12 @@ export function InterviewResult({ interview }: { interview: InterviewView }) {
               card={card}
               number={index + 1}
               stage="ended"
+              discuss={
+                <DiscussSeparately
+                  interviewId={interview.id}
+                  origin={{ kind: "question", id: card.id }}
+                />
+              }
             />
             <SideThreads view={interview} card={card} number={index + 1} />
           </li>

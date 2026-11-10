@@ -6,15 +6,16 @@ import type { Locator, Page } from "@playwright/test";
 import { zones } from "./canvas-support.ts";
 import { answer, finishMock, openDebrief, startMock } from "./mock-interview-tests.ts";
 
-/**
- * Opens a Side thread at the card with the Candidate's question. The card's own button comes last:
- * an open Debrief inside the card has one too.
- */
+/** Opens the chat immediately and asks the question in it. */
 async function discussSeparately(card: Locator, question: string) {
   await card.getByRole("button", { name: "Обсудить отдельно" }).last().click();
-  const form = card.getByRole("form", { name: "Обсудить отдельно" });
-  await form.getByRole("textbox", { name: "Ваш вопрос" }).fill(question);
-  await form.getByRole("button", { name: "Открыть ветку" }).click();
+  await expect(card.getByRole("form", { name: "Обсудить отдельно" })).toHaveCount(0);
+  const thread = card
+    .page()
+    .getByRole("complementary", { name: /^Ветка к вопросу/u })
+    .last();
+  await expect(thread.getByRole("textbox", { name: "Сообщение в ветку" })).toBeEnabled();
+  await writeInThread(thread, question);
 }
 
 /** Writes in the Side thread and waits for the agent's reply. */
@@ -35,11 +36,12 @@ async function deleteThread(thread: Locator) {
 
 /** The thread right of the card answers the question; the card shows «с подсказкой». */
 async function expectThreadBeside(card: Locator, thread: Locator, question: string) {
-  await expect(thread).toContainText(`Разбираю вопрос кандидата: «${question}»`);
+  await expect(thread).toContainText(`Фейковый агент получил: «${question}»`);
   const cardBox = await card.boundingBox();
   const threadBox = await thread.boundingBox();
   expect(threadBox?.x ?? 0).toBeGreaterThan((cardBox?.x ?? 0) + (cardBox?.width ?? 0));
   await expect(card).toContainText("с подсказкой");
+  await expect(thread).toBeInViewport({ ratio: 0.5 });
 }
 
 /** The interviewer's greeting before the first question has no «Обсудить отдельно». */
@@ -71,6 +73,30 @@ async function startedMock(page: Page) {
   };
 }
 
+/** Returns from the right-hand chat to the mock's header before ending the interview. */
+async function finishFromThread(sessions: Locator) {
+  await sessions.page().getByRole("button", { name: "Показать всё" }).click();
+  await finishMock(sessions);
+}
+
+/** Selects the question text, as the Candidate does before discussing a fragment. */
+async function selectQuestion(card: Locator) {
+  const text = card.locator(".question-text");
+  await text.click({ clickCount: 3 });
+  return (await text.textContent()) ?? "";
+}
+
+/** Ratings remain available on demand, without occupying the card header. */
+async function rateThroughDetails(first: Locator) {
+  await expect(first.getByRole("button", { name: "Полезный вопрос" })).toBeHidden();
+  await first.getByText("О вопросе", { exact: true }).click();
+  const useful = first.getByRole("button", { name: "Полезный вопрос" });
+  await useful.click();
+  await expect(useful).toHaveAttribute("aria-pressed", "true");
+  await first.getByText("О вопросе", { exact: true }).click();
+  await expect(useful).toBeHidden();
+}
+
 // Ticket #81: «Обсудить отдельно» opens a Side thread to the right of the question card.
 // A Side thread discusses a question: the greeting before the first one opens none.
 function discussTest() {
@@ -80,12 +106,13 @@ function discussTest() {
     const { sessions, first, thread } = await startedMock(page);
     const question = "Что значит «вклад»?";
 
+    await rateThroughDetails(first);
     await discussSeparately(first, question);
 
     await expectThreadBeside(first, thread, question);
     await expectGreetingWithoutDiscuss(sessions);
     await writeInThread(thread, "А пример?");
-    await finishMock(sessions);
+    await finishFromThread(sessions);
   });
 }
 
@@ -95,13 +122,14 @@ function deleteTest() {
     page,
   }) => {
     const { sessions, first, thread } = await startedMock(page);
+    const fragment = await selectQuestion(first);
     await discussSeparately(first, "Что значит «вклад»?");
-    await expect(thread).toContainText("Разбираю вопрос кандидата");
+    await expect(thread.getByRole("blockquote")).toContainText(fragment);
 
     await deleteThread(thread);
 
     await expect(first).toContainText("с подсказкой");
-    await finishMock(sessions);
+    await finishFromThread(sessions);
   });
 }
 
@@ -119,7 +147,7 @@ function debriefTest() {
     await askForBrief(thread);
 
     await expect(thread).toContainText('"grade":3');
-    await finishMock(sessions);
+    await finishFromThread(sessions);
   });
 }
 
@@ -147,7 +175,7 @@ function continueTest() {
     await expect(thread).toContainText("Продолжаю ветку:");
     await expect(thread).toContainText("Фейковый агент получил: «А пример?»");
     await writeInThread(thread, "Ещё вопрос");
-    await finishMock(sessions);
+    await finishFromThread(sessions);
   });
 }
 

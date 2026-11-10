@@ -12,7 +12,7 @@ const ratings: readonly { rating: QuestionRating; icon: string; label: string }[
 const marksKey = (targetId: string) => ["targets", targetId, "question-marks"];
 
 /** The marks of the Target's Questions: the Candidate's rating and «не подтверждён». */
-export function useQuestionMarks(targetId: string, questionId: string) {
+function useQuestionMarks(targetId: string, questionId: string) {
   const marks = useQuery({
     queryKey: marksKey(targetId),
     queryFn: async () => fetchQuestionMarks(targetId),
@@ -21,13 +21,7 @@ export function useQuestionMarks(targetId: string, questionId: string) {
 }
 
 /** 👍 👎 ⚠ of the Question itself; a second press takes the rating back. */
-export function QuestionRatingButtons({
-  targetId,
-  questionId,
-}: {
-  targetId: string;
-  questionId: string;
-}) {
+function QuestionRatingButtons({ targetId, questionId }: { targetId: string; questionId: string }) {
   const queryClient = useQueryClient();
   const current = useQuestionMarks(targetId, questionId)?.rating ?? null;
   const rate = useMutation({
@@ -49,9 +43,35 @@ export function QuestionRatingButtons({
             rate.mutate(current === rating ? null : rating);
           }}
         >
-          {icon}
+          {icon} {label}
         </button>
       ))}
     </fieldset>
+  );
+}
+
+/** Secondary question metadata and feedback stay behind one disclosure. */
+export function QuestionDetails({
+  targetId,
+  questionId,
+}: {
+  targetId: string;
+  questionId: string;
+}) {
+  const marks = useQuestionMarks(targetId, questionId);
+  return (
+    <details className="question-details nodrag nopan">
+      <summary>О вопросе</summary>
+      <div className="question-details-body">
+        {marks === undefined ? null : (
+          <p>
+            {marks.unconfirmed
+              ? "Вопрос создан агентом, источник не подтверждён."
+              : "Вопрос подтверждён."}
+          </p>
+        )}
+        <QuestionRatingButtons targetId={targetId} questionId={questionId} />
+      </div>
+    </details>
   );
 }

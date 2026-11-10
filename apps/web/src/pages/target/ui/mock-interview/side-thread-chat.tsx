@@ -188,7 +188,11 @@ export function SideThreadChat({ thread, number }: { thread: SideThread; number:
   );
   const status = lost === null ? (view?.status ?? null) : null;
   return (
-    <aside className="side-thread" aria-label={`Ветка к вопросу ${number}`}>
+    <aside
+      className="side-thread"
+      data-side-thread={thread.id}
+      aria-label={`Ветка к вопросу ${number}`}
+    >
       <header className="side-thread-head">
         <h4>{originTitles[thread.origin.kind]}</h4>
         <DeleteThread thread={thread} />

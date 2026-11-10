@@ -186,13 +186,14 @@ export function Debrief({
     <>
       <button
         type="button"
-        className="debrief-toggle"
+        className="ghost debrief-toggle"
         aria-expanded={open}
+        aria-label={open ? "Скрыть разбор" : "Посмотреть разбор"}
         onClick={() => {
           setOpen((current) => !current);
         }}
       >
-        {open ? "Скрыть разбор" : "Посмотреть разбор"}
+        {open ? "Скрыть разбор" : "Разбор"}
       </button>
       {open ? (
         <DebriefBody interviewId={interviewId} attemptId={attemptId} question={question} />

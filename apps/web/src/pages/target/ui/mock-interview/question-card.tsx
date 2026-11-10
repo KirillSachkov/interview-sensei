@@ -6,7 +6,7 @@ import type { QuestionCard as Card } from "@/shared/api";
 import { AnswerForm } from "./answer-form";
 import { Debrief } from "./debrief";
 import { FollowUps } from "./follow-ups";
-import { QuestionRatingButtons, useQuestionMarks } from "./question-rating";
+import { QuestionDetails } from "./question-rating";
 import { QuizForm } from "./quiz-form";
 import { SkipButton } from "./skip-button";
 import { useTopicNames } from "./topic-names";
@@ -49,7 +49,7 @@ function GivenAnswer({ card }: { card: Card }) {
   if (answer.skipped) {
     return (
       <p className="answer-text">
-        <span className="muted">Ваш ответ: </span>не знаю <span className="tag">пропущено</span>
+        <span className="muted">Ваш ответ: </span>не знаю
       </p>
     );
   }
@@ -70,12 +70,10 @@ type Stage = "answering" | "finishing" | "paused" | "ended";
 /** What the card shows below the question: the answer form, or the answer and what follows it. */
 function AnswerPart({
   interviewId,
-  targetId,
   card,
   stage,
 }: {
   interviewId: string;
-  targetId: string;
   card: Card;
   stage: Stage;
 }) {
@@ -94,7 +92,6 @@ function AnswerPart({
     <>
       <GivenAnswer card={card} />
       <FollowUps interviewId={interviewId} card={card} canAnswer={canAnswer} />
-      <AttemptPart interviewId={interviewId} targetId={targetId} card={card} stage={stage} />
     </>
   );
 }
@@ -114,6 +111,9 @@ function AttemptPart({
   card: Card;
   stage: Stage;
 }) {
+  if (card.answer === null) {
+    return null;
+  }
   if (card.attemptId !== null) {
     return (
       <Debrief
@@ -137,12 +137,8 @@ function AttemptPart({
   );
 }
 
-/**
- * The line above the question: its number and Topic, «глубже» on the line from the question above, «не подтверждён», «с подсказкой» after a Side thread
- * before the answer, and the Candidate's rating.
- */
+/** The number, Topic and hint; provenance and feedback live under «О вопросе». */
 function CardMarks({ targetId, card, number }: { targetId: string; card: Card; number: number }) {
-  const marks = useQuestionMarks(targetId, card.questionId);
   const topic = useTopicNames(targetId).get(card.topicId);
   return (
     <div className="card-marks">
@@ -153,9 +149,7 @@ function CardMarks({ targetId, card, number }: { targetId: string; card: Card; n
       {card.parentAttemptId === null ? null : (
         <span className="tag accent deeper-mark">глубже</span>
       )}
-      {marks?.unconfirmed === true ? <span className="tag">не подтверждён</span> : null}
-      {card.hinted ? <span className="tag">с подсказкой</span> : null}
-      <QuestionRatingButtons targetId={targetId} questionId={card.questionId} />
+      {card.hinted ? <span className="question-hint">с подсказкой</span> : null}
     </div>
   );
 }
@@ -189,8 +183,12 @@ export function QuestionCard({
       <CardMarks targetId={targetId} card={card} number={number} />
       <p className="question-text">{card.text}</p>
       {card.format === "quiz" && !answering ? <QuizOptions card={card} /> : null}
-      <AnswerPart interviewId={interviewId} targetId={targetId} card={card} stage={stage} />
-      {discuss}
+      <AnswerPart interviewId={interviewId} card={card} stage={stage} />
+      <div className="question-actions">
+        <AttemptPart interviewId={interviewId} targetId={targetId} card={card} stage={stage} />
+        {discuss}
+        <QuestionDetails targetId={targetId} questionId={card.questionId} />
+      </div>
     </article>
   );
 }
