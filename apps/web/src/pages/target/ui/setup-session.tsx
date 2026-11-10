@@ -100,20 +100,19 @@ function useLiveSetup(targetId: string) {
 }
 
 /**
- * What the chat shows. `follow`: the running session, if the Target has one, or the onboarding of
- * a draft Target. `waiting`: the message box without a session, after «Завершить». A string: the
+ * What the chat shows. `auto`: the running session, if the Target has one, otherwise the message
+ * box without a session. `session`: the session, started if none runs, as the onboarding of a
+ * draft Target. `waiting`: the message box without a session, after «Завершить». An object: the
  * Candidate's first message, which starts the session.
  */
-export type Engagement = "follow" | "waiting" | { readonly first: string };
+export type Engagement = "auto" | "session" | "waiting" | { readonly first: string };
 
 export function SetupBody({
   targetId,
-  draft,
   engagement,
   onFirst,
 }: {
   targetId: string;
-  draft: boolean;
   engagement: Engagement;
   onFirst: (text: string) => void;
 }) {
@@ -121,10 +120,10 @@ export function SetupBody({
   if (typeof engagement === "object") {
     return <SetupSession targetId={targetId} firstMessage={engagement.first} />;
   }
-  if (engagement === "follow" && live.data === undefined && !draft) {
+  if (engagement === "auto" && live.data === undefined) {
     return <p className="muted">Открываем чат настройки…</p>;
   }
-  return engagement === "follow" && (draft || live.data === true) ? (
+  return engagement === "session" || (engagement === "auto" && live.data === true) ? (
     <SetupSession targetId={targetId} />
   ) : (
     <WaitingChat targetId={targetId} onSend={onFirst} />

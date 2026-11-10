@@ -137,14 +137,11 @@ test("«Новая цель» starts the onboarding, and «Применить» 
   await expect(chat.changes).toHaveCount(0);
 });
 
-test("«Настроить цель» returns to the running setup chat", async ({ page }) => {
+test("the open setup chat follows the running setup session of the Target", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: demoName }).click();
   await page.getByRole("menuitemradio", { name: "Go-разработчик" }).click();
   const chat = setupChat(page);
-  await expect(chat.panel).toBeHidden();
-
-  await zones(page).goal.getByRole("button", { name: "Настроить цель" }).click();
 
   await expect(chat.messages.first()).toContainText("Агент: Фейковый агент получил");
   await expect(chat.messages.last()).toContainText("Агент: Результат set_interview_plan:");
@@ -176,7 +173,6 @@ test("after a reload the setup chat shows «Есть неприменённые 
 
   await page.reload();
 
-  await zones(page).goal.getByRole("button", { name: "Настроить цель" }).click();
   await expect(unapplied(chat, 2)).toBeVisible();
   await chat.panel.getByRole("button", { name: "Убрать изменение: Цель: язык английский" }).click();
   await expect(unapplied(chat, 1)).toBeVisible();
@@ -185,18 +181,19 @@ test("after a reload the setup chat shows «Есть неприменённые 
 
 test("«Завершить» with a non-empty draft asks what to do with it", async ({ page }) => {
   const chat = await openGoChat(page);
+  // The chat stays open after «Завершить» and waits for the first message of a new session.
+  const waiting = chat.panel.getByText("Агент запустится с вашим первым сообщением");
   const finish = async (choice: string) => {
     await chat.panel.getByRole("button", { name: "Завершить" }).click();
     await chat.panel.getByRole("dialog").getByRole("button", { name: choice }).click();
-    await expect(chat.panel).toBeHidden();
-    await zones(page).goal.getByRole("button", { name: "Настроить цель" }).click();
+    await expect(waiting).toBeVisible();
+    await expect(chat.panel.getByRole("dialog")).toBeHidden();
   };
 
   await finish("Оставить черновик");
 
   await expect(unapplied(chat, 1)).toBeVisible();
   await finish("Отменить изменения");
-  await expect(chat.panel.getByRole("list", { name: "Сообщения" })).toBeVisible();
   await expect(chat.changes).toHaveCount(0);
   await expect(zones(page).goal).toContainText("Go-разработчик");
 });

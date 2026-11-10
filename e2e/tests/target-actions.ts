@@ -87,7 +87,8 @@ export async function finishSetup(page: Page) {
   await zones(page).goal.getByRole("button", { name: "Настроить цель" }).click();
   const chat = setupChat(page);
   await chat.panel.getByRole("button", { name: "Завершить" }).click();
-  await expect(chat.panel).toBeHidden();
+  // The chat stays open and waits for the first message of a new session.
+  await expect(chat.panel.getByText("Агент запустится с вашим первым сообщением")).toBeVisible();
 }
 
 /** The list «Архивные цели» on the page «Архив». */

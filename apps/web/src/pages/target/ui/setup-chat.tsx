@@ -72,7 +72,7 @@ export function SetupChat({
   onToggleSize,
   onClose,
 }: SetupChatProps) {
-  const [engagement, setEngagement] = useState<Engagement>("follow");
+  const [engagement, setEngagement] = useState<Engagement>(draft ? "session" : "auto");
   const largest = isLargest(size);
   return (
     <aside
@@ -99,7 +99,6 @@ export function SetupChat({
       </header>
       <SetupBody
         targetId={targetId}
-        draft={draft}
         engagement={engagement}
         onFirst={(first) => {
           setEngagement({ first });

@@ -104,6 +104,7 @@ export function FinishSetup({
     mutationFn: async (choice: DraftChoice) => finish(targetId, choice),
     onSuccess: async () => {
       queryClient.removeQueries({ queryKey: ["targets", targetId, "setup-session"] });
+      setAsking(false);
       onFinished();
       await queryClient.invalidateQueries({ queryKey: ["targets"] });
       await queryClient.invalidateQueries({ queryKey: ["progress", targetId] });
