@@ -67,6 +67,22 @@ export interface MockInterview {
   readonly nextStep: string | null;
 }
 
+/**
+ * What a good answer to a Question contains: 3–5 key points and a short sample answer, with where
+ * it comes from: «из материала», «из интернета», «из знаний агента» or «проверен кандидатом».
+ */
+export interface ReferenceAnswer {
+  readonly points: readonly string[];
+  readonly sample: string;
+  readonly origin: "material" | "internet" | "agent" | "candidate";
+}
+
+/** How the Attempt's answer covered each key point of the reference answer. */
+export interface ReferencePoint {
+  readonly text: string;
+  readonly covered: boolean;
+}
+
 interface QuizOption {
   readonly id: string;
   readonly text: string;
@@ -107,6 +123,11 @@ export interface AskedQuestion {
   readonly options: readonly QuizOption[];
   /** Kept for the quiz grade; never sent to the browser. */
   readonly correctOptionIds: readonly string[];
+  /**
+   * The Question's reference answer as it was when shown, for the interviewer's judgment; null
+   * without one. Never sent to the browser before the Debrief.
+   */
+  readonly referenceAnswer: ReferenceAnswer | null;
   /** The Attempt this Deeper question goes deeper from; null otherwise. */
   readonly parentAttemptId: string | null;
   readonly presentedAt: string;
@@ -146,6 +167,13 @@ export interface Attempt extends Judgment {
   readonly gradedBy: GradedBy;
   /** Whether the Candidate got a hint before answering: a Side thread opened before the answer. */
   readonly hinted: boolean;
+  /**
+   * The key points of the reference answer, each with whether the answer covered it: none for
+   * «Не знаю». Null when the Question had no reference answer, and for a quiz.
+   */
+  readonly referencePoints: readonly ReferencePoint[] | null;
+  /** Why the interviewer disagrees with the reference answer; null when it agrees. */
+  readonly referenceDisagreement: string | null;
   readonly recordedAt: string;
 }
 

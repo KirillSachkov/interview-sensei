@@ -65,12 +65,27 @@ async function pausedMockThread(api: Api) {
   return thread;
 }
 
-/** Stops the server and forgets the closing marks and migration 0008, as before this change. */
+/**
+ * Undoes the migrations after 0008: the migrator applies only the migrations newer than the last
+ * one it applied, so 0008 runs again only without them, and then they run again too.
+ */
+const laterMigrations = [
+  // 0009 (#64): the reference answer of an asked question and its judgment in the Attempt.
+  "alter table interviews.asked_questions drop column reference_answer",
+  "alter table interviews.attempts drop column reference_points",
+  "alter table interviews.attempts drop column reference_disagreement",
+];
+
+/**
+ * Stops the server and forgets the closing marks and migration 0008 with the later ones, as before
+ * this change.
+ */
 async function beforeBackfill(api: Api, dataDirectory: string, extra: readonly string[] = []) {
   await api.stop();
   await storeWith(dataDirectory, [
     "update interviews.side_threads set closed_at = null",
-    `delete from interviews.__drizzle_migrations where created_at = ${await backfillMillis()}`,
+    ...laterMigrations,
+    `delete from interviews.__drizzle_migrations where created_at >= ${await backfillMillis()}`,
     ...extra,
   ]);
 }

@@ -135,6 +135,20 @@
   color: var(--color-muted);
 }
 
+.reference-points {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reference-points .covered > span:first-child {
+  color: var(--color-ok);
+}
+
+.reference-points .missed > span:first-child {
+  color: var(--color-danger);
+}
+
 .debrief p {
   margin: var(--space-1) 0 0;
 }

@@ -11,7 +11,7 @@ import { review } from "./question-review.ts";
 import type { Review } from "./question-review.ts";
 import { addQuestions, editQuestions, renameTopic } from "./bank-edits.ts";
 import { requestReferenceCheck, verifyReferenceAnswer } from "./reference-answers.ts";
-import type { DisputeCheck } from "./reference-answers.ts";
+import type { CheckRequest } from "./reference-answers.ts";
 import type { NewQuestion } from "./bank-edits.ts";
 import type { StoredQuestion, Topic, TopicImportance } from "../domain/question.ts";
 import { topicKey, validateQuestion } from "../domain/question.ts";
@@ -109,8 +109,11 @@ function referenceChecks(repository: QuestionRepository<Transaction>) {
   return {
     /** «проверен»: see verifyReferenceAnswer. */
     verifyReferenceAnswer: async (id: string) => verifyReferenceAnswer(repository, id),
-    /** A Dispute puts the Question on the list «проверить опорный ответ». */
-    requestReferenceCheck: async (request: DisputeCheck, transaction: Transaction) =>
+    /**
+     * A Dispute, or the interviewer's disagreement with the reference answer, puts the Question on
+     * the list «проверить опорный ответ».
+     */
+    requestReferenceCheck: async (request: CheckRequest, transaction: Transaction) =>
       requestReferenceCheck(repository, request, transaction),
   };
 }

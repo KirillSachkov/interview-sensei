@@ -120,7 +120,13 @@ function composeInterviews(
   const interviews: ReturnType<typeof interviewsModule> = interviewsModule({
     database: storage.database,
     ...services,
-    progress: { focus: async (targetId) => progress.focus(targetId) },
+    progress: {
+      focus: async (targetId) => progress.focus(targetId),
+      topicStatuses: async (targetId) => {
+        const found = await progress.target(targetId);
+        return found?.topics ?? [];
+      },
+    },
     onError: (error) => log.error({ err: error }, "A mock interview failed in the background"),
   });
   const progress = progressModule({ plans: services.targets, attempts: interviews });
