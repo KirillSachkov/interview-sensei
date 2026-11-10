@@ -6,14 +6,14 @@ type WindowKind = "interviewer" | "question" | "thread";
 type Sizes = Readonly<Record<string, ChatSize>>;
 
 const defaults = {
-  interviewer: { width: 420, height: 420 },
+  interviewer: { width: 420, height: 0 },
   question: { width: 640, height: 0 },
-  thread: { width: 560, height: 420 },
+  thread: { width: 560, height: 0 },
 };
 const minimum = {
-  interviewer: { width: 360, height: 340 },
+  interviewer: { width: 360, height: 260 },
   question: { width: 480, height: 300 },
-  thread: { width: 420, height: 340 },
+  thread: { width: 420, height: 260 },
 };
 const maximum = {
   interviewer: { width: 760, height: 1000 },

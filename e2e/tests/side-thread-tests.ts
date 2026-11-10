@@ -24,7 +24,7 @@ async function expectWritingSpace(thread: Locator) {
   const options = thread.locator(".composer-options");
   const inputBox = await field.boundingBox();
   const optionsBox = await options.boundingBox();
-  expect(inputBox?.height ?? 0).toBeGreaterThan((optionsBox?.height ?? 0) * 2);
+  expect(inputBox?.height ?? 0).toBeGreaterThan(optionsBox?.height ?? 0);
   expect(optionsBox?.y ?? 0).toBeGreaterThan((inputBox?.y ?? 0) + (inputBox?.height ?? 0));
 }
 

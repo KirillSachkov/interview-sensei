@@ -34,7 +34,7 @@ async function readyWindows(page: Page) {
 
 /** The same send button and writing area, with model controls outside the composer. */
 async function expectSharedInput(window: Locator, sendLabel: string) {
-  await expect(window.locator(".composer textarea")).toHaveCSS("min-height", "96px");
+  await expect(window.locator(".composer textarea")).toHaveCSS("min-height", "48px");
   await expect(window.getByRole("button", { name: sendLabel, exact: true })).toHaveCSS(
     "width",
     "36px",
@@ -67,12 +67,23 @@ async function dragToLimit(page: Page, thread: Locator) {
   await expect.poll(async () => size(thread)).toEqual({ width: 960, height: 1000 });
 }
 
+/** The connector spans the full gap even when an earlier thread makes its row much taller. */
+async function expectCompleteLink(first: Locator, second: Locator) {
+  const previous = await first.boundingBox();
+  const current = await second.boundingBox();
+  const link = await second.locator("..").locator("[data-question-link]").boundingBox();
+  expect(link).not.toBeNull();
+  expect(Math.abs((link?.y ?? 0) - (previous?.y ?? 0) - (previous?.height ?? 0))).toBeLessThan(2);
+  expect(Math.abs((link?.y ?? 0) + (link?.height ?? 0) - (current?.y ?? 0))).toBeLessThan(2);
+}
+
 async function expectNextRowBelow(sessions: Locator, thread: Locator) {
   const second = sessions.getByRole("article", { name: "Вопрос 2" });
   await expect(second.getByRole("textbox", { name: "Ваш ответ" })).toBeVisible();
   const nextBox = await second.boundingBox();
   const threadBox = await thread.boundingBox();
   expect(nextBox?.y ?? 0).toBeGreaterThan((threadBox?.y ?? 0) + (threadBox?.height ?? 0));
+  await expectCompleteLink(sessions.getByRole("article", { name: "Вопрос 1" }), second);
 }
 
 async function resizeAndCheck(page: Page, windows: Awaited<ReturnType<typeof readyWindows>>) {

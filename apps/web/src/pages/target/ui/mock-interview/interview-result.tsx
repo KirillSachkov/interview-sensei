@@ -3,6 +3,7 @@ import type { InterviewView, QuestionCard as Card } from "@/shared/api";
 import { useSessionWindow } from "../../model/session-windows";
 
 import { DiscussSeparately } from "./discuss-separately";
+import { QuestionLink } from "./question-link";
 import { QuestionCard } from "./question-card";
 import { SideThreads } from "./side-threads";
 import { SummaryDebrief } from "./summary-debrief";
@@ -23,6 +24,7 @@ function ResultRow({
       className="result-row"
       style={{ gridTemplateColumns: `${window.size.width}px max-content` }}
     >
+      {number > 1 ? <QuestionLink /> : null}
       <QuestionCard
         interviewId={interview.id}
         targetId={interview.targetId}

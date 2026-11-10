@@ -245,7 +245,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding: var(--space-5);
+  padding: var(--space-4);
 }
 
 .question-card > p {
@@ -278,16 +278,6 @@
 
 .discuss-button::before {
   content: "↗";
-}
-
-/* A line joins a question with the next one, as the interview goes down. */
-.mock-questions > li + li > .question-card::before {
-  content: "";
-  position: absolute;
-  top: calc(-1 * var(--space-6));
-  left: var(--space-6);
-  height: var(--space-6);
-  border-left: 2px solid var(--color-line);
 }
 
 .question-text {
@@ -664,17 +654,6 @@
   overflow: visible;
 }
 
-.side-thread-arrow {
-  fill: none;
-  stroke: var(--color-muted);
-  stroke-width: 1.5;
-  stroke-linejoin: round;
-}
-
-.side-thread-arrowhead {
-  fill: var(--color-muted);
-}
-
 .side-thread {
   display: flex;
   flex-direction: column;
@@ -959,4 +938,39 @@
 .resizable-window .chat-resize {
   border: 0;
   padding: 0;
+}
+
+.question-link {
+  position: absolute;
+  width: 32px;
+  pointer-events: none;
+}
+
+.connection-arrows {
+  display: block;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.connection-line,
+.connection-head {
+  fill: none;
+  stroke: var(--color-muted);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.connection-line {
+  stroke-dasharray: 3 5;
+}
+
+.interviewer-lines:empty,
+.composer-options:empty {
+  display: none;
+}
+
+.interviewer > p,
+.side-thread > p {
+  margin: 0;
 }

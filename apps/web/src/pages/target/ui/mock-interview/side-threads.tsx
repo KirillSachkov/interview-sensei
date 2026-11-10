@@ -1,7 +1,8 @@
-import { useCallback, useId, useState } from "react";
+import { useCallback, useState } from "react";
 
 import type { InterviewView, QuestionCard } from "@/shared/api";
 
+import { ConnectionArrows } from "./connection-arrows";
 import { SideThreadChat } from "./side-thread-chat";
 
 /** Where an arrow enters its Side thread: this far below the thread's top, at its title. */
@@ -56,36 +57,19 @@ function useArrowLayout() {
  * the middle of the gutter and enters its thread at the title. They carry no label.
  */
 function Arrows({ layout }: { layout: ArrowLayout | null }) {
-  const marker = useId();
   if (layout === null) {
     return null;
   }
   const { width, height, entries, start } = layout;
-  const bend = width / 2;
+  const bend = (width + 20) / 2;
   return (
-    <svg width={width} height={height} aria-hidden="true">
-      <defs>
-        <marker
-          id={marker}
-          viewBox="0 0 10 10"
-          refX="9"
-          refY="5"
-          markerWidth="7"
-          markerHeight="7"
-          orient="auto"
-        >
-          <path d="M 0 0 L 10 5 L 0 10 z" className="side-thread-arrowhead" />
-        </marker>
-      </defs>
-      {entries.map((entry) => (
-        <path
-          key={entry}
-          className="side-thread-arrow"
-          d={`M 0 ${start} H ${bend} V ${entry} H ${width - 1}`}
-          markerEnd={`url(#${marker})`}
-        />
-      ))}
-    </svg>
+    <ConnectionArrows
+      width={width}
+      height={height}
+      paths={entries.map(
+        (entry) => `M20 ${start} C${bend} ${start} ${bend} ${entry} ${width - 1} ${entry}`,
+      )}
+    />
   );
 }
 

@@ -162,7 +162,7 @@
 
 .composer textarea {
   width: 100%;
-  min-height: 96px;
+  min-height: 48px;
   max-height: 280px;
   resize: none;
   border: 0;
