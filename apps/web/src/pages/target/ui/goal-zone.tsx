@@ -1,5 +1,6 @@
 import type { TargetView } from "@/shared/api";
 
+import { AnswersCard } from "./answers-card";
 import { Readiness } from "./readiness/readiness";
 import { ReferenceChecks } from "./reference-checks";
 import { SetupChat, setupChatOverhang } from "./setup-chat";
@@ -27,14 +28,17 @@ export interface GoalZoneProps {
   readonly onQuestions: (view: QuestionsView) => void;
   /** Opens the side panel of an Inbox report. */
   readonly onReport: (reportId: string) => void;
+  /** Opens the side panel of an answer report. */
+  readonly onAnswerReport: (reportId: string) => void;
 }
 
 /**
  * The «Цель» zone: the Target's name and level, «Настроить цель», «Готовность», the Interview plan,
- * the list «Проверить опорный ответ» and the materials. The setup chat opens beside the card or the Section where the Candidate opened it.
+ * the materials, the reference answers and the list «Проверить опорный ответ». The setup chat
+ * opens beside the card or the Section where the Candidate opened it.
  */
 export function GoalZone({
-  zone: { target, setupAnchor, onSetup, onCloseSetup, onQuestions, onReport },
+  zone: { target, setupAnchor, onSetup, onCloseSetup, onQuestions, onReport, onAnswerReport },
 }: {
   zone: GoalZoneProps;
 }) {
@@ -72,6 +76,7 @@ export function GoalZone({
         }}
       />
       <SourcesCard targetId={target.id} onReport={onReport} />
+      <AnswersCard targetId={target.id} onReport={onAnswerReport} />
     </>
   );
 }

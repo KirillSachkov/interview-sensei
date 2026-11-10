@@ -35,6 +35,7 @@ import {
   finishSetup,
   switcherItem,
 } from "./target-actions.ts";
+import { answerTests } from "./answer-tests.ts";
 import { inboxTests } from "./inbox-tests.ts";
 import { mockInterviewTests } from "./mock-interview-tests.ts";
 import { setupChatTests } from "./setup-chat-tests.ts";
@@ -294,5 +295,6 @@ test("a draft Target is deleted at once after the confirmation", async ({ page }
 
 setupChatTests();
 inboxTests();
+answerTests();
 mockInterviewTests();
 sideThreadTests();

@@ -139,3 +139,9 @@ export async function expectAppliedPlan(page: Page) {
   await expect(zones(page).goal).toContainText("Уровень: Senior");
   await expect(page.getByRole("button", { name: "Go-разработчик" })).not.toContainText("черновик");
 }
+
+/** «Опорные ответы» of the «Цель» zone, in a view that fits the zone. */
+export async function answersCard(page: Page) {
+  await page.getByRole("button", { name: "Показать всё" }).click();
+  return zones(page).goal.getByRole("article", { name: "Опорные ответы" });
+}

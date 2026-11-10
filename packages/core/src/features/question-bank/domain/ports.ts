@@ -77,6 +77,7 @@ export interface QuestionEdit {
   readonly unconfirmed?: false;
   /** The Candidate has seen the new Question. */
   readonly unseen?: false;
+  /** A new reference answer, such as one that answer search found. */
   readonly referenceAnswer?: ReferenceAnswer;
   /** Puts the Question on the list «проверить опорный ответ», or takes it off with null. */
   readonly referenceCheck?: ReferenceCheck | null;

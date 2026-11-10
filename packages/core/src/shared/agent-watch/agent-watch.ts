@@ -1,12 +1,12 @@
-// How the server follows the agent of an Inbox processing: a failed agent ends the run at once,
-// and an agent that stays idle after its turn without the report ends it after a wait.
-import type { Timer } from "../../../shared/time/index.ts";
-import type { InboxSessions } from "../domain/ports.ts";
+// How the server follows the agent of a background session, such as Inbox processing or answer
+// search: a failed agent ends its run at once, and an agent that stays idle after its turn without
+// the report ends it after a wait.
+import type { Timer } from "../time/index.ts";
 
 /**
  * How long the server waits after the agent's turn ends without the report. A test's API drives a
  * `[manual]` fake agent with further prompts in this time; a real agent gets no prompt after the
- * opening one, as the processing has no chat.
+ * opening one, as a background session has no chat.
  */
 const idleWaitMs = 2 * 60 * 1000;
 
@@ -15,8 +15,18 @@ const noWait = () => {};
 /** Why the agent's run ends: its process failed, or it stayed idle without the report. */
 export type AgentEnding = "agent_failed" | "agent_finished";
 
+/** The agent-sessions slice as the watch reads it. */
+interface WatchedSessions {
+  /** Calls the listener after each change of a live session; returns the unsubscribe. */
+  readonly subscribe: (
+    sessionId: string,
+    listener: (view: { readonly status: string }) => void,
+  ) => () => void;
+  readonly view: (sessionId: string) => Promise<{ readonly status: string } | undefined>;
+}
+
 interface WatchDependencies {
-  readonly sessions: Pick<InboxSessions, "subscribe" | "view">;
+  readonly sessions: WatchedSessions;
   readonly timer: Timer;
   readonly onError: (error: unknown) => void;
 }

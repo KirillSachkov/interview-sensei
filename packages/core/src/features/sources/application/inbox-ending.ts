@@ -8,7 +8,7 @@ import type { Transaction } from "../../../shared/storage/index.ts";
 import { partialReport } from "../domain/inbox.ts";
 import { boundInRun } from "../domain/source-text.ts";
 import type { InboxReport, InboxRun, RunEnding } from "../domain/inbox.ts";
-import { watchSession } from "./agent-watch.ts";
+import { watchSession } from "../../../shared/agent-watch/index.ts";
 import { cancelReading, inBackground } from "./inbox-context.ts";
 import type { InboxContext } from "./inbox-context.ts";
 
@@ -66,6 +66,13 @@ export async function closeRun(
   });
   // A closed run reads no more texts: its running transcription stops.
   cancelReading(context, run.id);
+  if (report !== null) {
+    context.dependencies.onRunFinished({
+      targetId: run.targetId,
+      mode: run.mode,
+      interrupted: reason === "interrupted",
+    });
+  }
   return report;
 }
 

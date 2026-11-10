@@ -20,7 +20,7 @@ import {
   queuePrompt,
 } from "./server-prompts.ts";
 import type { PromptOutcome, QueueContext, QueueOutcome } from "./server-prompts.ts";
-import { liveNow, runningFor, sessionOpener, stopAll, stopNow } from "./open-session.ts";
+import { liveNow, runningFor, sessionOpener, stopAll, stopNow, subscribe } from "./open-session.ts";
 import type { OpenKey, OpenSession, StartRequest } from "./open-session.ts";
 import type { ConversationMessage } from "../domain/session-view.ts";
 import { removeChain } from "./session-removal.ts";
@@ -29,8 +29,9 @@ import {
   endInterrupted,
   lastConversation,
   sessionView,
+  usageOf,
 } from "./stored-sessions.ts";
-import type { LastConversation } from "./stored-sessions.ts";
+import type { LastConversation, SessionUsage } from "./stored-sessions.ts";
 
 export interface AgentSessionsDependencies extends LiveSessionDependencies {
   readonly launcher: AgentLauncher;
@@ -58,6 +59,8 @@ export interface AgentSessions {
   /** Whether the session is live on this server now: starting, waiting or working. */
   readonly isLive: (sessionId: string) => boolean;
   readonly view: (sessionId: string) => Promise<SessionView | undefined>;
+  /** The context tokens, window and cost of the agent's latest ACP `usage_update`, or null. */
+  readonly usage: (sessionId: string) => Promise<SessionUsage | null>;
   /**
    * The Candidate's and the agent's messages of the earlier sessions that this one continues, in
    * order, for the brief of a continued conversation; empty when it continues none.
@@ -232,14 +235,6 @@ async function answer(
   return "accepted";
 }
 
-function subscribe({ live }: Context, sessionId: string, listener: SessionListener): () => void {
-  const listeners = live.get(sessionId)?.listeners;
-  listeners?.add(listener);
-  return () => {
-    listeners?.delete(listener);
-  };
-}
-
 async function close(context: Context): Promise<void> {
   context.closing = true;
   // A session being created ends in its start, before the storage closes.
@@ -275,6 +270,7 @@ export function createAgentSessions(dependencies: AgentSessionsDependencies): Ag
     stopAll: async (targetId, kind) => stopAll(context.live, targetId, kind),
     isLive: (sessionId) => liveNow(context.live, sessionId),
     view: async (sessionId) => sessionView(context.live, dependencies.repository, sessionId),
+    usage: async (sessionId) => usageOf(context.live, dependencies.repository, sessionId),
     earlierMessages: async (sessionId) =>
       earlierMessages(context.live, dependencies.repository, sessionId),
     lastConversation: async (of) => lastConversation(context.live, dependencies.repository, of),
@@ -292,7 +288,7 @@ export function createAgentSessions(dependencies: AgentSessionsDependencies): Ag
     stop: async (sessionId, options) => stopNow(context.live, sessionId, options),
     answerPermission: async (sessionId, request) => answer(context, sessionId, request),
     cancel: async (sessionId) => cancel(context, sessionId),
-    subscribe: (sessionId, listener) => subscribe(context, sessionId, listener),
+    subscribe: (sessionId, listener) => subscribe(context.live, sessionId, listener),
     endInterrupted: async () => endInterrupted(dependencies),
     close: async () => close(context),
   };

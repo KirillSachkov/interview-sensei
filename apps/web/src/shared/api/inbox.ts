@@ -78,12 +78,16 @@ export interface ReportQuestion {
   readonly referenceAnswer: ReferenceAnswer | null;
 }
 
-/** The reference answer of a Question: key points, a short sample, its origin and part. */
+/**
+ * The reference answer of a Question: key points, a short sample, its origin and part, and the links
+ * of an answer «из интернета».
+ */
 export interface ReferenceAnswer {
   readonly points: readonly string[];
   readonly sample: string;
   readonly origin: "material" | "internet" | "agent" | "candidate";
   readonly part: number | null;
+  readonly links?: readonly string[];
 }
 
 /** A Question of the list «скрыть?» of a recheck. */

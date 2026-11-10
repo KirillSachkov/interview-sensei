@@ -11,6 +11,14 @@ export {
 export type { DraftOperation } from "./drafts";
 export { fetchSources, maxSourceFileBytes, uploadSource } from "./sources";
 export {
+  answerSearchCounts,
+  fetchAnswerReport,
+  fetchAnswers,
+  startAnswerSearch,
+  stopAnswerSearch,
+} from "./answers";
+export type { AnswerReport, AnswerState } from "./answers";
+export {
   dismissInboxProposal,
   dismissRecheckProposal,
   fetchInbox,
@@ -102,5 +110,5 @@ export {
   verifyReferenceAnswer,
 } from "./plan";
 export type { Question, QuestionRating, QuestionScope } from "./plan";
-export { chooseDefaultAgent, fetchSettings } from "./settings";
+export { chooseDefaultAgent, fetchSettings, setFillInBackground } from "./settings";
 export { archiveTarget, deleteTarget, fetchArchivedTargets, restoreTarget } from "./target-archive";

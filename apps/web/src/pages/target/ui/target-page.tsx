@@ -45,7 +45,7 @@ function TargetCanvas({ target }: { target: TargetView }) {
     target.status === "draft" ? "target" : null,
   );
   const panel = useSidePanel();
-  const { onQuestions, onReport } = panel;
+  const { onQuestions, onReport, onAnswerReport } = panel;
   const zones = useMemo(
     () =>
       targetZones({
@@ -57,8 +57,9 @@ function TargetCanvas({ target }: { target: TargetView }) {
         },
         onQuestions,
         onReport,
+        onAnswerReport,
       }),
-    [target, setupAnchor, onQuestions, onReport],
+    [target, setupAnchor, onQuestions, onReport, onAnswerReport],
   );
   useEffect(() => {
     rememberTarget(target.id);

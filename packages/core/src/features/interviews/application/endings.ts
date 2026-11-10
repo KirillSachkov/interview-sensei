@@ -36,10 +36,11 @@ async function end(context: Context, watched: MockInterview): Promise<boolean> {
  * the wait; the summary Debrief then shows only the Topic status changes.
  */
 function awaitFinish(context: Context, interview: MockInterview): void {
-  const { timer, sessions } = context.dependencies;
+  const { timer, sessions, onFinished } = context.dependencies;
   timer.after(finishWaitMs, () => {
     inBackground(context, async () => {
       if (await end(context, interview)) {
+        onFinished({ targetId: interview.targetId });
         await Promise.all([
           sessions.end(interview.sessionId),
           closeFinishedSideThreads(context, interview.id),
@@ -59,7 +60,7 @@ export async function finishByAgent(
   { summary, nextStep }: { summary: string; nextStep: string },
 ) {
   const found = await interviewOf(context, sessionId);
-  const { repository, sessions, clock } = context.dependencies;
+  const { repository, sessions, clock, onFinished } = context.dependencies;
   return change(context, found.id, async () => {
     const interview = await interviewOf(context, sessionId);
     assertRunning(interview);
@@ -74,6 +75,7 @@ export async function finishByAgent(
       summary,
       nextStep,
     });
+    onFinished({ targetId: interview.targetId });
     inBackground(context, async () => sessions.end(sessionId));
     inBackground(context, async () => closeFinishedSideThreads(context, interview.id));
     return "The mock interview is finished. End your turn.";
@@ -86,10 +88,14 @@ export type FinishOutcome = "accepted" | "not_found" | "not_running";
  * Finishes the paused Mock interview at once: it has no agent to write the summary. Its Side
  * threads close in the same change, so a «Продолжить» right after it finds them closed.
  */
-async function finishPaused(context: Context, id: string): Promise<void> {
-  const { repository, clock } = context.dependencies;
-  await repository.update(id, { status: "finished", finishedAt: clock.now().toISOString() });
-  await closeFinishedSideThreads(context, id);
+async function finishPaused(context: Context, interview: MockInterview): Promise<void> {
+  const { repository, clock, onFinished } = context.dependencies;
+  await repository.update(interview.id, {
+    status: "finished",
+    finishedAt: clock.now().toISOString(),
+  });
+  onFinished({ targetId: interview.targetId });
+  await closeFinishedSideThreads(context, interview.id);
 }
 
 /** Asks the agent of the running Mock interview for its summary, once. */
@@ -105,7 +111,7 @@ async function askForSummary(context: Context, interview: MockInterview): Promis
 /** The finish of the Mock interview as it stands; see `finish`. */
 async function requestFinish(context: Context, interview: MockInterview): Promise<FinishOutcome> {
   if (interview.status === "paused") {
-    await finishPaused(context, interview.id);
+    await finishPaused(context, interview);
     return "accepted";
   }
   if (interview.status !== "running") {

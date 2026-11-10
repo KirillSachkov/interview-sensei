@@ -2,7 +2,7 @@ import type { SessionKind } from "../../../shared/session-kinds/index.ts";
 import type { SessionView } from "../domain/agent-session.ts";
 import { isLive } from "../domain/agent-session.ts";
 import { end } from "./live-session.ts";
-import type { LiveSession } from "./live-session.ts";
+import type { LiveSession, SessionListener } from "./live-session.ts";
 
 /**
  * A new session: its kind, its agent, its Target, the addition to the role of the kind's profile,
@@ -150,5 +150,18 @@ export function sessionOpener(dependencies: OpenerDependencies): OpenSession {
         last.delete(name);
       }
     }
+  };
+}
+
+/** Calls the listener after each change of the live session; returns the unsubscribe function. */
+export function subscribe(
+  live: ReadonlyMap<string, LiveSession>,
+  sessionId: string,
+  listener: SessionListener,
+): () => void {
+  const listeners = live.get(sessionId)?.listeners;
+  listeners?.add(listener);
+  return () => {
+    listeners?.delete(listener);
   };
 }

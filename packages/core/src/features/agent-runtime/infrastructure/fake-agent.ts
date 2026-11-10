@@ -25,6 +25,8 @@
 //   profile; see `fake-agent-profile.ts`.
 // - The template messages of a mock interview get the interviewer's turns of `fake-agent-interviewer.ts`.
 // - The opening of an Inbox processing gets the processor's turn of `fake-agent-inbox.ts`.
+// - The opening of an answer search gets the researcher's turn of `fake-agent-answers.ts`.
+// - `/usage <tokens>` sends a `usage_update` with these tokens and replies «Расход: <tokens>».
 // - The opening message of a Side thread gets the turn of `fake-agent-side-thread.ts`, and the
 //   server's notes before a prompt get «Отметка: <note> » there.
 // - Any other text gets the reply «Фейковый агент получил: «<text>»» in several chunks.
@@ -48,7 +50,13 @@ import {
 } from "@agentclientprotocol/sdk/unstable";
 import type { AgentContext, McpServer } from "@agentclientprotocol/sdk/unstable";
 
-import { sayNotes, splitNotes, templateTurn } from "./fake-agent-templates.ts";
+import {
+  sayNotes,
+  sendUsage,
+  splitNotes,
+  templateTurn,
+  usageCommand,
+} from "./fake-agent-templates.ts";
 import { callBrief, callTool, toolCommand, toolList } from "./fake-agent-tool.ts";
 import type { ToolCall } from "./fake-agent-tool.ts";
 import { fakeAgentModes } from "./fake-agent-modes.ts";
@@ -209,6 +217,11 @@ const commands = new Map<
 
 /** Runs `/tool` or one of `commands`; echoes any other text. */
 async function respond(client: AgentContext, sessionId: string, text: string) {
+  const tokens = usageCommand(text);
+  if (tokens !== null) {
+    await sendUsage(client, sessionId, tokens);
+    return reply(client, sessionId, `Расход: ${tokens}`);
+  }
   const tool = toolCommand(text);
   if (tool === null) {
     const command = commands.get(text);

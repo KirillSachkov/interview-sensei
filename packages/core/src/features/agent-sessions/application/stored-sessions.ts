@@ -1,13 +1,18 @@
 // What AgentSessions read and fix in storage: the view of a session that is no longer live, with the
-// chat of the sessions it continues, and the sessions that were live when the server last stopped.
+// chat of the sessions it continues, its token usage, and the sessions that were live when the
+// server last stopped.
 import type { SessionKind } from "../../../shared/session-kinds/index.ts";
 import type { Clock } from "../../../shared/time/index.ts";
 import type { SessionView } from "../domain/agent-session.ts";
 import { isLive } from "../domain/agent-session.ts";
 import type { SessionRepository } from "../domain/ports.ts";
+import { sessionUsage } from "../domain/session-usage.ts";
+import type { SessionUsage } from "../domain/session-usage.ts";
 import { conversationOf, replay } from "../domain/session-view.ts";
 import type { ConversationMessage } from "../domain/session-view.ts";
 import type { LiveSession } from "./live-session.ts";
+
+export type { SessionUsage } from "../domain/session-usage.ts";
 
 /**
  * The session's view: the live one, or the stored one replayed from its journal. A session that
@@ -134,4 +139,14 @@ export async function endInterrupted({
       }),
     ),
   );
+}
+
+/** The token usage in the session's journal, after the entries a live session is still writing. */
+export async function usageOf(
+  live: ReadonlyMap<string, LiveSession>,
+  repository: SessionRepository,
+  sessionId: string,
+): Promise<SessionUsage | null> {
+  await live.get(sessionId)?.written;
+  return sessionUsage(await repository.journal(sessionId));
 }

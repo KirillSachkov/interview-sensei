@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply } from "fastify";
 import type { WebSocket } from "ws";
 
+import { agentUnavailableMessage } from "./agent-unavailable.ts";
 import type { ArchiveGuard } from "./archive-guard.ts";
 import { SessionsClosedError } from "./composition.ts";
 import type {
@@ -18,8 +19,6 @@ import { registerSideThreadRoutes } from "./side-thread-routes.ts";
 type Dependencies = Pick<Features, "interviews" | "targets"> & {
   readonly archiveGuard: ArchiveGuard;
 };
-
-const otherAgentHint = "Или выберите другого агента в меню «Агент» в верхней панели.";
 
 type StartOrClosing = StartOutcome | { readonly type: "server_closing" };
 
@@ -59,10 +58,7 @@ function refuseStart(reply: FastifyReply, outcome: Exclude<StartOrClosing, { typ
     case "agent_unavailable": {
       return reply.code(400).send({
         error: outcome.type,
-        message:
-          outcome.reason === null
-            ? "Нет доступного агента. Выберите агента в меню «Агент» в верхней панели."
-            : `Агент цели недоступен. ${outcome.reason} ${otherAgentHint}`,
+        message: agentUnavailableMessage(outcome.reason),
       });
     }
     case "interview_running": {

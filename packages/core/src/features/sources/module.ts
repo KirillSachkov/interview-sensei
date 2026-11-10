@@ -1,6 +1,7 @@
 import type { Database, RunInTransaction, Transaction } from "../../shared/storage/index.ts";
 import type { Clock, Timer } from "../../shared/time/index.ts";
 import { createInbox } from "./application/inbox.ts";
+import type { InboxRunFinished, InboxRunStarted } from "./application/inbox.ts";
 import { createSources } from "./application/sources.ts";
 import type {
   DuplicateFilter,
@@ -68,4 +69,8 @@ interface SourcesModuleDependencies {
   transcription: Parameters<typeof createInbox>[0]["transcription"];
   /** Receives errors of background work. */
   onError: (error: unknown) => void;
+  /** Hears that an Inbox processing or Recheck of the Target started. */
+  onRunStarted: (started: InboxRunStarted) => void;
+  /** Hears that an Inbox processing or Recheck of the Target ended. */
+  onRunFinished: (finished: InboxRunFinished) => void;
 }

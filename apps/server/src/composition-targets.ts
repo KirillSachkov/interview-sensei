@@ -66,6 +66,10 @@ export interface TargetSliceDependencies<Transcription extends SourceTranscripti
   readonly transcription: Transcription;
   /** Receives the failures of background work. */
   readonly onError: (error: unknown) => void;
+  /** Hears that an Inbox processing of the Target started: it takes over a running answer search. */
+  readonly onInboxStarted: Parameters<typeof sourcesModule>[0]["onRunStarted"];
+  /** Hears that an Inbox processing of the Target ended: a waiting answer search begins. */
+  readonly onInboxFinished: Parameters<typeof sourcesModule>[0]["onRunFinished"];
 }
 
 /**
@@ -76,17 +80,10 @@ export interface TargetSliceDependencies<Transcription extends SourceTranscripti
  */
 export function composeTargets<Transcription extends SourceTranscription>(
   storage: Storage,
-  {
-    clock,
-    timer,
-    dataDirectory,
-    attempts,
-    sessions,
-    transcription,
-    onError,
-  }: TargetSliceDependencies<Transcription>,
+  dependencies: TargetSliceDependencies<Transcription>,
   runtime: AgentRuntime,
 ) {
+  const { clock, timer, dataDirectory, attempts, sessions, transcription, onError } = dependencies;
   const { database } = storage;
   const questionBank = questionBankModule({ database, attempts });
   const appSettings = appSettingsModule({ database, agents: runtime });
@@ -118,6 +115,8 @@ export function composeTargets<Transcription extends SourceTranscription>(
     sessions,
     transcription,
     onError,
+    onRunStarted: dependencies.onInboxStarted,
+    onRunFinished: dependencies.onInboxFinished,
   });
   return { questionBank, targets, targetSetup, appSettings, sources, transcription };
 }

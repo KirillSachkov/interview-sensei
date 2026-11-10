@@ -117,6 +117,15 @@ After a turn without the Inbox report the server waits 2 minutes on its `Timer`,
 A test of a restart stops the server and starts another one on the same data directory, as the Mock interview tests do.
 The fake agent streams a reply word by word, but the result of `/tool` comes in one chunk, so `read_source` gives a long text as it is.
 
+The fake agent has an answer search mode (`fake-agent-answers.ts`) for the opening «Answer search has started.».
+It sends a `usage_update` of 4321 tokens in a context of 200000, takes the queue five Questions at a time with `next_questions_without_answer`, and writes an answer «из интернета» with a link to example.com for the first Question of each batch and for one «из знаний агента», and «из знаний агента» for the others.
+A refused save goes to `failed` of its `write_answer_report` with the tool's error.
+A Target whose name has `[manual]` makes it stop at «Жду команд.», so an API test drives the search with `/tool`; `answer-test-support.ts` makes such a Target with `manualTarget` and starts its search with `manualSearch`.
+`/usage <tokens>` in any session sends a `usage_update` with these tokens in a context of 200000 and replies «Расход: <tokens>», for the report's token usage.
+`/wait`, `/crash` and the 2-minute wait on `manualTime()` end an answer search as they end an Inbox processing.
+`answer-background.int.test.ts` turns «Наполнять в фоне» on with `PUT /api/settings/fill-in-background`.
+A test that no background search started stops the server, whose close waits for background work, and reads the Target on a new server on the same data directory: a search started before would have left a report.
+
 Speech recognition (#74) has stand-ins behind the ports of the `transcription` slice; no API test downloads or runs the real components.
 `transcription-test-support.ts` serves made-up components with their real SHA-256 from a local HTTP server (`component-server-test-support.ts`), which can hold a file halfway so a test sees the download's progress.
 `brokenSha` gives one component a wrong SHA-256.
@@ -157,6 +166,7 @@ The server keeps all data in `~/.interview-sensei`; the `INTERVIEW_SENSEI_DATA_D
 `pnpm test:e2e` uses `e2e/.data`, which Git ignores; its webServer command empties it before each run.
 All e2e test files share that data directory, so only `e2e/tests/canvas.test.ts` creates Targets.
 Its tests run in order: the first sees no Targets and opens the demo Target, the rest use it.
+`answerTests` of `e2e/tests/answer-tests.ts` declares the test of the Debrief's Reference answer from `answer-debrief-tests.ts`: it fills answers of the demo Target before the mock interview tests run.
 Tests that need this order and live in another module, such as the mock interview tests of `e2e/tests/mock-interview-tests.ts` and the Side thread tests of `e2e/tests/side-thread-tests.ts`, are declared by a function that `canvas.test.ts` calls.
 Each agent session works in its own directory under `sessions/` in the data directory.
 A Target keeps the files of its materials under `targets/<Target id>/sources/`, one directory per Source.

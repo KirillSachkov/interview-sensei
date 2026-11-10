@@ -72,11 +72,20 @@ So a tool set may use services built after the gateway, such as `interviews`: `s
 `composeInterviews` gives `interviews` a function that calls `progress`, which exists by the first call.
 A Topic merge in a draft of changes moves the merged Topic's Attempts through `interviews` in the same transaction, so Topic status counts them under the Topic that stays.
 `topicMerges` gives `target-setup` this port the same way: `interviews` exists by the first application of a draft.
+`src/shared/background-work` holds what Inbox processing and answer search share: `availableAgent`, `inBackground` and `endAfterTurn`.
 Inbox processing in `sources` starts its agent through `agent-sessions`, which composeFeatures builds after `sources`: `inboxSessions` hands it over the same way.
 `add_bank_questions` of `sources` leaves out duplicates by the rule of `add_questions` (#45): `target-setup` exports `withoutDuplicates`, and composeFeatures passes it to `sources` as its `DuplicateFilter` port.
 `create_topic` of `sources` creates the Topic through `question-bank` and adds it to the Section through `targets`, in one shared transaction.
 The bulk review of Questions in `question-bank` asks `interviews` which Questions have Attempts through its `QuestionAttempts` port: deleting such a Question hides it. `topicMerges` hands `interviews` over the same way as for a Topic merge.
-A Dispute in `interviews` puts the disputed Question on the list «Проверить опорный ответ» through its `ReferenceChecks` port, which `question-bank` supplies (#65). The Dispute and this write share one transaction: `composeFeatures` passes `storage.transaction` to `interviews`.
+`answer-search` (#70) reads its queue from `question-bank`, the Attempts of `interviews` and the Topic statuses of `progress`, writes Reference answers through `question-bank` and runs its agent through `agent-sessions`.
+`composition-answers.ts` composes it; `composeSessionWork` in `composition-work.ts` builds it after `interviews` and `progress`. `sources` tells the server that an Inbox processing ended through its `onRunFinished` callback, and composeFeatures hands that to `answers.inboxFinished`, which begins a waiting Answer search.
+`onRunStarted` of `sources` goes to `answers.inboxStarted`: a running Answer search closes with a partial report and its agent stops, because Inbox processing goes first.
+A running search whose agent has not started yet goes back to `waiting` instead, and so does a start that finds the processing running only after it stored the run.
+«Наполнять в фоне» (#79) is `fillInBackground` of `app-settings`, which `answer-search` reads through its `AnswerSettings` port.
+`answers.inboxFinished` starts a search of 20 Questions with it on, after a processing that `interrupted` (the server's start) did not end; `onFinished` of `interviews`, only for a finished Mock interview (a paused one the Candidate finishes counts; a pause does not), goes to `answers.interviewFinished` the same way.
+A background start that does not happen goes to `onBackgroundSkipped`, which the server logs at `info`.
+The Debrief in the web app reads the asked Question's Reference answer from `GET /api/targets/:id/questions` of its Topic, hidden Questions too; the Debrief API of `interviews` stays without it.
+A Dispute in `interviews` puts the disputed Question on the list «Проверить опорный ответ» through its `ReferenceChecks` port, which `question-bank` supplies (#65). The Dispute and this write share one transaction: `composeSessionWork` passes `storage.transaction` to `interviews`.
 `record_attempt` with the interviewer's disagreement with the reference answer does the same (#64): the Attempt and the list entry share one transaction.
 
 ### Session profiles
@@ -125,9 +134,19 @@ The journal keeps notes in `notes` of that `prompt_sent`; the chat leaves them o
 The server extracts the text of the Sources before the agent starts, so the agent needs no shell for a PDF or a page.
 The server's close waits for the started processings to read their texts (`inbox.settle`), then stops the agents.
 A Recheck is the same session kind in the mode `recheck`: its opening and brief differ, the server refuses `add_bank_questions` and `create_topic` in it, and `write_inbox_report` takes the list «скрыть?» as `proposals.hide`.
-A run without the agent's report ends through `closeRun` in `sources/application/inbox-ending.ts`, with the partial report of `partialReport`: «Остановить разбор» (`inbox.stop`), the agent's failure (`watchAgent` follows the session as in `interviews`), an agent that stays idle for 2 minutes after its turn without the report (`watchSession` in `agent-watch.ts` waits with the injected `Timer` and counts the status at the start too; `watchAgent` then also ends the session), a failed start, no readable Source, and the server's start (`inbox.endInterrupted` after `sessions.endInterrupted`).
+A run without the agent's report ends through `closeRun` in `sources/application/inbox-ending.ts`, with the partial report of `partialReport`: «Остановить разбор» (`inbox.stop`), the agent's failure (`watchAgent` follows the session as in `interviews`), an agent that stays idle for 2 minutes after its turn without the report (`watchSession` in `src/shared/agent-watch` waits with the injected `Timer` and counts the status at the start too; `watchAgent` then also ends the session), a failed start, no readable Source, and the server's start (`inbox.endInterrupted` after `sessions.endInterrupted`).
 `closeRun` acts only on a run that still runs, so the agent's own report and an early end never both close it.
 The run records each part the agent reads with `read_source` (`readParts`): only a Source read to its last part becomes «готов», in a partial report and in the agent's own (`settledSources`).
+
+`answer-search` (#70) has the skill `sensei-answers`, no shell, the web, and `askCandidate: false`, as `inbox-processing`.
+Its tools are `next_questions_without_answer`, `save_reference_answer` and `write_answer_report`; there is no `get_brief`: the opening names the Target, its language and the number of Questions.
+The server keeps the queue (`answerQueue`) and the rule of overwriting (`overwriteRefusal`) in `answer-search/domain`; `save_reference_answer` checks both in one transaction with the write.
+It takes only a visible Question that `next_questions_without_answer` gave this run (`handedIds`), so a run never writes more answers than the Candidate chose.
+`next_questions_without_answer` reads and records `handedIds` in one transaction, so parallel calls get different Questions; it skips a Question hidden since the start and never records it.
+A run that starts while the Target's Inbox processing runs is `waiting`; it takes its queue and starts its agent when that processing ends.
+It ends without the agent's report through `closeRun` in `answer-search/application/answer-ending.ts`, as an Inbox processing does, and `answers.endInterrupted` runs before `inbox.endInterrupted` at the server's start, so a closed Inbox processing begins no waiting run of the last start.
+The report reads the usage from the session's journal when it is shown (`AgentSessions.usage`): an agent may send its `usage_update` after its last tool call.
+ACP defines `used` as the tokens in the context, `size` as the context window and `cost` as the session's cumulative cost, so the report shows «Токенов в контексте агента: N из SIZE» and the cost, never a total spend.
 
 A slice adds a session kind like this:
 

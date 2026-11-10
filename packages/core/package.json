@@ -18,6 +18,7 @@
     "./sources": "./src/features/sources/index.ts",
     "./interviews": "./src/features/interviews/index.ts",
     "./progress": "./src/features/progress/index.ts",
+    "./answer-search": "./src/features/answer-search/index.ts",
     "./transcription": "./src/features/transcription/index.ts"
   },
   "scripts": {

@@ -1,22 +1,25 @@
 // The only server module that imports core features (`server-composes-features-in-one-module`),
-// with its parts composition-targets.ts and composition-agents.ts. Each feature gives one module
-// factory that hides its infrastructure; this module calls each factory once and hands the routes
-// finished services. Routes take the types they need from here.
+// with its parts composition-targets.ts, composition-agents.ts, composition-answers.ts and
+// composition-work.ts. Each feature gives one module factory that hides its
+// infrastructure; this module calls each factory once and hands the routes finished services.
+// Routes take the types they need from here.
 import {
   interviewsMigrations,
-  interviewsModule,
   interviewTools,
   sideThreadTools,
 } from "@interview-sensei/core/interviews";
-import { getProgress, progressModule } from "@interview-sensei/core/progress";
+import { getProgress } from "@interview-sensei/core/progress";
 import { healthModule } from "@interview-sensei/core/health";
 import { openStorage } from "@interview-sensei/core/storage";
 import { transcriptionModule } from "@interview-sensei/core/transcription";
 import type { TranscriptionComponents } from "@interview-sensei/core/transcription";
-import type { SliceMigrations, Storage } from "@interview-sensei/core/storage";
-import type { Interviews } from "@interview-sensei/core/interviews";
+import type { SliceMigrations } from "@interview-sensei/core/storage";
+import type { Interviews, interviewsModule } from "@interview-sensei/core/interviews";
 import type { Progress } from "@interview-sensei/core/progress";
 
+import { answerSearchMigrations, answerTools } from "./composition-answers.ts";
+import type { AnswerSearch } from "./composition-answers.ts";
+import { composeSessionWork } from "./composition-work.ts";
 import {
   agentSessionsMigrations,
   composeRuntime,
@@ -39,6 +42,8 @@ export { mcpGatewayModule, mcpRoute } from "./composition-agents.ts";
 export type { McpGateway } from "./composition-agents.ts";
 export { UnknownAgentError } from "./composition-targets.ts";
 export type { InboxStartOutcome } from "@interview-sensei/core/sources";
+export type { AnswerStartOutcome } from "./composition-answers.ts";
+export { maxSearchCount } from "./composition-answers.ts";
 export { grades } from "@interview-sensei/core/interviews";
 export { modelIds, TranscriptionError } from "@interview-sensei/core/transcription";
 export type * from "@interview-sensei/core/transcription";
@@ -52,16 +57,18 @@ const sliceMigrations: readonly SliceMigrations[] = [
   agentSessionsMigrations,
   ...targetSliceMigrations,
   interviewsMigrations,
+  answerSearchMigrations,
 ];
 
 /**
- * The services of the tools of the mock interview and the Side thread, and the AgentSessions that
- * the setup's `get_brief` reads the earlier conversation from; composeFeatures builds them after
- * the gateway.
+ * The services of the tools of the mock interview, the Side thread and the answer search, and the
+ * AgentSessions that the setup's `get_brief` reads the earlier conversation from; composeFeatures
+ * builds them after the gateway.
  */
 interface InterviewServices {
   interviews: Interviews;
   progress: Progress;
+  answers: AnswerSearch;
   sessions: Pick<AgentSessions, "earlierMessages">;
 }
 
@@ -91,6 +98,9 @@ function sessionTools(slices: ReturnType<typeof composeTargets>) {
       const { interviews, progress } = built();
       return [...interviewTools(interviews), getTarget, searchQuestions, getProgress(progress)];
     },
+    get "answer-search"() {
+      return answerTools(built().answers);
+    },
     get "side-thread"() {
       const { interviews, progress } = built();
       return [
@@ -116,28 +126,6 @@ function sessionTools(slices: ReturnType<typeof composeTargets>) {
 export interface FeatureDependencies extends AgentDependencies {
   /** Stand-ins for the components of speech recognition in tests; the real ones by default. */
   transcription?: TranscriptionComponents | undefined;
-}
-
-/** Mock interviews and the progress of their Attempts; the interviews' brief reads progress back. */
-function composeInterviews(
-  storage: Storage,
-  log: FeatureDependencies["log"],
-  services: Omit<Parameters<typeof interviewsModule>[0], "database" | "onError" | "progress">,
-) {
-  const interviews: ReturnType<typeof interviewsModule> = interviewsModule({
-    database: storage.database,
-    ...services,
-    progress: {
-      focus: async (targetId) => progress.focus(targetId),
-      topicStatuses: async (targetId) => {
-        const found = await progress.target(targetId);
-        return found?.topics ?? [];
-      },
-    },
-    onError: (error) => log.error({ err: error }, "A mock interview failed in the background"),
-  });
-  const progress = progressModule({ plans: services.targets, attempts: interviews });
-  return { interviews, progress };
 }
 
 /**
@@ -177,6 +165,7 @@ function targetDependencies(
   later: {
     interviews: () => ReturnType<typeof interviewsModule>;
     sessions: () => AgentSessions;
+    answers: () => AnswerSearch;
   },
 ) {
   return {
@@ -192,6 +181,12 @@ function targetDependencies(
     sessions: inboxSessions(later.sessions),
     onError: (error: unknown) =>
       log.error({ err: error }, "An Inbox processing failed in the background"),
+    onInboxStarted: ({ targetId }: { targetId: string }) => {
+      later.answers().inboxStarted(targetId);
+    },
+    onInboxFinished: (end: Parameters<AnswerSearch["inboxFinished"]>[0]) => {
+      later.answers().inboxFinished(end);
+    },
   };
 }
 
@@ -211,27 +206,26 @@ export async function composeFeatures(dependencies: FeatureDependencies) {
   const runtime = composeRuntime(dependencies);
   const slices = composeTargets(
     storage,
-    targetDependencies(dependencies, { interviews: () => interviews, sessions: () => sessions }),
+    targetDependencies(dependencies, {
+      interviews: () => interviews,
+      sessions: () => sessions,
+      answers: () => answers,
+    }),
     runtime,
   );
-  const { targets, questionBank } = slices;
+  const { targets, questionBank, targetSetup, sources } = slices;
   const tools = sessionTools(slices);
   const { mcp, sessions } = composeSessions(storage, {
     ...dependencies,
     runtime,
     tools: tools.sets,
   });
-  const { interviews, progress } = composeInterviews(storage, log, {
-    clock,
-    timer,
-    targets,
+  const { interviews, progress, answers } = composeSessionWork(storage, dependencies, {
+    slices,
+    runtime,
     sessions,
-    agents: runtime,
-    questions: questionBank,
-    referenceChecks: questionBank,
-    transaction: storage.transaction,
   });
-  tools.bind({ interviews, progress, sessions });
+  tools.bind({ interviews, progress, answers, sessions });
   return {
     storage,
     runtime,
@@ -240,8 +234,9 @@ export async function composeFeatures(dependencies: FeatureDependencies) {
     ...slices,
     interviews,
     progress,
+    answers,
     /** Every slice that keeps data of a Target: deleting the Target erases it in each of them. */
-    targetData: [interviews, questionBank, slices.targetSetup, slices.sources, sessions, targets],
+    targetData: [interviews, questionBank, targetSetup, sources, answers, sessions, targets],
     createDemo: demoCreator({ targets, questionBank, clock }),
     modelTools: tools.modelTools,
     health: healthModule({ clock }),

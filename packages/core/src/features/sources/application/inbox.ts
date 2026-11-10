@@ -117,3 +117,4 @@ export function createInbox(dependencies: InboxDependencies) {
   };
 }
 export type Inbox = ReturnType<typeof createInbox>;
+export type { InboxRunFinished, InboxRunStarted } from "../domain/inbox.ts";

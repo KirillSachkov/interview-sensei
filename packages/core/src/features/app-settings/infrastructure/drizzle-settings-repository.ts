@@ -12,13 +12,22 @@ export function drizzleSettingsRepository(database: Database): SettingsRepositor
   return {
     get: async () => {
       const [stored] = await database.select().from(settings).where(eq(settings.id, row));
-      return { defaultAgent: stored?.defaultAgent ?? null };
+      return {
+        defaultAgent: stored?.defaultAgent ?? null,
+        fillInBackground: stored?.fillInBackground ?? false,
+      };
     },
     setDefaultAgent: async (agent) => {
       await database
         .insert(settings)
         .values({ id: row, defaultAgent: agent })
         .onConflictDoUpdate({ target: settings.id, set: { defaultAgent: agent } });
+    },
+    setFillInBackground: async (enabled) => {
+      await database
+        .insert(settings)
+        .values({ id: row, fillInBackground: enabled })
+        .onConflictDoUpdate({ target: settings.id, set: { fillInBackground: enabled } });
     },
   };
 }

@@ -1,8 +1,12 @@
 // What every part of Inbox processing shares: its dependencies and its background work.
+import {
+  endAfterTurn as endSessionAfterTurn,
+  inBackground as runInBackground,
+} from "../../../shared/background-work/index.ts";
 import type { ToolSession } from "../../../shared/mcp/index.ts";
 import type { RunInTransaction, Transaction } from "../../../shared/storage/index.ts";
 import type { Clock, Timer } from "../../../shared/time/index.ts";
-import type { InboxRun } from "../domain/inbox.ts";
+import type { InboxRun, InboxRunFinished, InboxRunStarted } from "../domain/inbox.ts";
 import type {
   DuplicateFilter,
   InboxAgents,
@@ -37,6 +41,16 @@ export interface InboxDependencies {
   readonly timer: Timer;
   /** Receives errors of background work. */
   readonly onError: (error: unknown) => void;
+  /**
+   * Hears that a run of the Target started, once it is stored: it takes over the Target's running
+   * answer search.
+   */
+  readonly onRunStarted: (started: InboxRunStarted) => void;
+  /**
+   * Hears that a run of the Target ended, by the agent's report or early, once its transaction is
+   * committed; a waiting answer search begins then.
+   */
+  readonly onRunFinished: (finished: InboxRunFinished) => void;
 }
 
 export interface InboxContext {
@@ -66,23 +80,15 @@ export function cancelReading(context: InboxContext, runId: string): void {
   context.reading.get(runId)?.abort();
 }
 
-/** Runs the work; its failure goes to onError. */
-async function reported(context: InboxContext, work: () => Promise<void>): Promise<void> {
-  try {
-    await work();
-  } catch (error) {
-    context.dependencies.onError(error);
-  }
-}
-
 /** Runs the work in the background until it settles; `pending` holds it meanwhile. */
 export function inBackground(context: InboxContext, work: () => Promise<void>): void {
-  const running = reported(context, work);
-  context.pending.add(running);
-  void (async () => {
-    await running;
-    context.pending.delete(running);
-  })();
+  runInBackground({ pending: context.pending, onError: context.dependencies.onError }, work);
+}
+
+/** Ends the agent's session after its current turn; nothing waits for the end. */
+export function endAfterTurn(context: InboxContext, sessionId: string): void {
+  const { sessions, onError } = context.dependencies;
+  endSessionAfterTurn({ sessions, onError }, sessionId);
 }
 
 /** The Target of the tool's session; a session without one has nothing to process. */

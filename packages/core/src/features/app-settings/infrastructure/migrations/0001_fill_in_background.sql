@@ -1,0 +1,1 @@
+ALTER TABLE "app_settings"."settings" ADD COLUMN "fill_in_background" boolean DEFAULT false NOT NULL;

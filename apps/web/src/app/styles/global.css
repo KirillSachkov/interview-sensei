@@ -770,7 +770,8 @@ textarea {
   color: var(--color-danger);
 }
 
-.inbox-line {
+.inbox-line,
+.answers-line {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -778,10 +779,51 @@ textarea {
   margin-top: var(--space-3);
 }
 
-.inbox-waiting {
+.inbox-waiting,
+.answers-status {
   display: flex;
   align-items: center;
   gap: var(--space-3);
+}
+
+/* The start window of «Найти ответы» in the card «Опорные ответы» */
+
+.answers-window {
+  position: static;
+  margin: 0;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-muted);
+}
+
+.answers-window h4,
+.answers-window p {
+  margin: 0;
+}
+
+.answers-count {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.answers-count input {
+  width: 96px;
+}
+
+.answers-warning {
+  color: var(--color-warn);
+  font-size: var(--font-size-small);
+}
+
+.answers-actions {
+  display: flex;
+  gap: var(--space-2);
 }
 
 /* The card «Разбор материалов» in the setup chat */

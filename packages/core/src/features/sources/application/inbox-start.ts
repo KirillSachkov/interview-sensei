@@ -2,6 +2,7 @@
 // chosen Sources to «разбирается», reads their texts into numbered parts, then starts the agent.
 import { randomUUID } from "node:crypto";
 
+import { availableAgent } from "../../../shared/background-work/index.ts";
 import { inboxOpening, recheckOpening } from "../domain/inbox-brief.ts";
 import type { InboxMode, InboxRun } from "../domain/inbox.ts";
 import type { Source } from "../domain/source.ts";
@@ -34,23 +35,6 @@ export type StartOutcome =
   | { readonly type: "agent_unavailable"; readonly reason: string | null };
 
 type Refusal = Exclude<StartOutcome, { type: "started" }>;
-
-/** The Target's agent when it can run now; otherwise the refusal. */
-async function processingAgent(
-  { targets, agents }: InboxDependencies,
-  targetId: string,
-): Promise<string | Refusal> {
-  const targetAgent = await targets.agent(targetId);
-  const chosen = targetAgent?.agent ?? null;
-  const offered = chosen === null ? [] : await agents.listAgents();
-  const availability = offered.find((entry) => entry.agent === chosen);
-  if (chosen === null || availability === undefined) {
-    return { type: "agent_unavailable", reason: null };
-  }
-  return availability.available
-    ? chosen
-    : { type: "agent_unavailable", reason: availability.reason };
-}
 
 /**
  * The chosen Sources with the transcripts in the Inbox bound to a chosen video: the transcript is
@@ -111,7 +95,7 @@ async function checkStart(
   if ("type" in sources) {
     return sources;
   }
-  const agent = await processingAgent(dependencies, targetId);
+  const agent = await availableAgent(dependencies, targetId);
   return typeof agent === "string" ? { sources, agent } : agent;
 }
 
@@ -193,10 +177,12 @@ function newRun(
 
 /**
  * Stores the run, moves its Sources to «разбирается» and closes the open proposal, in one
- * transaction; false when another start of the Target won the race.
+ * transaction, then tells the server that the run started; false when another start of the Target
+ * won the race.
  */
-async function stored({ repository, inbox, transaction }: InboxDependencies, run: InboxRun) {
-  return transaction(async (opened) => {
+async function stored(dependencies: InboxDependencies, run: InboxRun) {
+  const { repository, inbox, transaction, onRunStarted } = dependencies;
+  const created = await transaction(async (opened) => {
     if ((await inbox.createRun(run, opened)) === "running") {
       return false;
     }
@@ -205,6 +191,10 @@ async function stored({ repository, inbox, transaction }: InboxDependencies, run
     await inbox.closeProposal(run.targetId, { status: "started", mode: run.mode }, opened);
     return true;
   });
+  if (created) {
+    onRunStarted({ targetId: run.targetId, mode: run.mode });
+  }
+  return created;
 }
 
 /** «Запустить разбор»: the chosen Sources and the language chosen for each recording. */
@@ -257,7 +247,7 @@ async function checkRecheck(
   if (!questions.some((question) => !question.hidden)) {
     return { type: "no_questions" };
   }
-  const agent = await processingAgent(dependencies, targetId);
+  const agent = await availableAgent(dependencies, targetId);
   return typeof agent === "string" ? { agent } : agent;
 }
 

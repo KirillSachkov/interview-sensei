@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { Timer } from "../../../shared/time/index.ts";
+import type { Timer } from "../time/index.ts";
 import { watchSession } from "./agent-watch.ts";
 import type { AgentEnding } from "./agent-watch.ts";
 

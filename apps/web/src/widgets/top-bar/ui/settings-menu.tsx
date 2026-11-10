@@ -2,9 +2,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { agentName } from "@/entities/agent";
-import { chooseDefaultAgent, fetchAgents, fetchSettings } from "@/shared/api";
+import { chooseDefaultAgent, fetchAgents, fetchSettings, setFillInBackground } from "@/shared/api";
 
-import { Menu, MenuChoice, MenuItem } from "./menu";
+import { Menu, MenuCheckbox, MenuChoice, MenuItem } from "./menu";
 import { SpeechRecognitionDialog } from "./speech-recognition";
 
 /** The settings of the whole app, not of one Target. */
@@ -53,7 +53,41 @@ function DefaultAgentChoices({
 }
 
 /**
- * «Настройки»: the default agent of every Target without its own agent, and «Распознавание речи».
+ * «Наполнять в фоне», off by default: with it on, the answer search fills up to 20 Questions by
+ * itself after an Inbox processing and after a mock, and spends the agent's subscription.
+ */
+function FillInBackground() {
+  const queryClient = useQueryClient();
+  const settings = useSettings();
+  const fill = useMutation({
+    mutationFn: setFillInBackground,
+    onSuccess: (saved) => {
+      queryClient.setQueryData(["settings"], saved);
+    },
+  });
+  const on = settings.data?.fillInBackground ?? false;
+  return (
+    <>
+      <p className="menu-heading">Опорные ответы</p>
+      <MenuCheckbox
+        checked={on}
+        onToggle={() => {
+          fill.mutate(!on);
+        }}
+      >
+        <span>Наполнять в фоне</span>
+        <span className="hint">
+          до 20 вопросов после разбора и мока; расходует лимиты подписки агента
+        </span>
+      </MenuCheckbox>
+      {fill.isError ? <p role="alert">Настройка не сохранена: {fill.error.message}</p> : null}
+    </>
+  );
+}
+
+/**
+ * «Настройки»: the default agent of every Target without its own agent, «Наполнять в фоне» and
+ * «Распознавание речи».
  * Without the default agent a Target takes the first available agent.
  */
 export function SettingsMenu() {
@@ -80,6 +114,7 @@ export function SettingsMenu() {
                 choose.mutate(agent);
               }}
             />
+            <FillInBackground />
             <p className="menu-heading">Видео и аудио</p>
             <MenuItem
               hint="модели, установка и удаление"

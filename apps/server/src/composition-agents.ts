@@ -35,6 +35,7 @@ export interface AgentDependencies {
   origin: () => string;
   /** Receives the failures of background work: the server's logger. */
   log: {
+    readonly info: (details: object, message: string) => void;
     readonly warn: (details: object | string, message?: string) => void;
     readonly error: (details: object, message: string) => void;
   };

@@ -9,6 +9,20 @@ import type { SourceStatus } from "./source.ts";
  */
 export type InboxMode = "processing" | "recheck";
 
+/** What the server hears when a run of the Target starts. */
+export interface InboxRunStarted {
+  readonly targetId: string;
+  readonly mode: InboxMode;
+}
+
+/**
+ * What the server hears when a run of the Target ends; `interrupted` when the server's start closed
+ * a run that ran when the server last stopped.
+ */
+export interface InboxRunFinished extends InboxRunStarted {
+  readonly interrupted: boolean;
+}
+
 /** One material of the proposal: the setup agent's short assessment of what it will give. */
 export interface ProposalItem {
   readonly sourceId: string;

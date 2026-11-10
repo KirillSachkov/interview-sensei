@@ -30,6 +30,11 @@ export interface InterviewsDependencies {
   readonly progress: InterviewProgress;
   /** Receives errors of background work, such as a template message that failed to send. */
   readonly onError: (error: unknown) => void;
+  /**
+   * Hears that a Mock interview of the Target is finished, by the agent's finish_interview or by the
+   * server after the wait, or by the Candidate at a pause; not when it pauses or ends «прерван».
+   */
+  readonly onFinished: (finished: { readonly targetId: string }) => void;
 }
 
 /** Receives the Mock interview's view after each change. */

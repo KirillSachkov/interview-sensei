@@ -55,15 +55,30 @@ _Avoid_: Task, when the item is not an algorithm problem.
 
 **Reference answer**:
 What a good answer to a Question contains: 3–5 key points and a short sample answer, with its origin and, for an answer from a Source, the Source and its part.
-The origin is one of «из материала», «из интернета», «из знаний агента» and «проверен кандидатом».
+The origin is one of four labels:
+«из материала», from a Source, with the Source and its part; «из интернета», from web pages, with the links to them; «из знаний агента», from the agent's own knowledge, without a source; and «проверен кандидатом», checked by the Candidate.
 Inbox processing writes a Reference answer only from the Source itself; a Question whose Source has no answer stays without one.
+Answer search writes «из интернета» and «из знаний агента». It never replaces an answer «из материала» or «проверен кандидатом», and never replaces «из интернета» with «из знаний агента»; an answer «из знаний агента» gives way to one «из интернета».
 The Candidate marks a Reference answer «проверен» in the side panel of Questions, which makes its origin «проверен кандидатом», or corrects it through the draft of changes, which does the same and drops its Source.
 
 **Reference check**:
 The list «Проверить опорный ответ» in the zone «Цель»: the Questions whose Reference answer the Candidate should look at again.
 A Dispute of the Grade of an Attempt puts its Question there with the Candidate's reason, when the Question has a Reference answer.
 So does the interviewer of a Mock interview that disagrees with the Reference answer, with why.
-«проверен» or a corrected Reference answer takes the Question off the list; a hidden Question is not shown there.
+«проверен» or a corrected Reference answer takes the Question off the list; an answer that Answer search writes keeps it there; a hidden Question is not shown there.
+
+**Answer search**:
+«Наполнение ответов»: the background work that finds Reference answers on the web for the Questions of a Target.
+The Candidate starts it with «Найти ответы» in the zone «Цель», after seeing how many Questions have no Reference answer, choosing how many to fill, 20 by default, and the warning that each Question costs about one web search of the agent's subscription.
+The server keeps the queue: first the Questions asked in a Mock interview without a Reference answer or with one «из знаний агента», then those of shaky and not started Topics, then the rest, each group from the earliest added. Hidden Questions stay out.
+An Agent session of its own takes the Questions from the queue, searches the web and writes each answer; the agent only searches and words the answers, the server keeps the rules of overwriting.
+A Target has one background work of the agent at a time, and Inbox processing goes first: an Answer search that starts while the Target's Inbox processing runs waits for its end, and so does one whose agent has not started yet when an Inbox processing starts; an Inbox processing that starts while the agent of an Answer search works ends that search early.
+«Остановить», a failed agent, an agent that ended its work without the report, a restart of the server or a started Inbox processing ends it early; the written answers stay, and the server writes a partial answer report.
+With «Наполнять в фоне» on in «Настройки», an Answer search of up to 20 Questions starts by itself after an Inbox processing ends and after a Mock interview is finished. The setting is one for the whole application and off by default, so the agent's subscription is spent only by the Candidate's choice.
+It starts none after a Recheck, after an Inbox processing that a restart of the server ended, or when a Mock interview pauses, or for an archived Target; finishing a paused Mock interview starts one; with nothing to fill or a search already running, it starts none either.
+
+**Answer report**:
+The summary of one Answer search: how many Questions it filled of how many, by origin, the Questions it could not fill with the agent's reasons, and what the agent's last ACP `usage_update` says: the tokens in its context of its context window and, when it sends one, the session's cost; or «агент не сообщил расход». ACP reports no total of spent tokens.
 
 **Mock interview**:
 The only kind of interview: the agent acts as an interviewer and asks Questions for a Target.
@@ -100,7 +115,7 @@ Going deeper stays within the limit of questions in a row on one Topic: at most 
 _Avoid_: Question chain.
 
 **Debrief**:
-The review of an Attempt: its Grade, gaps and an outline of a strong answer. The Candidate opens it for any answered Question. At the end of a Mock interview, a summary Debrief shows Topic status changes and the next step.
+The review of an Attempt: its Grade, gaps and an outline of a strong answer, and the Question's Reference answer, read-only, when it has one. The Candidate opens it for any answered Question. At the end of a Mock interview, a summary Debrief shows Topic status changes and the next step.
 
 **Attempt**:
 One Candidate answer to one Question, with its Grade, the gaps it revealed, and whether the Candidate received a hint.
@@ -190,8 +205,8 @@ _Avoid_: Grade, which assesses the Candidate's answer, not the Question.
 
 **Agent session**:
 One conversation of the application with the Candidate's agent: its kind, agent, ACP session id, status and event journal.
-There are four kinds: Target setup, Inbox processing, Mock interview and Side thread. Each kind has its own skill, MCP tools and limits.
-Inbox processing has no chat: the Candidate sees only the Source statuses and the Inbox report.
+There are five kinds: Target setup, Inbox processing, Mock interview, Side thread and Answer search. Each kind has its own skill, MCP tools and limits.
+Inbox processing and Answer search have no chat: the Candidate sees only their status and report.
 The server records every event in the journal; the chat and its history after a restart come from the journal, not from the agent's log.
 The code calls it `AgentSession`. The skeleton's agent check also runs in one, but it is not a domain kind.
 _Avoid_: Session, when the kind of session matters.
@@ -204,8 +219,8 @@ Only that Agent session's agent gets it, and it closes when that agent stops.
 The agent's request to perform an action, such as a shell command, with the options it offers.
 The server answers requests for our own MCP tools.
 Every other request goes to the Candidate in the chat, when the session kind asks the Candidate.
-In a Mock interview and in Inbox processing it does not: they show no requests, so the server refuses them itself.
-Inbox processing may use the web, so its agent opens pages without a request.
+In a Mock interview, in Inbox processing and in Answer search it does not: they show no requests, so the server refuses them itself.
+Inbox processing and Answer search may use the web, so their agents open pages without a request.
 
 **Source**:
 Material attached to a Target: a vacancy, a resume, a link, a video transcript, a file or the Candidate's own note.

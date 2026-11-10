@@ -14,10 +14,12 @@ function agentOf(body: unknown): string | null | undefined {
 
 /**
  * The application's settings, which «Настройки» changes:
- * - `GET /api/settings`: `{ defaultAgent }`, null until the Candidate chooses one.
+ * - `GET /api/settings`: `{ defaultAgent, fillInBackground }`; the default agent is null until the
+ *   Candidate chooses one, and «Наполнять в фоне» is off until the Candidate turns it on.
  * - `PUT /api/settings/default-agent` with `{ agent }`: stores the default agent of the Targets
  *   without their own; null returns them to the first available agent. 400 `unknown_agent` for an
  *   agent the server does not offer.
+ * - `PUT /api/settings/fill-in-background` with `{ enabled }`: turns «Наполнять в фоне» on or off.
  * - «Распознавание речи»: see registerTranscriptionRoutes.
  */
 export function registerSettingsRoutes(
@@ -30,5 +32,20 @@ export function registerSettingsRoutes(
     const saved = agent === undefined ? "unknown_agent" : await appSettings.setDefaultAgent(agent);
     return saved === "unknown_agent" ? reply.code(400).send({ error: saved }) : saved;
   });
+  server.put<{ Body: { enabled: boolean } }>(
+    "/api/settings/fill-in-background",
+    {
+      schema: {
+        body: {
+          type: "object",
+          properties: { enabled: { type: "boolean" } },
+          required: ["enabled"],
+          additionalProperties: false,
+        },
+      },
+    },
+    async (request, reply) =>
+      reply.send(await appSettings.setFillInBackground(request.body.enabled)),
+  );
   registerTranscriptionRoutes(server, { transcription });
 }

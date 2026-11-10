@@ -22,12 +22,22 @@ async function setDefaultAgent(
   return repository.get();
 }
 
-/** The application's settings: today only the default agent. */
+/** The application's settings: the default agent and «Наполнять в фоне». */
 export function createAppSettings(dependencies: Dependencies) {
   const { repository } = dependencies;
   return {
     settings: repository.get,
     setDefaultAgent: async (agent: string | null) => setDefaultAgent(dependencies, agent),
+    /** «Наполнять в фоне» on or off; answers the settings. */
+    setFillInBackground: async (enabled: boolean) => {
+      await repository.setFillInBackground(enabled);
+      return repository.get();
+    },
+    /** Whether an answer search starts by itself after an Inbox processing and a Mock interview. */
+    fillInBackground: async () => {
+      const settings = await repository.get();
+      return settings.fillInBackground;
+    },
     /** The default agent of Targets without their own; null without the setting. */
     defaultAgent: async () => {
       const settings = await repository.get();

@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { fetchDebrief, recordDebriefOpened } from "@/shared/api";
+import { fetchDebrief, fetchQuestions, recordDebriefOpened } from "@/shared/api";
 import type { AttemptDebrief } from "@/shared/api";
 
+import { ReferenceAnswerDetails } from "../reference-answer";
 import { DiscussSeparately } from "./discuss-separately";
 import { DisputeForm } from "./dispute-form";
 
@@ -59,6 +60,41 @@ function Dispute({ interviewId, attemptId }: { interviewId: string; attemptId: s
   );
 }
 
+/** The asked Question of the Target's bank, which holds its reference answer. */
+interface AskedQuestion {
+  readonly targetId: string;
+  readonly questionId: string;
+  readonly topicId: string;
+}
+
+/**
+ * «Опорный ответ» of the asked Question, read-only: its points, sample, links and label, as the side
+ * panel shows them. The Question may be hidden since the mock, so both lists of its Topic count.
+ */
+function ReferenceAnswer({ question }: { question: AskedQuestion }) {
+  const { targetId, questionId, topicId } = question;
+  const found = useQuery({
+    // Under the Target's Questions: a finished answer search refreshes them.
+    queryKey: ["targets", targetId, "questions", "asked", questionId],
+    queryFn: async () => {
+      const lists = await Promise.all([
+        fetchQuestions(targetId, { topicId }, false),
+        fetchQuestions(targetId, { topicId }, true),
+      ]);
+      return lists.flat().find((entry) => entry.id === questionId) ?? null;
+    },
+  });
+  if (found.data === undefined) {
+    return null;
+  }
+  const answer = found.data?.referenceAnswer ?? null;
+  return answer === null ? (
+    <p className="muted">Опорного ответа у вопроса пока нет.</p>
+  ) : (
+    <ReferenceAnswerDetails answer={answer} />
+  );
+}
+
 /** The key points of the reference answer, ✓ for those the answer covered, and the disagreement. */
 function ReferencePoints({ debrief }: { debrief: AttemptDebrief }) {
   const { referencePoints, referenceDisagreement } = debrief;
@@ -90,7 +126,15 @@ function ReferencePoints({ debrief }: { debrief: AttemptDebrief }) {
   );
 }
 
-function DebriefBody({ interviewId, attemptId }: { interviewId: string; attemptId: string }) {
+function DebriefBody({
+  interviewId,
+  attemptId,
+  question,
+}: {
+  interviewId: string;
+  attemptId: string;
+  question: AskedQuestion;
+}) {
   const debrief = useQuery({
     queryKey: ["interviews", interviewId, "attempts", attemptId],
     // The Candidate opens the Debrief here: its Grade may go to Side threads from now on.
@@ -120,6 +164,7 @@ function DebriefBody({ interviewId, attemptId }: { interviewId: string; attemptI
           <p>{strongAnswer}</p>
         </>
       )}
+      <ReferenceAnswer question={question} />
       <Dispute interviewId={interviewId} attemptId={attemptId} />
       <DiscussSeparately interviewId={interviewId} origin={{ kind: "debrief", id: attemptId }} />
     </section>
@@ -127,7 +172,15 @@ function DebriefBody({ interviewId, attemptId }: { interviewId: string; attemptI
 }
 
 /** «Посмотреть разбор»: the Grade stays hidden until the Candidate opens it. */
-export function Debrief({ interviewId, attemptId }: { interviewId: string; attemptId: string }) {
+export function Debrief({
+  interviewId,
+  attemptId,
+  question,
+}: {
+  interviewId: string;
+  attemptId: string;
+  question: AskedQuestion;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -141,7 +194,9 @@ export function Debrief({ interviewId, attemptId }: { interviewId: string; attem
       >
         {open ? "Скрыть разбор" : "Посмотреть разбор"}
       </button>
-      {open ? <DebriefBody interviewId={interviewId} attemptId={attemptId} /> : null}
+      {open ? (
+        <DebriefBody interviewId={interviewId} attemptId={attemptId} question={question} />
+      ) : null}
     </>
   );
 }

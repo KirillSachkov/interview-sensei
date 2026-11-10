@@ -10,7 +10,7 @@ import type { DoubtfulQuestion, InboxReport, InboxRun, ReportProposals } from ".
 import type { InboxTarget } from "../domain/ports.ts";
 import type { Source } from "../domain/source.ts";
 import { boundInRun } from "../domain/source-text.ts";
-import { refuseInRecheck, runOf } from "./inbox-context.ts";
+import { endAfterTurn, refuseInRecheck, runOf } from "./inbox-context.ts";
 import type { InboxContext } from "./inbox-context.ts";
 import { moveSettled } from "./inbox-ending.ts";
 
@@ -127,18 +127,6 @@ export async function createTopic(
   );
 }
 
-/** Ends the session after the agent's current turn; a failure goes to onError. */
-async function endAfterTurn(
-  { sessions, onError }: Pick<InboxContext["dependencies"], "sessions" | "onError">,
-  sessionId: string,
-): Promise<void> {
-  try {
-    await sessions.end(sessionId);
-  } catch (error) {
-    onError(error);
-  }
-}
-
 /** The agent's part of the Inbox report. */
 export interface ReportInput {
   readonly summary: string;
@@ -209,11 +197,12 @@ export async function writeReport(
   session: ToolSession,
   input: ReportInput,
 ): Promise<InboxReport> {
-  const { sessions, onError } = context.dependencies;
+  const { onRunFinished } = context.dependencies;
   const { report, run } = await context.dependencies.transaction(async (opened) =>
     storeReport(context, { session, input }, opened),
   );
+  onRunFinished({ targetId: run.targetId, mode: run.mode, interrupted: false });
   // The session ends after this turn: the tool call is part of it, so nothing waits for the end.
-  void endAfterTurn({ sessions, onError }, run.sessionId ?? session.sessionId);
+  endAfterTurn(context, run.sessionId ?? session.sessionId);
   return report;
 }
