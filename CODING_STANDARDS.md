@@ -78,6 +78,11 @@ Inbox processing in `sources` starts its agent through `agent-sessions`, which c
 The bulk review of Questions in `question-bank` asks `interviews` which Questions have Attempts through its `QuestionAttempts` port: deleting such a Question hides it. `topicMerges` hands `interviews` over the same way as for a Topic merge.
 `answer-search` (#70) reads its queue from `question-bank`, the Attempts of `interviews` and the Topic statuses of `progress`, writes Reference answers through `question-bank` and runs its agent through `agent-sessions`.
 `composition-answers.ts` composes it after `interviews` and `progress`. `sources` tells the server that an Inbox processing ended through its `onRunFinished` callback, and composeFeatures hands that to `answers.inboxFinished`, which begins a waiting Answer search.
+`onRunStarted` of `sources` goes to `answers.inboxStarted`: a running Answer search closes with a partial report and its agent stops, because Inbox processing goes first.
+«Наполнять в фоне» (#79) is `fillInBackground` of `app-settings`, which `answer-search` reads through its `AnswerSettings` port.
+`answers.inboxFinished` starts a search of 20 Questions with it on, after a processing that `interrupted` (the server's start) did not end; `onFinished` of `interviews`, only for a finished Mock interview, goes to `answers.interviewFinished` the same way.
+A background start that does not happen goes to `onBackgroundSkipped`, which the server logs at `info`.
+The Debrief in the web app reads the asked Question's Reference answer from `GET /api/targets/:id/questions` of its Topic, hidden Questions too; the Debrief API of `interviews` stays without it.
 
 ### Session profiles
 
