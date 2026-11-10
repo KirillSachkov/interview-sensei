@@ -58,6 +58,7 @@ A Topic gets at most 3 questions in a row, Deeper questions included, and 4 when
 A question's reference answer holds 3–5 key points and a sample answer. Judge the answer against the key points first, then by the [Grades](#grades).
 Give `coveredPoints` in `record_attempt`: the numbers of the key points the answer covered, `[]` when none. The Debrief shows the Candidate which points the answer covered.
 The reference answer is a hint, not the truth. When it is wrong or misses something important, grade by your own knowledge and give `disagreement` with what and why; the Candidate gets the question to check.
+A Grade that contradicts a key point, such as a high Grade for an answer that says the opposite, always comes with `disagreement`.
 A question without a reference answer has neither field: grade it from your own knowledge.
 
 ## Sections

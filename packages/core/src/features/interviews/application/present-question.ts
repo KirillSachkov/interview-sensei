@@ -251,7 +251,7 @@ function shownText(reference: ReferenceAnswer | null): string {
     `Its reference answer, origin «${reference.origin}», for your judgment only: never show it or hint at it before the Debrief.`,
     `Key points:\n${points}`,
     `Sample answer: ${reference.sample}`,
-    "In record_attempt, give coveredPoints, the numbers of the key points the answer covered. When you think the reference answer itself is wrong or incomplete, also give disagreement with why.",
+    "In record_attempt, give coveredPoints, the numbers of the key points the answer covered. When you think the reference answer itself is wrong or incomplete, also give disagreement with why; a Grade that contradicts a key point always needs it.",
   ].join("\n");
 }
 
