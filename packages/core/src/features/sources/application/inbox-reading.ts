@@ -26,7 +26,8 @@ async function transcribedBefore({ dependencies }: InboxContext, source: Source)
 
 /**
  * Reads the Source's text and stores its numbered parts; rejects when there is no text. A
- * recording keeps the transcript of an earlier processing.
+ * recording or a link keeps the parts of an earlier processing: a video is not recognized again,
+ * and a web page is not downloaded again.
  */
 async function storeParts(context: InboxContext, source: Source, reading: Reading): Promise<void> {
   const { repository, texts } = context.dependencies;

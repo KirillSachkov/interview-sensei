@@ -196,6 +196,7 @@ Russian goes to GigaAM v3 when it is installed, otherwise to Parakeet TDT 0.6B v
 A run's reading has an `AbortController` in `reading` of the Inbox context: closing the run, including «Остановить разбор», and `inbox.settle` at the server's close abort it, and the port passes its `signal` on.
 A cancelled reading marks nothing: the run's end has moved the Source, and `endInterrupted` returns it to the Inbox after a restart.
 A recording or a link with stored parts keeps them (`transcribedBefore` in `inbox-reading.ts`), so the speech of a video on any site is never recognized twice.
+The same check covers a link to a web page: a page read in an interrupted processing reuses its stored parts and is not downloaded again.
 `boundTranscript` in `source-text.ts` finds the Bound transcript of a recording: then `sourceText` reads that file instead of calling the port, and the start takes the transcript into the run.
 `boundInRun` names the run's bound transcripts: the agent's brief and `list_inbox` leave them out, and `settledSources` moves each with its video, to «готов» or back to the Inbox.
 
