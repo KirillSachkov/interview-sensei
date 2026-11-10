@@ -1,0 +1,28 @@
+{
+  "question": "Как отменить fetch в Node.js через AbortController и обработать причину отмены?",
+  "level": "middle",
+  "sectionKind": "topics",
+  "criteria": "Точность механизма, границы и практический пример.",
+  "referenceAnswer": {
+    "points": [
+      "Передать signal контроллера в fetch и вызвать abort для отмены.",
+      "Без пользовательского reason причина отмены является DOMException с именем AbortError.",
+      "С пользовательским Error в abort(reason) отклонение fetch передаёт эту причину."
+    ],
+    "sample": "Создам контроллер, передам signal в fetch. При отмене обработаю signal.reason. Без reason это AbortError, с Error это переданный объект."
+  },
+  "cases": [
+    {
+      "id": "complete",
+      "answer": "В HTTP-запросе передам controller.signal в fetch и по отмене вызову controller.abort(). В catch обработаю причину: по умолчанию это DOMException AbortError, а если передал свой Error в abort(reason), fetch отклонится с этим Error. Отмена клиента не гарантирует откат операции сервера."
+    },
+    {
+      "id": "wrong",
+      "answer": "Вызов abort всегда даёт Error с кодом ABORT_ERR, даже если передан свой Error. Signal передавать не нужно."
+    },
+    {
+      "id": "gap",
+      "answer": "Для HTTP-запроса создам AbortController, передам signal в fetch и вызову abort(). В catch буду обрабатывать только AbortError."
+    }
+  ]
+}

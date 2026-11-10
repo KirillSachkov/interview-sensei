@@ -1,0 +1,19 @@
+{
+  "node": "v24.21.0",
+  "results": [
+    {
+      "custom": false,
+      "name": "AbortError",
+      "code": 20,
+      "sameReason": true,
+      "sameCustomError": false
+    },
+    {
+      "custom": true,
+      "name": "Error",
+      "code": null,
+      "sameReason": true,
+      "sameCustomError": true
+    }
+  ]
+}
