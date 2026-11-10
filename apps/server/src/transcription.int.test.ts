@@ -6,7 +6,7 @@ import { access } from "node:fs/promises";
 import path from "node:path";
 
 import type { FastifyInstance } from "fastify";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { startServer, temporaryDirectory } from "./chat-test-support.ts";
 import {
@@ -141,7 +141,8 @@ describe("the consent to download speech recognition", () => {
 
 /**
  * «Скачать» of GigaAM while the server holds its file halfway: the answers to the start and to a
- * second «Скачать», the state during the download and after it.
+ * second «Скачать», the state during the download and after it. The server's hold comes before the
+ * download counts the bytes it got, so «during» waits until the progress stops growing at the hold.
  */
 async function heldDownload(
   server: FastifyInstance,
@@ -150,7 +151,14 @@ async function heldDownload(
   const held = served.hold("gigaam-v3");
   const started = await installModels(server, ["gigaam-v3"]);
   await held.reached;
-  const during = await transcriptionStatus(server);
+  const during = await vi.waitFor(
+    async () => {
+      const status = await transcriptionStatus(server);
+      expect(status.installation?.downloaded).toBeGreaterThanOrEqual(6000 + 4000 + 8500);
+      return status;
+    },
+    { timeout: 10_000, interval: 20 },
+  );
   const again = await installModels(server, ["parakeet-v3"]);
   held.release();
   const after = await afterDownload(server);
