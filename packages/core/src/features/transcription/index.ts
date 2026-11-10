@@ -2,6 +2,7 @@ export { transcriptionModule } from "./module.ts";
 export type { TranscriptionComponents } from "./module.ts";
 export type {
   InstallOutcome,
+  RemoveOutcome,
   Transcription,
   TranscriptionOutcome,
 } from "./application/transcription.ts";

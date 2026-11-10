@@ -26,9 +26,20 @@ function progressWriter({ dependencies }: InboxContext, { targetId, id }: Source
   };
 }
 
-/** The language of the Target: the language of its recordings until the card lets the Candidate choose. */
-async function languageOf({ dependencies }: InboxContext, targetId: string): Promise<string> {
-  const target = await dependencies.targets.get(targetId);
+/** How a run reads its texts: its cancel and the languages the card chose for recordings. */
+export interface Reading {
+  readonly signal: AbortSignal;
+  /** The language of a video or audio file by Source id. */
+  readonly languages: Readonly<Record<string, string>>;
+}
+
+/** The language of the recording: the card's choice, otherwise the Target's language. */
+async function languageOf({ dependencies }: InboxContext, source: Source, reading: Reading) {
+  const chosen = reading.languages[source.id];
+  if (chosen !== undefined) {
+    return chosen;
+  }
+  const target = await dependencies.targets.get(source.targetId);
   return target?.language ?? "ru";
 }
 
@@ -44,17 +55,21 @@ function textOf(outcome: { readonly text: string } | { readonly failure: string 
  * The speech of the file as text: the Source is «транскрибируется» meanwhile and «разбирается»
  * again after it. Rejects with UnreadableSourceError and the reason when there is no text.
  */
-async function transcribed(context: InboxContext, source: Source, file: string) {
+async function transcribed(
+  context: InboxContext,
+  { source, file, reading }: { source: Source; file: string; reading: Reading },
+) {
   const { repository, transcription } = context.dependencies;
   const { targetId, id } = source;
   await repository.setStatus(targetId, { ids: [id], status: "transcribing", from: "processing" });
   const progress = progressWriter(context, source);
   try {
-    const language = await languageOf(context, targetId);
+    const language = await languageOf(context, source, reading);
     const outcome = await transcription.transcribe({
       file,
       language,
       onProgress: progress.onProgress,
+      signal: reading.signal,
     });
     return textOf(outcome);
   } finally {
@@ -64,12 +79,16 @@ async function transcribed(context: InboxContext, source: Source, file: string) 
 }
 
 /** The text of the Source: a recording's speech, or the text its format holds. */
-export async function sourceText(context: InboxContext, source: Source): Promise<string> {
+export async function sourceText(
+  context: InboxContext,
+  source: Source,
+  reading: Reading,
+): Promise<string> {
   const { files, extractor } = context.dependencies;
   const format = textFormat(source);
   const path = source.file === null ? null : files.absolute(source.file);
   if (format === "video" && path !== null) {
-    return transcribed(context, source, path);
+    return transcribed(context, { source, file: path, reading });
   }
   return extractor.extract({ format, path, url: source.url });
 }

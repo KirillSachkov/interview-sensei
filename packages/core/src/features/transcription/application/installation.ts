@@ -3,7 +3,7 @@
 import { componentSize, installPlan, modelIds } from "../domain/components.ts";
 import type { Component, ComponentCatalog, ModelId } from "../domain/components.ts";
 import type { ComponentStore } from "../domain/ports.ts";
-import { TranscriptionError } from "../domain/recognition.ts";
+import { modelFor, recognitionLanguages, TranscriptionError } from "../domain/recognition.ts";
 
 /** What the download takes from the slice. */
 export interface InstallationDependencies {
@@ -143,8 +143,8 @@ const modelNames: Readonly<Record<ModelId, { name: string; languages: string }>>
 
 /**
  * The state of recognition for the processing card and «Распознавание речи»: each model with its
- * size and whether it is installed, the shared components, the running download and the last
- * failure.
+ * size and whether it is installed, the shared components, the running download, the last
+ * failure, and each language of recognition with the installed model that hears it.
  */
 export async function status(dependencies: InstallationDependencies, state: InstallationState) {
   const { catalog, store } = dependencies;
@@ -167,6 +167,11 @@ export async function status(dependencies: InstallationDependencies, state: Inst
     },
     installation: installationView(state),
     failure: state.failure,
+    languages: recognitionLanguages.map(({ code, name }) => ({
+      code,
+      name,
+      model: modelFor(code, new Set(modelIds.filter((id) => installed.has(id)))),
+    })),
   };
 }
 

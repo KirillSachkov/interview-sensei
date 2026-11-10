@@ -8,7 +8,7 @@ import type { Transaction } from "../../../shared/storage/index.ts";
 import { partialReport } from "../domain/inbox.ts";
 import type { InboxReport, InboxRun, RunEnding } from "../domain/inbox.ts";
 import { watchSession } from "./agent-watch.ts";
-import { inBackground } from "./inbox-context.ts";
+import { cancelReading, inBackground } from "./inbox-context.ts";
 import type { InboxContext } from "./inbox-context.ts";
 
 /** Moves the run's Sources: `ready` to «готов», `back` to the Inbox, in the open transaction. */
@@ -85,6 +85,7 @@ export async function stop(context: InboxContext, targetId: string): Promise<Sto
   if (run === undefined || report === null) {
     return { type: "not_running" };
   }
+  cancelReading(context, run.id);
   if (run.sessionId !== null) {
     await sessions.stop(run.sessionId);
   }

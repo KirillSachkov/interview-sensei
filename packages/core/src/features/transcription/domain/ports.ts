@@ -12,6 +12,8 @@ export interface ComponentStore {
     component: Component,
     progress: { readonly onBytes: (bytes: number) => void; readonly signal: AbortSignal },
   ) => Promise<void>;
+  /** Deletes the component's files, so its disk space is free; nothing for a missing one. */
+  readonly remove: (component: Component) => Promise<void>;
 }
 
 /** The sound of a recording as the recognizer hears it. */

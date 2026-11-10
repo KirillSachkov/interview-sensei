@@ -13,5 +13,7 @@ export interface SourceTranscription {
     readonly language: string;
     /** The percent heard so far, from 0 to 99. */
     readonly onProgress: (percent: number) => void;
+    /** «Остановить разбор» and the server's close cancel the transcription. */
+    readonly signal: AbortSignal;
   }) => Promise<{ readonly text: string } | { readonly failure: string }>;
 }

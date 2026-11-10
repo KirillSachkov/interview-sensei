@@ -4,7 +4,12 @@
 import { modelIds } from "../domain/components.ts";
 import type { ModelId } from "../domain/components.ts";
 import type { AudioExtractor, SpeechRecognizer } from "../domain/ports.ts";
-import { modelFor, progressPercent, TranscriptionError } from "../domain/recognition.ts";
+import {
+  modelFor,
+  noModelReason,
+  progressPercent,
+  TranscriptionError,
+} from "../domain/recognition.ts";
 import { allComponents, install, status, stopDownload } from "./installation.ts";
 import type { InstallationDependencies, InstallationState } from "./installation.ts";
 
@@ -16,7 +21,7 @@ export interface TranscriptionDependencies extends InstallationDependencies {
 }
 
 const notInstalled =
-  "распознавание речи не установлено: скачайте модель в карточке разбора или приложите транскрипт";
+  "распознавание речи не установлено: скачайте модель в «Настройки» → «Распознавание речи» или приложите транскрипт с тем же именем файла";
 
 /** The model for the language among the installed ones; TranscriptionError without one. */
 async function chosenModel(
@@ -28,6 +33,10 @@ async function chosenModel(
       "распознавание речи не работает на этой платформе: приложите транскрипт",
     );
   }
+  // A language no model knows needs a transcript, whatever is installed.
+  if (modelFor(language, new Set(modelIds)) === null) {
+    throw new TranscriptionError(noModelReason(language));
+  }
   const installed = await store.installed(allComponents(catalog));
   const models = new Set(modelIds.filter((id) => installed.has(id)));
   if (models.size === 0 || !catalog.shared.every((component) => installed.has(component.id))) {
@@ -35,11 +44,22 @@ async function chosenModel(
   }
   const model = modelFor(language, models);
   if (model === null) {
-    throw new TranscriptionError(
-      `нет модели для языка «${language}»: установите Parakeet TDT 0.6B v3 или приложите транскрипт`,
-    );
+    throw new TranscriptionError(noModelReason(language));
   }
   return model;
+}
+
+/** The running transcriptions of each model: «Удалить» waits until none uses the model. */
+type ModelsInUse = Map<ModelId, number>;
+
+/** Runs the work while the model counts as in use. */
+async function whileInUse<T>(inUse: ModelsInUse, model: ModelId, work: () => Promise<T>): Promise<T> {
+  inUse.set(model, (inUse.get(model) ?? 0) + 1);
+  try {
+    return await work();
+  } finally {
+    inUse.set(model, (inUse.get(model) ?? 1) - 1);
+  }
 }
 
 /** What a transcription gives: the recording's text, or why it has none, in Russian. */
@@ -78,12 +98,15 @@ async function recognized(
 /** Recognizes the speech of a video or audio file in the language with the installed model. */
 async function transcribe(
   dependencies: TranscriptionDependencies,
-  request: TranscriptionRequest,
+  { request, inUse }: { request: TranscriptionRequest; inUse: ModelsInUse },
 ): Promise<TranscriptionOutcome> {
   const signal = request.signal ?? new AbortController().signal;
   try {
     const model = await chosenModel(dependencies, request.language);
-    return { text: await recognized(dependencies, { ...request, model, signal }) };
+    const text = await whileInUse(inUse, model, async () =>
+      recognized(dependencies, { ...request, model, signal }),
+    );
+    return { text };
   } catch (error) {
     if (error instanceof TranscriptionError) {
       return { failure: error.message };
@@ -92,12 +115,41 @@ async function transcribe(
   }
 }
 
+/**
+ * - `removed`: the model's files are deleted, or it was not installed.
+ * - `running`: a download runs; the model stays.
+ * - `in_use`: the model recognizes a recording now; the model stays.
+ * - `unavailable`: the application does not recognize speech on this platform.
+ */
+export type RemoveOutcome = "removed" | "running" | "in_use" | "unavailable";
+
+/** «Удалить» of a model in «Распознавание речи»: frees its disk space; the shared components stay. */
+async function remove(
+  { catalog, store }: TranscriptionDependencies,
+  { state, inUse, model }: { state: InstallationState; inUse: ModelsInUse; model: ModelId },
+): Promise<RemoveOutcome> {
+  if (catalog === null) {
+    return "unavailable";
+  }
+  if (state.installation !== null) {
+    return "running";
+  }
+  if ((inUse.get(model) ?? 0) > 0) {
+    return "in_use";
+  }
+  await store.remove(catalog.models[model]);
+  return "removed";
+}
+
 export function createTranscription(dependencies: TranscriptionDependencies) {
   const state: InstallationState = { installation: null, failure: null };
+  const inUse: ModelsInUse = new Map();
   return {
     status: async () => status(dependencies, state),
     install: async (models: readonly ModelId[]) => install(dependencies, state, models),
-    transcribe: async (request: TranscriptionRequest) => transcribe(dependencies, request),
+    remove: async (model: ModelId) => remove(dependencies, { state, inUse, model }),
+    transcribe: async (request: TranscriptionRequest) =>
+      transcribe(dependencies, { request, inUse }),
     /** Stops a running download and waits for it; the server calls it before it closes. */
     close: async () => stopDownload(state),
   };

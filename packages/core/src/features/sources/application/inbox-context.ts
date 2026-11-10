@@ -43,6 +43,16 @@ export interface InboxContext {
   readonly dependencies: InboxDependencies;
   /** The background work of started runs: reading the texts and starting the agent. */
   readonly pending: Set<Promise<void>>;
+  /**
+   * The cancel of each run that reads its texts, by run id: «Остановить разбор» and the server's
+   * close stop a running transcription with it.
+   */
+  readonly reading: Map<string, AbortController>;
+}
+
+/** Cancels the reading of the run's texts, such as its transcription; nothing without one. */
+export function cancelReading(context: InboxContext, runId: string): void {
+  context.reading.get(runId)?.abort();
 }
 
 /** Runs the work; its failure goes to onError. */

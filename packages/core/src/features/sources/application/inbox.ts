@@ -8,6 +8,7 @@ import { sessionTarget } from "./inbox-context.ts";
 import type { InboxContext, InboxDependencies } from "./inbox-context.ts";
 import { endInterrupted, stop } from "./inbox-ending.ts";
 import { start, startRecheck } from "./inbox-start.ts";
+import type { StartRequest } from "./inbox-start.ts";
 import { addBankQuestions } from "./inbox-add.ts";
 import type { MaterialQuestion } from "./inbox-add.ts";
 import { markSourceFailed, readSource } from "./inbox-materials.ts";
@@ -71,7 +72,7 @@ async function proposeRecheck(
 }
 
 export function createInbox(dependencies: InboxDependencies) {
-  const context: InboxContext = { dependencies, pending: new Set() };
+  const context: InboxContext = { dependencies, pending: new Set(), reading: new Map() };
   return {
     propose: async (session: ToolSession, items: readonly ProposalItem[]) =>
       propose(context, session, items),
@@ -83,8 +84,7 @@ export function createInbox(dependencies: InboxDependencies) {
      */
     dismiss: async (targetId: string, mode: InboxMode = "processing") =>
       dependencies.inbox.closeProposal(targetId, { status: "dismissed", mode }),
-    start: async (request: { targetId: string; sourceIds?: readonly string[] | undefined }) =>
-      start(context, request),
+    start: async (request: StartRequest) => start(context, request),
     /** «Запустить перепроверку»: a recheck of the Target's bank. */
     startRecheck: async (targetId: string) => startRecheck(context, targetId),
     /** The history of the Target's reports, the newest first; null for an unknown Target. */
@@ -112,8 +112,14 @@ export function createInbox(dependencies: InboxDependencies) {
       markSourceFailed(context, session, failure),
     writeReport: async (session: ToolSession, report: ReportInput) =>
       writeReport(context, session, report),
-    /** Waits for the background work of started runs; the server calls it before it closes. */
+    /**
+     * Cancels the running transcriptions and waits for the background work of started runs; the
+     * server calls it before it closes. The next start returns their videos to the Inbox.
+     */
     settle: async () => {
+      for (const controller of context.reading.values()) {
+        controller.abort();
+      }
       await Promise.allSettled(context.pending);
     },
   };

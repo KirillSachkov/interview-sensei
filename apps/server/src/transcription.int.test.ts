@@ -61,6 +61,7 @@ describe("the consent to download speech recognition", () => {
       shared: { size: 6000, installed: false },
       installation: null,
       failure: null,
+      languages: expect.arrayContaining([{ code: "ru", name: "русский", model: null }]),
     });
     expect(served.requested).toStrictEqual([]);
   });

@@ -107,28 +107,51 @@ function lineOf(samples: Float32Array): string {
   return new TextDecoder().decode(Uint8Array.from(samples));
 }
 
+/** Resolves once the hold is released; rejects with the signal's reason once it aborts. */
+async function releasedOrAborted(released: Promise<unknown>, signal: AbortSignal): Promise<void> {
+  signal.throwIfAborted();
+  const aborted = Promise.withResolvers<never>();
+  const onAbort = () => {
+    aborted.reject(signal.reason);
+  };
+  signal.addEventListener("abort", onAbort, { once: true });
+  try {
+    await Promise.race([released, aborted.promise]);
+  } finally {
+    signal.removeEventListener("abort", onAbort);
+  }
+}
+
 /**
  * A stub model: it hears each line of the stub recording as one second and returns the lines as
- * the text. At «[ждать]» it waits for `continueSpeech`. `heard` records the model of each run.
+ * the text. At «[ждать]» it waits for `continueSpeech`, or for the cancel of its run.
+ * `heard` records the model of each run, `cancelled` counts the cancelled runs.
  */
 function stubRecognizer() {
   const heard: ModelId[] = [];
-  const control = { waiting: newHold() };
-  const hear = async (line: string) => {
+  const control = { waiting: newHold(), cancelled: 0 };
+  const hear = async (line: string, signal: AbortSignal) => {
     if (line === waitMark) {
       control.waiting.reach();
-      await control.waiting.released;
+      await releasedOrAborted(control.waiting.released, signal);
     }
   };
   const recognizer: NonNullable<TranscriptionComponents["recognizer"]> = {
-    recognize: async ({ model, samples, onSeconds }) => {
+    recognize: async ({ model, samples, onSeconds, signal }) => {
       heard.push(model);
       const lines: string[] = [];
-      for await (const chunk of samples) {
-        const line = lineOf(chunk);
-        await hear(line);
-        lines.push(line);
-        onSeconds(lines.length);
+      try {
+        for await (const chunk of samples) {
+          const line = lineOf(chunk);
+          await hear(line, signal);
+          lines.push(line);
+          onSeconds(lines.length);
+        }
+      } catch (error) {
+        if (signal.aborted) {
+          control.cancelled += 1;
+        }
+        throw error;
       }
       return lines.filter((line) => line !== waitMark).join(" ");
     },
@@ -149,6 +172,10 @@ export async function stubTranscription(options: { brokenSha?: Component["id"] }
     served,
     model: {
       heard,
+      /** How many runs of the model were cancelled. */
+      get cancelled() {
+        return control.cancelled;
+      },
       waiting: async () => control.waiting.reached,
       continueSpeech: () => {
         control.waiting.release();
@@ -175,6 +202,12 @@ export interface TranscriptionStatus {
     readonly total: number;
   } | null;
   readonly failure: string | null;
+  /** The languages of recognition, each with the installed model that hears it, or null. */
+  readonly languages: readonly {
+    readonly code: string;
+    readonly name: string;
+    readonly model: ModelId | null;
+  }[];
 }
 
 export async function transcriptionStatus(server: FastifyInstance): Promise<TranscriptionStatus> {
@@ -190,6 +223,15 @@ export async function installModels(server: FastifyInstance, models: readonly Mo
     url: "/api/transcription/install",
     headers: browserHeaders(server),
     payload: { models },
+  });
+}
+
+/** «Удалить» of the model in «Распознавание речи». */
+export async function removeModel(server: FastifyInstance, model: ModelId) {
+  return server.inject({
+    method: "DELETE",
+    url: `/api/transcription/models/${model}`,
+    headers: browserHeaders(server),
   });
 }
 

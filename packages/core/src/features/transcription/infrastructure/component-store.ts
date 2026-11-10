@@ -91,5 +91,8 @@ export function componentStore(dataDirectory: string): ComponentStore {
       }
       await writeFile(path.join(directory, markerName), component.version);
     },
+    remove: async (component) => {
+      await rm(path.join(root, component.id), { recursive: true, force: true });
+    },
   };
 }
