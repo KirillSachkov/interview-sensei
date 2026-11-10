@@ -160,13 +160,23 @@ describe("materials for the agent of the Target setup", () => {
     const listed = await callTool(events, "list_sources");
     const read = await callTool(events, "get_source", { id: attached.json<SourceView>().id });
 
+    expect(JSON.parse(listed)).toStrictEqual([]);
+    expect(read).toBe("Ошибка: Source not found");
+  });
+
+  it("refuses to mark a material of another Target", async () => {
+    const { server } = await startServer(await temporaryDirectory());
+    const own = await newTarget(server);
+    const foreign = await newTarget(server);
+    const attached = await upload(server, { targetId: foreign.id, name: "cv.pdf", body: "CV" });
+    const events = await setupChat(server, own.id);
+
     const marked = await callTool(events, "set_source_type", {
       id: attached.json<SourceView>().id,
       type: "vacancy",
     });
 
-    expect(JSON.parse(listed)).toStrictEqual([]);
-    expect(read).toBe("Ошибка: Source not found");
     expect(marked).toBe("Ошибка: Source not found");
+    await expect(sources(server, foreign.id)).resolves.toMatchObject([{ type: "file" }]);
   });
 });
