@@ -9,6 +9,7 @@ import { agentSummary, settledSources } from "../domain/inbox.ts";
 import type { DoubtfulQuestion, InboxReport, InboxRun, ReportProposals } from "../domain/inbox.ts";
 import type { InboxTarget } from "../domain/ports.ts";
 import type { Source } from "../domain/source.ts";
+import { boundInRun } from "../domain/source-text.ts";
 import { refuseInRecheck, runOf } from "./inbox-context.ts";
 import type { InboxContext } from "./inbox-context.ts";
 import { moveSettled } from "./inbox-ending.ts";
@@ -19,9 +20,11 @@ function listed(source: Source) {
   return { id, type, title, url, status, parts, failure };
 }
 
+/** The run's Sources the agent reads: a transcript bound to a video is that video's text. */
 async function runSources({ dependencies }: InboxContext, run: InboxRun) {
   const all = await dependencies.repository.list(run.targetId);
-  return all.filter((source) => run.sourceIds.includes(source.id));
+  const bound = boundInRun(run.sourceIds, all);
+  return all.filter((source) => run.sourceIds.includes(source.id) && !bound.has(source.id));
 }
 
 /** The Target's visible Questions as the brief of a recheck lists them. */
@@ -157,19 +160,26 @@ async function checkHide(
   }
 }
 
+/** Where the run's Sources go by the agent's report; a bound transcript follows its video. */
+async function reportedSources({ dependencies }: InboxContext, run: InboxRun, opened: Transaction) {
+  const sources = await dependencies.repository.list(run.targetId, opened);
+  return settledSources(run, sources, {
+    reported: true,
+    bound: boundInRun(run.sourceIds, sources),
+  });
+}
+
 /** Stores the agent's report, moves the run's Sources and finishes the run, in the transaction. */
 async function storeReport(
   context: InboxContext,
   { session, input }: { session: ToolSession; input: ReportInput },
   opened: Transaction,
 ) {
-  const { repository, inbox, clock } = context.dependencies;
+  const { inbox, clock } = context.dependencies;
   const { targetId, run } = await runOf(context, session, opened);
   await checkHide(context, { targetId, input }, opened);
   const now = clock.now().toISOString();
-  const { ready, back } = settledSources(run, await repository.list(targetId, opened), {
-    reported: true,
-  });
+  const { ready, back } = await reportedSources(context, run, opened);
   const report: InboxReport = {
     id: randomUUID(),
     targetId,

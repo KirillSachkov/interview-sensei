@@ -138,8 +138,11 @@ The agent's own Inbox report moves the Sources by the same rule: a Source the ag
 
 **Source status**:
 Where a Source is in Inbox processing: «в Inbox» until processing starts, «разбирается» during it, «готов» after it, or «ошибка» with the reason when the Source could not be read.
-The server gives «ошибка» to a format it cannot read, archives included, to a Source without text, and to a video file or a video link: «приложите транскрипт».
-The Candidate attaches the video's transcript as a Source of its own, and Inbox processing reads it as text.
+A video or audio file is «транскрибируется» with the percent heard while the server recognizes its speech on the Candidate's device, before the agent starts (#74); then it is «разбирается» with the recognized text.
+So is a link to a video whose speech the server recognizes; a video with subtitles in its language goes straight to «разбирается» with their text (#76).
+«Остановить разбор» and a restart cancel the recognition and return the file to the Inbox; a recognized text stays with the Source, so the next processing does not recognize it again.
+The server gives «ошибка» to a format it cannot read, archives included, to a Source without text, to a video or audio file without installed speech recognition, without a model for its language or without sound, to a link to a video that is private, deleted or open only after a login, and to a link to a video hosting before yt-dlp is downloaded.
+A Bound transcript gives a video or audio file its text without recognition.
 A web page the server could not read stays «разбирается» without parts: the agent opens it on the web, and its Questions have no part.
 It becomes «готов» by the agent's Inbox report and goes back to the Inbox when processing ends without one.
 The agent gives «ошибка» with its reason to a Source it cannot read either.
@@ -207,4 +210,17 @@ Inbox processing may use the web, so its agent opens pages without a request.
 **Source**:
 Material attached to a Target: a vacancy, a resume, a link, a video transcript, a file or the Candidate's own note.
 A Target can have any number of Sources of each type. Questions refer to the Sources they came from.
-The server reads the text of a Source itself, from PDF, DOCX, plain text, Markdown, subtitles and web pages, and keeps it in numbered parts in the data directory.
+The server reads the text of a Source itself, from PDF, DOCX, plain text, Markdown, subtitles and web pages, recognizes the speech of video and audio files, takes the subtitles or the speech of a linked video, and keeps the text in numbered parts in the data directory.
+
+**Bound transcript**:
+A file of subtitles or plain text attached to the same Target with the file name of a video or audio file, in any case, such as `interview.vtt` beside `interview.mp4` (#74, the owner's decision in PR #92).
+The video takes its text instead of recognizing its speech, so it needs no model and no download.
+The transcript goes into the video's Inbox processing and follows the video: it becomes «готов» only with the video and goes back to the Inbox with it. The agent reads it as the video's text, never as a Source of its own.
+
+**Speech recognition**:
+The application's own recognition of speech in video and audio on the Candidate's device (#74), with no agent: ffmpeg-static extracts the sound, Silero VAD cuts it into phrases, and a speech model recognizes them through sherpa-onnx.
+The Candidate chooses the model: GigaAM v3 for Russian, Parakeet TDT 0.6B v3 for 25 European languages, or both.
+The language of a file is the Target's language unless the Candidate changes it in the processing card; Russian goes to GigaAM when it is installed, otherwise to Parakeet, and the other languages of Parakeet to Parakeet.
+A link goes through yt-dlp (#76): one it does not recognize is a web page; a video gives its manual subtitles in its language, the automatic ones when it is Russian and GigaAM is not installed, or else the speech of its original audio track.
+Its components download only after the Candidate's consent, into the data directory, at pinned versions with checked SHA-256; nothing is installed into the system.
+«Настройки» → «Распознавание речи» shows each model's status, installs a model and deletes one, which frees its disk space.

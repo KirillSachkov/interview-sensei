@@ -17,15 +17,17 @@
     "./app-settings": "./src/features/app-settings/index.ts",
     "./sources": "./src/features/sources/index.ts",
     "./interviews": "./src/features/interviews/index.ts",
-    "./progress": "./src/features/progress/index.ts"
+    "./progress": "./src/features/progress/index.ts",
+    "./transcription": "./src/features/transcription/index.ts"
   },
   "scripts": {
     "lint": "oxlint",
     "boundaries": "depcruise src --output-type err-long",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run --project unit --project integration --passWithNoTests",
     "test:unit": "vitest run --project unit --passWithNoTests",
     "test:integration": "vitest run --project integration",
-    "db:generate": "node scripts/generate-migrations.ts"
+    "db:generate": "node scripts/generate-migrations.ts",
+    "test:live": "vitest run --project live"
   },
   "dependencies": {
     "@agentclientprotocol/claude-agent-acp": "0.101.0",

@@ -15,3 +15,15 @@ https://github.com/humanlayer/skills/tree/bba9d13ab34f0a87f1cc33df4dd196372393dd
 Copyright (c) 2026 HumanLayer, MIT.
 The complete notice is in .agents/skills/LICENSE.humanlayer.
 Existing credits remain in .agents/skills/pr/CREDITS.md.
+
+The recognition loop of packages/core/src/features/transcription/infrastructure/sherpa-recognizer.ts
+follows the official example nodejs-addon-examples/test_vad_with_non_streaming_asr_whisper.js of
+k2-fsa/sherpa-onnx at:
+https://github.com/k2-fsa/sherpa-onnx/blob/347ec768a01ca53e766780f7759b14e145b643e6/nodejs-addon-examples/test_vad_with_non_streaming_asr_whisper.js
+Copyright (c) 2023-2024 Xiaomi Corporation, Apache-2.0.
+The adaptation streams samples from ffmpeg, decodes phrases asynchronously and joins them into
+paragraphs. The application downloads sherpa-onnx-node (Apache-2.0), ffmpeg-static binaries
+(GPL-3.0-or-later builds of FFmpeg), Silero VAD (MIT), GigaAM v3 (MIT), Parakeet TDT 0.6B v3
+(CC BY 4.0) and the yt-dlp builds (Unlicense; the Python and libraries they bundle list their
+licenses in `_internal/THIRD_PARTY_LICENSES.txt`) at run time after the Candidate's consent; the
+repository does not contain them.

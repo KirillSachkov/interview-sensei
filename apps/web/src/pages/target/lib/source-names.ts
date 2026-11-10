@@ -11,13 +11,22 @@ export const sourceTypeNames: Record<SourceType, string> = {
 };
 
 /** Where the material is in its Inbox processing, in the words of the screen. */
-export function sourceStatusText({ status, failure }: Pick<SourceView, "status" | "failure">) {
+export function sourceStatusText({
+  status,
+  failure,
+  progress,
+}: Pick<SourceView, "status" | "failure"> & { readonly progress?: number | null }) {
   switch (status) {
     case "inbox": {
       return "в Inbox";
     }
     case "processing": {
       return "разбирается";
+    }
+    case "transcribing": {
+      return progress === null || progress === undefined
+        ? "транскрибируется"
+        : `транскрибируется ${progress} %`;
     }
     case "ready": {
       return "готов";
@@ -29,15 +38,4 @@ export function sourceStatusText({ status, failure }: Pick<SourceView, "status" 
       return status satisfies never;
     }
   }
-}
-
-/** The size of a file for the Candidate: «850 Б», «12 КБ», «3,4 МБ». */
-export function sizeText(bytes: number): string {
-  if (bytes < 1024) {
-    return `${bytes} Б`;
-  }
-  if (bytes < 1024 * 1024) {
-    return `${Math.round(bytes / 1024)} КБ`;
-  }
-  return `${(bytes / (1024 * 1024)).toFixed(1).replace(".", ",")} МБ`;
 }

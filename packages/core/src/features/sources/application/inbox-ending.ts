@@ -6,9 +6,10 @@ import { randomUUID } from "node:crypto";
 
 import type { Transaction } from "../../../shared/storage/index.ts";
 import { partialReport } from "../domain/inbox.ts";
+import { boundInRun } from "../domain/source-text.ts";
 import type { InboxReport, InboxRun, RunEnding } from "../domain/inbox.ts";
 import { watchSession } from "./agent-watch.ts";
-import { inBackground } from "./inbox-context.ts";
+import { cancelReading, inBackground } from "./inbox-context.ts";
 import type { InboxContext } from "./inbox-context.ts";
 
 /** Moves the run's Sources: `ready` to «готов», `back` to the Inbox, in the open transaction. */
@@ -20,6 +21,7 @@ export async function moveSettled(
   const moves = [
     { ids: ready, status: "ready", from: "processing" },
     { ids: back, status: "inbox", from: "processing" },
+    { ids: back, status: "inbox", from: "transcribing" },
   ] as const;
   for (const move of moves) {
     // oxlint-disable-next-line eslint/no-await-in-loop -- one transaction runs one query at a time
@@ -35,10 +37,12 @@ async function storePartial(
 ): Promise<InboxReport> {
   const { repository, inbox, clock } = context.dependencies;
   const createdAt = clock.now().toISOString();
-  const { report, ready, back } = partialReport(run, await repository.list(run.targetId, opened), {
+  const sources = await repository.list(run.targetId, opened);
+  const { report, ready, back } = partialReport(run, sources, {
     id: randomUUID(),
     reason,
     createdAt,
+    bound: boundInRun(run.sourceIds, sources),
   });
   await inbox.addReport(report, opened);
   await moveSettled(context, { targetId: run.targetId, ready, back }, opened);
@@ -56,10 +60,13 @@ export async function closeRun(
   run: InboxRun,
   reason: RunEnding,
 ): Promise<InboxReport | null> {
-  return context.dependencies.transaction(async (opened) => {
+  const report = await context.dependencies.transaction(async (opened) => {
     const current = await context.dependencies.inbox.runningRun(run.targetId, opened);
     return current?.id === run.id ? storePartial(context, { run: current, reason }, opened) : null;
   });
+  // A closed run reads no more texts: its running transcription stops.
+  cancelReading(context, run.id);
+  return report;
 }
 
 /**
@@ -71,8 +78,8 @@ export type StopOutcome =
   | { readonly type: "target_not_found" | "not_running" };
 
 /**
- * «Остановить разбор»: closes the run with a partial report, then stops its agent at once, even in a
- * turn. A tool call the agent makes meanwhile finds no running processing.
+ * «Остановить разбор»: closes the run with a partial report, which cancels a running
+ * transcription, then stops its agent at once, even in a turn. A tool call the agent makes meanwhile finds no running processing.
  */
 export async function stop(context: InboxContext, targetId: string): Promise<StopOutcome> {
   const { targets, inbox, sessions } = context.dependencies;

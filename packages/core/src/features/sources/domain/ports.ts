@@ -11,7 +11,7 @@ export interface SourceRepository<Transaction> {
   readonly list: (targetId: string, transaction?: Transaction) => Promise<readonly Source[]>;
   /** The Source only when it belongs to the Target. */
   readonly get: (targetId: string, id: string) => Promise<Source | undefined>;
-  /** Moves the Target's Sources to the status; `failure` only with `failed`. */
+  /** Moves the Target's Sources to the status; `failure` only with `failed`; clears the percent. */
   readonly setStatus: (
     targetId: string,
     change: {
@@ -23,6 +23,8 @@ export interface SourceRepository<Transaction> {
     },
     transaction?: Transaction,
   ) => Promise<void>;
+  /** Stores the percent of a Source «транскрибируется»; another status keeps none. */
+  readonly setProgress: (targetId: string, id: string, progress: number) => Promise<void>;
   /** Stores how many parts the server cut the Source's text into. */
   readonly setParts: (targetId: string, id: string, parts: number) => Promise<void>;
   /** Erases the Target's Sources in the open transaction; their files stay. */

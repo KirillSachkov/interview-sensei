@@ -34,6 +34,12 @@ export type {
 } from "./inbox";
 export type { SourceType, SourceView } from "./sources";
 export {
+  fetchTranscription,
+  installTranscription,
+  removeTranscriptionModel,
+} from "./transcription";
+export type { AvailableTranscription, ModelId, TranscriptionStatus } from "./transcription";
+export {
   endSetupSession,
   fetchSessions,
   isSessionView,

@@ -2,14 +2,15 @@
 // chosen Sources to «разбирается», reads their texts into numbered parts, then starts the agent.
 import { randomUUID } from "node:crypto";
 
-import { UnreadableSourceError } from "../domain/inbox.ts";
 import { inboxOpening, recheckOpening } from "../domain/inbox-brief.ts";
 import type { InboxMode, InboxRun } from "../domain/inbox.ts";
 import type { Source } from "../domain/source.ts";
-import { textFormat, textParts } from "../domain/source-text.ts";
+import { boundTranscript } from "../domain/source-text.ts";
 import { inBackground } from "./inbox-context.ts";
 import type { InboxContext, InboxDependencies } from "./inbox-context.ts";
 import { closeRun, watchAgent } from "./inbox-ending.ts";
+import { readRun } from "./inbox-reading.ts";
+import type { Languages } from "./inbox-reading.ts";
 
 /**
  * - `started`: the Sources are «разбирается»; the server reads them and starts the agent in the
@@ -51,6 +52,29 @@ async function processingAgent(
     : { type: "agent_unavailable", reason: availability.reason };
 }
 
+/**
+ * The chosen Sources with the transcripts in the Inbox bound to a chosen video: the transcript is
+ * the video's text, so it goes with the video. In the order of the Target's materials.
+ */
+function withBoundTranscripts({
+  chosen,
+  inInbox,
+  all,
+}: {
+  chosen: readonly Source[];
+  inInbox: readonly Source[];
+  all: readonly Source[];
+}): readonly Source[] {
+  const ids = new Set(chosen.map((source) => source.id));
+  for (const source of chosen) {
+    const transcript = boundTranscript(source, all);
+    if (transcript !== undefined) {
+      ids.add(transcript.id);
+    }
+  }
+  return inInbox.filter((source) => ids.has(source.id));
+}
+
 /** The chosen Sources in the Inbox, all of them without a choice; a refusal otherwise. */
 async function chosenSources(
   { repository }: InboxDependencies,
@@ -67,7 +91,9 @@ async function chosenSources(
   }
   const wanted = new Set(sourceIds);
   const chosen = inInbox.filter((source) => wanted.has(source.id));
-  return chosen.length === wanted.size ? chosen : { type: "invalid_sources" };
+  return chosen.length === wanted.size
+    ? withBoundTranscripts({ chosen, inInbox, all })
+    : { type: "invalid_sources" };
 }
 
 /** Checks the start in the order the Candidate can fix it. */
@@ -87,65 +113,6 @@ async function checkStart(
   }
   const agent = await processingAgent(dependencies, targetId);
   return typeof agent === "string" ? { sources, agent } : agent;
-}
-
-/** Reads the Source's text and stores its numbered parts; rejects when there is no text. */
-async function storeParts({ dependencies }: InboxContext, source: Source): Promise<void> {
-  const { repository, files, texts, extractor } = dependencies;
-  const text = await extractor.extract({
-    format: textFormat(source),
-    path: source.file === null ? null : files.absolute(source.file),
-    url: source.url,
-  });
-  const parts = textParts(text);
-  if (parts.length === 0) {
-    throw new UnreadableSourceError("в материале нет текста");
-  }
-  await texts.write(source.targetId, source.id, parts);
-  await repository.setParts(source.targetId, source.id, parts.length);
-}
-
-/** Gives the Source the server could not read «ошибка» with the reason. */
-async function markUnreadable({ dependencies }: InboxContext, source: Source, error: unknown) {
-  const failure =
-    error instanceof UnreadableSourceError ? error.message : "материал не удалось прочитать";
-  const change = { ids: [source.id], status: "failed", failure, from: "processing" } as const;
-  await dependencies.repository.setStatus(source.targetId, change);
-}
-
-/**
- * Reads the Source's text into parts; a Source the server cannot read gets «ошибка». A web page the
- * server could not read stays «разбирается» without parts: the agent opens it on the web.
- */
-async function readText(context: InboxContext, source: Source): Promise<boolean> {
-  try {
-    await storeParts(context, source);
-    return true;
-  } catch (error) {
-    if (!(error instanceof UnreadableSourceError)) {
-      context.dependencies.onError(error);
-    }
-    if (textFormat(source) === "web") {
-      return true;
-    }
-    await markUnreadable(context, source, error);
-    return false;
-  }
-}
-
-/**
- * Reads the texts one at a time: a large file never waits beside another one in memory. Counts the
- * materials the agent can process.
- */
-async function readTexts(context: InboxContext, sources: readonly Source[]): Promise<number> {
-  let readable = 0;
-  for (const source of sources) {
-    // oxlint-disable-next-line eslint/no-await-in-loop -- one large file at a time
-    if (await readText(context, source)) {
-      readable += 1;
-    }
-  }
-  return readable;
 }
 
 /** Starts the agent's session; a failed start closes the run with a partial report. */
@@ -183,13 +150,22 @@ async function startAgent(context: InboxContext, run: InboxRun, agent: string): 
 
 /**
  * Reads the texts, then starts the agent; without a readable material the run ends with a partial
- * report.
+ * report. A cancelled reading starts nothing: «Остановить разбор» has closed the run, and after the
+ * server's close the next start closes it.
  */
 async function begin(
   context: InboxContext,
-  { run, sources, agent }: { run: InboxRun; sources: readonly Source[]; agent: string },
+  {
+    run,
+    sources,
+    agent,
+    languages,
+  }: { run: InboxRun; sources: readonly Source[]; agent: string; languages: Languages },
 ): Promise<void> {
-  const readable = await readTexts(context, sources);
+  const { readable, cancelled } = await readRun(context, { run, sources, languages });
+  if (cancelled) {
+    return;
+  }
   await (readable === 0
     ? closeRun(context, run, "nothing_readable")
     : startAgent(context, run, agent));
@@ -231,14 +207,20 @@ async function stored({ repository, inbox, transaction }: InboxDependencies, run
   });
 }
 
+/** «Запустить разбор»: the chosen Sources and the language chosen for each recording. */
+export interface StartRequest {
+  readonly targetId: string;
+  /** Every Source in the Inbox without a choice. */
+  readonly sourceIds?: readonly string[] | undefined;
+  /** The language of a video or audio file by Source id; the Target's language without one. */
+  readonly languages?: Languages | undefined;
+}
+
 /**
  * Starts the Inbox processing of the chosen Sources, or of every Source in the Inbox without a
  * choice. Closes the open proposal: the Candidate answered it.
  */
-export async function start(
-  context: InboxContext,
-  request: { targetId: string; sourceIds?: readonly string[] | undefined },
-): Promise<StartOutcome> {
+export async function start(context: InboxContext, request: StartRequest): Promise<StartOutcome> {
   const { dependencies } = context;
   const { targetId, sourceIds } = request;
   const checked = await checkStart(dependencies, { targetId, sourceIds });
@@ -250,7 +232,12 @@ export async function start(
     return { type: "processing_running" };
   }
   inBackground(context, async () =>
-    begin(context, { run, sources: checked.sources, agent: checked.agent }),
+    begin(context, {
+      run,
+      sources: checked.sources,
+      agent: checked.agent,
+      languages: request.languages ?? {},
+    }),
   );
   return { type: "started", run };
 }

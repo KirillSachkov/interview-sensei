@@ -1,0 +1,1 @@
+ALTER TABLE "sources"."sources" ADD COLUMN "progress" integer;

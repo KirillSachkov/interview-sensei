@@ -11,6 +11,8 @@ import {
 import { getProgress, progressModule } from "@interview-sensei/core/progress";
 import { healthModule } from "@interview-sensei/core/health";
 import { openStorage } from "@interview-sensei/core/storage";
+import { transcriptionModule } from "@interview-sensei/core/transcription";
+import type { TranscriptionComponents } from "@interview-sensei/core/transcription";
 import type { SliceMigrations, Storage } from "@interview-sensei/core/storage";
 import type { Interviews } from "@interview-sensei/core/interviews";
 import type { Progress } from "@interview-sensei/core/progress";
@@ -38,6 +40,8 @@ export type { McpGateway } from "./composition-agents.ts";
 export { UnknownAgentError } from "./composition-targets.ts";
 export type { InboxStartOutcome } from "@interview-sensei/core/sources";
 export { grades } from "@interview-sensei/core/interviews";
+export { modelIds, TranscriptionError } from "@interview-sensei/core/transcription";
+export type * from "@interview-sensei/core/transcription";
 export type * from "@interview-sensei/core/interviews";
 
 /**
@@ -109,7 +113,10 @@ function sessionTools(slices: ReturnType<typeof composeTargets>) {
   };
 }
 
-export type FeatureDependencies = AgentDependencies;
+export interface FeatureDependencies extends AgentDependencies {
+  /** Stand-ins for the components of speech recognition in tests; the real ones by default. */
+  transcription?: TranscriptionComponents | undefined;
+}
 
 /** Mock interviews and the progress of their Attempts; the interviews' brief reads progress back. */
 function composeInterviews(
@@ -166,7 +173,7 @@ function topicMerges(interviews: () => ReturnType<typeof interviewsModule>) {
  * exist by the first call.
  */
 function targetDependencies(
-  { clock, timer, dataDirectory, log }: FeatureDependencies,
+  { clock, timer, dataDirectory, log, transcription }: FeatureDependencies,
   later: {
     interviews: () => ReturnType<typeof interviewsModule>;
     sessions: () => AgentSessions;
@@ -176,6 +183,11 @@ function targetDependencies(
     clock,
     timer,
     dataDirectory,
+    transcription: transcriptionModule({
+      dataDirectory,
+      components: transcription,
+      onError: (error) => log.error({ err: error }, "A download of speech recognition failed"),
+    }),
     attempts: topicMerges(later.interviews),
     sessions: inboxSessions(later.sessions),
     onError: (error: unknown) =>

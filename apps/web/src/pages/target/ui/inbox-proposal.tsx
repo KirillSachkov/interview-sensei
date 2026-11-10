@@ -1,8 +1,9 @@
-import { useState } from "react";
+import type { AvailableTranscription, InboxState, ProposalItem } from "@/shared/api";
+import { sizeText } from "@/shared/lib";
 
-import type { InboxState, ProposalItem } from "@/shared/api";
-
-import { sizeText, sourceTypeNames } from "../lib/source-names";
+import { sourceTypeNames } from "../lib/source-names";
+import { useCardChoice } from "../model/card-choice";
+import type { CardChoice } from "../model/card-choice";
 import {
   useDismissProposal,
   useInbox,
@@ -11,18 +12,27 @@ import {
 } from "../model/inbox";
 import { ProposalActions } from "./proposal-actions";
 import { RecheckProposal } from "./recheck-proposal";
+import { SpeechLanguage } from "./speech-language";
+import { TranscriptionConsent } from "./transcription-consent";
 
-/** One material of the card: its checkbox, title, type, size and the agent's assessment. */
+type Language = AvailableTranscription["languages"][number];
+
+/**
+ * One material of the card: its checkbox, title, type, size and the agent's assessment; the
+ * language of a recording, or the transcript bound to it.
+ */
 function ProposalLine({
   item,
   checked,
   disabled,
   onToggle,
+  language,
 }: {
   item: ProposalItem;
   checked: boolean;
   disabled: boolean;
   onToggle: (checked: boolean) => void;
+  language: { value: string; languages: readonly Language[]; onChoose: (code: string) => void };
 }) {
   const volume = item.size === null ? "ссылка" : sizeText(item.size);
   return (
@@ -41,24 +51,47 @@ function ProposalLine({
         <span className="muted">
           {sourceTypeNames[item.type]} · {volume} — {item.assessment}
         </span>
+        {item.transcript === null ? null : (
+          <span className="muted">Текст возьмётся из «{item.transcript}», без распознавания.</span>
+        )}
+        <SpeechLanguage item={item} language={language} disabled={disabled} />
       </span>
     </li>
   );
 }
 
-/** The materials the Candidate unticked; the rest go to the processing. */
-function useUnticked() {
-  const [unticked, setUnticked] = useState<ReadonlySet<string>>(new Set());
-  const toggle = (sourceId: string, checked: boolean) => {
-    const next = new Set(unticked);
-    if (checked) {
-      next.delete(sourceId);
-    } else {
-      next.add(sourceId);
-    }
-    setUnticked(next);
-  };
-  return { unticked, toggle };
+/** The materials of the card with their checkboxes and the languages of recordings. */
+function ProposalList({
+  items,
+  choice,
+  disabled,
+}: {
+  items: readonly ProposalItem[];
+  choice: CardChoice;
+  disabled: boolean;
+}) {
+  return (
+    <ul className="draft-change-list">
+      {items.map((item) => (
+        <ProposalLine
+          key={item.sourceId}
+          item={item}
+          checked={!choice.unticked.has(item.sourceId)}
+          disabled={disabled}
+          onToggle={(checked) => {
+            choice.toggle(item.sourceId, checked);
+          }}
+          language={{
+            value: choice.languages.languageOf(item),
+            languages: choice.known,
+            onChoose: (code) => {
+              choice.languages.choose(item.sourceId, code);
+            },
+          }}
+        />
+      ))}
+    </ul>
+  );
 }
 
 function ProposalCard({
@@ -70,32 +103,29 @@ function ProposalCard({
 }) {
   const start = useStartProcessing(targetId);
   const dismiss = useDismissProposal(targetId, "processing");
-  const { unticked, toggle } = useUnticked();
-  const chosen = proposal.items.filter((item) => !unticked.has(item.sourceId));
+  const choice = useCardChoice(proposal);
   const busy = start.isPending || dismiss.isPending;
+  const { chosen, videos, needs } = choice;
   return (
     <section className="draft-changes inbox-proposal" aria-label="Разбор материалов">
       <h3>Разбор материалов</h3>
-      <ul className="draft-change-list">
-        {proposal.items.map((item) => (
-          <ProposalLine
-            key={item.sourceId}
-            item={item}
-            checked={!unticked.has(item.sourceId)}
-            disabled={busy}
-            onToggle={(checked) => {
-              toggle(item.sourceId, checked);
-            }}
-          />
-        ))}
-      </ul>
+      <ProposalList items={proposal.items} choice={choice} disabled={busy} />
+      {videos.length > 0 ? (
+        <TranscriptionConsent
+          key={[...needs.missing, needs.links ? "links" : ""].join(",")}
+          needs={needs}
+        />
+      ) : null}
       {start.error === null ? null : <p role="alert">Разбор не начался: {start.error.message}</p>}
       <ProposalActions
         startLabel="Запустить разбор"
         disabled={busy}
-        canStart={chosen.length > 0}
+        canStart={chosen.length > 0 && !(videos.length > 0 && choice.downloading)}
         onStart={() => {
-          start.mutate(chosen.map((item) => item.sourceId));
+          start.mutate({
+            sourceIds: chosen.map((item) => item.sourceId),
+            languages: choice.languages.forStart(chosen),
+          });
         }}
         onDismiss={() => {
           dismiss.mutate();

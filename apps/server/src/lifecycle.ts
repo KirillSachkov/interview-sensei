@@ -6,18 +6,18 @@ import { acceptLocalRequestsOnly } from "./local-requests.ts";
 
 /**
  * Ends sessions of the last run, pauses its running Mock interviews, closes its running Inbox
- * processing with partial reports, and registers the
+ * processing with partial reports, deletes the temporary audio of its transcriptions, and registers the
  * shutdown order, the WebSocket plugin and the check that only the Candidate's own browser reaches
  * the server.
  */
 export async function prepare(
   server: FastifyInstance,
   {
-    features: { storage, sessions, interviews, sources },
+    features: { storage, sessions, interviews, sources, transcription },
     allowedOrigins,
     exemptRoutes,
   }: {
-    features: Pick<Features, "storage" | "sessions" | "interviews" | "sources">;
+    features: Pick<Features, "storage" | "sessions" | "interviews" | "sources" | "transcription">;
     allowedOrigins: readonly string[];
     /** Routes with their own Host and Origin checks; see acceptLocalRequestsOnly. */
     exemptRoutes: readonly string[];
@@ -30,6 +30,7 @@ export async function prepare(
   server.addHook("onClose", async () => {
     try {
       await interviews.pauseRunning();
+      await transcription.close();
       await sources.inbox.settle();
       await sessions.close();
     } finally {
@@ -40,6 +41,7 @@ export async function prepare(
     await sessions.endInterrupted();
     await interviews.pauseInterrupted();
     await sources.inbox.endInterrupted();
+    await transcription.removeLeftovers();
     await server.register(fastifyWebsocket);
   } catch (error) {
     await storage.close();

@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 
 import type { Features } from "./composition.ts";
+import { registerTranscriptionRoutes } from "./transcription-routes.ts";
 
 /** The agent in a body that has only this field: a string, or null to clear the choice. */
 function agentOf(body: unknown): string | null | undefined {
@@ -17,10 +18,11 @@ function agentOf(body: unknown): string | null | undefined {
  * - `PUT /api/settings/default-agent` with `{ agent }`: stores the default agent of the Targets
  *   without their own; null returns them to the first available agent. 400 `unknown_agent` for an
  *   agent the server does not offer.
+ * - «Распознавание речи»: see registerTranscriptionRoutes.
  */
 export function registerSettingsRoutes(
   server: FastifyInstance,
-  { appSettings }: Pick<Features, "appSettings">,
+  { appSettings, transcription }: Pick<Features, "appSettings" | "transcription">,
 ) {
   server.get("/api/settings", async () => appSettings.settings());
   server.put<{ Body: unknown }>("/api/settings/default-agent", async (request, reply) => {
@@ -28,4 +30,5 @@ export function registerSettingsRoutes(
     const saved = agent === undefined ? "unknown_agent" : await appSettings.setDefaultAgent(agent);
     return saved === "unknown_agent" ? reply.code(400).send({ error: saved }) : saved;
   });
+  registerTranscriptionRoutes(server, { transcription });
 }

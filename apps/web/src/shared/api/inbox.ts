@@ -10,6 +10,15 @@ export interface ProposalItem {
   readonly url: string | null;
   /** The file's size in bytes; null for a link. */
   readonly size: number | null;
+  /**
+   * A video or audio file without a bound transcript: the server recognizes its speech before the
+   * agent reads it.
+   */
+  readonly video: boolean;
+  /** The language of a `video` for its recognition, the Target's at first; null otherwise. */
+  readonly language: string | null;
+  /** The title of the transcript with the video's file name, which is the video's text. */
+  readonly transcript: string | null;
   readonly assessment: string;
 }
 
@@ -163,15 +172,20 @@ export async function fetchInbox(targetId: string): Promise<InboxState> {
 
 /**
  * «Запустить разбор»: the chosen materials, or every material in the Inbox without a choice.
- * Throws the server's Russian message, such as for a running processing.
+ * `languages` has the language the card chose for a video or audio file, by Source id. Throws the
+ * server's Russian message, such as for a running processing.
  */
 export async function startInboxProcessing(
   targetId: string,
   sourceIds?: readonly string[],
+  languages?: Readonly<Record<string, string>>,
 ): Promise<void> {
   await request(`${inboxUrl(targetId)}/processing`, {
     method: "POST",
-    body: sourceIds === undefined ? {} : { sourceIds },
+    body: {
+      ...(sourceIds === undefined ? {} : { sourceIds }),
+      ...(languages === undefined ? {} : { languages }),
+    },
   });
 }
 

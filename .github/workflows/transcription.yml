@@ -1,0 +1,45 @@
+# Seam 3 of spec #74: the real components of speech recognition on Linux and Windows. The pinned
+# sherpa-onnx-node, ffmpeg-static, Silero VAD, GigaAM, Parakeet and yt-dlp download into a cached data
+# directory, then GigaAM recognizes a short Russian clip and Parakeet a short English one; the log
+# prints the download and recognition times.
+name: Transcription live check
+
+on:
+  pull_request:
+    paths:
+      - "packages/core/src/features/transcription/**"
+      - "packages/core/vitest.config.ts"
+      - ".github/workflows/transcription.yml"
+  push:
+    branches: [main]
+    paths:
+      - "packages/core/src/features/transcription/**"
+      - "packages/core/vitest.config.ts"
+      - ".github/workflows/transcription.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: transcription-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  transcription-live:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    env:
+      INTERVIEW_SENSEI_TRANSCRIPTION_LIVE_DIR: ${{ github.workspace }}/.transcription-live
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      # The components change only with their pins, so the key is the pinned catalog.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .transcription-live
+          key: transcription-${{ runner.os }}-${{ hashFiles('packages/core/src/features/transcription/domain/pinned-catalog.ts') }}
+      - run: pnpm --filter @interview-sensei/core test:live --reporter=verbose
