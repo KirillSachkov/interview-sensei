@@ -2,23 +2,21 @@
 // server as small files with their real SHA-256, and stubs stand for ffmpeg and the model. No test
 // downloads or runs the real components; the live check in CI does (transcription.live.test.ts).
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
 
 import type { FastifyInstance } from "fastify";
 import { expect, vi } from "vitest";
 
-import { TranscriptionError } from "./composition.ts";
 import type {
-  Audio,
   Component,
   ComponentCatalog,
   ModelId,
   TranscriptionComponents,
 } from "./composition.ts";
-import { browserHeaders } from "./chat-test-support.ts";
+import { browserHeaders, startServer, temporaryDirectory } from "./chat-test-support.ts";
 import { componentServer, newHold } from "./component-server-test-support.ts";
+import { stubExtractor } from "./ffmpeg-stub-test-support.ts";
 import { stubLinks } from "./video-link-test-support.ts";
-import { api } from "./setup-test-support.ts";
+import { api, appliedTarget } from "./setup-test-support.ts";
 
 /** The size of each made-up component file: the models are the larger ones, as in life. */
 const sizes: Readonly<Record<Component["id"], number>> = {
@@ -70,70 +68,65 @@ async function catalogOnServer({ brokenSha }: { brokenSha?: Component["id"] } = 
   return { catalog, served };
 }
 
-/** A stub recording with this line has no sound. */
-const silentMark = "[без звука]";
 /** A line that makes the stub model wait until the test calls `continueSpeech`. */
 export const waitMark = "[ждать]";
-
-/** The lines of a stub recording: the file is text, one second of speech per line. */
-async function linesOf(file: string): Promise<string[]> {
-  const text = await readFile(file, "utf8");
-  return text.split("\n").filter(Boolean);
-}
-
-/** Each line of the stub recording as samples of its UTF-8 bytes; no sound with «[без звука]». */
-async function* stubSamples(file: string): AsyncGenerator<Float32Array> {
-  const lines = await linesOf(file);
-  if (lines.includes(silentMark)) {
-    throw new TranscriptionError("в файле нет звука");
-  }
-  for (const line of lines) {
-    yield Float32Array.from(new TextEncoder().encode(line));
-  }
-}
-
-/** A stub of ffmpeg: the recording's duration is its number of lines. */
-function stubExtractor(): NonNullable<TranscriptionComponents["extractor"]> {
-  return {
-    extract: (file): Audio => {
-      const duration = (async () => {
-        const lines = await linesOf(file);
-        return lines.length;
-      })();
-      return { duration, samples: stubSamples(file) };
-    },
-  };
-}
 
 /** The line of the stub recording that the samples carry. */
 function lineOf(samples: Float32Array): string {
   return new TextDecoder().decode(Uint8Array.from(samples));
 }
 
+/** Resolves once the hold is released; rejects with the signal's reason once it aborts. */
+async function releasedOrAborted(released: Promise<unknown>, signal: AbortSignal): Promise<void> {
+  signal.throwIfAborted();
+  const aborted = Promise.withResolvers<never>();
+  const onAbort = () => {
+    aborted.reject(signal.reason);
+  };
+  signal.addEventListener("abort", onAbort, { once: true });
+  try {
+    await Promise.race([released, aborted.promise]);
+  } finally {
+    signal.removeEventListener("abort", onAbort);
+  }
+}
+
 /**
  * A stub model: it hears each line of the stub recording as one second and returns the lines as
- * the text. At «[ждать]» it waits for `continueSpeech`. `heard` records the model of each run.
+ * the text. At «[ждать]» it waits for `continueSpeech`, or for the cancel of its run.
+ * `heard` records the model of each run, `cancelled` counts the cancelled runs.
  */
 function stubRecognizer() {
   const heard: ModelId[] = [];
-  const control = { waiting: newHold() };
-  const hear = async (line: string) => {
-    if (line === waitMark) {
-      control.waiting.reach();
-      await control.waiting.released;
+  const control = { waiting: newHold(), cancelled: 0 };
+  /** The lines of the samples in order; at «[ждать]» it waits for the test or the cancel. */
+  const hear = async ({
+    samples,
+    onSeconds,
+    signal,
+  }: Parameters<NonNullable<TranscriptionComponents["recognizer"]>["recognize"]>[0]) => {
+    const lines: string[] = [];
+    for await (const chunk of samples) {
+      const line = lineOf(chunk);
+      if (line === waitMark) {
+        control.waiting.reach();
+        await releasedOrAborted(control.waiting.released, signal);
+      }
+      lines.push(line);
+      onSeconds(lines.length);
     }
+    return lines;
   };
   const recognizer: NonNullable<TranscriptionComponents["recognizer"]> = {
-    recognize: async ({ model, samples, onSeconds }) => {
-      heard.push(model);
-      const lines: string[] = [];
-      for await (const chunk of samples) {
-        const line = lineOf(chunk);
-        await hear(line);
-        lines.push(line);
-        onSeconds(lines.length);
+    recognize: async (request) => {
+      heard.push(request.model);
+      try {
+        const lines = await hear(request);
+        return lines.filter((line) => line !== waitMark).join(" ");
+      } catch (error) {
+        control.cancelled += request.signal.aborted ? 1 : 0;
+        throw error;
       }
-      return lines.filter((line) => line !== waitMark).join(" ");
     },
   };
   return { recognizer, heard, control };
@@ -155,6 +148,10 @@ export async function stubTranscription(options: { brokenSha?: Component["id"] }
     links,
     model: {
       heard,
+      /** How many runs of the model were cancelled. */
+      get cancelled() {
+        return control.cancelled;
+      },
       waiting: async () => control.waiting.reached,
       continueSpeech: () => {
         control.waiting.release();
@@ -182,6 +179,12 @@ export interface TranscriptionStatus {
     readonly total: number;
   } | null;
   readonly failure: string | null;
+  /** The languages of recognition, each with the installed model that hears it, or null. */
+  readonly languages: readonly {
+    readonly code: string;
+    readonly name: string;
+    readonly model: ModelId | null;
+  }[];
 }
 
 export async function transcriptionStatus(server: FastifyInstance): Promise<TranscriptionStatus> {
@@ -197,6 +200,15 @@ export async function installModels(server: FastifyInstance, models: readonly Mo
     url: "/api/transcription/install",
     headers: browserHeaders(server),
     payload: { models },
+  });
+}
+
+/** «Удалить» of the model in «Распознавание речи». */
+export async function removeModel(server: FastifyInstance, model: ModelId) {
+  return server.inject({
+    method: "DELETE",
+    url: `/api/transcription/models/${model}`,
+    headers: browserHeaders(server),
   });
 }
 
@@ -217,4 +229,39 @@ export async function installed(server: FastifyInstance, models: readonly ModelI
   const response = await installModels(server, models);
   expect(response.statusCode).toBe(202);
   return afterDownload(server);
+}
+
+/**
+ * An active Target and its setup chat on a server with the stand-ins and a data directory of its
+ * own; the models of `models` are installed.
+ */
+export async function transcriptionTarget(models: readonly ModelId[] = ["gigaam-v3"]) {
+  const dataDirectory = await temporaryDirectory();
+  const stub = await stubTranscription();
+  const { server, stop } = await startServer(dataDirectory, { transcription: stub.components });
+  if (models.length > 0) {
+    await installed(server, models);
+  }
+  const { target, events: setup } = await appliedTarget(server);
+  return { server, stop, dataDirectory, target, setup, ...stub };
+}
+
+/** A stub video whose recognition waits at «[ждать]» until the test lets it go on. */
+export const heldVideo = `Расскажите про горутины.\n${waitMark}\nЧто такое канал?\n`;
+
+/** «Запустить разбор» of the card: the chosen materials and the language of each recording. */
+export async function startWithLanguages(
+  server: FastifyInstance,
+  {
+    targetId,
+    sourceIds,
+    languages,
+  }: { targetId: string; sourceIds?: readonly string[]; languages: Record<string, string> },
+) {
+  return server.inject({
+    method: "POST",
+    url: `/api/targets/${targetId}/inbox/processing`,
+    headers: browserHeaders(server),
+    payload: { ...(sourceIds === undefined ? {} : { sourceIds }), languages },
+  });
 }

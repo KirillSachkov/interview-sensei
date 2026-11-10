@@ -4,15 +4,17 @@ import type { InboxProposal, InboxReport } from "../domain/inbox.ts";
 import type { InboxBankQuestion, InboxTarget } from "../domain/ports.ts";
 import { reportQuestions } from "../domain/report-questions.ts";
 import type { Source } from "../domain/source.ts";
-import { textFormat } from "../domain/source-text.ts";
+import { boundTranscript, textFormat } from "../domain/source-text.ts";
 import type { InboxContext } from "./inbox-context.ts";
 
 /**
  * One material of the proposal card: its type and volume from the server, whether it is a video or
- * audio, and the agent's assessment.
+ * audio that needs speech recognition with the Target's language as its default, the transcript
+ * bound to it, and the agent's assessment.
  */
 async function proposalItems({ dependencies }: InboxContext, proposal: InboxProposal) {
   const sources = await dependencies.repository.list(proposal.targetId);
+  const target = await dependencies.targets.get(proposal.targetId);
   const items = await Promise.all(
     proposal.items.map(async ({ sourceId, assessment }) => {
       const source = sources.find((candidate) => candidate.id === sourceId);
@@ -21,9 +23,11 @@ async function proposalItems({ dependencies }: InboxContext, proposal: InboxProp
       }
       const size = source.file === null ? null : await dependencies.files.size(source.file);
       const { type, title, url } = source;
-      // A recording needs speech recognition: the card offers its components.
-      const video = textFormat(source) === "video";
-      return [{ sourceId, type, title, url, size, video, assessment }];
+      const transcript = boundTranscript(source, sources)?.title ?? null;
+      // A recording without a bound transcript needs speech recognition: the card offers it.
+      const video = textFormat(source) === "video" && transcript === null;
+      const language = video ? (target?.language ?? "ru") : null;
+      return [{ sourceId, type, title, url, size, video, language, transcript, assessment }];
     }),
   );
   return items.flat();

@@ -1,5 +1,7 @@
 import type { SourceType, SourceView } from "@/shared/api";
 
+export { sizeText } from "@/shared/lib";
+
 /** What the material is, in the words of the screen. */
 export const sourceTypeNames: Record<SourceType, string> = {
   vacancy: "вакансия",
@@ -38,15 +40,4 @@ export function sourceStatusText({
       return status satisfies never;
     }
   }
-}
-
-/** The size of a file for the Candidate: «850 Б», «12 КБ», «3,4 МБ». */
-export function sizeText(bytes: number): string {
-  if (bytes < 1024) {
-    return `${bytes} Б`;
-  }
-  if (bytes < 1024 * 1024) {
-    return `${Math.round(bytes / 1024)} КБ`;
-  }
-  return `${(bytes / (1024 * 1024)).toFixed(1).replace(".", ",")} МБ`;
 }

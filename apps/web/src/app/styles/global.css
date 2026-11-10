@@ -1163,3 +1163,42 @@ button.danger {
   flex: 1;
   min-width: 0;
 }
+
+/* «Распознавание речи» in «Настройки» */
+
+.speech-recognition {
+  width: min(560px, 100%);
+}
+
+.speech-models {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.speech-model {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.speech-model-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.speech-recognition progress {
+  width: 100%;
+  accent-color: var(--color-accent);
+}
+
+.proposal-language {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+}

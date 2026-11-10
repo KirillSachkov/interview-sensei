@@ -8,7 +8,7 @@ import type { Transaction } from "../../../shared/storage/index.ts";
 import { partialReport } from "../domain/inbox.ts";
 import type { InboxReport, InboxRun, RunEnding } from "../domain/inbox.ts";
 import { watchSession } from "./agent-watch.ts";
-import { inBackground } from "./inbox-context.ts";
+import { cancelReading, inBackground } from "./inbox-context.ts";
 import type { InboxContext } from "./inbox-context.ts";
 
 /** Moves the run's Sources: `ready` to «готов», `back` to the Inbox, in the open transaction. */
@@ -57,10 +57,13 @@ export async function closeRun(
   run: InboxRun,
   reason: RunEnding,
 ): Promise<InboxReport | null> {
-  return context.dependencies.transaction(async (opened) => {
+  const report = await context.dependencies.transaction(async (opened) => {
     const current = await context.dependencies.inbox.runningRun(run.targetId, opened);
     return current?.id === run.id ? storePartial(context, { run: current, reason }, opened) : null;
   });
+  // A closed run reads no more texts: its running transcription stops.
+  cancelReading(context, run.id);
+  return report;
 }
 
 /**
@@ -72,8 +75,8 @@ export type StopOutcome =
   | { readonly type: "target_not_found" | "not_running" };
 
 /**
- * «Остановить разбор»: closes the run with a partial report, then stops its agent at once, even in a
- * turn. A tool call the agent makes meanwhile finds no running processing.
+ * «Остановить разбор»: closes the run with a partial report, which cancels a running
+ * transcription, then stops its agent at once, even in a turn. A tool call the agent makes meanwhile finds no running processing.
  */
 export async function stop(context: InboxContext, targetId: string): Promise<StopOutcome> {
   const { targets, inbox, sessions } = context.dependencies;

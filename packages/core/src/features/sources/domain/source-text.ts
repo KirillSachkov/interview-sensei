@@ -71,6 +71,45 @@ export function textFormat(source: {
   return formatsByExtension[extensionOf(source.file)] ?? "unsupported";
 }
 
+/** The file name without its directory and its extension, in lowercase. */
+function baseName(file: string): string {
+  const name = (file.split(/[/\\]/u).at(-1) ?? "").toLowerCase();
+  const dot = name.lastIndexOf(".");
+  return dot > 0 ? name.slice(0, dot) : name;
+}
+
+/** A Source as the binding of a transcript reads it. */
+interface BindableSource {
+  readonly type: string;
+  readonly file: string | null;
+  readonly url: string | null;
+  readonly status: string;
+}
+
+/**
+ * The transcript bound to a video or audio file: the Candidate's first file of subtitles or plain
+ * text with the same name in any case, such as `interview.vtt` beside `interview.mp4`, unless it
+ * got «ошибка». The video takes its text instead of recognizing its speech. A note, a link and a
+ * recording of a link bind nothing.
+ */
+export function boundTranscript<Material extends BindableSource>(
+  video: Material,
+  sources: readonly Material[],
+): Material | undefined {
+  if (video.file === null || textFormat(video) !== "video") {
+    return undefined;
+  }
+  const name = baseName(video.file);
+  return sources.find(
+    (source) =>
+      (source.type === "file" || source.type === "transcript") &&
+      source.file !== null &&
+      source.status !== "failed" &&
+      ["subtitles", "text"].includes(textFormat(source)) &&
+      baseName(source.file) === name,
+  );
+}
+
 const namedEntities: Readonly<Record<string, string>> = {
   amp: "&",
   lt: "<",

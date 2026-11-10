@@ -13,6 +13,8 @@ export interface SourceTranscription {
     readonly language: string;
     /** The percent heard so far, from 0 to 99. */
     readonly onProgress: (percent: number) => void;
+    /** «Остановить разбор» and the server's close cancel the transcription. */
+    readonly signal: AbortSignal;
   }) => Promise<{ readonly text: string } | { readonly failure: string }>;
   /**
    * The text of a link: the recognized speech of the video, its subtitles in WebVTT or SRT, or why
@@ -25,6 +27,8 @@ export interface SourceTranscription {
     /** The Target's language: the video's language when the site does not tell it. */
     readonly language: string;
     readonly onProgress: (percent: number) => void;
+    /** «Остановить разбор» and the server's close cancel the reading. */
+    readonly signal: AbortSignal;
   }) => Promise<
     | { readonly text: string }
     | { readonly subtitles: string }

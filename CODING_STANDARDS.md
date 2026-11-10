@@ -181,7 +181,13 @@ A link to a video without text is not: `UnreadableVideoError` gives it «оши�
 The `transcription` slice (#74) turns the speech of a video or audio file into text; no agent takes part.
 `sources` calls it through its `SourceTranscription` port in `inbox-transcription.ts` before the agent starts: the Source is `transcribing` («транскрибируется») with `progress`, then `processing` with the text in parts.
 The port answers `{ text }` or `{ failure }` with the Russian reason, which becomes «ошибка».
-The model follows the Target's language (`modelFor`): Russian goes to GigaAM v3, other languages of Parakeet TDT 0.6B v3 to Parakeet.
+The model follows the file's language (`modelFor`): the card's choice in `languages` of the start, otherwise the Target's language.
+Russian goes to GigaAM v3 when it is installed, otherwise to Parakeet TDT 0.6B v3; the other languages of Parakeet go to Parakeet.
+`noModelReason` gives the hint of a language without a model; `status` lists `recognitionLanguages` with the model of each.
+A run's reading has an `AbortController` in `reading` of the Inbox context: closing the run, including «Остановить разбор», and `inbox.settle` at the server's close abort it, and the port passes its `signal` on.
+A cancelled reading marks nothing: the run's end has moved the Source, and `endInterrupted` returns it to the Inbox after a restart.
+A recording with stored parts keeps them (`transcribedBefore` in `inbox-reading.ts`), so its speech is never recognized twice.
+`boundTranscript` in `source-text.ts` finds the Bound transcript of a recording: then `sourceText` reads that file instead of calling the port, and the start takes the transcript into the run and makes it «готов».
 
 `pinnedCatalog` in `transcription/domain/pinned-catalog.ts` pins every component per platform: URL, size and SHA-256.
 They are `engine` (the npm tarballs of `sherpa-onnx-node` and its platform package), `ffmpeg` (the gzipped ffmpeg-static binary), `vad` (Silero VAD) and each model (the `.onnx` files and `tokens.txt` of the sherpa-onnx export on Hugging Face at a pinned commit).
@@ -191,6 +197,7 @@ The application never takes them from npm dependencies or the system: it downloa
 `ffmpegExtractor` runs only the downloaded ffmpeg and streams 16 kHz mono float samples from its standard output, so no sound file is written.
 `sherpaRecognizer` loads `sherpa-onnx-node` from the data directory with `createRequire` and feeds Silero VAD; the model decodes each phrase asynchronously.
 The server's close stops a running download (`transcription.close`).
+`transcription.remove` deletes a model's directory through `ComponentStore.remove`; it refuses during a download and while the model recognizes a recording.
 
 Links to videos (#76) go through the `VideoLinks` port, `ytDlpLinks` in `transcription/infrastructure/yt-dlp.ts`.
 yt-dlp is the component `yt-dlp`: the zipped directory build of a pinned release, unpacked by `fflate`, because the one-file build unpacks itself on every run, about 7 seconds on macOS.

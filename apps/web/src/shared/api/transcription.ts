@@ -31,6 +31,12 @@ export type TranscriptionStatus =
       } | null;
       /** Why the last download failed, in Russian. */
       readonly failure: string | null;
+      /** The languages of recognition with the installed model that hears each, or null. */
+      readonly languages: readonly {
+        readonly code: string;
+        readonly name: string;
+        readonly model: ModelId | null;
+      }[];
     };
 
 function isStatus(value: unknown): value is TranscriptionStatus {
@@ -51,4 +57,12 @@ export async function fetchTranscription(): Promise<TranscriptionStatus> {
  */
 export async function installTranscription(models: readonly ModelId[]): Promise<void> {
   await request("/api/transcription/install", { method: "POST", body: { models } });
+}
+
+/**
+ * «Удалить» of a model in «Распознавание речи»: the server deletes its files. Throws the server's
+ * Russian message during a download or while the model recognizes a recording.
+ */
+export async function removeTranscriptionModel(model: ModelId): Promise<void> {
+  await request(`/api/transcription/models/${model}`, { method: "DELETE" });
 }
