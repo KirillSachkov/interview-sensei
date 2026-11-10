@@ -6,6 +6,7 @@ import { randomUUID } from "node:crypto";
 
 import type { Transaction } from "../../../shared/storage/index.ts";
 import { partialReport } from "../domain/inbox.ts";
+import { boundInRun } from "../domain/source-text.ts";
 import type { InboxReport, InboxRun, RunEnding } from "../domain/inbox.ts";
 import { watchSession } from "./agent-watch.ts";
 import { cancelReading, inBackground } from "./inbox-context.ts";
@@ -36,10 +37,12 @@ async function storePartial(
 ): Promise<InboxReport> {
   const { repository, inbox, clock } = context.dependencies;
   const createdAt = clock.now().toISOString();
-  const { report, ready, back } = partialReport(run, await repository.list(run.targetId, opened), {
+  const sources = await repository.list(run.targetId, opened);
+  const { report, ready, back } = partialReport(run, sources, {
     id: randomUUID(),
     reason,
     createdAt,
+    bound: boundInRun(run.sourceIds, sources),
   });
   await inbox.addReport(report, opened);
   await moveSettled(context, { targetId: run.targetId, ready, back }, opened);

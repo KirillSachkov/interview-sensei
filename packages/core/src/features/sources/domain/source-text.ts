@@ -6,8 +6,8 @@ const partLength = 8000;
 
 /**
  * How the server reads a Source's text. A `video` is a recording: a video or audio file, whose
- * speech the server recognizes (#74), or a link to a video hosting, which needs its transcript as a
- * material of its own until #76.
+ * speech the server recognizes (#74), or a link to a known video hosting, which needs yt-dlp. Any
+ * other link is `web` until yt-dlp tells that it is a video.
  */
 export type TextFormat =
   "pdf" | "docx" | "text" | "subtitles" | "html" | "web" | "video" | "unsupported";
@@ -108,6 +108,25 @@ export function boundTranscript<Material extends BindableSource>(
       ["subtitles", "text"].includes(textFormat(source)) &&
       baseName(source.file) === name,
   );
+}
+
+/**
+ * The transcripts of the run bound to a video of the run, each with its video's id. Such a
+ * transcript is its video's text: the agent reads only the video, and the transcript follows it to
+ * «готов» or back to the Inbox.
+ */
+export function boundInRun<Material extends BindableSource & { readonly id: string }>(
+  runIds: readonly string[],
+  materials: readonly Material[],
+): ReadonlyMap<string, string> {
+  const bound = new Map<string, string>();
+  for (const video of materials.filter((material) => runIds.includes(material.id))) {
+    const transcript = boundTranscript(video, materials);
+    if (transcript !== undefined && runIds.includes(transcript.id)) {
+      bound.set(transcript.id, video.id);
+    }
+  }
+  return bound;
 }
 
 const namedEntities: Readonly<Record<string, string>> = {

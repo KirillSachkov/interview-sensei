@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { agentTexts, isIdle, openEvents, startServer } from "./chat-test-support.ts";
 import {
+  addLink,
   attach,
   inboxOf,
   processingEvents,
@@ -115,6 +116,25 @@ describe("a running transcription", () => {
 
     expect(model.heard).toStrictEqual(["gigaam-v3"]);
     await expect(readParts(events, video.id, 1)).resolves.toStrictEqual([
+      "Расскажите про горутины. Что такое канал?",
+    ]);
+  });
+
+  it("a finished transcript of a link to a video on a site outside the known hostings is not recognized again", async () => {
+    const { server, target, setup, model, links } = await transcriptionTarget();
+    const url = "https://talks.example.org/go/interview";
+    links.add(url, { language: "ru", speech: "Расскажите про горутины.\nЧто такое канал?\n" });
+    const link = await addLink(setup, { title: "Доклад [manual]", url });
+    await startProcessing(server, target.id);
+    const first = await processingEvents(server, target.id);
+    await expect(stopProcessing(server, target.id)).resolves.toMatchObject({ statusCode: 200 });
+
+    await startProcessing(server, target.id);
+    const events = await secondProcessing(server, { targetId: target.id, first: first.session.id });
+
+    expect(model.heard).toStrictEqual(["gigaam-v3"]);
+    expect(links.calls.inspected).toStrictEqual([url]);
+    await expect(readParts(events, link, 1)).resolves.toStrictEqual([
       "Расскажите про горутины. Что такое канал?",
     ]);
   });

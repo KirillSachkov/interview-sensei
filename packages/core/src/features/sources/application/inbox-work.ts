@@ -9,6 +9,7 @@ import { agentSummary, settledSources } from "../domain/inbox.ts";
 import type { DoubtfulQuestion, InboxReport, InboxRun, ReportProposals } from "../domain/inbox.ts";
 import type { InboxTarget } from "../domain/ports.ts";
 import type { Source } from "../domain/source.ts";
+import { boundInRun } from "../domain/source-text.ts";
 import { refuseInRecheck, runOf } from "./inbox-context.ts";
 import type { InboxContext } from "./inbox-context.ts";
 import { moveSettled } from "./inbox-ending.ts";
@@ -19,9 +20,11 @@ function listed(source: Source) {
   return { id, type, title, url, status, parts, failure };
 }
 
+/** The run's Sources the agent reads: a transcript bound to a video is that video's text. */
 async function runSources({ dependencies }: InboxContext, run: InboxRun) {
   const all = await dependencies.repository.list(run.targetId);
-  return all.filter((source) => run.sourceIds.includes(source.id));
+  const bound = boundInRun(run.sourceIds, all);
+  return all.filter((source) => run.sourceIds.includes(source.id) && !bound.has(source.id));
 }
 
 /** The Target's visible Questions as the brief of a recheck lists them. */
@@ -167,8 +170,10 @@ async function storeReport(
   const { targetId, run } = await runOf(context, session, opened);
   await checkHide(context, { targetId, input }, opened);
   const now = clock.now().toISOString();
-  const { ready, back } = settledSources(run, await repository.list(targetId, opened), {
+  const sources = await repository.list(targetId, opened);
+  const { ready, back } = settledSources(run, sources, {
     reported: true,
+    bound: boundInRun(run.sourceIds, sources),
   });
   const report: InboxReport = {
     id: randomUUID(),

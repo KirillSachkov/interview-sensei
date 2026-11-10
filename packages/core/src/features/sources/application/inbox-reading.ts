@@ -5,18 +5,20 @@ import { UnreadableSourceError } from "../domain/inbox.ts";
 import { UnreadableVideoError } from "../domain/unreadable-video.ts";
 import type { InboxRun } from "../domain/inbox.ts";
 import type { Source } from "../domain/source.ts";
-import { boundTranscript, textFormat, textParts } from "../domain/source-text.ts";
+import { boundInRun, textFormat, textParts } from "../domain/source-text.ts";
 import type { InboxContext } from "./inbox-context.ts";
 import { sourceText } from "./inbox-transcription.ts";
 import type { Reading } from "./inbox-transcription.ts";
 
 /**
- * Whether the recording already has its transcript: a processing that stopped after the
- * transcription keeps the parts, so the speech is never recognized twice.
+ * Whether the recording or the link already has its text: a processing that stopped after the
+ * transcription keeps the parts, so the speech is never recognized twice. Any link counts: yt-dlp,
+ * not the address, tells a video from a page, so a video on any site keeps its transcript.
  */
 async function transcribedBefore({ dependencies }: InboxContext, source: Source) {
+  const recording = textFormat(source) === "video" || (source.file === null && source.url !== null);
   return (
-    textFormat(source) === "video" &&
+    recording &&
     source.parts !== null &&
     (await dependencies.texts.read(source.targetId, source.id, 1)) !== null
   );
@@ -78,27 +80,6 @@ async function readText(context: InboxContext, source: Source, reading: Reading)
 }
 
 /**
- * The run's transcripts bound to a video of the run: the video's text is theirs, so they become
- * «готов» at once, and the agent reads them as the video.
- */
-async function settleBoundTranscripts(
-  { dependencies }: InboxContext,
-  { sources, reading }: { sources: readonly Source[]; reading: Reading },
-): Promise<ReadonlySet<string>> {
-  const ids = new Set(sources.map((source) => source.id));
-  const bound = sources.flatMap((source) => {
-    const transcript = boundTranscript(source, reading.materials);
-    return transcript !== undefined && ids.has(transcript.id) ? [transcript.id] : [];
-  });
-  const [first] = sources;
-  if (first !== undefined && bound.length > 0) {
-    const change = { ids: bound, status: "ready", from: "processing" } as const;
-    await dependencies.repository.setStatus(first.targetId, change);
-  }
-  return new Set(bound);
-}
-
-/**
  * Reads the texts one at a time: a large file never waits beside another one in memory. Counts the
  * materials the agent can process; a cancel stops the reading.
  */
@@ -107,7 +88,11 @@ async function readTexts(
   sources: readonly Source[],
   reading: Reading,
 ): Promise<number> {
-  const bound = await settleBoundTranscripts(context, { sources, reading });
+  // A bound transcript is its video's text: it follows the video and is not read on its own.
+  const bound = boundInRun(
+    sources.map((source) => source.id),
+    reading.materials,
+  );
   let readable = 0;
   for (const source of sources.filter((candidate) => !bound.has(candidate.id))) {
     if (reading.signal.aborted) {
