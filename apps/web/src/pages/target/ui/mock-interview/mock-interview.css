@@ -139,10 +139,14 @@
   margin-top: var(--space-3);
 }
 
+/* The running Mock interview: a tinted panel with white cards and room between them. */
 .mock {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-5);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-muted);
+  padding: var(--space-5);
 }
 
 .mock > p {
@@ -151,20 +155,54 @@
 
 .mock-head {
   display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* The title, the state, the time and the actions stand in one line. */
+.mock-title {
+  display: flex;
   align-items: center;
   gap: var(--space-3);
 }
 
-.mock-head h3 {
+.mock-title h3 {
   font-size: var(--font-size-card-title);
+  white-space: nowrap;
+}
+
+/* «идёт» with a green dot, «на паузе» with an orange one. */
+.mock-state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-small);
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+.mock-state::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-ok);
+}
+
+.mock-state.paused::before {
+  background: var(--color-warn);
 }
 
 .mock-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex: none;
   align-items: center;
   gap: var(--space-2);
   margin-left: auto;
+}
+
+.mock-actions button {
+  white-space: nowrap;
 }
 
 /* Why the Mock interview is paused. */
@@ -181,7 +219,7 @@
 .mock-questions {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-6);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -190,18 +228,54 @@
 .mock-row {
   position: relative;
   display: grid;
-  grid-template-columns: 340px 1fr;
+  grid-template-columns: 380px 1fr;
   align-items: start;
-  gap: var(--space-4);
+  gap: var(--space-5);
+}
+
+.question-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+}
+
+.question-card > p {
+  margin: 0;
+}
+
+/* The question that waits for the answer stands out. */
+.question-card.current {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
+/* A line joins a question with the next one, as the interview goes down. */
+.mock-questions > li + li > .question-card::before {
+  content: "";
+  position: absolute;
+  top: calc(-1 * var(--space-6));
+  left: var(--space-6);
+  height: var(--space-6);
+  border-left: 2px solid var(--color-line);
 }
 
 .question-text {
   font-size: var(--font-size-card-title);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.card-number {
+  font-size: var(--font-size-small);
+  color: var(--color-muted);
 }
 
 .answer-form textarea {
   width: 100%;
-  min-height: 72px;
+  min-height: 96px;
+  padding: var(--space-3) var(--space-4);
   resize: none;
   overflow: hidden;
 }
@@ -248,11 +322,11 @@
 .interviewer {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
   border: 1px solid var(--color-line);
   border-radius: var(--radius-card);
   background: var(--color-surface);
-  padding: var(--space-3);
+  padding: var(--space-4);
 }
 
 .interviewer h4 {
@@ -405,27 +479,51 @@
   box-shadow: inset 0 0 0 1px var(--color-danger);
 }
 
+/* The Sections of the mock as steps in their order; the current one is filled. */
 .section-strip {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-1);
+  align-items: center;
+  gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
+  counter-reset: section;
 }
 
 .section-strip li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  border: 1px solid var(--color-line);
   border-radius: var(--radius-pill);
-  background: var(--color-surface-muted);
-  padding: var(--space-1) var(--space-3);
+  background: var(--color-surface);
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-1);
   font-size: var(--font-size-small);
   color: var(--color-muted);
+  counter-increment: section;
+}
+
+.section-strip li::before {
+  content: counter(section);
+  display: inline-grid;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-surface-muted);
+  place-items: center;
 }
 
 .section-strip li.current {
+  border-color: var(--color-accent);
   background: var(--color-accent-soft);
   color: var(--color-accent);
   font-weight: 600;
+}
+
+.section-strip li.current::before {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
 }
 
 .card-marks {

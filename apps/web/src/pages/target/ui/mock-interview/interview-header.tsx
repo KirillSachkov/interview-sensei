@@ -22,32 +22,37 @@ function stateText(view: InterviewView): string {
   return view.finishRequestedAt === null ? "идёт" : "Интервьюер подводит итог…";
 }
 
-/** The header of the running or paused Mock interview: its state, time, Sections and actions. */
+/**
+ * The header of the running or paused Mock interview: the title with its state, the time and the
+ * actions in one line, and the Sections of the mock as steps under it.
+ */
 export function InterviewHeader({ view }: { view: InterviewView }) {
   const finish = useMutation({ mutationFn: async () => finishInterview(view.id) });
   const finishing = view.finishRequestedAt !== null;
   const paused = view.status === "paused";
   return (
     <header className="mock-head">
-      <h3>Мок-собеседование</h3>
-      <span className="muted" aria-live="polite">
-        {stateText(view)}
-      </span>
-      <Timer view={view} />
-      <SectionStrip view={view} />
-      <div className="mock-actions">
-        {paused ? <ResumeButton view={view} /> : <PauseButton view={view} disabled={finishing} />}
-        <button
-          type="button"
-          disabled={finishing || finish.isPending}
-          onClick={() => {
-            finish.mutate();
-          }}
-        >
-          Завершить
-        </button>
-        {finish.isError ? <p role="alert">Мок не завершился: {finish.error.message}</p> : null}
+      <div className="mock-title">
+        <h3>Мок-собеседование</h3>
+        <span className={`mock-state${paused ? " paused" : ""}`} aria-live="polite">
+          {stateText(view)}
+        </span>
+        <Timer view={view} />
+        <div className="mock-actions">
+          {paused ? <ResumeButton view={view} /> : <PauseButton view={view} disabled={finishing} />}
+          <button
+            type="button"
+            disabled={finishing || finish.isPending}
+            onClick={() => {
+              finish.mutate();
+            }}
+          >
+            Завершить
+          </button>
+        </div>
       </div>
+      {finish.isError ? <p role="alert">Мок не завершился: {finish.error.message}</p> : null}
+      <SectionStrip view={view} />
     </header>
   );
 }

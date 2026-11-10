@@ -137,13 +137,16 @@ function AttemptPart({
 }
 
 /**
- * The marks above the question: «глубже», «не подтверждён», «с подсказкой» after a Side thread
+ * The line above the question: its number, «глубже», «не подтверждён», «с подсказкой» after a Side thread
  * before the answer, and the Candidate's rating.
  */
-function CardMarks({ targetId, card }: { targetId: string; card: Card }) {
+function CardMarks({ targetId, card, number }: { targetId: string; card: Card; number: number }) {
   const marks = useQuestionMarks(targetId, card.questionId);
   return (
     <div className="card-marks">
+      <span className="card-number" aria-hidden="true">
+        Вопрос {number}
+      </span>
       {card.parentAttemptId === null ? null : <span className="tag accent">глубже</span>}
       {marks?.unconfirmed === true ? <span className="tag">не подтверждён</span> : null}
       {card.hinted ? <span className="tag">с подсказкой</span> : null}
@@ -173,8 +176,12 @@ export function QuestionCard({
 }) {
   const answering = stage === "answering" && card.answer === null;
   return (
-    <article className="card question-card" aria-label={`Вопрос ${number}`} data-discuss-scope="">
-      <CardMarks targetId={targetId} card={card} />
+    <article
+      className={`card question-card${answering ? " current" : ""}`}
+      aria-label={`Вопрос ${number}`}
+      data-discuss-scope=""
+    >
+      <CardMarks targetId={targetId} card={card} number={number} />
       <p className="question-text">{card.text}</p>
       {card.format === "quiz" && !answering ? <QuizOptions card={card} /> : null}
       <AnswerPart interviewId={interviewId} targetId={targetId} card={card} stage={stage} />
