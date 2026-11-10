@@ -17,33 +17,41 @@ const agentAnswer = {
   part: null,
 };
 
+/**
+ * A Question asked in a Mock interview with an answer «из знаний агента» on the list «проверить
+ * опорный ответ»; resolves with a new server on the same data directory.
+ */
+async function disputedAgentAnswer() {
+  const dataDirectory = await temporaryDirectory();
+  const mock = await interviewApi({ dataDirectory });
+  const run = await mock.answered(["Опыт и резюме"], "Ответ [grade:1] [last]");
+  const { questionId } = cardAt(await run.events.waitFor(isGraded(0)), 0);
+  await mock.stop();
+  await seed(dataDirectory, async ({ questionBank, storage }) => {
+    await questionBank.editQuestions(mock.target.id, [
+      { id: questionId, referenceAnswer: agentAnswer },
+    ]);
+    await storage.transaction(async (transaction) =>
+      questionBank.requestReferenceCheck(
+        { questionId, comment: "Пункты неполные.", requestedAt: "2026-11-10T00:00:00.000Z" },
+        transaction,
+      ),
+    );
+  });
+  const { server } = await startServer(dataDirectory);
+  return { server, targetId: mock.target.id, questionId };
+}
+
 describe("an answer search and the list «проверить опорный ответ»", () => {
   it("keeps the disputed Question on the list when it replaces its answer «из знаний агента»", async () => {
-    const dataDirectory = await temporaryDirectory();
-    const mock = await interviewApi({ dataDirectory });
-    const run = await mock.answered(["Опыт и резюме"], "Ответ [grade:1] [last]");
-    const { questionId } = cardAt(await run.events.waitFor(isGraded(0)), 0);
-    await mock.stop();
-    await seed(dataDirectory, async ({ questionBank, storage }) => {
-      await questionBank.editQuestions(mock.target.id, [
-        { id: questionId, referenceAnswer: agentAnswer },
-      ]);
-      await storage.transaction(async (transaction) =>
-        questionBank.requestReferenceCheck(
-          { questionId, comment: "Пункты неполные.", requestedAt: "2026-11-10T00:00:00.000Z" },
-          transaction,
-        ),
-      );
-    });
-    const { server } = await startServer(dataDirectory);
+    const { server, targetId, questionId } = await disputedAgentAnswer();
 
-    expect((await startSearch(server, mock.target.id, 1)).statusCode).toBe(202);
-    const report = await latestAnswerReport(server, mock.target.id);
+    const started = await startSearch(server, targetId, 1);
+    const report = await latestAnswerReport(server, targetId);
 
+    expect(started.statusCode).toBe(202);
     expect(report).toMatchObject({ filled: 1, questions: [{ questionId, origin: "internet" }] });
-    await expect(
-      questionsOf(server, mock.target.id, "?referenceCheck=true"),
-    ).resolves.toMatchObject([
+    await expect(questionsOf(server, targetId, "?referenceCheck=true")).resolves.toMatchObject([
       {
         id: questionId,
         referenceAnswer: { origin: "internet" },
