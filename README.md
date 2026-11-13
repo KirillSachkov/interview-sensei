@@ -80,7 +80,7 @@ pnpm start
 
 ## Как идёт разработка
 
-Проект разрабатывают агенты по процессу из [agent-harness](https://github.com/KirillSachkov/agent-harness):
+Проект разрабатывают агенты по процессу из [agent-kit](https://github.com/KirillSachkov/agent-kit):
 
 1. Обсуждение и issue. Полная spec нужна по сложности задачи.
 2. Владелец явно запускает `implement` или `implement-spec`.

@@ -1,6 +1,11 @@
 # Skills: runtime and provenance
 
-This directory contains 27 editable skill copies derived from
+## Agent Kit selection
+
+The current managed subset, immutable source and update procedure are in [AGENT-KIT.md](AGENT-KIT.md). The manifest owns only those selected folders. The predecessor receipts and local adaptation notes below remain provenance for the other folders; an older whole-set sync recipe does not apply to the managed subset.
+
+
+The predecessor installation contained 27 editable skill copies derived from
 [Matt Pocock’s snapshot](https://github.com/mattpocock/skills/tree/a496f5513d4a4cf889bc48e189e579f4b0bdf6aa),
 commit `a496f5513d4a4cf889bc48e189e579f4b0bdf6aa`, and the locally authored `ship` skill.
 They arrived through [ai-first-platform](https://github.com/KirillSachkov/ai-first-platform/commit/53c0b946506b41839e255806144c3289680061c8).
@@ -66,7 +71,8 @@ Adding a package's skills needs the owner's decision. Then run `pnpm approve <pa
 
 Retain [Matt’s MIT notice](LICENSE.mattpocock), [HumanLayer’s MIT notice](LICENSE.humanlayer) and [PR credits](pr/CREDITS.md).
 See [upstream maintenance](../../docs/upstream.ru.md) for selective three-way updates.
-Default source exceptions: none. Locally authored skill: `ship`.
+Current source exception: the 24 managed folders listed in AGENT-KIT.md use Agent Kit at the recorded manifest revision.
+The four retained project variants keep their predecessor source and adaptation notes. `ship` originated locally and is now in the selected shared source line.
 Local adaptations do not imply a newer upstream source revision.
 Record per-skill source exceptions here before changing the default source snapshot after a partial update.
 
@@ -79,30 +85,30 @@ Hashes establish identity, not correctness or behavior.
 | Skill | SHA-256 |
 | --- | --- |
 | `ask-matt` | `68e78cf855fe70134e993ad8c6329e2048176da5669892715ae008bb1766062a` |
-| `code-review` | `651145cbbce0a813dce3071e720b54009af4e54fdfe6ae06a79b48ac10281007` |
-| `codebase-design` | `5e680d83ed795dfdce570831c31c7e95927c3a3403a2f71006c8684f35472b84` |
-| `diagnosing-bugs` | `7f45fd315cf2ce923ff2208eb76d4ba3189f5e14b0b1ff33ff5256265ddd3bd9` |
+| `code-review` | `4c5be2d96236c5ee896328766b4fb45916146159ad27a3017627569289272640` |
+| `codebase-design` | `47db031f17e8c466c2702611aae22a9c23dae978e62426c9c4f6e5ff0ffeaa54` |
+| `diagnosing-bugs` | `9a7f427a79d4f39c6b4b329bf0573084a896d98bcbc935776f011f9efb1317bd` |
 | `domain-modeling` | `9b0447b29704143616c0781fef03690073e22c3cd3e4068efa3e80b73d00593c` |
-| `grill-me` | `14c292fe16c0aed833cbbabb0983515c8d665fb6061d9755b13dba870363323b` |
-| `grill-with-docs` | `2dff19547f0f72000f8b88868e21b7d76c27cf5c7ececc6edf4042bbe06157ac` |
-| `grilling` | `27f71f106a7062691b2982d4f847304a62930ebed8b50734f4d4fd498d60afa8` |
-| `handoff` | `77c2607c751b7c522e0208ab113ba4949f8267610d6061323c7ccd3ace21d7da` |
-| `implement` | `95af274086aef8db8a8c51b078d9d2f0d108a28796d1e84e373536f88f3664fe` |
+| `grill-me` | `aeb36f404e7c20d5999ac7bf3f4f9f1630ec1bd506f9e2f1ec560471a9790993` |
+| `grill-with-docs` | `f130a89ef0647e174b30ab2adf3428e3a47c553c4af8e4e24381858110f413ff` |
+| `grilling` | `b4d5e522b6280470e5174f377478a5a3233e7f5c8ae48e6426218ef9b1c70967` |
+| `handoff` | `83e27e593f40a6625563d1743f2680448de02f9461a1623529ba142be450f169` |
+| `implement` | `0e97728cc7fe246bddd15534fd5c405ec67b15ff6d50dd2fb9f2d03f0bee3fc0` |
 | `implement-spec` | `237295dc854d24a4047f1087d795a2fa0685d7f9f0b869186f142957dd60b14c` |
-| `improve-codebase-architecture` | `6309784c0b4631b92b2a2196da3ea5a500749fe5905c2981e34acf514da6820b` |
+| `improve-codebase-architecture` | `9294510ab1d756357004812b372287bdde45d768f88da5e61c845ab05e10c1d3` |
 | `pr` | `2ddfb7f87bdab9211993195b17ad783a07cbf7123331c9b8c982b46db8a9201a` |
-| `prototype` | `c4efd5e0f1c302b6225be83e8e42abdb05e13fde900484e4e2240e90b4e83eb6` |
-| `research` | `f2d6425b15cf3100d5c3eb4305a8e817174b8e5fa1fde6e06ad4b61321c32a60` |
-| `retro` | `09c4f9fe72fc5bc8e486a2bbb32dd785ca6264c56a53dd1bf9a334af72586efd` |
-| `setup-matt-pocock-skills` | `256566df5faffc6781f16f2b08f3d4730bd5ab75755fe557b2083fe2dec49244` |
-| `ship` | `ccf488249ff1cdd3db1189293f855faaa5b70a81e9ee74b4c882bc127f355099` |
-| `tdd` | `e262a6d42d7588c95df99c989c18151c0cab96a8d11a8a7cebf93bf43b2c280b` |
-| `teach` | `9aaf696786348313963552e446415c67fdd8129276b61f02be6dcedb208cd381` |
-| `to-questionnaire` | `560491db9f48174ca9f7b5dd1444bc9c3cb7ac2d9e3e673e48289ef3221f164e` |
-| `to-spec` | `d87f3308bdbe6da158db9d986323e3d6217601a56577ffafc18fe75e8cdb669e` |
-| `to-tickets` | `dc168c2ba857a8494423bbb88b39c48c0d325b8bb0e30021643731adf4c1b6b1` |
-| `triage` | `4cf19b82804dd3c062a7f942900e6f9e89cfa5a77ccda3d84abf484f3115b50a` |
-| `wait-what` | `295f962a8ea63082292695d854215be32eca79ce1f8134dbf7c6f6bed2e2bab5` |
-| `wayfinder` | `62a0ab7262d40119da048328a71aeadaeaa21a4049ee9268d14500921bb6e257` |
-| `wizard` | `8fd93e38124bf81ad439231ba8af833b462ca9719c62373c87f25b06f6be776e` |
-| `writing-for-agents` | `dc53f07d1f662137317789b9b5d74cfcc26dbcfc15038a7faf676c844d8638e8` |
+| `prototype` | `3d18206932b45dfb2d4baea32d408b7b2253c0692d8cc5f620e248c652415e1e` |
+| `research` | `2db34ef702e727c03bf0b4891aec444445ba7c49d59aa3885d7ec0954576d54b` |
+| `retro` | `ff92628df87283428dfc08378a94d0faaa486f5d7717a29de1c789357710c5d8` |
+| `setup-matt-pocock-skills` | `bc416f56e6f9549e9d028350d623a8ed3ec45103cf02dd1bd0cd199678256b4d` |
+| `ship` | `08caadc617d9cc1b718715db47d7be48fe2fc929b2daa2ba70cedac7710c25e0` |
+| `tdd` | `d22d6ae210dfd5506435fe01430119193b3cd8f800898b4b88481560749dc6c4` |
+| `teach` | `7305fdbccb74d62d92ab8c6e0a33eea0708c6a0c379604728bfb9c29edbee937` |
+| `to-questionnaire` | `835fb86bd786a8e50e405fbef3139e677d3cc30907740b39d079bbd0b520ff64` |
+| `to-spec` | `63999e7876e94236d95c52d2edd1533b30a21a4444d42b7e913ead12dc53cd0f` |
+| `to-tickets` | `4095fac29c58a43b8456b5531a2f1a5009606d945f6c73d97ad71955de52cca7` |
+| `triage` | `9f53908a9ec4d0cbc2935f9f82363b728d7012765958f30779f6b759a5d783ee` |
+| `wait-what` | `8c98c67cafa0cff6ccfbaf36e25d80a31771aaf7296c020d869eb4239b281411` |
+| `wayfinder` | `e2fe4f2355147872ee562d9b8770487bf54b2e061cd038fee14262a3f331d5b6` |
+| `wizard` | `3356c7f8f6f876bacec18d826e1b3a287c6c5cab4490cc54bd8fe94caae5a134` |
+| `writing-for-agents` | `5b7bcfce01da1da89b005189d0f2a951bfed7cf4bbd592e376030940be4183aa` |
