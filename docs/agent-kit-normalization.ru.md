@@ -6,7 +6,7 @@
 
 ## Идентичность сохранённых материалов
 
-Git tree ID включает имена, bytes и режимы файлов. До установки проверен чистый status. После установки `git diff --exit-code` по каждой невыбранной папке подтвердил неизменность tracked bytes/modes; На чистом preflight package links отсутствовали; frozen install создал три ссылки из прежнего pnpm lockfile. Их targets внутри node_modules дополнительно проверены. Единственное намеренное изменение невыбранного router: ask-matt сокращён до alias к ask; его metadata осталась прежней.
+Git tree ID включает имена, bytes и режимы файлов. До установки проверен чистый status. После установки `git diff --exit-code` по каждой невыбранной папке подтвердил неизменность tracked bytes/modes; На чистом preflight package links отсутствовали; frozen install создал три ссылки из прежнего pnpm lockfile. Их targets внутри node_modules дополнительно проверены. Единственное намеренное изменение невыбранного router: ask-matt сокращён до alias к ask; его режим явного запуска и native metadata сохранены.
 
 | Папка | До | После |
 | --- | --- | --- |
