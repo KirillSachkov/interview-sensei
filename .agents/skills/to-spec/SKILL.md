@@ -16,11 +16,11 @@ The issue tracker and triage label vocabulary should have been provided to you. 
 
 2. Sketch out the seams at which you're going to test the feature. Existing seams should be preferred to new ones. Use the highest seam possible. If new seams are needed, propose them at the highest point you can. The fewer seams across the codebase, the better - the ideal number is one.
 
-Check with the user that these seams match their expectations.
+Reuse the testing seams and decision authority established by the project harness. Ask for confirmation when that contract requires it or a new boundary remains undecided.
 
 3. Write the spec using the template below, then publish it to the project issue tracker. Apply the `ready-for-agent` triage label - no need for additional triage.
 
-Do not publish until the owner confirms behavior, scope, criteria, and human checkpoints. The readiness label does not authorize execution.
+Follow the project's required confirmation of behavior, scope, criteria and human checkpoints before publishing or marking ready. Do not present unconfirmed decisions as accepted. The readiness label does not authorize execution.
 
 <spec-template>
 

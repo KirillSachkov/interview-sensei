@@ -9,11 +9,11 @@ metadata:
     url: "https://github.com/humanlayer/skills/blob/main/plugins/show-me/skills/show-me/SKILL.md"
 ---
 
-Write a report the owner can understand without reading the conversation or every changed line. Root `AGENTS.md` owns audience language, including headings. Preserve technical syntax and use terms from `DOMAIN.md`. `ship` owns PR delivery; this skill owns its description.
+Write a report the owner can understand without reading the conversation or every changed line. Root `AGENTS.md` owns audience language, including headings. Preserve technical syntax and the project's declared domain vocabulary. `ship` owns delivery; this skill owns the PR description and its project-specific contract. `recap` may supply readable narrative, but does not independently create or edit the PR.
 
 ## Build the explanation
 
-1. Read the issue/spec, actual diff, verification results, and independent findings. Follow `docs/agents/human-review.md` for human checks.
+1. Read the issue/spec, actual diff, verification results, and independent findings. Read target `AGENTS.md` and its actual tracker/writing/human-participation pointers; apply inline or linked rules without requiring a particular filename.
 2. Lead with the problem and resulting behavior. Use a concrete before/after example where it helps. Show the affected scope.
 3. Choose the smallest useful structure. For diagrams, visual evidence, or formatting beyond the template, read the relevant [presentation](PRESENTATION.md) section. Use GitHub-supported Markdown to make the result clear and easy to scan.
 4. Show the evidence conclusion and material limits first. Put commands, logs, revision records, and the complete check table in a disclosure.
@@ -22,33 +22,21 @@ Write a report the owner can understand without reading the conversation or ever
 
 ## Suggested shape
 
-Scale this shape to the change. Translate its headings and bold labels into the team language. Omit empty sections and replace every placeholder.
-
-Project rule: the report contains the [five required parts](../../../docs/agents/human-review.md#level-1-every-pr). That rule overrides "Omit empty sections" for those parts.
-Project rule: the report follows the [report format](../../../docs/agents/human-review.md#present-the-result); it overrides this shape and steps 2 and 4 of "Build the explanation" where they differ.
+Scale this shape to the change. Translate its headings into the team language. Omit empty sections and replace every placeholder.
 
 ````markdown
 <agent provenance under project rules>
-**Owner action:** <what the owner must do now, with direct links; or that only acceptance is needed>
 
 ## What changes
 
 <problem, resulting behavior, and a small visual when useful>
-<part 1: what now works, from the user's perspective>
 
-## How to verify it yourself
+## Verification
 
-1. <step the owner can run>. **Expected:** <result>
-<part 2: 3 to 5 steps>
-
-## Evidence
-
-**CI:** <result and run link>
-<short conclusion and the important limit>
-<part 3: evidence>
+<short result, actual evidence, and the important limit>
 
 <details>
-<summary>Evidence details</summary>
+<summary>Verification details</summary>
 
 Checked head: <commit permalink>. Review base: <full SHA>.
 
@@ -58,15 +46,10 @@ Checked head: <commit permalink>. Review base: <full SHA>.
 
 </details>
 
-## Not done or limited
-
-<part 4: omitted scope, known limits, and deferred findings>
-
 ## What the owner needs to do
 
-- **<question>** **Recommendation:** <answer and consequence>. **Alternative:** <one option and consequence>. **Evidence:** <link>.
+<concrete question or action, expected result, reason, and evidence>
 <or a short reason why no additional manual check is needed>
-<part 5: what the owner must decide>
 
 ## Risk and rollback
 

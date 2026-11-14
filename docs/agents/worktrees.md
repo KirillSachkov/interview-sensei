@@ -24,3 +24,8 @@ Worktrees isolate files, not credentials, ports or external effects.
 Before an experiment starts shared services, establish ownership and an isolation plan in its issue.
 Retain the PR worktree for acceptance.
 Remove only owned, integrated child worktrees with no active writer or unsaved work.
+
+## Diagnosis and prototypes
+
+Use a dedicated diagnosis worktree for reproductions and instrumentation. Diagnosis does not start implementation.
+Keep completed prototypes as primary evidence on `prototype/<name>` branches from `main`, linked from their issue. Fold validated decisions into application code only within explicitly started implementation.

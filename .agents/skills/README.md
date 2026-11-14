@@ -49,32 +49,13 @@ Limits:
 
 Adding a package's skills needs the owner's decision. Then run `pnpm approve <package>`.
 
-## Local adaptations
+## Project policy and provenance
 
-- Domain consumers and setup use `DOMAIN.md` and `DOMAIN-MAP.md` consistently.
-- Project pointers preserve explicit starts, worktree ownership, human decisions, committed review and verified delivery.
-- `implement` owns small-task corrections; `implement-spec` uses one fresh correction implementer for the full-diff review and one for each ticket review.
-- `implement-spec` adds a project line for review after each ticket when the spec chooses it (#29).
-- `code-review` reports two independent axes and checks corrections without discarding prior full coverage.
-- `pr` uses the selected human language, conditional presentation guidance and visible human actions.
-- `pr` adds project lines for the five required report parts and the report format; its upstream lines stay.
-- `pr` shapes its template to the report format: owner action first, short evidence and decisions with alternatives (#31).
-- `ship` delivers through existing project testing/tracker contracts; it does not deploy or approve merge.
-- Setup selects English or Russian human language and preserves existing settings and equivalent pointers.
-- Explanations and architecture reports follow that language. Tracker authorship precedes localized triage disclosures.
-- `to-spec` keeps every upstream line; project rules sit in separate added lines.
-- `ask-matt`, `to-spec` and `to-tickets` read project policy without redefining it; diagnosis follows the same authority.
-- Instruction ownership (#3): delivery criteria stay in the project guide and actions in `ship`. This change removes no upstream Matt text.
-- `to-spec` calls the spec a snapshot of the decision, not a description of current behavior.
+All 28 common procedures, including `ask`, use the pinned Agent Kit selection. The only local procedure wrapper is the tiny explicit `ask-matt` compatibility alias pointing to `ask`; it has no duplicate flow. Native discovery is distinct from start authority: `implement` and `implement-spec` can be discovered by the model, but root `AGENTS.md` still requires the owner's explicit named start. No local installed copy is edited after installation.
 
-## Notices and updates
+Project policy lives in the harness: starts and language in root `AGENTS.md`; commit-first review and fresh integration/ticket correction implementers in `docs/agents/delivery.md`; confirmed test seams in `docs/agents/testing.md`; confirmed spec publication in `docs/agents/requirements.md`; diagnosis and prototype contexts in `docs/agents/worktrees.md`; domain filenames in `docs/agents/domain.md`; the five-part PR report in `docs/agents/human-review.md`.
 
-Retain [Matt’s MIT notice](LICENSE.mattpocock), [HumanLayer’s MIT notice](LICENSE.humanlayer) and [PR credits](pr/CREDITS.md).
-See [upstream maintenance](../../docs/upstream.ru.md) for selective three-way updates.
-Current source exception: the 24 managed folders listed in AGENT-KIT.md use Agent Kit at the recorded manifest revision.
-The four retained project variants keep their predecessor source and adaptation notes. `ship` originated locally and is now in the selected shared source line.
-Local adaptations do not imply a newer upstream source revision.
-Record per-skill source exceptions here before changing the default source snapshot after a partial update.
+Retain [Matt’s MIT notice](LICENSE.mattpocock), [HumanLayer’s MIT notice](LICENSE.humanlayer), [PR credits](pr/CREDITS.md), and each selected folder's `PROVIDER-NOTICES`. Historical adaptation notes and exact predecessor bytes remain in Git at the migration base recorded in [AGENT-KIT.md](AGENT-KIT.md). See [upstream maintenance](../../docs/upstream.ru.md).
 
 ## Content identity
 
@@ -84,31 +65,32 @@ Hashes establish identity, not correctness or behavior.
 
 | Skill | SHA-256 |
 | --- | --- |
-| `ask-matt` | `68e78cf855fe70134e993ad8c6329e2048176da5669892715ae008bb1766062a` |
-| `code-review` | `4c5be2d96236c5ee896328766b4fb45916146159ad27a3017627569289272640` |
-| `codebase-design` | `47db031f17e8c466c2702611aae22a9c23dae978e62426c9c4f6e5ff0ffeaa54` |
-| `diagnosing-bugs` | `9a7f427a79d4f39c6b4b329bf0573084a896d98bcbc935776f011f9efb1317bd` |
-| `domain-modeling` | `9b0447b29704143616c0781fef03690073e22c3cd3e4068efa3e80b73d00593c` |
-| `grill-me` | `aeb36f404e7c20d5999ac7bf3f4f9f1630ec1bd506f9e2f1ec560471a9790993` |
-| `grill-with-docs` | `f130a89ef0647e174b30ab2adf3428e3a47c553c4af8e4e24381858110f413ff` |
+| `ask` | `834df1d799d2a699f1573622b7638f658452f9fb5d793a634613466fc4cd5f53` |
+| `ask-matt` | `9aefa717ad1e2a4596b6c02f01e26513ff45121c3ec1773a2bb649094097b4c6` |
+| `code-review` | `02be5e3aa804c4c27e932b75e36945347da0a8dd5ebc1a31eff3a9a247537e35` |
+| `codebase-design` | `3e7a6c06845e4ffb1c9cb37fd65f2527cd221de46fb73608ad09ad6ff16558b8` |
+| `diagnosing-bugs` | `a2d9088b9478c07a455784ed93ae3c7bad48c218b60749ceeb40fc0fd4becf6d` |
+| `domain-modeling` | `e8342dda4d9ab58758f81e58eebe0b02f7051d4aae17c22b53d9798eed30c873` |
+| `grill-me` | `a6ec48813bdf1bb1e4a5a2cc66d81e22227db0abf358538f473181ac4090e816` |
+| `grill-with-docs` | `34bc2417bc28a1df79f539c24b5cc42e7b705694fc61082002c948580b14b626` |
 | `grilling` | `b4d5e522b6280470e5174f377478a5a3233e7f5c8ae48e6426218ef9b1c70967` |
-| `handoff` | `83e27e593f40a6625563d1743f2680448de02f9461a1623529ba142be450f169` |
-| `implement` | `0e97728cc7fe246bddd15534fd5c405ec67b15ff6d50dd2fb9f2d03f0bee3fc0` |
-| `implement-spec` | `237295dc854d24a4047f1087d795a2fa0685d7f9f0b869186f142957dd60b14c` |
-| `improve-codebase-architecture` | `9294510ab1d756357004812b372287bdde45d768f88da5e61c845ab05e10c1d3` |
-| `pr` | `2ddfb7f87bdab9211993195b17ad783a07cbf7123331c9b8c982b46db8a9201a` |
-| `prototype` | `3d18206932b45dfb2d4baea32d408b7b2253c0692d8cc5f620e248c652415e1e` |
+| `handoff` | `c7399aa1a73b8ce6a860a9aabc67f1f814e2e795a2729dccb303b6fbc0cf7d74` |
+| `implement` | `70cff0cb9f2f18302dc0e4f911b5f99ef466551b4bbe9296fc3e4ecc8ebb3f47` |
+| `implement-spec` | `5b2ebd2f45395fa080674165d084bf48d8fcb6d9b675401ee9ec2f4cb64bdb0a` |
+| `improve-codebase-architecture` | `1d42b7ee376f762b159d1511825fd371b285fff74a745a42bfeb3d6dbff9bfd9` |
+| `pr` | `5e58c5cedf9283a519851828f39c41348209d7f7a241375bd90054d2eae05b5b` |
+| `prototype` | `a73333586976f87c64e48a059ebaa2a2f524543778cdd7bc3935c717b4e18826` |
 | `research` | `2db34ef702e727c03bf0b4891aec444445ba7c49d59aa3885d7ec0954576d54b` |
-| `retro` | `ff92628df87283428dfc08378a94d0faaa486f5d7717a29de1c789357710c5d8` |
-| `setup-matt-pocock-skills` | `bc416f56e6f9549e9d028350d623a8ed3ec45103cf02dd1bd0cd199678256b4d` |
-| `ship` | `08caadc617d9cc1b718715db47d7be48fe2fc929b2daa2ba70cedac7710c25e0` |
-| `tdd` | `d22d6ae210dfd5506435fe01430119193b3cd8f800898b4b88481560749dc6c4` |
+| `retro` | `f7f9af2248691de80d6f3b73c84654a58fbde16a00f70bc165bfae38dfdc6b64` |
+| `setup-matt-pocock-skills` | `af24c5730356d7c932afb1c27a756af9598bcb520b4ea32b3d5cadd2778c968e` |
+| `ship` | `c0a783ce55f56c5d5a5c3eaf6b48e7fb5aaf05fe377e734ef1619c60f42ed0c4` |
+| `tdd` | `ed44c9537d2fe453c2f930d216ad769217076be4edb6c47dde5f0be8e7bc5490` |
 | `teach` | `7305fdbccb74d62d92ab8c6e0a33eea0708c6a0c379604728bfb9c29edbee937` |
 | `to-questionnaire` | `835fb86bd786a8e50e405fbef3139e677d3cc30907740b39d079bbd0b520ff64` |
-| `to-spec` | `63999e7876e94236d95c52d2edd1533b30a21a4444d42b7e913ead12dc53cd0f` |
+| `to-spec` | `051cf27c10b6e26e3091819b8b016c710a5d8a711b51b10901beccbf30183edb` |
 | `to-tickets` | `4095fac29c58a43b8456b5531a2f1a5009606d945f6c73d97ad71955de52cca7` |
-| `triage` | `9f53908a9ec4d0cbc2935f9f82363b728d7012765958f30779f6b759a5d783ee` |
-| `wait-what` | `8c98c67cafa0cff6ccfbaf36e25d80a31771aaf7296c020d869eb4239b281411` |
-| `wayfinder` | `e2fe4f2355147872ee562d9b8770487bf54b2e061cd038fee14262a3f331d5b6` |
-| `wizard` | `3356c7f8f6f876bacec18d826e1b3a287c6c5cab4490cc54bd8fe94caae5a134` |
+| `triage` | `50c0ae06f2076e80fecf86700e84d9c4213c3760a3de294849dc2410b7c1a019` |
+| `wait-what` | `f1bdf06982e1e8de2c747c829e4aefd6de949b012cc6713e7fee31999b0704d1` |
+| `wayfinder` | `74da3555d2bf91001c73028de1a665401f952fe24a0977a44eca058d1515a4f7` |
+| `wizard` | `d237f15defb55f2c64a29695ec20bad980255e125e490f53ef248684f0b29d14` |
 | `writing-for-agents` | `5b7bcfce01da1da89b005189d0f2a951bfed7cf4bbd592e376030940be4183aa` |

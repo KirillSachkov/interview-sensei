@@ -11,5 +11,5 @@ The **Summary** section's menu of visuals (pseudocode, call trees, component tre
 
 The skill metadata points to HumanLayer’s skills repository. A verified historical source is
 [show-me at bba9d13](https://github.com/humanlayer/skills/blob/bba9d13ab34f0a87f1cc33df4dd196372393ddfc/plugins/show-me/skills/show-me/SKILL.md).
-Its MIT notice is retained in [LICENSE.humanlayer](../LICENSE.humanlayer).
+Its MIT notice is retained in [LICENSE.humanlayer](LICENSE.humanlayer).
 Matt’s copy commit does not state the exact source revision. This permalink records the verified source, not that unknown copy revision.

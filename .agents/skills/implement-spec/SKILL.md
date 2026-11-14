@@ -1,46 +1,52 @@
 ---
 name: implement-spec
-description: "Implement the result of /to-spec and /to-tickets in code."
-disable-model-invocation: true
+description: "Execute an assigned specification and its dependency graph under the target project's start, delegation and delivery rules. Use when the owner assigns a whole spec and the project's required start is satisfied."
 ---
 
-You have been provided a spec. This spec should have tickets associated with it, describing how to implement the spec.
+Read root `AGENTS.md` and its requirements, worktree, testing, human-participation,
+tracker and delivery pointers. Satisfy its start rule before writing. Confirm the
+approved spec, tickets, criteria, blockers and human checkpoints. An authorized
+spec run covers its agreed child tasks, not new requirements.
 
-The issue tracker should have been provided to you. If not, tell the user to run `/setup-matt-pocock-skills`.
+The goal is the assigned spec delivered in the project's selected mode: ticket
+PRs or an approved integration branch. Record an immutable review base against
+the intended target. This procedure does not choose another acceptance mode.
 
-Read root `AGENTS.md` and its requirements, worktree, human-participation, and delivery pointers. Confirm the approved spec, tickets, criteria, blockers, and human checkpoints. The owner's start authorizes the agreed child tasks, not new requirements.
-
-The goal is the entire spec on one **integration branch/worktree**, delivered under project rules. Record an immutable review base against the intended target. Follow the project's ticket lifecycle.
-
-The tickets are not a list of steps. They are a **task graph** with blocking relationships between them. This means there is always a **frontier** of tickets which are ready to be grabbed.
-
-Start every subagent with a fresh context window.
-
-Communication to and from subagents should be sparse. Communicate primarily through **context pointers**: to the spec, tickets, research notes, and previous commits. Don't duplicate information already available via pointers.
-
-**Implementer subagents** should be run in the background where possible for maximum concurrency.
+Tickets form a **task graph** with blocking relationships and a ready **frontier**.
+Start each native subagent with a fresh context. Communicate through short context
+pointers to the spec, ticket, research and commits, rather than copying their bodies.
+Run independent workers in the background where the client and project permit it.
+A native subagent is not an independently assigned application session.
 
 ## Steps
 
-1. Read the spec and tickets to understand the task graph.
-
-2. (optional) Use an **exploration subagent** to conduct any exploration required by the tickets - relevant codebase files or external documentation. Ensure the exploration subagent can save files - it should save its markdown notes in a directory outside the repo, accessible by all future subagents. This lets **implementer subagents** focus on implementation rather than exploration.
-
-3. Prepare or reuse the owned integration worktree and branch. If the issue tracker closes work through PRs, or the user asks for one, open a draft PR after the first merge in step 5 (a branch with no commits ahead of main can't open one), marked as closing the spec and tickets.
-
-4. Use a fresh **implementer subagent** for each ticket, each in its own worktree on its own branch. Each implementer subagent:
-   - confirms ownership and the actual integration base before starting; reports mismatches without resetting foreign work;
-   - follows project testing rules and calls `tdd` where required; observes inherited human checkpoints;
-   - merges the integration branch tip into its own branch before reporting done
-
-5. Once an **implementer subagent** completes, merge its work to the integration branch with a **merger subagent**.
-   Project rule: if the spec chose review after each ticket, run the [ticket review](../../../docs/agents/delivery.md#ticket-review) after every ticket merge.
-   Run it whether or not the ticket has a checkpoint. Finish it before the checkpoint report.
-
-6. If this changes the **frontier** of available tickets, kick off more **implementer subagents** to work on the new tickets. This allows for maximum concurrency.
-
-7. Once all tickets are integrated and project checks pass, commit the result and call `code-review` with the recorded base, reviewed head, and spec for the complete integration diff. Fix review issues in a single fresh **implementer subagent**. Rerun affected checks, commit corrections, and call `code-review` with the earlier report to check the fixes. Individual ticket workers still use `tdd`, not the user-only `implement` entrypoint.
-
-8. Follow root `AGENTS.md` delivery pointers for the verified integration result, reusing any draft PR.
-
-9. Clean up only owned, integrated child worktrees with no active writer or unsaved work. Follow project rules for retaining the integration worktree.
+1. Read the spec and ticket graph. Resolve dependency and acceptance conditions.
+2. If exploration is needed, a fresh exploration subagent can write scoped notes
+   outside the repo, accessible to later workers. Read-only exploration does not
+   start another implementation beyond the approved graph.
+3. Prepare the owned execution context under project policy. In integration mode,
+   prepare its branch/worktree and draft at the required point. In ticket-PR mode,
+   each ticket follows its own delivery and dependency-merge gates. A main-checkout
+   project keeps its prescribed context and serialized writers.
+4. Use a fresh implementer for each ready ticket when native delegation is available.
+   Use separate owned worktrees/branches when permitted; serialize writers where the
+   project requires one main checkout. Each worker:
+   - verifies ownership and required immutable base; reports mismatch without reset;
+   - reads the project contract and task, uses `tdd` where required, and observes
+     accepted testing seams and human checkpoints;
+   - returns committed changes, checked revisions, evidence and blockers. Integration
+     workers update from the integration tip only by the project's permitted procedure.
+5. In integration mode, integrate child work with a fresh merger under project rules.
+   In ticket-PR mode, deliver each ticket and wait for its required acceptance/merge
+   before unblocking dependents. A worker's done status is not acceptance.
+6. Recompute the frontier from proven dependency outcomes and start newly ready work.
+   Keep independent authorized work moving while owner decisions are pending.
+7. At required ticket/integration checkpoints, pass checks and follow the project's
+   commit/review order. Supply immutable base/head, or an owned pre-commit tree
+   snapshot when required, and requirements to `code-review`. Fix findings in an owned
+   context, rerun affected checks, freeze the corrected revision and re-review with earlier reports. Preserve
+   initial full-diff coverage. Invoke a named skill through the client's mechanism or
+   read its `SKILL.md` and relevant references; a literal Skill tool is not required.
+8. Follow root delivery pointers for the verified result, reusing existing drafts.
+9. Clean only owned, integrated child resources with no active writer or unsaved work.
+   Follow project rules for retained acceptance trees and unintegrated results.

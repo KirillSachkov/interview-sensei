@@ -37,6 +37,8 @@ A short issue records the problem, desired and preserved behavior, scope, accept
 Use the `to-spec` template for full specs.
 Add the spec's «Приёмка» section under [acceptance levels](human-review.md#acceptance-levels).
 
+Before publishing a spec or marking it ready, obtain the owner’s confirmation of behavior, scope, criteria and human checkpoints. Readiness never authorizes implementation.
+
 ## When requirements change
 
 Before changing agreed behavior, show the semantic difference and follow [Ask the owner](human-review.md#ask-the-owner).
