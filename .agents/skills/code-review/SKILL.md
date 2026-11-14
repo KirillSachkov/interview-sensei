@@ -10,7 +10,7 @@ Two-axis review of the diff between an immutable reviewed head and a fixed point
 
 Both axes run as **parallel sub-agents** so they don't pollute each other's context, then this skill aggregates their findings. Start every sub-agent with a fresh context window.
 
-The issue tracker should have been provided to you. If not, tell the user to run `/setup-matt-pocock-skills`.
+Read target root `AGENTS.md` and its review, testing, tracker and human-participation pointers. The rules may be inline or linked; do not require a particular `docs/agents` layout. A supplied specification can support review without a tracker.
 
 ## Process
 
@@ -18,9 +18,25 @@ The issue tracker should have been provided to you. If not, tell the user to run
 
 Whatever the user said is the fixed point (a commit SHA, branch name, tag, `main`, `HEAD~5`, etc.). If they didn't specify one, ask for it.
 
-Resolve the base and reviewed head to immutable SHAs. Capture `git diff <base-sha>...<head-sha>` and `git log <base-sha>..<head-sha> --oneline`. Supply those exact endpoints to both reviewers. Report excluded working-tree changes; expected uncommitted work is not reviewed. Read surrounding files at the reviewed revision when the worktree differs.
+Resolve the base and reviewed endpoint to immutable Git objects. Use the project's
+commit/review order:
 
-Before going further, confirm the fixed point resolves (`git rev-parse <fixed-point>`) and the diff is non-empty. A bad ref or empty diff should fail here, not inside two parallel sub-agents.
+- For committed work, capture base/head commit SHAs, `git diff <base>...<head>` and
+  `git log <base>..<head> --oneline`. Uncommitted changes are outside that endpoint;
+  report them and do not imply they were reviewed.
+- If the project requires review before its branch commit, use its snapshot helper
+  or capture only the assigned paths into an immutable Git tree with a temporary
+  index outside the real index. Start from the base tree, stage explicitly scoped
+  tracked/untracked changes, then `write-tree`; preserve the actual index, branch,
+  ignored configuration and unrelated work. Record base commit, snapshot tree SHA,
+  scope and `git diff <base> <snapshot-tree>`. There is no commit log for that snapshot.
+  Both reviewers read this exact tree and its files, not the moving working directory.
+
+Validate the endpoints and nonempty diff before delegation. Read surrounding files
+from the pinned commit/tree when the working directory differs. After pre-commit
+review, verify that the delivered commit tree matches the snapshot; changed content
+needs affected checks and review again. Record the reviewed tree and delivered commit
+separately. Do not force an early branch commit to bypass the project's order.
 
 ### 2. Identify the spec source
 
@@ -29,7 +45,7 @@ Look for the originating spec, in this order:
 1. Issue references in the commit messages (`#123`, `Closes #45`, GitLab `!67`, etc.), fetched via the workflow in the tracker doc.
 2. A path the user passed as an argument.
 3. A spec file under `docs/`, `specs/`, or `.scratch/` matching the branch name or feature.
-4. A bounded issue with accepted criteria is a valid source; a full `to-spec` document is not required. Read linked requirements and decisions. If no source is found, ask; mark Spec review unavailable rather than claiming a pass.
+4. A bounded issue or supplied task with accepted criteria is a valid source; a full `to-spec` document is not required. Read linked requirements and decisions. If no source is found, ask where required by the project and mark requirement coverage unavailable rather than claiming a pass. Retain independent behavioral review when the harness requires it.
 
 ### 3. Identify the standards sources
 
@@ -61,7 +77,7 @@ Issue both sub-agent calls together, in the foreground, and aggregate the report
 
 **Standards sub-agent prompt** should include:
 
-- The full diff command and commit list.
+- The exact pinned diff command, endpoint kinds and commit list when applicable.
 - The list of standards-source files you found in step 3, **plus the smell baseline from step 3** pasted in full (the sub-agent has no other access to it).
 - The brief: "Report, per file/hunk where relevant, (a) every place the diff violates a documented standard: cite the standard (file + the rule); and (b) any baseline smell you spot: name it and quote the hunk. Distinguish hard violations from judgement calls: documented-standard breaches can be hard, but baseline smells are always judgement calls, and a documented repo standard overrides the baseline. Skip anything tooling enforces. Under 400 words."
 
@@ -69,10 +85,10 @@ Issue both sub-agent calls together, in the foreground, and aggregate the report
 
 - The diff command and commit list.
 - The path or fetched contents of the spec.
-- The agreed human checkpoints and available verification evidence. Independently compare requirements, the complete diff, and evidence using `docs/agents/human-review.md`. Report missed human-check triggers, unsupported exemptions, and stale or insufficient evidence inside the Spec report. State any remaining human question and affected behavior; an agent's review does not complete the human check.
+- The agreed human checkpoints and available verification evidence. Independently compare requirements, the complete diff, and evidence against human-participation rules reached through target `AGENTS.md` (inline or linked; no particular human-review filename is required). Report missed human-check triggers, unsupported exemptions, and stale or insufficient evidence inside the Spec report. State any remaining human question and affected behavior; an agent's review does not complete the human check.
 - The brief: "Report: (a) requirements the spec asked for that are missing or partial; (b) behaviour in the diff that wasn't asked for (scope creep); (c) requirements that look implemented but where the implementation looks wrong. Quote the spec line for each finding. Under 400 words."
 
-If the spec is missing, skip the Spec sub-agent and note this in the final report.
+If the spec is missing, follow the target project's review policy. When it requires the independent behavioral/Spec axis, retain that reviewer with the actual task, diff and available evidence, explicitly marking unavailable requirement coverage. Otherwise report that the Spec axis was unavailable; never report an absent requirement review as a pass.
 
 ### 5. Aggregate
 

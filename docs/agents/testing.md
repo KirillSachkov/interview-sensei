@@ -36,6 +36,7 @@ Install the Playwright browser once with `pnpm --filter @interview-sensei/e2e ex
 | live        | `packages/core/src/**/*.live.test.ts` | Real downloaded components, such as speech recognition; only `test:live` and its CI job run them. |
 
 Test external behavior at the public boundary, not implementation details.
+Before writing a test, record its seams and obtain the owner’s confirmation. Do not write tests at unconfirmed seams.
 Name each test after the behavior it checks.
 Integration tests use real infrastructure in process, without Docker.
 Pass time through the injected `Clock`; never fake `Date` globally.

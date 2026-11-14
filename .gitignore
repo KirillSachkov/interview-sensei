@@ -17,3 +17,6 @@ e2e/.data/
 /.agents/skills/pnpm-*
 /.agents/skills/.gitignore
 .transcription-live/
+
+# Installer recovery copies are local receipts.
+/.agents/skills-backups/

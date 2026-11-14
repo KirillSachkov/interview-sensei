@@ -1,13 +1,27 @@
 ---
 name: ship
-description: "Deliver reviewed work as a verified PR for owner acceptance. Use after implement or implement-spec, or when asked to deliver a reviewed branch."
+description: "Deliver assigned and reviewed work under the target project's rules. Use after implementation or when asked to deliver; the harness selects PR or main-checkout delivery, checks, acceptance and merge authority."
 ---
 
-Deliver the assigned, committed, independently reviewed branch. Before delivery, read root `AGENTS.md`, its delivery, testing, tracker, and human-participation pointers, and the issue/spec. Complete missing evidence under those project rules.
+Read target root `AGENTS.md`, its delivery/testing/tracker/human-participation
+pointers, and the assignment. Resolve the delivery mode and authority from them;
+do not invent a fixed CI name, mandatory PR, owner handoff or deployment permission.
 
-1. Push the owned branch. Call `pr` for the body. Create or update its PR through the configured tracker, following project draft timing and issue linkage. Return a ready PR to draft while material revisions need verification.
-2. Wait for CI on the current PR result. Missing, pending, cancelled, or earlier green checks are not success. For in-scope failures, fix, commit, and repeat affected checks and independent review. Report blockers under the target project’s human-participation and owner-decision guidance reached through root `AGENTS.md`.
-3. Record checked revisions, finding dispositions, evidence and its limits, and agreed human checks in the PR. Resolve any human decision due before handoff.
-4. When project readiness criteria hold, mark the draft ready. Give the owner the PR, the full SHA of the PR head, and the concrete next action. Keep acceptance and merge distinct. Follow project merge authority; a green run grants no merge permission. Retain or clean owned resources under project worktree rules.
-
-Delivery ends at owner handoff. Merge follows project merge authority. Deployment and automatic merge are outside this procedure.
+1. Check that the work matches the assignment and has required checks and
+   independent review under the project's commit/review order. Record immutable
+   checked commits or snapshot trees, findings and evidence limits.
+2. Follow the selected mode. For a PR, push the owned branch, use `pr` for its body,
+   create/update it through the tracker and follow draft timing. For an authorized
+   main-checkout flow, run its checks/review and commit/push as that flow requires.
+3. Verify current CI when the project requires it. Earlier green, pending, missing
+   or cancelled checks do not establish success. Fix in-scope failures, rerun affected
+   checks and repeat required independent review under the project's commit/review
+   order. For pre-commit review, verify the delivered commit matches the reviewed tree.
+4. Resolve human decisions due at this stage. Present the result, full delivered SHA,
+   verification and its limits, and the owner's concrete next action when needed.
+   Keep reviewed, accepted, merged and deployed states distinct.
+5. Merge, deploy or publish only when the assignment and project gates authorize that
+   concrete step. Follow required head guards, acceptance and queues. Otherwise stop
+   at the project's defined handoff with the remaining gate explicit.
+6. Retain or clean only owned resources under project lifecycle rules. Preserve active
+   writers, unsaved work and unintegrated child results.

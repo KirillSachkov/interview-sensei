@@ -49,6 +49,12 @@ Tickets that depend on the checked ticket wait; independent tickets continue und
 Fix owner remarks at a checkpoint or on a ticket PR within the same ticket.
 Then post a new five-part report and wait for the owner again.
 
+## Commit and correction order
+
+Commit assigned changes before independent `code-review`; pass immutable base/head and the issue/spec. Commit corrections before re-review, keeping the original complete-diff report.
+For a small task, its implementer fixes findings. For `implement-spec`, use one fresh correction implementer for the full integration review and one fresh correction implementer for each ticket review.
+Integration workers merge the integration tip into their own branch before reporting done; integration into the owned integration branch uses a fresh merger.
+
 ## Verification evidence
 
 Follow [testing](testing.md) before delivery.

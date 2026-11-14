@@ -10,8 +10,8 @@ Surface architectural friction and propose **deepening opportunities**: refactor
 
 This command is _informed_ by the project's domain model and built on a shared design vocabulary:
 
-- Call the Skill tool with "codebase-design" for the architecture vocabulary (**module**, **interface**, **depth**, **seam**, **adapter**, **leverage**, **locality**) and its principles (the deletion test, "the interface is the test surface", "one adapter = hypothetical seam, two = real"). Use these terms exactly in every suggestion, and don't drift into "component," "service," "API," or "boundary."
-- The domain language in `DOMAIN.md` gives names to good seams; ADRs in `docs/adr/` record decisions this command should not re-litigate.
+- read and follow `codebase-design` through the current client's skill mechanism or its `SKILL.md` for the architecture vocabulary (**module**, **interface**, **depth**, **seam**, **adapter**, **leverage**, **locality**) and its principles (the deletion test, "the interface is the test surface", "one adapter = hypothetical seam, two = real"). Use these terms exactly in every suggestion, and don't drift into "component," "service," "API," or "boundary."
+- The project's declared domain glossary gives names to good seams; its ADR pointers record decisions this command should not re-litigate.
 
 ## Process
 
@@ -22,7 +22,7 @@ This command is _informed_ by the project's domain model and built on a shared d
 - If the user named a direction (a module, a subsystem, a pain point), take it, and skip the inference below.
 - Otherwise, walk back a good stretch of the commit history (`git log --oneline`) to find the codebase's hot spots, the files and areas that keep coming up, and let those paths pull your attention first. If the changes are scattered with no clear hot spot, widen the net.
 
-Read the project's domain glossary (`DOMAIN.md`) and any ADRs in the area you're touching first.
+Read the project's declared domain glossary and ADRs in the area you're touching first. Keep their existing names and locations.
 
 Then spawn a sub-agent with a fresh context window to walk the codebase. Don't follow rigid heuristics; explore organically and note where you experience friction:
 
@@ -53,7 +53,7 @@ For each candidate, render a card with:
 
 End the report with a **Top recommendation** section: which candidate you'd tackle first and why.
 
-**Use DOMAIN.md vocabulary for the domain, and the `/codebase-design` vocabulary for the architecture.** If `DOMAIN.md` defines "Order," talk about "the Order intake module," not "the FooBarHandler," and not "the Order service."
+**Use the project glossary vocabulary for the domain, and the `codebase-design` vocabulary for the architecture.** If that glossary defines "Order," talk about "the Order intake module," not "the FooBarHandler," and not "the Order service."
 
 **ADR conflicts**: if a candidate contradicts an existing ADR, only surface it when the friction is real enough to warrant revisiting the ADR. Mark it clearly in the card (e.g. a warning callout: _"contradicts ADR-0007, but worth reopening because…"_). Don't list every theoretical refactor an ADR forbids.
 
@@ -63,11 +63,11 @@ Do NOT propose interfaces yet. After the file is written, ask the user: "Which o
 
 ### 3. Grilling loop
 
-Once the user picks a candidate, call the Skill tool with "grilling" to walk the decision tree with them: constraints, dependencies, the shape of the deepened module, what sits behind the seam, what tests survive.
+Once the user picks a candidate, read and follow `grilling` through the current client's skill mechanism or its `SKILL.md` to walk the decision tree with them: constraints, dependencies, the shape of the deepened module, what sits behind the seam, what tests survive.
 
-Side effects happen inline as decisions crystallize; call the Skill tool with "domain-modeling" to keep the domain model current as you go:
+Side effects happen inline as decisions crystallize; read and follow `domain-modeling` through the current client's skill mechanism or its `SKILL.md` to keep the domain model current as you go:
 
-- **Naming a deepened module after a concept not in `DOMAIN.md`?** Add the term to `DOMAIN.md`. Create the file lazily if it doesn't exist.
-- **Sharpening a fuzzy term during the conversation?** Update `DOMAIN.md` right there.
+- **Naming a deepened module after a concept not in the project glossary?** Follow `domain-modeling` to add the term to the declared glossary. If no layout exists, resolve it under project rules first.
+- **Sharpening a fuzzy term during the conversation?** Update the same declared glossary right there.
 - **User rejects the candidate with a load-bearing reason?** Offer an ADR, framed as: _"Want me to record this as an ADR so future architecture reviews don't re-suggest it?"_ Only offer when the reason would actually be needed by a future explorer to avoid re-suggesting the same thing; skip ephemeral reasons ("not worth it right now") and self-evident ones.
-- **Want to explore alternative interfaces for the deepened module?** Call the Skill tool with "codebase-design" and use its design-it-twice parallel sub-agent pattern.
+- **Want to explore alternative interfaces for the deepened module?** read and follow `codebase-design` through the current client's skill mechanism or its `SKILL.md` and use its design-it-twice parallel sub-agent pattern.
