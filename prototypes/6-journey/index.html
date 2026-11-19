@@ -2,7 +2,7 @@
 <html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Путь Анны · Interview Sensei</title>
 <style>
-*{box-sizing:border-box}body{margin:0;color:#21322e;background:#f5f5ee;font:17px/1.55 "Inter",system-ui,sans-serif}header,main,footer{max-width:840px;margin:auto;padding:22px clamp(16px,5vw,50px)}header{display:flex;justify-content:space-between;border-bottom:1px solid #bbbfb5;font-size:.85rem}main{min-height:64vh}h1{font:normal clamp(32px,6vw,52px)/1.1 Georgia,serif;letter-spacing:-.035em;margin:.4em 0}h2{font-size:1.2em}section,details{margin:14px 0;padding:18px 22px;background:#fff;border:1px solid #cdd5c9;border-radius:12px}summary{cursor:pointer}button{font:inherit;font-weight:600;color:#fff;background:#165849;padding:10px 16px;border:0;border-radius:7px;cursor:pointer;margin:6px 7px 4px 0}button:hover{background:#0d4034}button:focus-visible,summary:focus-visible{outline:3px solid #b57213;outline-offset:3px}.light{background:#e0ebe3;color:#1e483b}.light:hover{background:#cedfd3}.meta,small,footer{color:#51635a;font-size:.88rem}.tag{font-weight:650;color:#23634f}.meter{height:12px;background:#e0e6dd;border-radius:8px;overflow:hidden}.meter i{display:block;height:100%;background:#407b60}code{overflow-wrap:anywhere}p{margin:.65em 0}footer{border-top:1px solid #bbbfb5}a{color:#165849}
+*{box-sizing:border-box}body{margin:0;color:#21322e;background:#f5f5ee;font:17px/1.55 "Inter",system-ui,sans-serif}header,main,footer{max-width:840px;margin:auto;padding:22px clamp(16px,5vw,50px)}header{display:flex;justify-content:space-between;border-bottom:1px solid #bbbfb5;font-size:.85rem}main{min-height:340px}h1{font:normal clamp(32px,6vw,52px)/1.1 Georgia,serif;letter-spacing:-.035em;margin:.4em 0}h2{font-size:1.2em}section,details{margin:14px 0;padding:18px 22px;background:#fff;border:1px solid #cdd5c9;border-radius:12px}summary{cursor:pointer}button{font:inherit;font-weight:600;color:#fff;background:#165849;padding:10px 16px;border:0;border-radius:7px;cursor:pointer;margin:6px 7px 4px 0}button:hover{background:#0d4034}button:focus-visible,summary:focus-visible{outline:3px solid #b57213;outline-offset:3px}.light{background:#e0ebe3;color:#1e483b}.light:hover{background:#cedfd3}.meta,small,footer{color:#51635a;font-size:.88rem}.tag{font-weight:650;color:#23634f}.meter{height:12px;background:#e0e6dd;border-radius:8px;overflow:hidden}.meter i{display:block;height:100%;background:#407b60}code{overflow-wrap:anywhere}p{margin:.65em 0}footer{border-top:1px solid #bbbfb5}a{color:#165849}
 </style>
 <header><strong>Interview Sensei</strong><span>Пробный сценарий №6</span></header>
 <main id="view"></main><footer>Демонстрационные ответы Анны. Все проценты условны. Состояние хранится до перезагрузки страницы.</footer>
@@ -25,7 +25,8 @@ let route='',page='goal',selected=0,history=[],opened,goal=0;
 const goals=['Go-бэкенд · вакансия «Берег»','Go-бэкенд · вакансия «Маяк»'];
 function add(skill,step){if(!history.some(a=>a.skill===skill&&a.step===step))history.push({skill,step});}
 function evidence(a){return a.skill===2?go:tasks[a.skill][a.step]}
-function level(s){if(disputed&&s===0)return 0;return history.filter(a=>a.skill===s).at(-1)?.step??-1}
+function level(s){return history.filter(a=>a.skill===s).at(-1)?.step??-1}
+function assessed(s){return s===0&&disputed&&level(0)===2?0:level(s)}
 const states=['Пока нет данных','После подсказки','Самостоятельно на знакомом примере','Самостоятельно на новом задании','Результаты расходятся'];
 function button(label,action,sub=false){return '<button class="'+(sub?'light':'')+'" onclick="'+action+'">'+label+'</button>'}
 function nav(label,next,sub=false){return button(label,"show('"+next+"')",sub)}
@@ -46,14 +47,14 @@ if(page==='sql'){title='Клиенты без заказов';body='<p>Учеб�
 if(page==='hint'){title='Вторая попытка ответа';body='<section><b>Подсказка агента</b><p>'+tasks[0][0][3]+'</p><b>Ответ Анны</b><p>'+tasks[0][0][4]+'</p></section>'+button('Завершить и открыть разбор','finish(0,0)')}
 if(page==='map'){
 const relevant=goal?[0]:[0,1],scores=[0,.25,.5,1,.5];
-const percent=Math.round(100*relevant.reduce((v,s)=>v+scores[level(s)+1],0)/relevant.length);
-title='Шкала технического этапа';body='<p>Базы данных / SQL</p><section><strong style="font-size:2em">'+percent+'%</strong> · условная готовность по SQL<div class="meter"><i style="width:'+percent+'%"></i></div><p>Доля ожидаемых умений, которые Анна продемонстрировала для этой цели. Вес помощи и самостоятельности выбран для примера.</p>'+relevant.map(s=>'<p>'+button(skills[s],'pick('+s+')',true)+' '+states[level(s)+1]+'</p>').join('')+'</section>'+(!goal?'<details><summary>Go · конкурентность · '+(level(2)>=0?'есть попытка':'пока нет данных')+'</summary>'+ (level(2)>=0?attempt({skill:2,step:0}):'<p>Разбор кода ещё предстоит пройти.</p>')+'</details>':'')+source+button(goal?'Вернуться к цели «Берег»':'Посмотреть общую практику в цели «Маяк»','goal=1-goal;show(\'map\')',true)+nav('Сравнить с другим стартом','start',true)
+const percent=Math.round(100*relevant.reduce((v,s)=>v+scores[assessed(s)+1],0)/relevant.length);
+title='Шкала технического этапа';body='<p>Базы данных / SQL</p><section><strong style="font-size:2em">'+percent+'%</strong> · условная готовность по SQL<div class="meter"><i style="width:'+percent+'%"></i></div><p>Доля ожидаемых умений, которые Анна продемонстрировала для этой цели. Вес помощи и самостоятельности выбран для примера.</p>'+relevant.map(s=>'<p>'+button(skills[s],'pick('+s+')',true)+' '+states[assessed(s)+1]+'</p>').join('')+'</section>'+(!goal?'<details><summary>Go · конкурентность · '+(level(2)>=0?'есть попытка':'пока нет данных')+'</summary>'+ (level(2)>=0?attempt({skill:2,step:0}):'<p>Разбор кода ещё предстоит пройти.</p>')+'</details>':'')+source+button(goal?'Вернуться к цели «Берег»':'Посмотреть общую практику в цели «Маяк»','goal=1-goal;show(\'map\')',true)+nav('Сравнить с другим стартом','start',true)
 }
 if(page==='skill'){
 title=skills[selected];const records=history.map((a,i)=>a.skill===selected?button(evidence(a)[0]+' · '+states[a.step+1],'detail('+i+')',true):'').join('');
 body='<p>'+states[level(selected)+1]+'</p><section><h2>Попытки Анны</h2>'+(records||'Этого умения ещё не проверяли.')+'</section><section><h2>Следующее занятие</h2>'+(level(selected)<1?button('Тренировать умение','practice()'):'')+(level(selected)>=1&&level(selected)<3?nav(level(selected)===2?'Ещё одна проверка':'Проверить на новом задании',level(selected)===2?'conflict':'new',true):'')+'</section>'+nav('К шкале этапа','map',true)
 }
-if(page==='attempt'&&opened.skill===0&&opened.step===2){
+if(page==='attempt'&&opened.skill===0&&opened.step===2&&level(0)===2){
 title='Разбор выбора JOIN';
 body=attempt(opened)+(disputed?'<section><h2>Спорная оценка</h2><p>Агент приписал выбор соединения подсказке. В записи сначала идёт ответ Анны с LEFT JOIN, затем совет агента проверить пустые группы.</p>'+button('Указать на ответ до подсказки',"disputed=false;show('corrected')")+'</section>':button('Посмотреть пример ошибки оценки',"disputed=true;render()",true))+nav('К умению и занятиям','skill');
 }
