@@ -1,0 +1,201 @@
+{
+  "schema_version": 1,
+  "skills": {
+    ".agents/skills/ask": {
+      "provider": "agent-kit",
+      "ref": "94c236f63240a78e209b14012ff2143f22cfbda8",
+      "skill": "ask",
+      "destination": ".agents/skills/ask",
+      "sha256": "de456c12d415bd37d7ee89d08a1bab8464e8ebc6d253c945af6f0233cfc93e9d"
+    },
+    ".agents/skills/code-review": {
+      "provider": "agent-kit",
+      "ref": "94c236f63240a78e209b14012ff2143f22cfbda8",
+      "skill": "code-review",
+      "destination": ".agents/skills/code-review",
+      "sha256": "0e2d80184e819a5c8cfec2110969bfb9b713254bd0b60888379f4393fac5d677"
+    },
+    ".agents/skills/codebase-design": {
+      "provider": "agent-kit",
+      "ref": "94c236f63240a78e209b14012ff2143f22cfbda8",
+      "skill": "codebase-design",
+      "destination": ".agents/skills/codebase-design",
+      "sha256": "1b2e98227e5126622aebdff7f5ac0bc02e4ddd6d83e0bf084fa0aa999f285da3"
+    },
+    ".agents/skills/diagnosing-bugs": {
+      "provider": "agent-kit",
+      "ref": "94c236f63240a78e209b14012ff2143f22cfbda8",
+      "skill": "diagnosing-bugs",
+      "destination": ".agents/skills/diagnosing-bugs",
+      "sha256": "26e74f6de18b5c957a9a568f7719bac0572a36f4acd363f97bdf342af35c9c08"
+    },
+    ".agents/skills/domain-modeling": {
+      "provider": "agent-kit",
+      "ref": "94c236f63240a78e209b14012ff2143f22cfbda8",
+      "skill": "domain-modeling",
+      "destination": ".agents/skills/domain-modeling",
+      "sha256": "e351db6b68ae28d508aa7c17be10a7f9783e3c93750f1e6b1eeaf82a010a55fa"
+    },
+    ".agents/skills/grill-me": {
+      "provider": "agent-kit",
+      "ref": "94c236f63240a78e209b14012ff2143f22cfbda8",
+      "skill": "grill-me",
+      "destination": ".agents/skills/grill-me",
+      "sha256": "b7c9654ecd0481eec756289b742ee54aacbef6fc0d4614d0a082b5e12bea2121"
+    },
+    ".agents/skills/grill-with-docs": {
+      "provider": "agent-kit",
+      "ref": "94c236f63240a78e209b14012ff2143f22cfbda8",
+      "skill": "grill-with-docs",
+      "destination": ".agents/skills/grill-with-docs",
+      "sha256": "e6ac94643625fff61b2d8ff74dfeb10b2ce7266c953c7bec074d03a99195e1c4"
+    },
+    ".agents/skills/grilling": {
+      "provider": "agent-kit",
+      "ref": "94c236f63240a78e209b14012ff2143f22cfbda8",
+      "skill": "grilling",
+      "destination": ".agents/skills/grilling",
+      "sha256": "e22905a98c7dcfbdd28cfcb2e9efe003e45567a4a2616575ce1e23c5356317d3"
+    },
+    ".agents/skills/handoff": {
+      "provider": "agent-kit",
+      "ref": "94c236f63240a78e209b14012ff2143f22cfbda8",
+      "skill": "handoff",
+      "destination": ".agents/skills/handoff",
+      "sha256": "315d52ddb331316e4e1525f8cfa725a44aa4a6d55cbaf89230cf6779256c898f"
+    },
+    ".agents/skills/implement": {
+      "provider": "agent-kit",
+      "ref": "94c236f63240a78e209b14012ff2143f22cfbda8",
+      "skill": "implement",
+      "destination": ".agents/skills/implement",
+      "sha256": "6be3af2fa6f1745941746344bdaf30d9932ed1b725a5142a8d66e604f4e17659"
+    },
+    ".agents/skills/implement-spec": {
+      "provider": "agent-kit",
+      "ref": "94c236f63240a78e209b14012ff2143f22cfbda8",
+      "skill": "implement-spec",
+      "destination": ".agents/skills/implement-spec",
+      "sha256": "d8008dade04aea4e6b2d528f03c88aa037e23431ee596fe0ec9247c66c1e77bb"
+    },
+    ".agents/skills/improve-codebase-architecture": {
+      "provider": "agent-kit",
+      "ref": "94c236f63240a78e209b14012ff2143f22cfbda8",
+      "skill": "improve-codebase-architecture",
+      "destination": ".agents/skills/improve-codebase-architecture",
+      "sha256": "c4d4a975a0cdf1fcb9eb2d8afe3e9beb6ddabc99f70c14309f18ae93d930b60e"
+    },
+    ".agents/skills/pr": {
+      "provider": "agent-kit",
+      "ref": "94c236f63240a78e209b14012ff2143f22cfbda8",
+      "skill": "pr",
+      "destination": ".agents/skills/pr",
+      "sha256": "5376a94dccd593aa70d9fa2f221330f32c23bc2234bff3bc4f17c6d909134fb9"
+    },
+    ".agents/skills/prototype": {
+      "provider": "agent-kit",
+      "ref": "94c236f63240a78e209b14012ff2143f22cfbda8",
+      "skill": "prototype",
+      "destination": ".agents/skills/prototype",
+      "sha256": "c7c83cafc1d790fe2b0845871d5072237853e4e16a10f0a0596fbd837763e30f"
+    },
+    ".agents/skills/research": {
+      "provider": "agent-kit",
+      "ref": "94c236f63240a78e209b14012ff2143f22cfbda8",
+      "skill": "research",
+      "destination": ".agents/skills/research",
+      "sha256": "ab150e89da96f9fe004705c9c28407e0838285e63a7a14176a563797cb44b94e"
+    },
+    ".agents/skills/retro": {
+      "provider": "agent-kit",
+      "ref": "94c236f63240a78e209b14012ff2143f22cfbda8",
+      "skill": "retro",
+      "destination": ".agents/skills/retro",
+      "sha256": "f7589004b3bcc992f79dbee59a73ff1f0ec6587f4cf05bd4373baca12d5d8449"
+    },
+    ".agents/skills/setup-matt-pocock-skills": {
+      "provider": "agent-kit",
+      "ref": "94c236f63240a78e209b14012ff2143f22cfbda8",
+      "skill": "setup-matt-pocock-skills",
+      "destination": ".agents/skills/setup-matt-pocock-skills",
+      "sha256": "70bfea1521e76c3157b729948e92a391b5b9cd8fb53df98c5e8c2812b8785140"
+    },
+    ".agents/skills/ship": {
+      "provider": "agent-kit",
+      "ref": "94c236f63240a78e209b14012ff2143f22cfbda8",
+      "skill": "ship",
+      "destination": ".agents/skills/ship",
+      "sha256": "142ff832525cf990314e7e119c503a07732d89da8d6b93decc35d2083f97bd40"
+    },
+    ".agents/skills/tdd": {
+      "provider": "agent-kit",
+      "ref": "94c236f63240a78e209b14012ff2143f22cfbda8",
+      "skill": "tdd",
+      "destination": ".agents/skills/tdd",
+      "sha256": "8ea0f80d2931857272cfdb154dbe4a1fa7a148c6445ae5aa9fc7cc2ef0d45be9"
+    },
+    ".agents/skills/teach": {
+      "provider": "agent-kit",
+      "ref": "94c236f63240a78e209b14012ff2143f22cfbda8",
+      "skill": "teach",
+      "destination": ".agents/skills/teach",
+      "sha256": "e1100855915676e0dc8f95facdf3b76947e56f20c85ec5ec28ba1b898d1bdc56"
+    },
+    ".agents/skills/to-questionnaire": {
+      "provider": "agent-kit",
+      "ref": "94c236f63240a78e209b14012ff2143f22cfbda8",
+      "skill": "to-questionnaire",
+      "destination": ".agents/skills/to-questionnaire",
+      "sha256": "f287eb8f35b9168aa8a8a38122c5ded31611202f687f5eb4b5e742041665bef7"
+    },
+    ".agents/skills/to-spec": {
+      "provider": "agent-kit",
+      "ref": "94c236f63240a78e209b14012ff2143f22cfbda8",
+      "skill": "to-spec",
+      "destination": ".agents/skills/to-spec",
+      "sha256": "c9a773de70a9ecdb1ecee76a6c2bc1388c654f342129f5a172817f3e2cd89bcd"
+    },
+    ".agents/skills/to-tickets": {
+      "provider": "agent-kit",
+      "ref": "94c236f63240a78e209b14012ff2143f22cfbda8",
+      "skill": "to-tickets",
+      "destination": ".agents/skills/to-tickets",
+      "sha256": "497d63f16449fa2006618e2b1982e2ed53295fbd7ca5a0aa16526d699281182d"
+    },
+    ".agents/skills/triage": {
+      "provider": "agent-kit",
+      "ref": "94c236f63240a78e209b14012ff2143f22cfbda8",
+      "skill": "triage",
+      "destination": ".agents/skills/triage",
+      "sha256": "de1973e8e6c3353f330fcfb3e69c34d6c63e5360083c2d5ff62574ae5a12c6df"
+    },
+    ".agents/skills/wait-what": {
+      "provider": "agent-kit",
+      "ref": "94c236f63240a78e209b14012ff2143f22cfbda8",
+      "skill": "wait-what",
+      "destination": ".agents/skills/wait-what",
+      "sha256": "c71e2b52a65872d36d13895ba5ba7889f35ec52662d6ccb27d95f66eaaa3351a"
+    },
+    ".agents/skills/wayfinder": {
+      "provider": "agent-kit",
+      "ref": "94c236f63240a78e209b14012ff2143f22cfbda8",
+      "skill": "wayfinder",
+      "destination": ".agents/skills/wayfinder",
+      "sha256": "98451911804a8e31fbd40727052d7564f55ba826118731ed77664806ba3e258a"
+    },
+    ".agents/skills/wizard": {
+      "provider": "agent-kit",
+      "ref": "94c236f63240a78e209b14012ff2143f22cfbda8",
+      "skill": "wizard",
+      "destination": ".agents/skills/wizard",
+      "sha256": "32f12848549004fa77a98fa31300bcbc5272cea20ff879bd8406faa8b22cd345"
+    },
+    ".agents/skills/writing-for-agents": {
+      "provider": "agent-kit",
+      "ref": "94c236f63240a78e209b14012ff2143f22cfbda8",
+      "skill": "writing-for-agents",
+      "destination": ".agents/skills/writing-for-agents",
+      "sha256": "6b1b3babb2c8b683a0ccc23544ddf18459985aa414f4ddd1b7c5c3a8b8009907"
+    }
+  }
+}
