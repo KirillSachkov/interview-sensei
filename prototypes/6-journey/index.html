@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Путь Анны · Interview Sensei</title>
+<style>
+*{box-sizing:border-box}body{margin:0;color:#21322e;background:#f5f5ee;font:17px/1.55 "Inter",system-ui,sans-serif}header,main,footer{max-width:840px;margin:auto;padding:22px clamp(16px,5vw,50px)}header{display:flex;justify-content:space-between;border-bottom:1px solid #bbbfb5;font-size:.85rem}main{min-height:64vh}h1{font:normal clamp(32px,6vw,52px)/1.1 Georgia,serif;letter-spacing:-.035em;margin:.4em 0}h2{font-size:1.2em}section,details{margin:14px 0;padding:18px 22px;background:#fff;border:1px solid #cdd5c9;border-radius:12px}summary{cursor:pointer}button{font:inherit;font-weight:600;color:#fff;background:#165849;padding:10px 16px;border:0;border-radius:7px;cursor:pointer;margin:6px 7px 4px 0}button:hover{background:#0d4034}button:focus-visible,summary:focus-visible{outline:3px solid #b57213;outline-offset:3px}.light{background:#e0ebe3;color:#1e483b}.light:hover{background:#cedfd3}.meta,small,footer{color:#51635a;font-size:.88rem}.tag{font-weight:650;color:#23634f}.meter{height:12px;background:#e0e6dd;border-radius:8px;overflow:hidden}.meter i{display:block;height:100%;background:#407b60}code{overflow-wrap:anywhere}p{margin:.65em 0}footer{border-top:1px solid #bbbfb5}a{color:#165849}
+</style>
+<header><strong>Interview Sensei</strong><span>Пробный сценарий №6</span></header>
+<main id="view"></main><footer>Демонстрационные ответы Анны. Все проценты условны. Состояние хранится до перезагрузки страницы.</footer>
+<script>
+const view=document.querySelector('#view');
+const skills=['Выбрать соединение таблиц','Посчитать связанные строки'];
+const tasks=[
+ [['Клиенты без заказов','Найди клиентов без заказов.','Сначала Анна предложила INNER JOIN.','Агент спросил, как сохранить клиентов без совпадений.','Анна применила LEFT JOIN и фильтр orders.id IS NULL. Ответ верный.'],
+ ['Клиенты без заказов','Реши ту же задачу с чистого листа.','Анна сама выбрала LEFT JOIN и фильтр orders.id IS NULL.','Без подсказок.','Знакомую задачу решила самостоятельно.'],
+ ['Учебные группы','Покажи все группы, включая группы без студентов.','Анна сама заметила, что пустые группы должны остаться, и выбрала LEFT JOIN.','Без подсказок.','На новом примере выбрала соединение верно.'],
+ ['Отделы без сотрудников','Сохрани в отчёте каждый отдел.','Анна применила INNER JOIN.','Без подсказок.','Пустые отделы пропали. Выбор соединения требует ещё одной проверки.']],
+ [['Заказы по клиентам','После соединения посчитай заказы, включая ноль.','Анна сначала предложила COUNT(*).','Агент предложил проверить строку с пустым orders.id.','Анна применила COUNT(orders.id).'],
+ ['Заказы по клиентам','Повтори подсчёт на знакомых таблицах.','Анна применила COUNT(orders.id).','Без подсказок.','Для клиента без заказов получилось 0.'],
+ ['Книги по авторам','Таблицы уже соединены через LEFT JOIN. Посчитай книги каждого автора.','Анна применила COUNT(books.id).','Без подсказок.','Авторы без книг получили 0. Перенос на новое задание подтверждён.'],
+ ['Участники по командам','Таблицы уже соединены через LEFT JOIN. Посчитай участников.','Анна применила COUNT(*).','Без подсказок.','Пустая команда получила 1. Нужна ещё одна проверка.']]
+];
+const go=['Общий счётчик','Две горутины увеличивают общий счётчик. Объясни риск и предложи исправление.','Анна нашла гонку и защитила обновление через sync.Mutex.','Без подсказок.','Самостоятельно нашла ошибку в коде.'];
+let disputed=false;
+let route='',page='goal',selected=0,history=[],opened,goal=0;
+const goals=['Go-бэкенд · вакансия «Берег»','Go-бэкенд · вакансия «Маяк»'];
+function add(skill,step){if(!history.some(a=>a.skill===skill&&a.step===step))history.push({skill,step});}
+function evidence(a){return a.skill===2?go:tasks[a.skill][a.step]}
+function level(s){if(disputed&&s===0)return 0;return history.filter(a=>a.skill===s).at(-1)?.step??-1}
+const states=['Пока нет данных','После подсказки','Самостоятельно на знакомом примере','Самостоятельно на новом задании','Результаты расходятся'];
+function button(label,action,sub=false){return '<button class="'+(sub?'light':'')+'" onclick="'+action+'">'+label+'</button>'}
+function nav(label,next,sub=false){return button(label,"show('"+next+"')",sub)}
+function start(mode){route=mode;disputed=false;history=[];goal=0;selected=0;show(mode==='Мок'?'go':'sql')}
+function attempt(a){const [name,q,answer,help,result]=evidence(a);return '<section><h2>'+name+'</h2><p class="tag">Учебное задание агента</p><p>'+q+'</p><p><b>Ответ Анны.</b> '+answer+'</p><p><b>Помощь.</b> '+help+'</p><p><b>Разбор.</b> '+result+'</p></section>'}
+function pick(s){selected=s;show('skill')}
+function detail(i){opened=history[i];show('attempt')}
+function finish(s,step){add(s,step);show('map')}
+function practice(){show(level(selected)<0?'guided':'familiar')}
+function show(next){page=next;render();view.querySelector('h1').focus();window.scrollTo(0,0)}
+function render(){
+let title='',body='';
+const source='<details><summary>Почему в сценарии есть эти темы?</summary><p>В демонстрационной вакансии «Берег» указаны Go и SQL, в вакансии «Маяк» упомянуто чтение запросов с JOIN. Агент предполагает, что эти умения проверят на техническом этапе. Работодатели не присылали вопросов.</p></details>';
+if(page==='goal'){title='К какому интервью готовится Анна?';body='<p>Сравни два начала подготовки. Достаточно ли первого мока, чтобы понять, чем заняться дальше?</p><section><small>Цель Анны</small><h2>Go-бэкенд-разработчик уровня middle</h2><p>Пройти технический этап в компании «Берег» на российском рынке. В учебной вакансии нужны Go и работа с SQL.</p></section>'+source+nav('Подтвердить цель','start')}
+if(page==='start'){title='С чего начнём?';body='<section><h2>Первый мок</h2><p>Пройди технический этап по двум темам. После собеседования откроется разбор.</p>'+button('Пройти мок',"start('Мок')")+'</section><section><h2>Короткая диагностика</h2><p>Проверь одну тему одним вопросом по SQL и сразу посмотри шкалу.</p>'+button('Пройти диагностику',"start('Диагностика')")+'</section>'}
+if(page==='go'){title='Разбор кода на Go';body='<p>Учебный вопрос агента. Что произойдёт, если две горутины одновременно выполнят <code>counter++</code>?</p><section><b>Ответ Анны</b><p>'+go[2]+'</p></section>'+button('Принять ответ и перейти к SQL',"add(2,0);show('sql')")}
+if(page==='sql'){title='Клиенты без заказов';body='<p>Учебный вопрос агента. В базе есть таблицы clients и orders. Как найти клиентов, которые ничего не заказали?</p><section><b>Ответ Анны</b><p>'+tasks[0][0][2]+'</p></section>'+nav('Посмотреть продолжение','hint')}
+if(page==='hint'){title='Вторая попытка ответа';body='<section><b>Подсказка агента</b><p>'+tasks[0][0][3]+'</p><b>Ответ Анны</b><p>'+tasks[0][0][4]+'</p></section>'+button('Завершить и открыть разбор','finish(0,0)')}
+if(page==='map'){
+const relevant=goal?[0]:[0,1],scores=[0,.25,.5,1,.5];
+const percent=Math.round(100*relevant.reduce((v,s)=>v+scores[level(s)+1],0)/relevant.length);
+title='Шкала технического этапа';body='<p>Базы данных / SQL</p><section><strong style="font-size:2em">'+percent+'%</strong> · условная готовность по SQL<div class="meter"><i style="width:'+percent+'%"></i></div><p>Доля ожидаемых умений, которые Анна продемонстрировала для этой цели. Вес помощи и самостоятельности выбран для примера.</p>'+relevant.map(s=>'<p>'+button(skills[s],'pick('+s+')',true)+' '+states[level(s)+1]+'</p>').join('')+'</section>'+(!goal?'<details><summary>Go · конкурентность · '+(level(2)>=0?'есть попытка':'пока нет данных')+'</summary>'+ (level(2)>=0?attempt({skill:2,step:0}):'<p>Разбор кода ещё предстоит пройти.</p>')+'</details>':'')+source+button(goal?'Вернуться к цели «Берег»':'Посмотреть общую практику в цели «Маяк»','goal=1-goal;show(\'map\')',true)+nav('Сравнить с другим стартом','start',true)
+}
+if(page==='skill'){
+title=skills[selected];const records=history.map((a,i)=>a.skill===selected?button(evidence(a)[0]+' · '+states[a.step+1],'detail('+i+')',true):'').join('');
+body='<p>'+states[level(selected)+1]+'</p><section><h2>Попытки Анны</h2>'+(records||'Этого умения ещё не проверяли.')+'</section><section><h2>Следующее занятие</h2>'+(level(selected)<1?button('Тренировать умение','practice()'):'')+(level(selected)>=1&&level(selected)<3?nav(level(selected)===2?'Ещё одна проверка':'Проверить на новом задании',level(selected)===2?'conflict':'new',true):'')+'</section>'+nav('К шкале этапа','map',true)
+}
+if(page==='attempt'&&opened.skill===0&&opened.step===2){
+title='Разбор выбора JOIN';
+body=attempt(opened)+(disputed?'<section><h2>Спорная оценка</h2><p>Агент приписал выбор соединения подсказке. В записи сначала идёт ответ Анны с LEFT JOIN, затем совет агента проверить пустые группы.</p>'+button('Указать на ответ до подсказки',"disputed=false;show('corrected')")+'</section>':button('Посмотреть пример ошибки оценки',"disputed=true;render()",true))+nav('К умению и занятиям','skill');
+}
+else if(page==='attempt'){title='На чём основана оценка';body=attempt(opened)+nav('К умению и занятиям','skill')}
+if(page==='corrected'){title='Оценка исправлена';body='<p>Агент сверил порядок сообщений. Анна выбрала JOIN самостоятельно до подсказки. Обе цели снова учитывают эту попытку как самостоятельное решение новой задачи.</p>'+nav('Посмотреть пересчёт','map')}
+if(['guided','familiar','new','conflict'].includes(page)){
+const step=['guided','familiar','new','conflict'].indexOf(page);
+title=['Тренировка с подсказкой','Тренировка на знакомом примере','Проверка на новом задании','Ещё одна проверка'][step];
+body=attempt({skill:selected,step})+button('Записать попытку и открыть шкалу','finish(selected,'+step+')')
+}
+view.innerHTML='<p class="meta">'+(page==='goal'?'Рабочая область Анны':goals[goal]+(route&&page!=='start'?' / '+route:''))+'</p><h1 tabindex="-1">'+title+'</h1>'+body;
+}
+render();
+</script></html>
