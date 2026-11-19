@@ -18,8 +18,8 @@ Keep large ideas as proposals until concrete behavior is ready to specify.
 
 ## Current behavior and history
 
-`README.en.md` and `README.md` describe this repository’s agreed scope.
-Maintain the human document pair when the agreed scope changes.
+The Russian and English READMEs introduce the project to repository visitors.
+Keep the first-release design brief in the Wayfinder map and record subsequent design decisions in its child issues.
 Agent instructions own the operational rules; human process maps explain them.
 
 An issue, including a change spec, records what was requested and why at that time.
