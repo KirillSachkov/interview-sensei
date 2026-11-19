@@ -26,7 +26,7 @@ _English:_ The reason a topic is relevant to a preparation goal. For example, th
 **Мок-собеседование (Mock interview)** представляет собой репетицию интервью целиком, по отдельному этапу или теме, с разбором ответов. Первый мок может дать начальные свидетельства готовности.
 _English:_ A rehearsal of a whole interview, one stage or one topic, followed by feedback on the candidate’s answers. The first mock interview can provide initial evidence of readiness.
 
-**План мока (Mock interview plan)** определяет охват одной репетиции с учётом цели, доступного времени и прежних попыток. По одному сценарию интервью можно спланировать мок по многопоточности и отдельный мок по всему техническому этапу.
+**План мока (Mock interview plan)** определяет охват одной репетиции с учётом цели, доступного времени и прежних попыток. По одному сценарию интервью можно спланировать мок по конкурентности и отдельный мок по всему техническому этапу.
 _English:_ The scope of one rehearsal given the goal, available time and previous attempts. The same interview scenario can support one mock on concurrency and another covering the full technical stage.
 
 ## Попытки и оценка
