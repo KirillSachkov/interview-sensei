@@ -1,4 +1,4 @@
-# Interview Prep Agent
+# Interview Sensei
 
 We are building an agent that helps candidates prepare for job interviews.
 

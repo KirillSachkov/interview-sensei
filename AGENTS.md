@@ -1,4 +1,4 @@
-# Interview Prep Agent
+# Interview Sensei
 
 Before planning or implementing work, read the [project scope](README.en.md).
 
