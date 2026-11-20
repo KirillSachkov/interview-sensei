@@ -1,6 +1,6 @@
 # Interview Sensei
 
-Before planning or implementing work, read the [project scope](README.en.md).
+Before designing the first release, read the product brief in the [Wayfinder map](https://github.com/KirillSachkov/interview-sensei/issues/1).
 
 ## Language
 
