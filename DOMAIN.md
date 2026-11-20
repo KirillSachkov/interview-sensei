@@ -5,6 +5,12 @@
 **Кандидат (Candidate)** готовится к собеседованию с помощью агента.
 _English:_ The person preparing for a job interview with the agent.
 
+**Личная рабочая область (Personal workspace)** объединяет настройку и цели одного кандидата. Кандидат может продолжать настройку одной цели и открывать другие свои цели.
+_English:_ The place where a candidate can resume goal setup and access their preparation goals.
+
+**Предложение цели (Goal proposal)** представляет собой конкретную формулировку намерения, которую кандидат может подтвердить или поправить. Подтверждение относится к показанной формулировке.
+_English:_ A specific statement of intent that the candidate can confirm or revise. Confirmation applies to the wording shown to the candidate.
+
 **Цель подготовки (Preparation goal)** выражает намерение, которое подтвердил кандидат, например подготовиться к собеседованиям на определённую роль или к конкретной встрече. Кандидат может менять цель и вести несколько целей одновременно.
 _English:_ An outcome the candidate explicitly confirms they want to prepare for, such as interviewing for a role across several companies or preparing for a particular interview. A candidate can revise a goal and pursue several goals at once.
 
