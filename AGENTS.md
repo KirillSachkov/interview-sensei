@@ -4,11 +4,8 @@ Before designing the first release, read the product brief in the [Wayfinder map
 
 ## Language
 
-Human language: ru.
-Use the selected language for replies, issues, specs, PRs and reports, including headings.
-Keep executable syntax, identifiers and established technical terms intact.
-Write agent instructions, skills and tool descriptions in English.
-Maintain English and Russian human documentation together; neither translation expands the agreed scope.
+Write to people in Russian: replies, issues, specs, PRs and reports. Write agent instructions and skills in English.
+Change the English and Russian versions of a document together.
 
 ## Agent skills
 

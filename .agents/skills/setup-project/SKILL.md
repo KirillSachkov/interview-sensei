@@ -49,11 +49,10 @@ Write or update exactly one block in the existing authority file:
 ```markdown
 ## Language
 
-Human language: <en or ru selected by the owner>.
-Use the selected language for replies, issues, specs, PRs and reports, including headings.
-Keep executable syntax and identifiers intact.
-Write agent instructions, skills and tool descriptions in English.
+Write to people in <English or Russian, as the owner chose>: replies, issues, specs, PRs and reports. Write agent instructions and skills in English.
 ```
+
+When the project keeps a document in both languages, add: `Change the English and Russian versions of a document together.`
 
 This changes future human-facing work; existing issues and reports keep their historical language.
 For a language-only rerun, limit the draft and writes to the Language block.
