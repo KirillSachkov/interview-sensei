@@ -1,0 +1,8 @@
+.git
+**/node_modules
+**/dist
+.evidence
+.scratch
+test-results
+playwright-report
+.agents
