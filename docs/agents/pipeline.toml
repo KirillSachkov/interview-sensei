@@ -1,0 +1,57 @@
+# The tasks between "ticket ready" and "PR waits for the owner", led by /deliver.
+# A task starts from the stage in `when`, gets one run with the instruction in `run`,
+# and moves the ticket to `then` when `check` exits 0. Exit 3 from a check means a retry cannot help.
+# Experimental: the deliver skill and its orchestrator come from the Agent Kit's factory experiment.
+agent = "claude"            # the client and model of every run; a task may name its own
+model = "sonnet"
+base = "main"               # a ticket started on this branch gets a worktree of its own
+worktrees = "~/Worktrees/{project}"
+branch = "issue-{name}"
+# setup = "pnpm install"    # run once in a new worktree, when the application has dependencies
+
+[[task]]
+name = "implement"
+when = "ready"
+run = "/implement {ticket}"
+run_spec = "/implement-spec {ticket}"
+# Add the project's test command here once the application has one.
+check = """test -n "$(git log main..HEAD --oneline)" \
+  && test -z "$(git status --porcelain)" \
+  && git diff --check main...HEAD"""
+attempts = 2
+then = "delivery"
+
+# Enable when the project has a verify-<app> skill: point implement's `then` at "verify".
+# [[task]]
+# name = "verify"
+# when = "verify"
+# run = "Verify the behaviour of ticket {ticket} at the current commit with this project's verify skill. Check every acceptance criterion."
+# check = """v=$(sed -n 's/^Verdict: //p' .evidence/report.md 2>/dev/null | head -1)
+# c=$(sed -n 's/^Commit: //p' .evidence/report.md 2>/dev/null | head -1)
+# case "$(git rev-parse HEAD)" in "${c:-none}"*) ;; *) echo "no verification report for this commit"; exit 1 ;; esac
+# case "$v" in
+#   PASS|PASS+NOTES) exit 0 ;;
+#   FAIL|BLOCKED) echo "verification verdict: $v"; exit 3 ;;
+#   *) echo "no verification report"; exit 1 ;;
+# esac"""
+# attempts = 2
+# then = "delivery"
+
+[[task]]
+name = "ship"
+when = "delivery"
+run = "Ship the committed work on this branch for ticket {ticket}."
+check = """gh pr view --json state -q .state | grep -q OPEN && gh pr checks >/dev/null"""
+attempts = 2
+then = "needs-owner"
+
+# The owner asked for changes on the PR: `run <ticket> --stage rework`.
+[[task]]
+name = "rework"
+when = "rework"
+run = "Address the owner's unresolved feedback on this branch's pull request for ticket {ticket}: read its reviews and comments, change the code and commit."
+check = """test -n "$(git log main..HEAD --oneline)" \
+  && test -z "$(git status --porcelain)" \
+  && git diff --check main...HEAD"""
+attempts = 2
+then = "delivery"

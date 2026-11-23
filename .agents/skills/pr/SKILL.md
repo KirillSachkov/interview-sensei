@@ -9,67 +9,182 @@ metadata:
     url: "https://github.com/humanlayer/skills/blob/main/plugins/show-me/skills/show-me/SKILL.md"
 ---
 
-Write a report the owner can understand without reading the conversation or every changed line. Root `AGENTS.md` owns audience language, including headings. Preserve technical syntax and the project's declared domain vocabulary. `ship` owns delivery; this skill owns the PR description and its project-specific contract. `recap` may supply readable narrative, but does not independently create or edit the PR.
+Use the project's PR template when it has one. Otherwise use this template for writing the PR body, with its headings in the project's language:
 
-## Build the explanation
+```markdown
+## Needs you
 
-1. Read the issue/spec, actual diff, verification results, and independent findings. Read target `AGENTS.md` and its actual tracker/writing/human-participation pointers; apply inline or linked rules without requiring a particular filename.
-2. Lead with the problem and resulting behavior. Use a concrete before/after example where it helps. Show the affected scope.
-3. Choose the smallest useful structure. For diagrams, visual evidence, or formatting beyond the template, read the relevant [presentation](PRESENTATION.md) section. Use GitHub-supported Markdown to make the result clear and easy to scan.
-4. Show the evidence conclusion and material limits first. Put commands, logs, revision records, and the complete check table in a disclosure.
-5. State the owner's next action and additional human checks, or briefly explain why none are needed. Keep unresolved questions visible.
-6. Describe consequences, reversibility, and rollback. Include deviations only when they exist. Read the rendered result before handoff.
+<the decision or check the owner must make>
 
-## Suggested shape
+## What changed
 
-Scale this shape to the change. Translate its headings into the team language. Omit empty sections and replace every placeholder.
+<one to three sentences, with a diagram, diff-sketch, or tree when it helps>
 
-````markdown
-<agent provenance under project rules>
+## Verified
 
-## What changes
+- <scenario: what was done and what was seen> ![what it shows](./evidence.png)
 
-<problem, resulting behavior, and a small visual when useful>
+Not verified: <what was left unchecked and why>
 
-## Verification
+## Merge Danger
 
-<short result, actual evidence, and the important limit>
+**Door:** <one-way or two-way>. **Blast Radius:** <one-word description>
 
 <details>
-<summary>Verification details</summary>
+<summary>Details</summary>
 
-Checked head: <commit permalink>. Review base: <full SHA>.
-
-| Check | Result | What it confirms |
-| --- | --- | --- |
-| <command or observed step> | <actual result> | <scope and limit> |
+<for agents: base and head, check runs with links, review reports>
 
 </details>
 
-## What the owner needs to do
+Closes #<issue>
+```
 
-<concrete question or action, expected result, reason, and evidence>
-<or a short reason why no additional manual check is needed>
+## Sections
 
-## Risk and rollback
+The owner reads everything outside **Details** and nothing inside it. Keep the owner's text under 70 words, headings aside: it should read in a minute. Omit a section that has nothing to say. Keep commit hashes and check logs inside Details.
 
-<affected behavior, consequences, reversibility, rollback, and residual uncertainty>
-````
+Skip all preambles and keep prose brief. Use the user's domain language from `GLOSSARY.md`.
 
-## Evidence and human actions
+### Needs you
 
-List every check actually run on the delivered result in the detailed table, including manual observations. Distinguish current evidence from earlier runs, planned work, skipped checks, and unavailable checks. Record exact revisions and requirement inputs. Keep the conclusion short; the journal must remain available without dominating it.
+Start with the owner-gate status and reason when one was given. Then one concrete question or action per line, with what the answer decides. Omit the section when the owner has nothing to do.
 
-For a bug, show how the reproduction or regression test fails before the fix and passes after it, when observed. For changed assertions, explain old/new expectations and the requirement that changed them. For visual changes, provide real screenshots or recordings when they demonstrate the changed property. Label examples and proposed experiments as unexecuted.
+### What changed
 
-Use the verifier's actual observed outcomes and artifacts when supplied; add no claim beyond them. Keep the owner-facing result brief and understandable without code. Tests and review establish only their exercised scope; retain independent verification as a separate result when required by the target.
+Say what is different for the user. Pick the smallest view that makes the key point clear.
 
-Link findings to their disposition. Explain a rejected finding or deferred item rather than hiding it in a green summary. A passing check confirms only what it exercised; a screenshot does not establish a backend permission rule.
+- Show logic or an algorithm as pseudocode:
 
-Follow the project's human-check policy instead of generating a generic checklist. An owner's task list records their required actions; mark an action complete only from their recorded result. Keep readiness, acceptance, and merge authority distinct.
+```text
+on(save)
+  if content is unchanged
+    return cached result
+  write new content
+  return fresh result
+```
 
-## Language and links
+- Show runtime control flow as a call tree:
 
-Use plain, concrete sentences with one idea each. Introduce unfamiliar terms. Prefer behavior and consequences over an inventory of files. Add file links only where they help inspection.
+```text
+submitForm
+  createSession
+    persistPrompt
+    launchAgent
+  navigateToSession
+```
 
-Link to the issue, CI run, evidence, and relevant code at the checked revision. Published PRs use accessible GitHub links; local paths and private session artifacts are not shared evidence. Keep essential limitations, decisions, and required human actions outside collapsed sections.
+- Show UI structure as a component tree, including state and module boundaries that matter:
+
+```text
+<SessionPage> (apps/example/src/routes/session.tsx)
+  useSessionEvents()
+  <SessionToolbar>
+    <RunSkillButton> (packages/ui)
+```
+
+- Show file responsibility or a broad refactor as a shallow file tree:
+
+```text
+src/
+├── commands/       # parses user actions
+├── sessions/       # owns session state
+└── transport/      # sends API requests
+```
+
+- Show component interaction, control flow, or data flow with Mermaid:
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant UI
+    participant Daemon
+    User->>UI: choose command
+    UI->>Daemon: send expanded prompt
+    Daemon-->>UI: stream result
+```
+
+- Use `diff` when the point is what changes and the surrounding shape already exists. Match the diff shape to the topic.
+
+For a component change:
+
+```diff
+ <SessionPage>
+   useSessionEvents()
+   <SessionToolbar>
++    <RunSkillButton />
+   <SessionTimeline>
++    <SkillResultCard />
+```
+
+For a file-layout change:
+
+```diff
+ src/
+ ├── commands/
++│   └── show-me.ts       # expands the slash command
+ ├── sessions/
+-└── transport.ts
++└── transport/
++    ├── client.ts
++    └── stream.ts
+```
+
+For a call-tree or call-stack change:
+
+```diff
+ submitForm
+   createSession
+     persistPrompt
++    expandSkillMention
+     launchAgent
+-  navigateToSession
++  navigateToSession
++    subscribeToEvents
+```
+
+For a state or control-flow change:
+
+```diff
+ on(save)
+-  write content
++  if content is unchanged
++    return cached result
++  write new content
++  invalidate cache
+```
+
+- Show the whole block when most of it is new, when omitted context would hide ownership or order, or when the user needs a copyable target shape:
+
+```ts
+function expandSkill(command: string): string {
+  const skillName = command.slice(1);
+  return `use the ${skillName} skill`;
+}
+```
+
+#### Guidance
+
+Place each visual next to the short text it supports. Keep only the calls, files, props, states, and boundaries needed to answer the user's current question or the options to resolve the current discussion point.
+
+You may use one of these, you may use several, it is unlikely you will use all of them. Use your judgement and don't overwhelm the user.
+
+### Verified
+
+One line and one piece of evidence per scenario. Take both from the verification report: a verifier in another session leaves `report.md` in the folder the project settings name. Without a report, show a before and after.
+
+Screenshots are S-tier - when the environment is set up for it and the change is visual.
+
+Execution-based evidence is A-tier. Test results, console output. Show the exact test that now fails and passes, using pseudocode.
+
+Store evidence files the way the project says. On GitHub with no project rule, attach them with `gh pr create --attach` or `gh pr edit --attach` and reference each as `![what it shows](./file.png)`. An attachment is public and permanent: attach test data only, and when in doubt describe the result in words.
+
+### Merge Danger
+
+Describe whether it's a one-way or two-way door. You can walk back through two-way doors, but not one-way doors. A PR that is cheap to roll back is lower risk. Changes that involve destructive actions or hard-to-reverse decisions are one-way doors.
+
+The blast radius is the potential impact or scope of the changes introduced by this PR. Consider all possibilities. Examples are layout shift, breakages for consumers, mobile responsiveness, etc.
+
+### Details
+
+Written for agents, not the owner: the base and head, each check with a link to its run, the review reports. Never retell the diff.

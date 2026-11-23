@@ -1,49 +1,66 @@
 ---
 name: ask
-description: Ask where you are and how best to proceed: which skill or flow fits, what size and shape the work needs, in which order to design, and when DDD, EventStorming or a board helps.
+description: "Ask where you are and how best to proceed: which skill or flow fits, what size and shape the work needs, in which order to design, and when DDD, EventStorming or a board helps."
 disable-model-invocation: true
 ---
 
 # Ask
 
-Before advising a route, read root `AGENTS.md` and its preparation pointers for project policy. Where advice here differs from project policy, the policy wins.
+Before advising a route, read root `AGENTS.md` and the project settings it points at. Where advice here differs from project policy, the policy wins.
 
 Answer like an experienced colleague: give the advice, the reason for it, and when it makes sense to depart from it. Advice is not a mandatory step or a template; the user decides.
 
-You don't remember every skill, so ask.
+This file is a map, not a manual. Before stating what a skill does or recommending a step be skipped, read that skill's `SKILL.md`.
 
-Before stating what a skill does or recommending a step be skipped, read that skill's SKILL.md: the summaries here are for orientation only.
+## Which skill for which situation
 
-A **flow** is a path through the skills. Most paths run along one **main flow**, and two **on-ramps** merge onto it. Everything else is standalone, or a vocabulary layer that runs underneath.
+| Situation | Skill |
+| --- | --- |
+| A new project, or its rules change | `/setup-agent-kit` |
+| An idea to sharpen, in a repo | `/grill-with-docs` |
+| An idea to sharpen, with no repo under it | `/grill-me` |
+| An effort too big and foggy to hold in one session | `/wayfinder`, which ends in `/to-spec` |
+| A design question only running code can answer | `/prototype` |
+| The idea is clear and the build takes several sessions | `/to-spec`, then `/to-tickets` |
+| A ticket is ready | `/implement`, then `/ship` |
+| A spec with tickets is ready | `/implement-spec`, then `/ship` |
+| A ticket or spec is ready and the owner wants only the PR | `/deliver`, when the project has `docs/agents/pipeline.toml` |
+| Raw bugs and requests from others pile up | `/triage` |
+| Something is broken and resists a first look | `/diagnosing-bugs` |
+| The project has an app to drive and no way to verify behaviour | `/create-verification-skill` |
+| A build is done, especially one that went sideways | `/retro` |
+| The answer lives in someone else's head | `/to-questionnaire` |
+| Reading legwork to delegate | `/research` |
+| A step only a human can take | `/wizard` |
+| A message did not land | `/wait-what` |
+| The codebase needs upkeep between features | `/improve-codebase-architecture` |
+| Moving work to another harness, folder or person | `/handoff` |
+| Learning a concept over several sessions | `/teach` |
 
-## The main flow: idea → ship
+Work that fits one session needs a short conversation and a short ticket; the full interview and a spec are for more.
 
-The route most work travels. You have an idea and want it built.
+Tickets that `/to-tickets` produced are ready as they are: `/triage` is for work that arrives raw.
 
-Work that fits one session needs only a short conversation and a short issue; the full `/grill-with-docs` interview is optional there.
+## Two ways to build
 
-1. **`/grill-with-docs`** sharpens the idea by interview. Start here whenever you are **working in a working directory**: it's stateful, retaining what it learns in the project glossary and ADRs. (No working directory? Use `/grill-me` instead, covered under Standalone. Both run the same `/grilling` primitive; `grill-with-docs` is the one that leaves a paper trail, which makes it the better of the two whenever a repo is there to leave it in.)
-2. **Branch: can you settle every question in conversation?** If a question needs a runnable answer (state, business logic, a UI you have to see), detour through a prototype:
-   - Choose the project-selected prototype surface and location. Continue in the current context when project policy and client capacity permit; use a handoff or fresh session only when the actual boundary requires one.
-   - **`/prototype`** to answer the question with throwaway code.
-   - Record the verdict and evidence under project policy and reference it from the idea thread. If returning across a context boundary, use the client's supported handoff mechanism.
-3. **Branch: is this a multi-session build?**
-   - **Yes** → **`/to-spec`** (turn the thread into a spec), then **`/to-tickets`** to split it into tracer-bullet tickets, each declaring its **blocking edges**. Then work the tickets one of two ways:
-     - **`/implement`** per assigned ticket, using project-selected context boundaries. On a local tracker that's one file per ticket under `.scratch/<feature>/issues/`, worked blockers-first by hand; on a real tracker the edges become native blocking links, so completed blockers identify the dependency-ready frontier; assignment and the project start rule still govern execution. Each ticket is self-contained, so the last one's context is disposable.
-     - **`/implement-spec`** for the whole spec in one run. It reads the tickets as a **task graph**, runs implementer subagents across the ready **frontier** in parallel, and delivers through the target project's selected mode: ticket PRs, an integration branch or serialized main-checkout work. Reach for it when you'd rather orchestrate the build than drive each ticket yourself.
-   - **No** → **`/implement`** right here, in the same context window.
+Both use the same skills and the same project settings, so a project can mix them ticket by ticket.
 
-   Either way, the code gets built by driving **`/tdd`** (one red-green slice at a time) and closes out with **`/code-review`**, a two-axis review (Standards + Spec) of the diff. `/implement` runs both per ticket; `/implement-spec`'s implementers each drive `/tdd`, and it reviews the full assigned result under the project checkpoints. Reach for **`/tdd`** on its own when you just want to build a concrete behaviour test-first without a full spec, and **`/code-review`** on its own whenever you want to review a branch or PR against a fixed point. After review, **`/ship`** follows the project's PR or main-checkout delivery and acceptance rules.
+- **By hand.** The owner runs `/implement` or `/implement-spec` and stays in the session, then runs `/ship`. Choose it to take part in the work.
+- **Whole.** `/deliver` leads the ticket through every task in the project's pipeline, each in a run of its own, and stops when the PR waits for the owner. Choose it to receive a finished PR.
 
-   When the work goes up as a pull request, **`/pr`** shapes the body: the smallest visual that shows the change, before/after evidence that it works, and a one-way or two-way door call. It's model-invoked, so the agent reaches for it whenever it writes a PR.
+Inside either, the agent reaches for these by itself: `/tdd` at the seams the testing strategy names, `/code-review` at the end of `/implement`, the project's `verify-<app>` skill before delivery when the settings call for verification, `/pr` to write the PR body, and `/owner-gate` when the project gates delivery by conditions.
 
-4. **`/retro`** closes the loop. After a build, and especially one that went sideways, it looks back over the session and suggests changes to the agent's **environment**, not the code: navigation pointers, automated checks, the coding standards `/code-review` enforces, steering files, tooling. Mechanical mistakes become deterministic checks; judgement calls become coding standards. The next build then starts from a better environment.
+## Where things are set
 
-### Context hygiene
-
-Prefer keeping steps 1–3 together while the configured client has sufficient context and the project permits it. Preserve decisions and source pointers before any required boundary. Start implementation in the context the project selects; a fresh ticket context is an option, not a requirement. Run `/retro` against the relevant session or its retained log.
-
-Use the configured client's context limits, available budget and observed reasoning quality when choosing a boundary; there is no universal token threshold. Follow project session and evidence rules. Use the client's supported continuation, compaction or handoff mechanism, preserving decisions and source pointers (see Phase boundaries).
+| What | Where |
+| --- | --- |
+| Delivery route, checks, verification, owner gate, workplace | `docs/agents/project-settings.md`, written by `/setup-agent-kit` |
+| Where and how the project tests | the testing strategy the settings name |
+| What the reviewer holds code to | `CODING_STANDARDS.md`, grown by `/retro` |
+| Words of the domain | the glossary, kept by `/domain-modeling` |
+| The tasks of `/deliver`, and the client and model of each | `docs/agents/pipeline.toml` |
+| The model of a session or of subagents | the client's own settings |
+| Whether the agent may start a skill by itself | the skill's own flags; nothing in the project overrides them |
 
 ## Before the spec: size, order and practices
 
@@ -53,33 +70,6 @@ Questions that usually come up around steps 1–3 of the main flow. Read the lin
 - **Design order.** Behaviour, quality, technical shape, unknowns, then `/to-spec`: the spec is the outcome of design. A spec that is ready but technically unthought gets its key scenarios walked through the modules, and the decisions go back into the spec, either in the earlier issue's body or as a new issue that links the earlier one and lists the criteria it replaces; the user chooses. A `/wayfinder` map ends with one `/to-spec` that consolidates its decisions: [DESIGN-ORDER.en.md](DESIGN-ORDER.en.md), and the [case behind it](CASE-SPEC48.en.md).
 - **Practices.** Name the blocking question first, then pick the practice. Signs that one pays off: several actors or modules, failure branches, states, a word with two meanings. A small feature needs rules and two or three examples, not EventStorming. When each practice helps and when it does not: [PRACTICES.en.md](PRACTICES.en.md); terms: [DDD-GLOSSARY.en.md](DDD-GLOSSARY.en.md).
 - **Boards.** When a board helps, which view answers which question, and when to offer one: [PRACTICES.en.md](PRACTICES.en.md#boards).
-
-## On-ramps
-
-A starting situation that generates work, then merges onto the main flow.
-
-- **Bugs and requests piling up** → **`/triage`**. It moves issues through triage roles and produces agent-ready issues, which **`/implement`** later picks up.
-
-  Triage is only for issues **you didn't create**: bug reports, incoming feature requests, anything that arrives raw. Tickets that `/to-tickets` produced are already agent-ready, so **don't triage them**.
-
-- **Something's broken** → **`/diagnosing-bugs`**. For the hard ones: the bug that resists a first glance, the intermittent flake, the regression that crept in between two known-good states. It refuses to theorise until it has a **tight feedback loop** (one command that already goes red on *this* bug), then fixes with a regression test. Once the fix is in, run **`/retro`** in the same session to ask what would have prevented the bug; where the real finding is that there's no good seam to lock it down, that's a job for **`/improve-codebase-architecture`**.
-
-- **A huge, foggy effort: a greenfield project or a huge feature build, too big for one session** → **`/wayfinder`**, the most cognitively demanding flow here. When the way from here to the destination isn't visible yet, it charts a **shared map** of **decision tickets** on the issue tracker and resolves them one at a time, producing **decisions, not deliverables**, until the fog is pushed back and the way is clear. Where **`/grill-with-docs`** sharpens an idea you can hold in one session, wayfinder is for the idea you can't, and it's slower and denser, so save it for exactly that, never a well-scoped feature.
-
-  When the map clears, **it hands off, it doesn't build**: merge onto the main flow at **`/to-spec`**, which collapses the map's linked decisions into a buildable plan, then `/to-tickets` and `/implement` as usual. Looping the map straight into `/implement` skips that collapse and throws the linked detail away, so go straight to `/implement` only when the effort turned out genuinely small.
-
-## Codebase health
-
-Not feature work, just upkeep.
-
-- **`/improve-codebase-architecture`** runs whenever you have a spare moment to keep the codebase good for agents to operate in. It surfaces **deepening opportunities**; picking one _generates an idea_ you can take into the main flow at `/grill-with-docs`. It's the survey that finds the candidates; **`/codebase-design`** (below) is the bench you design the chosen one on.
-
-## Vocabulary underneath
-
-Two model-invoked references that run *beneath* the other skills, each the single source of truth for its vocabulary. Reach for them directly when the **words**, not the process, are the problem; or let the skills above pull them in.
-
-- **`/domain-modeling`**: sharpen the project's *domain* language: challenge a fuzzy term, resolve an overloaded word ("account" doing three jobs), record a hard-to-reverse decision as an ADR. It's the active discipline `/grill-with-docs` drives to keep the project glossary a clean glossary.
-- **`/codebase-design`** is the deep-module vocabulary (module, interface, depth, seam, adapter, leverage, locality) for designing a module's *shape*: a lot of behaviour behind a small interface at a clean seam. `/tdd` and `/improve-codebase-architecture` both speak it.
 
 ## Phase boundaries
 
@@ -93,20 +83,11 @@ A **phase** is a chunk of work inside a session: the grilling, the implementatio
 
 Read [PHASE-BOUNDARIES.md](PHASE-BOUNDARIES.md) for the ordered tree: the five questions, the reasoning behind each branch, and why the primary-source cost makes **Continue** the one to rule out first. Make the decision **at** a boundary; mid-phase, continue or split the rest into subagents.
 
-## Standalone
+## Vocabulary underneath
 
-Off the main flow entirely.
+Two references run beneath the other skills. Reach for them when the words, not the process, are the problem.
 
-- **`/grill-me`**: the same relentless interview as `/grill-with-docs`, but **stateless**: it saves nothing locally and builds no the project glossary. Reach for it when you are **not working in a working directory** (sharpening a plan, a design, a piece of writing, anything with no repo under it). If you are in a working directory, use `/grill-with-docs` instead: it runs the same interview and leaves a paper trail, so it is strictly the better one.
-- **`/grilling`** is the interview primitive itself: rounds, the frontier, facts are the agent's job and decisions are yours. `/grill-me` and `/grill-with-docs` are the two named ways in, and `/triage`, `/wayfinder` and `/improve-codebase-architecture` all run it internally. Reach for it directly only when you want the interview with no wrapper around it.
-- **`/prototype`** is a small, throwaway program that answers one design question: does this state model feel right, or what should this UI look like. Throwaway is a constraint on how the code is written, not a promise to destroy it: the verdict informs separately authorized implementation, and the prototype itself is kept as a **primary source** in the project-selected evidence location, pointed at from the implementation record. A `prototype/<name>` branch is an option only where project policy permits. It's the detour in step 2 of the main flow, but reach for it any time a design question is hard to settle on paper.
-- **`/research`**: delegate reading legwork to a **background agent**: it investigates a question against **primary sources**, then leaves a cited Markdown file in the repo. Keep working while it reads. The file it produces is something to take *into* the main flow at `/grill-with-docs`, since research feeds the thinking rather than replacing it.
-- **`/to-questionnaire`** comes in when the thing blocking you isn't in your head or the codebase but in **someone else's**, and it writes them a questionnaire to fill in. It's the inverse of `/grill-me`: instead of interviewing you about the subject, it interviews you about the **send** (who it's going to, what you need back) and aims the questions at the gap. What comes back is material for `/grill-with-docs` or `/to-spec`.
-- **`/wizard`** is for the steps only a **human** can take: provisioning infrastructure, setting up credentials or CI secrets, clicking through an unfamiliar third-party dashboard, running a one-off migration or cutover. It generates an interactive bash script that opens each URL, captures each value, and writes it into `.env` and GitHub secrets, so the procedure stops being something you re-explain to an agent every time. Model-invoked, so the agent reaches for it the moment it hits a wall only you can pass. If the agent could just do it itself, it should; this is for where a human is genuinely in the loop.
-- **`/wait-what`** is the corrective for a message that didn't land. Use it mid-conversation, inside any other skill, and the agent re-pitches what it just said with the context you were missing, in plain language under root `AGENTS.md`, using the the project glossary vocabulary. It works after the fact; `/grill-with-docs` is the upfront cure, because a shared language agreed early is what stops the jargon arriving at all.
-- **`/teach`**: learn a concept over multiple sessions, using the current directory as a stateful workspace.
-- **`/writing-for-agents`** is the reference for writing documents agents consume: skills, AGENTS.md, pointed-at docs.
+- `/domain-modeling` sharpens the project's domain language and records hard-to-reverse decisions as ADRs.
+- `/codebase-design` is the vocabulary for a module's shape: depth, interface, seam.
 
-## Precondition
-
-**`/setup-matt-pocock-skills`**: use when the project lacks the tracker, role mappings or document ownership needed for the chosen flow. Read existing root instructions and their pointers first; a configured project does not require setup or a particular document layout. Ask only for unresolved choices. Custom issue trackers also work.
+`/grilling` is the interview the grilling skills run, and `/writing-for-agents` is the reference for documents agents read.

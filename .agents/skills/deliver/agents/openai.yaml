@@ -1,0 +1,5 @@
+interface:
+  display_name: "Deliver"
+  short_description: "Lead a task through the project's pipeline"
+policy:
+  allow_implicit_invocation: false

@@ -1,5 +1,3 @@
 interface:
   display_name: "Ship"
-  short_description: "Deliver reviewed work as a verified PR"
-policy:
-  allow_implicit_invocation: true
+  short_description: "Take committed work to a merged PR or a local delivery"

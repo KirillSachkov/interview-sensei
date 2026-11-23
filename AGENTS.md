@@ -6,32 +6,38 @@ Before designing the first release, read the product brief in the [Wayfinder map
 
 Human language: ru.
 Supported human languages: en, ru.
-
 Use the selected language for replies, issues, specs, PRs and reports, including headings.
 Keep executable syntax, identifiers and established technical terms intact.
 Write agent instructions, skills and tool descriptions in English.
 Maintain English and Russian human documentation together; neither translation expands the agreed scope.
-Use `setup-matt-pocock-skills` to choose or change the human language.
 
-## Start and authority
+## Agent skills
 
-Implementation starts when the owner explicitly selects `implement` or `implement-spec`, including ordinary language naming the skill.
-For an unnamed implementation request, propose the entrypoint and wait for selection.
-Preparation, issue labels and review comments do not start implementation.
-An authorized spec run may delegate its agreed tickets.
+### Issue tracker
 
-Within started work, routine commits, push, PR updates and in-scope review/CI fixes may proceed.
-Diagnosis alone does not authorize a fix.
-Requirements changes need the owner’s decision.
-Follow [delivery](docs/agents/delivery.md) for merge authority.
+GitHub issues through `gh`; agent-written messages carry an authorship prefix. See `docs/agents/issue-tracker.md`.
 
-## Context pointers
+### Triage labels
 
-- Before preparing work, read [requirements](docs/agents/requirements.md) and [human participation](docs/agents/human-review.md).
-- Before writing files, read [worktree ownership](docs/agents/worktrees.md).
-- Before domain work or exploration, read [domain guidance](docs/agents/domain.md).
-- Before tests or review, read [testing](docs/agents/testing.md).
-- Before Standards review, read [CODING_STANDARDS.md](CODING_STANDARDS.md).
-- Before delivery, read [delivery](docs/agents/delivery.md).
-- Before tracker operations, read [tracker](docs/agents/issue-tracker.md); before triage, read [label mappings](docs/agents/triage-labels.md).
-- For installed skill revisions, consult `.agents/skills-manifest.json`.
+The five canonical roles under their own names. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: terms in `DOMAIN.md`, decisions in `docs/adr/`. See `docs/agents/domain.md`.
+
+<!-- agent-kit project instructions -->
+## Agent Kit
+
+Read [project settings](docs/agents/project-settings.md) for delivery, verification and the owner gate. When the settings file is missing, tell the user to run the `setup-agent-kit` skill.
+A standalone question ends with its answer.
+Before choosing tests, read the testing strategy the settings name and take the seam from it. When it has none for this kind of change, ask the owner once and record the answer there.
+When a skill names another skill, load it with your client's skill mechanism, or read its `SKILL.md` when the client has none.
+Before implementing, read the workplace the settings name. When it is a worktree and you stand on the base branch of the main checkout, move to a worktree for the task first.
+<!-- end agent-kit project instructions -->
+
+## Project rules
+
+- Every implementation starts from a GitHub issue. A readiness label alone does not start it.
+- An issue or spec is history: after its PR merges, leave it unchanged. New desired behaviour gets a new issue that links the earlier one and names each criterion it replaces; a break of accepted behaviour gets a bug issue.
+- Current behaviour has one owner per question: tests at the agreed seams for behaviour, `DOMAIN.md` for terms, ADRs for decisions. Keep no separate prose description of it.
+- Changing agreed behaviour needs the owner's decision, recorded in the issue before the work follows it. A passing test never justifies changing a requirement to match the code.

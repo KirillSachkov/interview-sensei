@@ -90,7 +90,7 @@ confirm() {
 }
 
 # _existing KEY: a saved single-line dotenv value, decoded as data, never eval'd.
-# write_env uses one whole-value delimiter, with no shell quote concatenation.
+# write_env writes single quotes; other delimiters come from other producers.
 _existing() {
   [[ -f "$ENV_FILE" ]] || return 1
   local line value; line=$(grep -E "^${1}=" "$ENV_FILE" | tail -n1) || return 1
@@ -156,25 +156,21 @@ _env_target() {
 }
 
 # _write_env_file KEY VALUE upserts one single-line dotenv value.
-# ENV_FILE is data for dotenv consumers (including Node util.parseEnv), not a
-# script to source/eval. Choose an absent single/backtick/double delimiter;
-# double quotes cannot represent literal \n/\r faithfully. Reject unsupported
-# values before touching the file. Never use shell quote concatenation here.
+# Single quotes are the one delimiter that `source` and dotenv parsers
+# (including Node util.parseEnv) read as the same literal value. A value that
+# contains a single quote has no such form: reject it before touching the file.
 # Build beside the resolved target, then atomically replace it: failed reads,
 # writes, or renames leave the original intact. New files are 0600; existing
 # file modes and ENV_FILE's symlinks are preserved.
 _write_env_file() {
-  local key="$1" value="$2" tmp target status quote
+  local key="$1" value="$2" tmp target status
   [[ "$key" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]] || return 1
   if [[ "$value" == *$'\n'* || "$value" == *$'\r'* ]]; then
     printf 'Cannot save %s: use a single-line credential or configure it directly in the consumer.\n' "$key" >&2
     return 1
   fi
-  if [[ "$value" != *"'"* ]]; then quote="'"
-  elif [[ "$value" != *'`'* ]]; then quote='`'
-  elif [[ "$value" != *'"'* && "$value" != *'\n'* && "$value" != *'\r'* ]]; then quote='"'
-  else
-    printf 'Cannot save %s faithfully as dotenv: configure this value directly in the consumer.\n' "$key" >&2
+  if [[ "$value" == *"'"* ]]; then
+    printf 'Cannot save %s: a value with a single quote reads differently in a shell and in dotenv. Configure it directly in the consumer.\n' "$key" >&2
     return 1
   fi
   target=$(_env_target) || return 1
@@ -188,7 +184,7 @@ _write_env_file() {
       if (( status != 1 )); then rm -f -- "$tmp"; return "$status"; fi
     fi
   fi
-  if ! printf '%s=%s%s%s\n' "$key" "$quote" "$value" "$quote" >> "$tmp"; then rm -f -- "$tmp"; return 1; fi
+  if ! printf "%s='%s'\n" "$key" "$value" >> "$tmp"; then rm -f -- "$tmp"; return 1; fi
   if ! mv -f -- "$tmp" "$target"; then rm -f -- "$tmp"; return 1; fi
   printf '  %s✓ wrote%s %s → %s\n' "$GREEN" "$RESET" "$key" "$ENV_FILE"
 }

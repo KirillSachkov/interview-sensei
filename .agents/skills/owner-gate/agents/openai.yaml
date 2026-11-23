@@ -1,0 +1,3 @@
+interface:
+  display_name: "Owner Gate"
+  short_description: "Decide whether a finished change needs the owner"
