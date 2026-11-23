@@ -167,8 +167,6 @@ Take the seam from `[the testing strategy]`; for a kind of change it lacks, ask 
 
 Omit `### Workplace` when implementation happens in the current checkout.
 
-When the project uses Claude Code and has no `CLAUDE.md`, create one whose only line is `@AGENTS.md`.
-
 Include the `### Triage labels` sub-block, and write `docs/agents/triage-labels.md`, only when `triage` is installed and Section B ran. When it isn't, both are omitted.
 
 When Section B ran on GitHub or GitLab, create each configured label the tracker lacks (`gh label create` / `glab label create`).
