@@ -34,10 +34,3 @@ Before choosing tests, read the testing strategy the settings name and take the 
 When a skill names another skill, load it with your client's skill mechanism, or read its `SKILL.md` when the client has none.
 Before implementing, read the workplace the settings name. When it is a worktree and you stand on the base branch of the main checkout, move to a worktree for the task first.
 <!-- end agent-kit project instructions -->
-
-## Project rules
-
-- Every implementation starts from a GitHub issue. A readiness label alone does not start it.
-- An issue or spec is history: after its PR merges, leave it unchanged. New desired behaviour gets a new issue that links the earlier one and names each criterion it replaces; a break of accepted behaviour gets a bug issue.
-- Current behaviour has one owner per question: tests at the agreed seams for behaviour, `DOMAIN.md` for terms, ADRs for decisions. Keep no separate prose description of it.
-- Changing agreed behaviour needs the owner's decision, recorded in the issue before the work follows it. A passing test never justifies changing a requirement to match the code.

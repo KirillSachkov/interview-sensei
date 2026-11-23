@@ -10,6 +10,10 @@ Put skill-specific disclosures after this prefix, in the selected language.
 Attribute a decision to the owner only with a quote of their message and where they wrote it.
 Otherwise say that the agent decided and why.
 
+## Issues as history
+
+An issue or spec records what was asked and why at that time. After its PR merges, leave it unchanged. New desired behaviour gets a new issue that links the earlier one and names each criterion it replaces; a break of accepted behaviour gets a bug issue.
+
 ## Conventions
 
 - **Create an issue**: `gh issue create --title "..." --body "..."`. Use a heredoc for multi-line bodies.

@@ -6,49 +6,73 @@ disable-model-invocation: true
 
 # Ask
 
-Before advising a route, read root `AGENTS.md` and the project settings it points at. Where advice here differs from project policy, the policy wins.
+You don't remember every skill, so ask.
 
-Answer like an experienced colleague: give the advice, the reason for it, and when it makes sense to depart from it. Advice is not a mandatory step or a template; the user decides.
+Answer like an experienced colleague: say where the work stands, the next step and the reason for it, the step after, and when it makes sense to depart from this advice. Advice is not a mandatory step or a template; the user decides.
 
 This file is a map, not a manual. Before stating what a skill does or recommending a step be skipped, read that skill's `SKILL.md`.
 
-## Which skill for which situation
+## Read the situation first
+
+Advice that ignores where the project stands sends the user back over ground already covered. Before answering, look:
+
+- Root `AGENTS.md` and `docs/agents/project-settings.md`: the delivery route, verification, the owner gate and the workplace. Where advice here differs from project policy, the policy wins. No settings file means the first step is `/setup-agent-kit`.
+- The work the user means. Read the ticket or spec in the tracker with its comments and blocking edges; for a spec, see which tickets are done, ready or blocked.
+- Git and the host: the current branch, commits ahead of the base, an open PR and the state of its checks and reviews.
+- `docs/agents/pipeline.toml`, when it exists: its tasks say what `/deliver` will do here. Run `orchestrator.py status` from the `deliver` skill's folder to see which tickets it is leading, at which stage, and what stopped them.
+- Whether the project has a `verify-<app>` skill.
+
+Then place the work on the main flow below and name the step it is at.
+
+## The main flow: idea → ship
+
+The route most work travels. You have an idea and want it built.
+
+1. **`/grill-with-docs`** sharpens the idea by interview and keeps what it learns in the project glossary and ADRs. With no repo under the idea, use `/grill-me`. Work that fits one session needs only a short conversation and a short ticket.
+2. **Branch: can every question be settled in conversation?** A question that needs a runnable answer (state, business logic, a UI you have to see) detours through **`/prototype`**, and its verdict comes back to the idea thread.
+3. **Branch: is this a multi-session build?**
+   - **Yes** → **`/to-spec`** turns the thread into a spec, then **`/to-tickets`** splits it into tracer-bullet tickets, each declaring its **blocking edges**.
+   - **No** → one short ticket, or none, and straight to the build.
+4. **Build and deliver.** Two ways, with the same skills and settings underneath, so a project can mix them ticket by ticket:
+   - **By hand**, to take part in the work: **`/implement`** for one ticket, or **`/implement-spec`** for a whole spec, which runs implementer subagents across the ready **frontier** and lands everything on one **integration branch**. Then **`/ship`** takes the committed work to a PR, gets its checks green and stops where the owner gate says.
+   - **Whole**, to receive a finished PR: **`/deliver`**, when the project has a pipeline. See Working with `/deliver`.
+
+   Either way the code is built with **`/tdd`** at the seams the testing strategy names and closes with **`/code-review`**, a two-axis review (Standards and Spec): `/implement` reviews each ticket, `/implement-spec` reviews the integration branch once. When the settings call for verification, the project's `verify-<app>` skill runs on the reviewed work before delivery, and a `FAIL` or `BLOCKED` verdict keeps delivery open. **`/pr`** writes the PR body, and **`/owner-gate`** judges the change when the project gates delivery by conditions.
+5. **The owner decides.** Feedback on the result goes on the PR; a change to what was asked goes on the ticket.
+6. **`/retro`** closes the loop. After a build, and especially one that went sideways, it suggests changes to the agent's environment, not the code: mechanical mistakes become checks, judgement calls become coding standards.
+
+## Working with `/deliver`
+
+`/deliver <ticket>` starts an orchestrator that leads the ticket through the tasks in `docs/agents/pipeline.toml`, each in a run of its own, in a worktree of the ticket's own. It keeps going when the session that started it closes.
+
+- **Where it is:** ask the session, or run the orchestrator's `status`: the stage, the running task and the last result of each ticket.
+- **It stopped at `blocked`:** the status line names the task and the reason. Deal with the reason, then `/deliver` the same ticket: it continues from that task.
+- **It reached `needs-owner`:** the PR waits. To ask for changes, comment on the PR and tell the session; the ticket goes through rework and delivery again.
+- **Stop it:** tell the session, or run the orchestrator's `stop`. The stage is kept.
+
+The skill's own `SKILL.md` has the commands. A project with no pipeline file builds by hand.
+
+## On-ramps
+
+A starting situation that generates work, then merges onto the main flow.
+
+- **Bugs and requests piling up** → **`/triage`**. It moves raw issues through triage roles and produces agent-ready ones for the build step. Tickets that `/to-tickets` produced are ready as they are: don't triage them.
+- **Something's broken** → **`/diagnosing-bugs`**, for the bug that resists a first look. It builds a tight feedback loop before theorising, then fixes with a regression test. Follow it with `/retro` to ask what would have prevented the bug.
+- **A huge, foggy effort, too big for one session** → **`/wayfinder`**. It charts a shared map of decision tickets and resolves them one at a time, producing decisions, not deliverables. When the map clears it merges onto the main flow at `/to-spec`.
+
+## Off the main flow
 
 | Situation | Skill |
 | --- | --- |
 | A new project, or its rules change | `/setup-agent-kit` |
-| An idea to sharpen, in a repo | `/grill-with-docs` |
-| An idea to sharpen, with no repo under it | `/grill-me` |
-| An effort too big and foggy to hold in one session | `/wayfinder`, which ends in `/to-spec` |
-| A design question only running code can answer | `/prototype` |
-| The idea is clear and the build takes several sessions | `/to-spec`, then `/to-tickets` |
-| A ticket is ready | `/implement`, then `/ship` |
-| A spec with tickets is ready | `/implement-spec`, then `/ship` |
-| A ticket or spec is ready and the owner wants only the PR | `/deliver`, when the project has `docs/agents/pipeline.toml` |
-| Raw bugs and requests from others pile up | `/triage` |
-| Something is broken and resists a first look | `/diagnosing-bugs` |
 | The project has an app to drive and no way to verify behaviour | `/create-verification-skill` |
-| A build is done, especially one that went sideways | `/retro` |
+| The codebase needs upkeep between features | `/improve-codebase-architecture` |
 | The answer lives in someone else's head | `/to-questionnaire` |
 | Reading legwork to delegate | `/research` |
 | A step only a human can take | `/wizard` |
 | A message did not land | `/wait-what` |
-| The codebase needs upkeep between features | `/improve-codebase-architecture` |
 | Moving work to another harness, folder or person | `/handoff` |
 | Learning a concept over several sessions | `/teach` |
-
-Work that fits one session needs a short conversation and a short ticket; the full interview and a spec are for more.
-
-Tickets that `/to-tickets` produced are ready as they are: `/triage` is for work that arrives raw.
-
-## Two ways to build
-
-Both use the same skills and the same project settings, so a project can mix them ticket by ticket.
-
-- **By hand.** The owner runs `/implement` or `/implement-spec` and stays in the session, then runs `/ship`. Choose it to take part in the work.
-- **Whole.** `/deliver` leads the ticket through every task in the project's pipeline, each in a run of its own, and stops when the PR waits for the owner. Choose it to receive a finished PR.
-
-Inside either, the agent reaches for these by itself: `/tdd` at the seams the testing strategy names, `/code-review` at the end of `/implement`, the project's `verify-<app>` skill before delivery when the settings call for verification, `/pr` to write the PR body, and `/owner-gate` when the project gates delivery by conditions.
 
 ## Where things are set
 
