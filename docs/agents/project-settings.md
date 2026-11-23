@@ -7,7 +7,7 @@
 ## Read by `ship`
 
 - Delivery route: pr, into `main`; a spec delivers its tickets through one integration PR
-- Delivery checks: `git diff --check main...HEAD`, and the project's tests once the application has them
+- Delivery checks: `git diff --check main...HEAD`, and `pnpm check` once issue 19 adds it
 - Required CI: the `harness-check` job on the PR head must be green
 - Owner gate: owner: every delivery waits for the owner and the agent never merges on its own judgement
 

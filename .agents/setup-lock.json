@@ -1,10 +1,5 @@
 {
   "schema_version": 1,
-  "ref": "b6a19a937e0c5735e335b2f7f09c887782916e36",
-  "roots": {
-    "AGENTS.md": "20b9c1e22322f305a3cab6daf02878e7737f90c61ebef59bd2ebb23183c86cba",
-    "CLAUDE.md": "7e53a7340e6f55deb06543cd090eece013d3481e4710d817f15e56ca03c24904"
-  },
-  "instruction_owner": "AGENTS.md",
+  "ref": "b826a82f4e9ef87f4a89f2244d418296aba5677b",
   "files": {}
 }

@@ -2,8 +2,8 @@
 # A task starts from the stage in `when`, gets one run with the instruction in `run`,
 # and moves the ticket to `then` when `check` exits 0. Exit 3 from a check means a retry cannot help.
 # Experimental: the deliver skill and its orchestrator come from the Agent Kit's factory experiment.
-agent = "claude"            # the client and model of every run; a task may name its own
-model = "sonnet"
+# Each task names the client, model and effort of its runs. /deliver may name others for one ticket:
+# "deliver 19 with implement on <model>" becomes --model implement=<model>.
 base = "main"               # a ticket started on this branch gets a worktree of its own
 worktrees = "~/Worktrees/{project}"
 branch = "issue-{name}"
@@ -11,6 +11,9 @@ branch = "issue-{name}"
 
 [[task]]
 name = "implement"
+agent = "codex"
+model = "gpt-6.2-sol"
+effort = "high"
 when = "ready"
 run = "/implement {ticket}"
 run_spec = "/implement-spec {ticket}"
@@ -24,6 +27,9 @@ then = "delivery"
 # Enable when the project has a verify-<app> skill: point implement's `then` at "verify".
 # [[task]]
 # name = "verify"
+# agent = "codex"
+# model = "gpt-6.2-sol"
+# effort = "high"
 # when = "verify"
 # run = "Verify the behaviour of ticket {ticket} at the current commit with this project's verify skill. Check every acceptance criterion."
 # check = """v=$(sed -n 's/^Verdict: //p' .evidence/report.md 2>/dev/null | head -1)
@@ -39,6 +45,9 @@ then = "delivery"
 
 [[task]]
 name = "ship"
+agent = "codex"
+model = "gpt-6.2-sol"
+effort = "high"
 when = "delivery"
 run = "Ship the committed work on this branch for ticket {ticket}."
 check = """gh pr view --json state -q .state | grep -q OPEN && gh pr checks >/dev/null"""
@@ -48,6 +57,9 @@ then = "needs-owner"
 # The owner asked for changes on the PR: `run <ticket> --stage rework`.
 [[task]]
 name = "rework"
+agent = "codex"
+model = "gpt-6.2-sol"
+effort = "high"
 when = "rework"
 run = "Address the owner's unresolved feedback on this branch's pull request for ticket {ticket}: read its reviews and comments, change the code and commit."
 check = """test -n "$(git log main..HEAD --oneline)" \

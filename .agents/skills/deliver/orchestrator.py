@@ -30,14 +30,16 @@ except ImportError:
 STAGE = re.compile(r"^\*\*Stage:\*\* *(\S+) *$", re.M)
 SESSION = re.compile(r'"(?:session_id|thread_id|sessionID)"\s*:\s*"([^"]+)"')
 BLOCKED = "blocked"
-# How to start one run in a client, and the sign that invokes a skill in it.
-# A pipeline adds or replaces clients in its [agents.<name>] tables.
+# How to start one run in a client, the sign that invokes a skill in it, and how it takes a
+# reasoning effort. A pipeline adds or replaces clients in its [agents.<name>] tables.
 CLIENTS = {
     "claude": {"command": "claude -p {prompt} --model {model} --output-format stream-json --verbose "
-                          "--dangerously-skip-permissions", "skill": "/"},
+                          "--dangerously-skip-permissions", "skill": "/", "effort": "--effort {effort}"},
     # A delivery pushes to a remote and calls the host CLI, both outside the checkout.
-    "codex": {"command": "codex exec --sandbox danger-full-access -m {model} --json {prompt}", "skill": "$"},
+    "codex": {"command": "codex exec --sandbox danger-full-access -m {model} --json {prompt}", "skill": "$",
+              "effort": "-c model_reasoning_effort={effort}"},
 }
+CHOICES = ("agent", "model", "effort")
 
 
 class FactoryError(Exception):
@@ -147,16 +149,30 @@ class Ticket:
             out.write(json.dumps(dict(ticket=self.name) | record) + "\n")
 
 
-def agent_argv(pipeline, agent, model, prompt):
+def agent_argv(pipeline, agent, model, prompt, effort=None):
     custom = os.environ.get("FACTORY_AGENT")
     if custom:  # tests and other launchers: the prompt arrives as the last argument
         return [*shlex.split(custom), prompt]
     client = CLIENTS.get(agent, {}) | pipeline.get("agents", {}).get(agent, {})
     if not client.get("command"):
         raise FactoryError(f"Unknown agent: {agent}. Add [agents.{agent}] with a command to the pipeline")
+    if not model:
+        raise FactoryError(f"No model for {agent}: name one in the task, at the top of the pipeline or at the start")
     if prompt.startswith("/"):
         prompt = client.get("skill", "/") + prompt[1:]  # the same skill command in this client's spelling
-    return [prompt if part == "{prompt}" else part.replace("{model}", model) for part in shlex.split(client["command"])]
+    parts = shlex.split(client["command"])
+    if effort:
+        if not client.get("effort"):
+            raise FactoryError(f"{agent} takes no effort: add `effort` to [agents.{agent}] or drop it for this task")
+        at = len(parts) - 1 if parts[-1] == "{prompt}" else len(parts)  # options stay ahead of a trailing prompt
+        parts[at:at] = [part.replace("{effort}", effort) for part in shlex.split(client["effort"])]
+    return [prompt if part == "{prompt}" else part.replace("{model}", model) for part in parts]
+
+
+def chosen(pipeline, task, ticket, key):
+    """What runs a task: the owner's word at the start, else the task's own line, else the pipeline's."""
+    said = ticket.state().get("choices", {}).get(key, {})
+    return said.get(task["name"]) or said.get("*") or task.get(key) or pipeline.get(key)
 
 
 def place(pipeline, ticket):
@@ -233,10 +249,10 @@ def run_task(pipeline, tasks, ticket, timeout):
     # A run reads the ticket where it works; a ticket file git does not carry stays in the project.
     ref = ticket.ref if not ticket.file or (work / ticket.ref).is_file() else str(ticket.file)
     env = os.environ | {"FACTORY_TICKET": ref, "FACTORY_TICKET_NAME": ticket.name, "FACTORY_TASK": task["name"]}
-    agent = task.get("agent", pipeline.get("agent", "claude"))
-    model = task.get("model", pipeline.get("model", "sonnet"))
+    agent = chosen(pipeline, task, ticket, "agent") or "claude"
+    model, effort = chosen(pipeline, task, ticket, "model"), chosen(pipeline, task, ticket, "effort")
     instruction = task.get("run_spec", task["run"]) if ticket.spec else task["run"]
-    argv = agent_argv(pipeline, agent, model, instruction.format(ticket=ref, name=ticket.name))
+    argv = agent_argv(pipeline, agent, model, instruction.format(ticket=ref, name=ticket.name), effort)
     reason = "the task's check did not pass"
     for attempt in range(1, int(task.get("attempts", 1)) + 1):
         number = len(list(ticket.folder.glob(f"{task['name']}-*.jsonl"))) + 1  # every run keeps its own log
@@ -251,7 +267,7 @@ def run_task(pipeline, tasks, ticket, timeout):
         finally:
             ticket.update(running=None)
         check = subprocess.run(task["check"], shell=True, cwd=work, env=env, capture_output=True, text=True)
-        ticket.journal(task=task["name"], attempt=attempt, agent=agent, model=model, agent_exit=code,
+        ticket.journal(task=task["name"], attempt=attempt, agent=agent, model=model, effort=effort, agent_exit=code,
                      check_exit=check.returncode, seconds=round(time.monotonic() - started, 1),
                      session=session_id(log), log=log.name)
         # The skill may have moved the work to a branch of its own; later tasks and attempts follow it.
@@ -338,6 +354,9 @@ def main(argv=None):
     parser.add_argument("--tickets", default=".scratch/*/*.md", help="glob of local ticket files that may carry a stage")
     parser.add_argument("--stage", help="run: start the named ticket from this stage, such as rework")
     parser.add_argument("--spec", action="store_true", help="run: the tracker reference is a spec with tickets")
+    for key in CHOICES:
+        parser.add_argument(f"--{key}", action="append", default=[], metavar="[TASK=]VALUE",
+                            help=f"run: the {key} for this ticket's runs, for every task or for the named one")
     parser.add_argument("--detach", action="store_true", help="run: return at once and leave the run in the background")
     parser.add_argument("--timeout", type=int, default=1800, help="seconds for one run")
     args = parser.parse_args(argv)
@@ -391,6 +410,14 @@ def main(argv=None):
             signal.signal(sign, stop)
         if ticket:
             def first_stage():
+                said = ticket.state().get("choices", {})
+                for key in CHOICES:
+                    for word in getattr(args, key):
+                        name, _, value = word.rpartition("=")
+                        if name and name not in {item["name"] for item in tasks}:
+                            raise FactoryError(f"No task named {name} in the pipeline")
+                        said.setdefault(key, {})[name or "*"] = value
+                ticket.update(choices=said)
                 current = ticket.stage()
                 if args.stage:
                     ticket.set_stage(args.stage)

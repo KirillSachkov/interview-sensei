@@ -16,7 +16,7 @@ This file is a map, not a manual. Before stating what a skill does or recommendi
 
 Advice that ignores where the project stands sends the user back over ground already covered. Before answering, look:
 
-- Root `AGENTS.md` and `docs/agents/project-settings.md`: the delivery route, verification, the owner gate and the workplace. Where advice here differs from project policy, the policy wins. No settings file means the first step is `/setup-agent-kit`.
+- Root `AGENTS.md` and `docs/agents/project-settings.md`: the delivery route, verification, the owner gate and the workplace. Where advice here differs from project policy, the policy wins. No settings file means the first step is `/setup-project`.
 - The work the user means. Read the ticket or spec in the tracker with its comments and blocking edges; for a spec, see which tickets are done, ready or blocked.
 - Git and the host: the current branch, commits ahead of the base, an open PR and the state of its checks and reviews.
 - `docs/agents/pipeline.toml`, when it exists: its tasks say what `/deliver` will do here. Run `orchestrator.py status` from the `deliver` skill's folder to see which tickets it is leading, at which stage, and what stopped them.
@@ -64,7 +64,7 @@ A starting situation that generates work, then merges onto the main flow.
 
 | Situation | Skill |
 | --- | --- |
-| A new project, or its rules change | `/setup-agent-kit` |
+| A new project, or its rules change | `/setup-project` |
 | The project has an app to drive and no way to verify behaviour | `/create-verification-skill` |
 | The codebase needs upkeep between features | `/improve-codebase-architecture` |
 | The answer lives in someone else's head | `/to-questionnaire` |
@@ -78,7 +78,7 @@ A starting situation that generates work, then merges onto the main flow.
 
 | What | Where |
 | --- | --- |
-| Delivery route, checks, verification, owner gate, workplace | `docs/agents/project-settings.md`, written by `/setup-agent-kit` |
+| Delivery route, checks, verification, owner gate, workplace | `docs/agents/project-settings.md`, written by `/setup-project` |
 | Where and how the project tests | the testing strategy the settings name |
 | What the reviewer holds code to | `CODING_STANDARDS.md`, grown by `/retro` |
 | Words of the domain | the glossary, kept by `/domain-modeling` |

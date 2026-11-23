@@ -11,6 +11,7 @@ Lead the ticket or spec the user named through the tasks in `docs/agents/pipelin
 Call it by its path with Python 3.11 or newer, from the project root.
 
 - **Start or continue:** `python3 orchestrator.py run <ticket> --detach`, then `python3 orchestrator.py wait <ticket>` in the background. A ticket the tracker holds is named by its reference; add `--spec` when it is a spec with tickets. Tell the user the ticket has started and end your turn. A blocked ticket continues from the task that blocked it.
+- **Models:** each task runs on the client, model and effort the pipeline gives it. When the user names others for this ticket, pass them at the start: `--model <model>` for every task, `--model <task>=<model>` for one, and `--agent` and `--effort` the same way. The ticket keeps them until it ends.
 - **Status:** when asked, run `python3 orchestrator.py status` and say each ticket's stage, the running task and the last result.
 - **Stop:** `python3 orchestrator.py stop <ticket>`. It returns when the run has ended.
 - **Feedback on the result:** post the owner's words as a comment on the ticket's PR, then start the ticket with `--stage rework`.

@@ -1,5 +1,5 @@
 ---
-name: setup-agent-kit
+name: setup-project
 description: "Configure this repo for the engineering skills: language, issue tracker, triage labels, domain docs, delivery, verification and the owner gate. Run once before first use, and again to change a decision."
 disable-model-invocation: true
 ---
@@ -50,7 +50,6 @@ Write or update exactly one block in the existing authority file:
 ## Language
 
 Human language: <en or ru selected by the owner>.
-Supported human languages: en, ru.
 Use the selected language for replies, issues, specs, PRs and reports, including headings.
 Keep executable syntax and identifiers intact.
 Write agent instructions, skills and tool descriptions in English.
@@ -104,7 +103,7 @@ Offer **multi-context** (a root `GLOSSARY-MAP.md` pointing to per-context `GLOSS
 
 **Section H: Existing rules.** When the project's instructions prescribe something these skills do differently (a second review after fixes, verification repeated after every CI fix, a PR opened before any work), quote each rule with its file and ask which stays. Record what the user keeps.
 
-**Section I: Root instructions.** The root instructions are a table of contents and the rules that always hold: decisions live in `docs/agents/`, procedures in skills, and the root file retells neither. Its shape is a line or two on what the project is, the Language block, the `## Agent skills` block, the Agent Kit block the installer manages, and a `## Project rules` section of the project's own. Read every section outside those blocks and propose one fate for each, with its reason:
+**Section I: Root instructions.** The root instructions are a table of contents and the rules that always hold: decisions live in `docs/agents/`, procedures in skills, and the root file retells neither. Its shape is a line or two on what the project is, the Language block, the `## Agent skills` block, and a `## Project rules` section when the project has rules of its own. The file belongs to the project: it names no tool that set it up, and the owner edits any line. Read every section outside those blocks and propose one fate for each, with its reason:
 
 - **Keep** under `## Project rules`: a rule particular to this project that nothing else carries.
 - **Move to the settings**: a decision about delivery, verification, the owner gate or the workplace.
@@ -152,7 +151,23 @@ The block:
 ### Domain docs
 
 [one-line summary of layout: "single-context" or "multi-context"]. See `docs/agents/domain.md`.
+
+### Delivery
+
+[one-line summary of the route and the owner gate]. See `docs/agents/project-settings.md`.
+
+### Workplace
+
+[the decision itself, such as "Implement in a worktree of the task, never on `main` of the main checkout."]
+
+### Testing
+
+Take the seam from `[the testing strategy]`; for a kind of change it lacks, ask the owner once and add the row.
 ```
+
+Omit `### Workplace` when implementation happens in the current checkout.
+
+When the project uses Claude Code and has no `CLAUDE.md`, create one whose only line is `@AGENTS.md`.
 
 Include the `### Triage labels` sub-block, and write `docs/agents/triage-labels.md`, only when `triage` is installed and Section B ran. When it isn't, both are omitted.
 
