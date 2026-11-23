@@ -61,7 +61,7 @@ agent = "codex"
 model = "gpt-6.2-sol"
 effort = "high"
 when = "rework"
-run = "Address the owner's unresolved feedback on this branch's pull request for ticket {ticket}: read its reviews and comments, change the code and commit."
+run = "Address the owner's unresolved feedback on this branch's pull request for ticket {ticket}: read its reviews and comments, change the code and commit. Then call the code-review skill on the changes since the commit you started from, and commit the fixes."
 check = """test -n "$(git log main..HEAD --oneline)" \
   && test -z "$(git status --porcelain)" \
   && git diff --check main...HEAD"""
