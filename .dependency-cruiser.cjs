@@ -6,7 +6,7 @@ module.exports = {
     {
       name: "web-boundary",
       from: { path: "^apps/web" },
-      to: { path: "^apps/server" },
+      to: { path: "^apps/server", reachable: true },
     },
     {
       name: "contracts-standalone",

@@ -1,1 +1,1 @@
-export const lifetime = 60 * 60 * 24 * 90;
+export const sessionLifetimeSeconds = 60 * 60 * 24 * 90;

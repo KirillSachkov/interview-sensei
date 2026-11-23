@@ -36,13 +36,11 @@ try {
   put(
     "tsconfig.json",
     JSON.stringify({
+      extends: resolve("tsconfig.json"),
       compilerOptions: {
         module: "ESNext",
         moduleResolution: "Bundler",
         paths: { "@server/*": ["./apps/server/*"] },
-        strict: true,
-        skipLibCheck: true,
-        noEmit: true,
       },
       include: ["apps"],
     }),
@@ -60,11 +58,31 @@ try {
     "apps/server/src/api.ts",
     'export type { Id } from "./modules/goals-and-scenarios/internal";',
   );
-  put("apps/web/src/leak.ts", 'export type { Id } from "@server/src/api";');
-  verify(cruise, ["apps"], ["public-module-entry", "web-boundary", "leak.ts"]);
+  put("packages/bridge/index.ts", 'export type { Id } from "@server/src/api";');
+  put(
+    "apps/web/src/leak.ts",
+    'export type { Id } from "../../../packages/bridge";',
+  );
+  put(src + "/foreign.ts", 'export type { Note } from "../materials/private";');
+  put(
+    "apps/server/src/modules/materials/private.ts",
+    "export type Note = string;",
+  );
+  verify(
+    cruise,
+    ["apps"],
+    ["public-module-entry", "web-boundary", "domain-isolation", "leak.ts"],
+  );
+  put("packages/contracts/src/leak.ts", 'export * from "@server/src/api";');
+  put("apps/web/src/missing.ts", 'export * from "./missing-file";');
+  verify(
+    cruise,
+    ["apps", "packages"],
+    ["contracts-standalone", "resolved-import"],
+  );
   put(src + "/internal.ts", 'import "./index"; export type Id = string;');
   verify(cruise, ["apps"], ["no-cycles"]);
-  put("apps/web/src/wrong.ts", 'export const value: number = "bad";');
+  put("apps/web/src/wrong.ts", "export const value: number = [1][2];");
   verify(resolve("node_modules/.bin/tsc"), ["-p", "."], ["TS2322", "wrong.ts"]);
   symlinkSync(
     resolve("apps/web/node_modules"),
@@ -75,6 +93,24 @@ try {
     "apps/web/src/effect.ts",
     'import { useEffect as mount } from "react"; mount(() => {});',
   );
+  put(
+    "apps/web/src/destructure.ts",
+    'import * as React from "react"; const { useEffect: attach } = React; attach(() => {});',
+  );
+  put(
+    "apps/web/src/adapters/subscribe.ts",
+    'import { useEffect } from "react"; export const useSubscribe = (subscribe: () => () => void) => useEffect(subscribe, [subscribe]);',
+  );
+  put("tests/adapters/subscribe.lifecycle.test.ts", "export {};");
+  verify(process.execPath, [
+    resolve("tools/source-rules.ts"),
+    "apps/web/src/adapters/subscribe.ts",
+  ]);
+  put("tools/valid.js", 'export const url = "https://example.test";');
+  verify(process.execPath, [
+    resolve("tools/source-rules.ts"),
+    "tools/valid.js",
+  ]);
   put("tools/config.js", "// eslint-disable-next-line\nexport {};");
   verify(
     process.execPath,
@@ -82,8 +118,13 @@ try {
       resolve("tools/source-rules.ts"),
       "tools/config.js",
       "apps/web/src/effect.ts",
+      "apps/web/src/destructure.ts",
     ],
-    ["config.js no-comments", "effect.ts no-direct-effect"],
+    [
+      "config.js no-comments",
+      "effect.ts no-direct-effect",
+      "destructure.ts no-direct-effect",
+    ],
   );
   console.log(
     "Verified public-module-entry, web-boundary, no-cycles, TS2322, no-comments, no-direct-effect",

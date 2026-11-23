@@ -1,9 +1,12 @@
-import { lifetime } from "./session.js";
+import { sessionLifetimeSeconds } from "./session.js";
 import { createHash } from "node:crypto";
 import { runner } from "node-pg-migrate";
 import type { Pool } from "pg";
 import { z } from "zod";
-import type { WorkspaceStore } from "../modules/goals-and-scenarios/index.js";
+export interface WorkspaceStore {
+  find(secret: string): Promise<string | undefined>;
+  create(secret: string): Promise<string>;
+}
 
 const hash = (secret: string) =>
   createHash("sha256").update(secret).digest("hex");
@@ -34,8 +37,8 @@ export function workspaceStore(pool: Pool): WorkspaceStore {
         );
         const { id } = row.parse(result.rows[0]);
         await client.query(
-          "INSERT INTO guest_sessions VALUES ($1,$2,now() + $3 * interval '1 second')",
-          [hash(secret), id, lifetime],
+          "INSERT INTO guest_sessions (secret_hash, workspace_id, expires_at) VALUES ($1,$2,now() + $3 * interval '1 second')",
+          [hash(secret), id, sessionLifetimeSeconds],
         );
         await client.query("COMMIT");
         return id;

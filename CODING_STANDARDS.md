@@ -8,3 +8,4 @@ What the Standards reviewer holds a change to, beyond what tooling enforces. It 
 
 - Keep session authentication in the adapters. The Goals and Scenarios module owns the decision to open or create a workspace.
 - When changing a transport contract, trace both the browser loader and the HTTP adapter through the schema in `packages/contracts`.
+- React components use loaders and event handlers. An external subscription belongs in a named `apps/web/src/adapters/<name>.ts` hook with a matching `tests/adapters/<name>.lifecycle.test.ts` that exercises setup and cleanup.

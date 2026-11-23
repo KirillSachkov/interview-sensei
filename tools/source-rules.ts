@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { parse } from "@typescript-eslint/typescript-estree";
 import ts from "typescript";
 
@@ -30,20 +30,20 @@ const program = ts.createProgram(web, {
 });
 const checker = program.getTypeChecker();
 for (const file of web) {
+  const adapter = /^apps\/web\/src\/adapters\/([a-zA-Z0-9-]+)\.ts$/.exec(file);
+  if (adapter && existsSync(`tests/adapters/${adapter[1]}.lifecycle.test.ts`))
+    continue;
   const source = program.getSourceFile(file);
   function visit(node: ts.Node) {
-    const symbol = checker.getSymbolAtLocation(node);
-    const target =
-      symbol &&
-      (symbol.flags & ts.SymbolFlags.Alias
-        ? checker.getAliasedSymbol(symbol)
-        : symbol);
+    const signature = ts.isCallExpression(node)
+      ? checker.getResolvedSignature(node)?.declaration
+      : undefined;
     if (
-      target &&
-      ["useEffect", "useLayoutEffect"].includes(target.name) &&
-      target.declarations?.some((d) =>
-        d.getSourceFile().fileName.includes("@types/react/"),
-      )
+      signature &&
+      ts.isFunctionDeclaration(signature) &&
+      signature.name &&
+      ["useEffect", "useLayoutEffect"].includes(signature.name.text) &&
+      signature.getSourceFile().fileName.includes("@types/react/")
     ) {
       console.error(file, "no-direct-effect");
       process.exitCode = 1;

@@ -18,7 +18,7 @@ importers:
         specifier: 12.2.2
         version: 12.2.2(bare-buffer@3.7.3)
       '@types/node':
-        specifier: ^24.19.2
+        specifier: 24.19.2
         version: 24.19.2
       '@types/pg':
         specifier: 8.23.1
