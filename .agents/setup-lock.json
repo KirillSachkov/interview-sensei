@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "ref": "55fa540121027b00ece997219f8a560e4b53e013",
+  "ref": "b6a19a937e0c5735e335b2f7f09c887782916e36",
   "roots": {
-    "AGENTS.md": "670d7834b97cfe24998281d012c9cbcc466ed03eccd3048612e9294cf69613ac",
+    "AGENTS.md": "20b9c1e22322f305a3cab6daf02878e7737f90c61ebef59bd2ebb23183c86cba",
     "CLAUDE.md": "7e53a7340e6f55deb06543cd090eece013d3481e4710d817f15e56ca03c24904"
   },
   "instruction_owner": "AGENTS.md",
