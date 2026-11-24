@@ -12,7 +12,7 @@ metadata:
 Use the project's PR template when it has one. Otherwise use this template for writing the PR body, with its headings in the project's language:
 
 ```markdown
-## Needs you
+## Decision needed
 
 <the decision or check the owner must make>
 
@@ -44,9 +44,9 @@ Closes #<issue>
 
 The owner reads everything outside **Details** and nothing inside it. Keep the owner's text under 70 words, headings aside: it should read in a minute. Omit a section that has nothing to say. Keep commit hashes and check logs inside Details.
 
-Skip all preambles and keep prose brief. Use the user's domain language from `GLOSSARY.md`.
+Name no person in a heading or in the body: write "Decision needed", not "<name>'s decision", and address the reader as "you". Skip all preambles and keep prose brief. Use the user's domain language from `GLOSSARY.md`.
 
-### Needs you
+### Decision needed
 
 Start with the owner-gate status and reason when one was given. Then one concrete question or action per line, with what the answer decides. Omit the section when the owner has nothing to do.
 
