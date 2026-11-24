@@ -5,3 +5,7 @@ __pycache__/
 .agents/skills-backups/
 .evidence/
 .factory/
+node_modules/
+dist/
+test-results/
+playwright-report/

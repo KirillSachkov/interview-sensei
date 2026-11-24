@@ -16,4 +16,4 @@ missing from the table is a question for the owner; add the answer as a new row.
 
 Data and services tests may use: synthetic data only; a real PostgreSQL in a container; a controlled model with set answers. The AITUNNEL secret is used only in live runs the owner starts.
 
-`pnpm check` runs every required check locally and in GitHub Actions. It arrives with issue 19; until then the required check is `git diff --check`.
+`pnpm check` runs every required check locally and in GitHub Actions. Run it alongside `git diff --check`.

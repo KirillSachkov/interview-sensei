@@ -1,0 +1,10 @@
+{
+  "name": "@sensei/web",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@sensei/contracts": "workspace:*",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  }
+}
