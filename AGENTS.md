@@ -11,7 +11,7 @@ Change the English and Russian versions of a document together.
 
 ### Issue tracker
 
-GitHub issues through `gh`; agent-written messages carry an authorship prefix. See `docs/agents/issue-tracker.md`.
+GitHub issues through `gh`. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

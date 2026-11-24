@@ -40,11 +40,13 @@ Not verified: <what was left unchecked and why>
 Closes #<issue>
 ```
 
+The title names the change in the user's words and nothing else: no author, agent, client, model or ticket label.
+
 ## Sections
 
 The owner reads everything outside **Details** and nothing inside it. Keep the owner's text under 70 words, headings aside: it should read in a minute. Omit a section that has nothing to say. Keep commit hashes and check logs inside Details.
 
-Name no person in a heading or in the body: write "Decision needed", not "<name>'s decision", and address the reader as "you". Skip all preambles and keep prose brief. Use the user's domain language from `GLOSSARY.md`.
+Name no person in a heading or in the body: write "Decision needed", not "<name>'s decision", and address the reader as "you". Name no agent, client or model either, and add no authorship prefix. Skip all preambles and keep prose brief. Use the user's domain language from `GLOSSARY.md`.
 
 ### Decision needed
 
