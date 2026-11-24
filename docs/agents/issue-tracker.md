@@ -5,7 +5,7 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 ## Message authorship
 
 Use the human language selected in root `AGENTS.md` for titles, headings, bodies and comments.
-Add no authorship prefix and name no agent, client or model in a title, body or comment.
+Name no person, agent, client or model in a title, heading, body or comment, and add no authorship prefix. Write the role (the owner, the reviewer) or address the reader as "you".
 Attribute a decision to the owner only with a quote of their message and where they wrote it.
 Otherwise say that the agent decided and why.
 

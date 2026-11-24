@@ -14,6 +14,10 @@ Issues and specs for this repo live as GitLab issues. Use the [`glab`](https://g
 
 Infer the repo from `git remote -v`; `glab` does this automatically when run inside a clone.
 
+## Wording
+
+Name no person, agent, client or model in a title, heading, body or comment, and add no authorship prefix. Write the role (the owner, the reviewer) or address the reader as "you".
+
 ## Merge requests as a triage surface
 
 **MRs as a request surface: no.** _(Set to `yes` if this repo treats external merge requests as feature requests; `/triage` reads this flag.)_
