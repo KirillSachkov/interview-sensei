@@ -10,7 +10,8 @@ Lead the ticket or spec the user named through the tasks in `docs/agents/pipelin
 
 Call it by its path with Python 3.11 or newer, from the project root.
 
-- **Start or continue:** `python3 orchestrator.py run <ticket> --detach`, then `python3 orchestrator.py wait <ticket>` in the background. A ticket the tracker holds is named by its reference; add `--spec` when it is a spec with tickets. Tell the user the ticket has started and end your turn. A blocked ticket continues from the task that blocked it.
+- **Start or continue:** `python3 orchestrator.py run <ticket> --detach`. A ticket the tracker holds is named by its reference; add `--spec` when it is a spec with tickets. A blocked ticket continues from the task that blocked it.
+- **Follow:** after a start, stay with the ticket until its run ends. Call `python3 orchestrator.py wait <ticket>` again and again: each call returns when an attempt finishes or the run ends, and prints what finished and the status line. After each call tell the user in one line what happened; give a failed attempt's reason in plain words. If your client cuts a long call short, call it again: nothing is lost. Stop when the status line says `not running`. End your turn earlier only when the user asks to be left alone.
 - **Models:** each task runs on the client, model and effort the pipeline gives it. When the user names others for this ticket, pass them at the start: `--model <model>` for every task, `--model <task>=<model>` for one, and `--agent` and `--effort` the same way. The ticket keeps them until it ends.
 - **Status:** when asked, run `python3 orchestrator.py status` and say each ticket's stage, the running task and the last result.
 - **Stop:** `python3 orchestrator.py stop <ticket>`. It returns when the run has ended.
@@ -19,4 +20,6 @@ Call it by its path with Python 3.11 or newer, from the project root.
 
 ## Report
 
-When the orchestrator ends, say the stage the ticket ended in. For a stage that waits for the owner, give the PR link and what the owner decides. For `blocked`, give the task, the reason and the session to reopen from the status line.
+When the run ends, say the stage the ticket ended in. For a stage that waits for the owner, give the PR link and what the owner decides.
+
+For `blocked`, read the check output the failed attempt names, in the ticket's folder under `.factory/`. Say the task, the cause in plain words, whether the work or the environment failed, and what you would change. Change the project, the pipeline or the orchestrator only on the user's word.
