@@ -14,7 +14,7 @@
 
 ## Read at the verify step
 
-- Verification: none until the project has a `verify-<app>` skill; after that, whenever user-visible behaviour changes or the task has key scenarios
+- Verification: with the `verify-interview-sensei` skill, whenever user-visible behaviour changes or the task has key scenarios
 - Verifier: a fresh agent that did not write the change
 - Verification report: `.evidence/`
 

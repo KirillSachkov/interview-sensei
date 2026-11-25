@@ -27,26 +27,26 @@ check = """test -n "$(git log main..HEAD --oneline)" \
   && git diff --check main...HEAD \
   && {checks}"""
 attempts = 2
-then = "delivery"
+then = "verify"
 
-# Enable when the project has a verify-<app> skill: point implement's `then` at "verify".
-# [[task]]
-# name = "verify"
-# agent = "codex"
-# model = "gpt-6.2-sol"
-# effort = "high"
-# when = "verify"
-# run = "Verify the behaviour of ticket {ticket} at the current commit with this project's verify skill. Check every acceptance criterion."
-# check = """v=$(sed -n 's/^Verdict: //p' .evidence/report.md 2>/dev/null | head -1)
-# c=$(sed -n 's/^Commit: //p' .evidence/report.md 2>/dev/null | head -1)
-# case "$(git rev-parse HEAD)" in "${c:-none}"*) ;; *) echo "no verification report for this commit"; exit 1 ;; esac
-# case "$v" in
-#   PASS|PASS+NOTES) exit 0 ;;
-#   FAIL|BLOCKED) echo "verification verdict: $v"; exit 3 ;;
-#   *) echo "no verification report"; exit 1 ;;
-# esac"""
-# attempts = 2
-# then = "delivery"
+# Behaviour is verified by a fresh run with the verify-interview-sensei skill; its report lands in .evidence/.
+[[task]]
+name = "verify"
+agent = "codex"
+model = "gpt-6.2-sol"
+effort = "high"
+when = "verify"
+run = "Verify the behaviour of ticket {ticket} at the current commit with this project's verify skill. Check every acceptance criterion."
+check = """v=$(sed -n 's/^Verdict: //p' .evidence/report.md 2>/dev/null | head -1)
+c=$(sed -n 's/^Commit: //p' .evidence/report.md 2>/dev/null | head -1)
+case "$(git rev-parse HEAD)" in "${c:-none}"*) ;; *) echo "no verification report for this commit"; exit 1 ;; esac
+case "$v" in
+  PASS|PASS+NOTES) exit 0 ;;
+  FAIL|BLOCKED) echo "verification verdict: $v"; exit 3 ;;
+  *) echo "no verification report"; exit 1 ;;
+esac"""
+attempts = 2
+then = "delivery"
 
 [[task]]
 name = "ship"
@@ -72,4 +72,4 @@ check = """test -n "$(git log main..HEAD --oneline)" \
   && git diff --check main...HEAD \
   && {checks}"""
 attempts = 2
-then = "delivery"
+then = "verify"
