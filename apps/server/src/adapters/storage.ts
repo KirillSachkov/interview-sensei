@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 import { runner } from "node-pg-migrate";
 import type { Pool } from "pg";
 import { z } from "zod";
+import { goalSetupTurn } from "@sensei/contracts";
+import type { StoredGoalSetupTurn } from "../modules/goals-and-scenarios/index.js";
 export interface WorkspaceStore {
   find(secret: string): Promise<string | undefined>;
   create(secret: string): Promise<string>;
@@ -48,6 +50,54 @@ export function workspaceStore(pool: Pool): WorkspaceStore {
       } finally {
         client.release();
       }
+    },
+  };
+}
+
+const goalSetupRow = z
+  .object({
+    result: goalSetupTurn,
+    last_proposal_version: z.int().nonnegative(),
+  })
+  .transform(({ result, last_proposal_version }) => ({
+    result,
+    lastProposalVersion: last_proposal_version,
+  }));
+
+export function goalSetupStore(pool: Pool) {
+  return {
+    async history(workspaceId: string) {
+      const result = await pool.query(
+        "SELECT result, last_proposal_version FROM goal_setup_turns WHERE workspace_id=$1 ORDER BY revision",
+        [workspaceId],
+      );
+      return goalSetupRow.array().parse(result.rows);
+    },
+    async find(workspaceId: string, turnId: string) {
+      const result = await pool.query(
+        "SELECT result, last_proposal_version FROM goal_setup_turns WHERE workspace_id=$1 AND turn_id=$2",
+        [workspaceId, turnId],
+      );
+      return goalSetupRow.optional().parse(result.rows[0]);
+    },
+    async append(
+      workspaceId: string,
+      { result, lastProposalVersion }: StoredGoalSetupTurn,
+    ) {
+      const saved = await pool.query(
+        `INSERT INTO goal_setup_turns (workspace_id, turn_id, revision, last_proposal_version, result)
+         SELECT $1, $2, $3, $4, $5
+         WHERE (SELECT COALESCE(MAX(revision), 0) FROM goal_setup_turns WHERE workspace_id=$1) = $3 - 1
+         ON CONFLICT DO NOTHING`,
+        [
+          workspaceId,
+          result.turnId,
+          result.draft.revision,
+          lastProposalVersion,
+          goalSetupTurn.parse(result),
+        ],
+      );
+      return saved.rowCount === 1;
     },
   };
 }

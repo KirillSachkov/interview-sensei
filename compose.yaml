@@ -20,6 +20,10 @@ services:
     environment:
       DATABASE_URL: postgres://postgres:sensei-local@postgres/sensei
       PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost:3000}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "127.0.0.1:${HTTP_PORT:-3000}:3000"
   worker:

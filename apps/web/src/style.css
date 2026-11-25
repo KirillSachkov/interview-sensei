@@ -7,13 +7,13 @@ body {
   margin: 0;
 }
 main {
-  max-width: 60rem;
+  max-width: 44rem;
   margin: 0 auto;
-  padding: clamp(5rem, 20vh, 12rem) clamp(1.5rem, 6vw, 5rem);
+  padding: clamp(2rem, 9vh, 6rem) clamp(1.25rem, 6vw, 4rem);
 }
 h1 {
   max-width: 17ch;
-  font-size: clamp(2.3rem, 6vw, 5.3rem);
+  font-size: clamp(2rem, 5vw, 3.7rem);
   font-weight: 580;
   line-height: 1.07;
   letter-spacing: -0.05em;
@@ -26,9 +26,95 @@ h1::before {
   background: #ae562e;
   width: 3rem;
   height: 0.35rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1.25rem;
+}
+.setup {
+  margin-top: 2rem;
+}
+.dialogue {
+  display: grid;
+  gap: 0.85rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+.dialogue li {
+  display: grid;
+  gap: 0.5rem;
+}
+.dialogue p,
+.proposal {
+  width: fit-content;
+  max-width: min(34rem, 100%);
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0.65rem 0.9rem;
+  border-radius: 0.6rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.candidate-message {
+  justify-self: end;
+  background: #e3ede5;
+}
+.assistant-message {
+  background: #fffdfa;
+}
+.proposal {
+  background: #fff2e6;
+  border: 1px solid #dbc0a6;
+  margin-bottom: 1.25rem;
+}
+.proposal h2 {
+  font-size: 0.85rem;
+  margin: 0 0 0.25rem;
+}
+.proposal p {
+  margin: 0;
+}
+form {
+  display: grid;
+  gap: 0.6rem;
+}
+form p {
+  margin: 0;
+}
+textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  font: inherit;
+  line-height: 1.5;
+  color: inherit;
+  background: #fffdfa;
+  border: 1px solid #798d82;
+  border-radius: 0.6rem;
+  padding: 0.65rem 0.85rem;
+}
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
 }
 button {
   font: inherit;
   padding: 0.65em 1em;
+  color: #fffdfa;
+  background: #24483e;
+  border: 1px solid #24483e;
+  border-radius: 0.55rem;
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+button.secondary {
+  background: transparent;
+  color: inherit;
+}
+:focus-visible {
+  outline: 3px solid #ae562e;
+  outline-offset: 3px;
 }
