@@ -3,6 +3,9 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.32.1",
+  "engines": {
+    "node": "^26.13.1"
+  },
   "scripts": {
     "build": "vite build apps/web && esbuild apps/server/src/api.ts apps/server/src/worker.ts --bundle --platform=node --format=esm --packages=external --outdir=apps/server/dist",
     "types": "tsc -p apps/server && tsc -p apps/web && tsc -p tools",
@@ -15,7 +18,7 @@
     "@playwright/test": "1.65.1",
     "@sensei/contracts": "workspace:*",
     "@testcontainers/postgresql": "12.2.2",
-    "@types/node": "24.19.2",
+    "@types/node": "26.6.10",
     "@types/pg": "8.23.1",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
