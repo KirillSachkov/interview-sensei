@@ -28,6 +28,7 @@ test("guest corrects and resumes a goal setup after closing Chromium and restart
   const origin = `http://localhost:${port}`;
   const project = "sensei-" + randomUUID();
   const firstMessage = "Хочу готовиться на middle Go";
+  const greeting = /^Привет!/;
   const correction = "Да, только senior";
   const firstReply = deferred<void>();
   const correctionReply = deferred<void>();
@@ -108,6 +109,13 @@ test("guest corrects and resumes a goal setup after closing Chromium and restart
       ),
     ).toContain("worker");
     const first = await visit("profile-a", 1280, async (page) => {
+      const dialogue = page.getByRole("log", { name: "Диалог настройки" });
+      await expect(dialogue.getByRole("listitem")).toHaveCount(1);
+      await expect(dialogue.getByText(greeting)).toBeVisible();
+      await expect(dialogue).toContainText("Какая роль тебе интересна?");
+      await expect(dialogue).toContainText(`«${firstMessage}»`);
+      await expect(textBox(page)).toHaveValue("");
+      expect(model.calls).toEqual([]);
       const waitForTurnRequest = () =>
         page.waitForRequest(
           (request) =>
@@ -171,6 +179,7 @@ test("guest corrects and resumes a goal setup after closing Chromium and restart
     const restored = await visit("profile-a", 1280, async (page) => {
       await expect(page.getByText(firstMessage)).toBeVisible();
       await expect(page.getByText("Предложение цели · версия 2")).toBeVisible();
+      await expect(page.getByText(greeting)).toHaveCount(0);
       expect(model.calls).toEqual([
         firstMessage,
         firstMessage,
@@ -233,7 +242,10 @@ test("guest corrects and resumes a goal setup after closing Chromium and restart
     expect(restored).toBe(first);
     const separate = await visit("profile-b", 390, async (page) => {
       await expect(textBox(page)).toBeVisible();
-      await expect(page.getByText(firstMessage)).toHaveCount(0);
+      await expect(page.getByText(greeting)).toBeVisible();
+      await expect(page.getByText(firstMessage, { exact: true })).toHaveCount(
+        0,
+      );
       await page.screenshot({ path: info.outputPath("mobile.png") });
     });
     expect(separate).not.toBe(first);

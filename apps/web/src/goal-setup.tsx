@@ -32,18 +32,24 @@ export function GoalSetup({
       </h1>
       <div className="setup">
         <div role="log" aria-label="Диалог настройки">
-          {history.length > 0 && (
-            <ol className="dialogue">
-              {history.map((turn) => (
-                <li key={turn.turnId}>
-                  <p className="candidate-message">{turn.message}</p>
-                  {(!replyShownAsProposal || turn !== latestTurn) && (
-                    <p className="assistant-message">{turn.reply}</p>
-                  )}
-                </li>
-              ))}
-            </ol>
-          )}
+          <ol className="dialogue">
+            {history.length === 0 && (
+              <li>
+                <p className="assistant-message">
+                  Привет! Какая роль тебе интересна? Например, можешь написать
+                  «Хочу готовиться на middle Go».
+                </p>
+              </li>
+            )}
+            {history.map((turn) => (
+              <li key={turn.turnId}>
+                <p className="candidate-message">{turn.message}</p>
+                {(!replyShownAsProposal || turn !== latestTurn) && (
+                  <p className="assistant-message">{turn.reply}</p>
+                )}
+              </li>
+            ))}
+          </ol>
           {proposal && (
             <section className="proposal" aria-labelledby="proposal-title">
               <h2 id="proposal-title">
@@ -66,11 +72,6 @@ export function GoalSetup({
             id="candidate-message"
             rows={2}
             maxLength={4000}
-            placeholder={
-              history.length === 0
-                ? "Например, хочу готовиться на middle Go"
-                : undefined
-            }
             value={text}
             readOnly={Boolean(pending)}
             onChange={(event) => setMessage(event.currentTarget.value)}
