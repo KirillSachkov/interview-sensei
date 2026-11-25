@@ -7,7 +7,8 @@
 base = "main"               # a ticket started on this branch gets a worktree of its own
 worktrees = "~/Worktrees/{project}"
 branch = "issue-{name}"
-# setup = "pnpm install"    # run once in a new worktree, when the application has dependencies
+setup = "pnpm install --frozen-lockfile"   # run once in a new worktree
+checks = "pnpm check"       # the project's one command for all its checks; a task's check names it as {checks}
 
 [[task]]
 name = "implement"
@@ -17,10 +18,10 @@ effort = "high"
 when = "ready"
 run = "/implement {ticket}"
 run_spec = "/implement-spec {ticket}"
-# Add the project's test command here once the application has one.
 check = """test -n "$(git log main..HEAD --oneline)" \
   && test -z "$(git status --porcelain)" \
-  && git diff --check main...HEAD"""
+  && git diff --check main...HEAD \
+  && {checks}"""
 attempts = 2
 then = "delivery"
 
@@ -64,6 +65,7 @@ when = "rework"
 run = "Address the owner's unresolved feedback on this branch's pull request for ticket {ticket}: read its reviews and comments, change the code and commit. Then call the code-review skill on the changes since the commit you started from, and commit the fixes."
 check = """test -n "$(git log main..HEAD --oneline)" \
   && test -z "$(git status --porcelain)" \
-  && git diff --check main...HEAD"""
+  && git diff --check main...HEAD \
+  && {checks}"""
 attempts = 2
 then = "delivery"

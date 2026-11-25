@@ -60,6 +60,12 @@ def load_pipeline(project):
         missing = [key for key in ("name", "when", "run", "check", "then") if not task.get(key)]
         if missing:
             raise FactoryError(f"Task {task.get('name', '?')} lacks: {', '.join(missing)}")
+    checks = data.get("checks")
+    for task in tasks:
+        if "{checks}" in task["check"]:
+            if not checks:
+                raise FactoryError(f"Task {task['name']} uses {{checks}} and the pipeline sets no `checks`")
+            task["check"] = task["check"].replace("{checks}", f"( {checks} )")
     if len({task["name"] for task in tasks}) != len(tasks) or len({task["when"] for task in tasks}) != len(tasks):
         raise FactoryError("Task names and their starting stages must be unique")
     return data, tasks
