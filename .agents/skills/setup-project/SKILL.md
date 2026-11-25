@@ -16,6 +16,7 @@ Scaffold missing configuration:
 - **Verification**: when behaviour is verified, who verifies, and where evidence is kept
 - **Owner gate**: whether the owner sees every delivery, some, or none
 - **Testing strategy**: the seams this project tests at
+- **Code rules**: the owner's habits and bans, as checks where they have a fixed shape
 
 This is a prompt-driven skill, not a deterministic script. Explore, present what you found, confirm with the user, then write.
 
@@ -111,6 +112,13 @@ Offer **multi-context** (a root `GLOSSARY-MAP.md` pointing to per-context `GLOSS
 
 The owner confirms each fate. A file under `docs/agents/` whose every decision moved or was dropped is proposed for deletion the same way. When the result runs past about sixty lines, propose what could move to `docs/agents/`.
 
+**Section J: Code rules.** Ask which habits and bans the owner holds code to; offer the common ones as a prompt: no comments in code, no direct `useEffect`, no `any`, module boundaries. Sort each rule with the owner:
+
+- **Mechanical** (a fixed pattern, a banned call, an import shape, a file location): a check in the project's own linter, run by the command the delivery checks name. `code-rules.md` beside this skill has worked examples. Add the check and see it fail on an example that breaks the rule. When the project has no code or linter yet, file the checks as a ticket in the issue tracker.
+- **Judgement** (which module owns a decision, which name the glossary gives): one line in `CODING_STANDARDS.md`, which the reviewer reads.
+
+Write none of them into the root instructions.
+
 ### 3. Confirm and edit
 
 Show the user a draft of:
@@ -118,6 +126,7 @@ Show the user a draft of:
 - The selected Language block and the `## Agent skills` block to add to whichever of `CLAUDE.md` / `AGENTS.md` is being edited (see step 4 for selection rules), and the root instructions as they will read after Section I
 - The contents of `docs/agents/issue-tracker.md`, `docs/agents/domain.md`, and `docs/agents/triage-labels.md` (the last only when `triage` is installed)
 - The contents of `docs/agents/project-settings.md`, and of the testing strategy and owner-gate conditions when they are new
+- The checks and the `CODING_STANDARDS.md` lines from Section J
 
 Let them edit before writing.
 

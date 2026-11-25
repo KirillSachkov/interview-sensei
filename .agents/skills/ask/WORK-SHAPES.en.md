@@ -4,7 +4,7 @@
 
 The number of unknowns and sessions sets the size of a spec, not a template. One spec describes one capability that is accepted as one result. If the work fits in one session, a spec is usually unnecessary: a short issue is enough.
 
-This file gives advice. Project rules decide which artifact is required: the original harness provides an example in [`docs/agents/requirements.md`](https://github.com/KirillSachkov/agent-harness/blob/5e051a49287724bff80a2568d73512d9b334d692/docs/agents/requirements.md#choose-the-artifact). When advice and project rule disagree, the rule wins.
+This file gives advice. Project rules decide which artifact is required. When advice and project rule disagree, the rule wins.
 
 ## By situation
 
