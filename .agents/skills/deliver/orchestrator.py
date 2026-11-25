@@ -260,29 +260,39 @@ def run_task(pipeline, tasks, ticket, timeout):
     instruction = task.get("run_spec", task["run"]) if ticket.spec else task["run"]
     argv = agent_argv(pipeline, agent, model, instruction.format(ticket=ref, name=ticket.name), effort)
     reason = "the task's check did not pass"
-    for attempt in range(1, int(task.get("attempts", 1)) + 1):
-        number = len(list(ticket.folder.glob(f"{task['name']}-*.jsonl"))) + 1  # every run keeps its own log
-        log = ticket.folder / f"{task['name']}-{number}.jsonl"
-        ticket.update(running=dict(task=task["name"], attempt=attempt, started=int(time.time()), log=log.name))
+    limit = int(task.get("timeout", timeout))
+    for _ in range(int(task.get("attempts", 1))):
+        attempt = len(list(ticket.folder.glob(f"{task['name']}-*.jsonl"))) + 1  # counted across starts; each keeps its log
+        log = ticket.folder / f"{task['name']}-{attempt}.jsonl"
+        running = dict(task=task["name"], attempt=attempt, started=int(time.time()), log=log.name)
+        ticket.update(running=running)
         started = time.monotonic()
         try:
-            code = start_run(argv, work, env, log, int(task.get("timeout", timeout)))
-        except Stopped:
-            ticket.journal(task=task["name"], attempt=attempt, stopped=True, session=session_id(log), log=log.name)
-            raise
+            try:
+                code = start_run(argv, work, env, log, limit)
+            except Stopped:
+                ticket.journal(task=task["name"], attempt=attempt, stopped=True, session=session_id(log), log=log.name)
+                raise
+            ticket.update(running=running | {"checking": True})
+            check = subprocess.run(task["check"], shell=True, cwd=work, env=env, capture_output=True, text=True)
         finally:
             ticket.update(running=None)
-        check = subprocess.run(task["check"], shell=True, cwd=work, env=env, capture_output=True, text=True)
+        output = (check.stdout + check.stderr).strip()
+        passed = check.returncode == 0
+        if not passed:
+            log.with_suffix(".check.log").write_text(output + "\n")
+            reason = (output.splitlines() or ["the task's check did not pass"])[-1]
+            if code == 124:
+                reason = f"the run hit its limit of {limit // 60} min; then: {reason}"
         ticket.journal(task=task["name"], attempt=attempt, agent=agent, model=model, effort=effort, agent_exit=code,
                      check_exit=check.returncode, seconds=round(time.monotonic() - started, 1),
-                     session=session_id(log), log=log.name)
+                     session=session_id(log), log=log.name, **({} if passed else {"reason": reason}))
         # The skill may have moved the work to a branch of its own; later tasks and attempts follow it.
         ticket.update(branch=git(work, "branch", "--show-current").stdout.strip() or branch)
-        if check.returncode == 0:
+        if passed:
             ticket.update(blocked_at=None)
             ticket.set_stage(task["then"])
             return task["then"]
-        reason = ((check.stdout + check.stderr).strip().splitlines() or [reason])[-1]
         if check.returncode == 3:  # the check says a retry cannot help
             break
     ticket.update(blocked_at=task["when"])
@@ -327,6 +337,29 @@ def tickets_in(project, pattern):
     return list(tickets.values())
 
 
+def event(entry):
+    """One journal entry in words: what ran and how it ended."""
+    name = f"{entry['task']} attempt {entry['attempt']}"
+    if entry.get("stopped"):
+        return f"{name} stopped"
+    if entry.get("check_exit") == 0:
+        return f"{name} passed"
+    where = f" (check output in {Path(entry['log']).with_suffix('.check.log')})" if entry.get("log") else ""
+    return f"{name} failed: {entry.get('reason', 'the check did not pass')}{where}"
+
+
+def report(ticket):
+    """Print the journal entries no wait has reported yet. Return whether there were any."""
+    journal, seen = ticket.folder / "runs.jsonl", ticket.folder / "reported"
+    entries = [json.loads(line) for line in journal.read_text().splitlines() if line.strip()] if journal.is_file() else []
+    done = int(seen.read_text() or 0) if seen.is_file() else 0
+    for entry in entries[done:]:
+        print(event(entry), flush=True)
+    if len(entries) > done:
+        seen.write_text(str(len(entries)))
+    return len(entries) > done
+
+
 def status_line(ticket):
     state = ticket.state()
     running = state.get("running") if ticket.running() else None
@@ -335,15 +368,15 @@ def status_line(ticket):
     parts = [ticket.name, ticket.stage() or "-"]
     if running:
         minutes = (int(time.time()) - running["started"]) // 60
-        parts.append(f"running {running['task']} attempt {running['attempt']} for {minutes} min")
+        doing = "checking" if running.get("checking") else "running"
+        parts.append(f"{doing} {running['task']} attempt {running['attempt']} for {minutes} min")
         current = session_id(ticket.folder / running.get("log", ""))
         if current:
             parts.append(f"session {current}")
     else:
         parts.append("not running")
     if last and not running:
-        result = "stopped" if last.get("stopped") else ("passed" if last.get("check_exit") == 0 else "failed")
-        parts.append(f"last: {last['task']} attempt {last['attempt']} {result}")
+        parts.append(f"last: {event(last)}")
         if last.get("session"):
             parts.append(f"session {last['session']}")
     if state.get("worktree"):
@@ -364,7 +397,7 @@ def main(argv=None):
         parser.add_argument(f"--{key}", action="append", default=[], metavar="[TASK=]VALUE",
                             help=f"run: the {key} for this ticket's runs, for every task or for the named one")
     parser.add_argument("--detach", action="store_true", help="run: return at once and leave the run in the background")
-    parser.add_argument("--timeout", type=int, default=1800, help="seconds for one run")
+    parser.add_argument("--timeout", type=int, default=5400, help="seconds for one run")
     args = parser.parse_args(argv)
     try:
         project = args.project.resolve()
@@ -390,8 +423,9 @@ def main(argv=None):
             print(f"Stopped {ticket.name}; run it again to continue from {ticket.stage()}")
             return 0
         if args.command == "wait":
-            while ticket.running():
+            while not report(ticket) and ticket.running():  # return at each finished attempt and at the end
                 time.sleep(2)
+            report(ticket)
             print(status_line(ticket))
             return 0
         if args.detach:
