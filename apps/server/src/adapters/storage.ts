@@ -3,7 +3,6 @@ import { createHash } from "node:crypto";
 import { runner } from "node-pg-migrate";
 import type { Pool } from "pg";
 import { z } from "zod";
-import { goalSetupTurn } from "@sensei/contracts";
 import type { StoredGoalSetupTurn } from "../modules/goals-and-scenarios/index.js";
 export interface WorkspaceStore {
   find(secret: string): Promise<string | undefined>;
@@ -54,9 +53,35 @@ export function workspaceStore(pool: Pool): WorkspaceStore {
   };
 }
 
+const storedGoalSetupResult = z.object({
+  turnId: z.uuid(),
+  message: z.string(),
+  reply: z.string(),
+  path: z.array(z.string()),
+  draft: z.object({
+    revision: z.int().nonnegative(),
+    details: z.object({
+      role: z.string().nullable(),
+      level: z.string().nullable(),
+      market: z.string().nullable(),
+    }),
+    current: z
+      .discriminatedUnion("kind", [
+        z.object({ kind: z.literal("question"), text: z.string() }),
+        z.object({
+          kind: z.literal("proposal"),
+          text: z.string(),
+          version: z.int().positive(),
+          turnId: z.uuid().optional(),
+        }),
+      ])
+      .nullable(),
+  }),
+});
+
 const goalSetupRow = z
   .object({
-    result: goalSetupTurn,
+    result: storedGoalSetupResult,
     last_proposal_version: z.int().nonnegative(),
   })
   .transform(({ result, last_proposal_version }) => ({
@@ -94,7 +119,7 @@ export function goalSetupStore(pool: Pool) {
           result.turnId,
           result.draft.revision,
           lastProposalVersion,
-          goalSetupTurn.parse(result),
+          storedGoalSetupResult.parse(result),
         ],
       );
       return saved.rowCount === 1;

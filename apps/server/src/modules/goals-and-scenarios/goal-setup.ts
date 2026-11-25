@@ -57,7 +57,7 @@ interface GoalSetupCommand {
 export interface GoalSetupInterpretation {
   changes: { [Key in keyof GoalDetails]?: GoalDetails[Key] | undefined };
   reply: string;
-  replyKind: "conversation" | "proposal";
+  replyKind: "conversation" | "proposal" | "reword_proposal";
 }
 
 export interface GoalSetupContext extends GoalSetup {
@@ -65,7 +65,7 @@ export interface GoalSetupContext extends GoalSetup {
 }
 
 interface GoalSetupDecision {
-  kind: "continue_conversation" | "show_proposal";
+  kind: "conversation" | "new_proposal";
   draft: GoalSetupDraft;
   lastProposalVersion: number;
   reply: string;
@@ -113,17 +113,20 @@ function decide(
   const previousProposal =
     draft.current?.kind === "proposal" ? draft.current : undefined;
   const proposal = changed ? undefined : previousProposal;
-  const proposalReply = replyKind === "proposal";
+  const proposalReply = replyKind !== "conversation";
+  const reword = replyKind === "reword_proposal";
+  if (reword && !proposal) return undefined;
   if (changed && previousProposal?.text === reply) return undefined;
   if (proposalReply ? !complete : complete && !proposal) return undefined;
 
-  const showProposal = proposalReply && !proposal;
+  const showProposal =
+    proposalReply && (!proposal || (reword && proposal.text !== reply));
   const version = showProposal ? lastProposalVersion + 1 : lastProposalVersion;
   const current: GoalSetupDraft["current"] = showProposal
     ? { kind: "proposal", text: reply, version, turnId }
     : (proposal ?? { kind: "question", text: reply });
   return {
-    kind: showProposal ? "show_proposal" : "continue_conversation",
+    kind: showProposal ? "new_proposal" : "conversation",
     draft: { revision: draft.revision + 1, details, current },
     lastProposalVersion: version,
     reply,

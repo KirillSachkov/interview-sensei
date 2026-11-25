@@ -7,7 +7,7 @@
     "build": "vite build apps/web && esbuild apps/server/src/api.ts apps/server/src/worker.ts apps/server/src/goal-setup-map.ts --bundle --platform=node --format=esm --packages=external --outdir=apps/server/dist",
     "types": "tsc -p apps/server && tsc -p apps/web && tsc -p tools",
     "test": "vitest run tests",
-    "check": "pnpm types && prettier --check . && pnpm lint && pnpm infra && pnpm build && pnpm goal-setup:map --check && pnpm test && playwright test",
+    "check": "pnpm types && prettier --check . && pnpm lint && pnpm infra && pnpm build && node tools/check-goal-setup-map.ts && pnpm test && playwright test",
     "goal-setup:map": "node apps/server/dist/goal-setup-map.js",
     "lint": "oxlint --type-aware --deny-warnings . && node tools/source-rules.ts && depcruise apps packages && knip --include dependencies,unlisted && node tools/check-rules.ts",
     "infra": "docker run --rm -v \"$PWD:/repo:ro\" -w /repo rhysd/actionlint:1.7.7 && docker run --rm -i hadolint/hadolint:v2.14.0-alpine < Dockerfile"

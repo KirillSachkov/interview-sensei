@@ -5,6 +5,9 @@ import { promisify } from "node:util";
 import { test, expect, type Page } from "@playwright/test";
 import {
   goalSetup,
+  goalSetupPath,
+  goalSetupTurn,
+  goalSetupTurnPath,
   guestWorkspace,
   guestWorkspacePath,
 } from "@sensei/contracts";
@@ -179,6 +182,53 @@ test("guest corrects and resumes a goal setup after closing Chromium and restart
         page.getByText("Да, целевой рынок по-прежнему Россия."),
       ).toBeVisible();
       await expect(page.getByText("Предложение цели · версия 2")).toBeVisible();
+
+      let retried = false;
+      await page.route(`**${goalSetupPath(first)}`, (route) =>
+        retried ? route.continue() : route.abort("connectionreset"),
+      );
+      const savedTurn = deferred<ReturnType<typeof goalSetupTurn.parse>>();
+      await page.route(
+        "**/turns/*",
+        async (route) => {
+          const response = await route.fetch();
+          expect(response.status()).toBe(200);
+          await route.abort("connectionreset");
+          savedTurn.resolve(goalSetupTurn.parse(await response.json()));
+        },
+        { times: 1 },
+      );
+      await send(page, "А рынок остался тот же?");
+      const saved = await savedTurn.promise;
+      const retry = page.getByRole("button", { name: "Повторить отправку" });
+      await expect(retry).toBeVisible();
+
+      const newerResponse = await page.request.put(
+        origin + goalSetupTurnPath(first, randomUUID()),
+        {
+          headers: { origin },
+          data: {
+            revision: saved.draft.revision,
+            message: "Вернёмся к middle",
+          },
+        },
+      );
+      expect(newerResponse.status()).toBe(200);
+      await page.route(
+        `**${goalSetupTurnPath(first, saved.turnId)}`,
+        (route) => {
+          retried = true;
+          return route.continue();
+        },
+        { times: 1 },
+      );
+      await retry.click();
+      await expect(page.getByText("Предложение цели · версия 3")).toBeVisible();
+      await expect(page.getByText("Вернёмся к middle")).toBeVisible();
+      expect(model.calls.slice(-2)).toEqual([
+        "А рынок остался тот же?",
+        "Вернёмся к middle",
+      ]);
     });
     expect(restored).toBe(first);
     const separate = await visit("profile-b", 390, async (page) => {

@@ -349,6 +349,40 @@ it("keeps an open proposal on an ambiguous reply and withdraws it when the marke
   });
 });
 
+it("versions an explicit rewording while keeping the goal details", async () => {
+  const { read, send } = await openSetup();
+  const details = { role: "Go-разработчик", level: "middle", market: "Россия" };
+  const original =
+    "Готовиться к собеседованиям на позицию Go-разработчика уровня middle на российском рынке.";
+  const shorter = "Подготовиться к собеседованиям на middle Go в России.";
+  model
+    .mockReset()
+    .mockResolvedValueOnce({
+      changes: details,
+      replyKind: "proposal",
+      reply: original,
+    })
+    .mockResolvedValueOnce({
+      changes: {},
+      replyKind: "reword_proposal",
+      reply: shorter,
+    });
+
+  expect((await send(0, "Хочу на middle Go в России")).statusCode).toBe(200);
+  const response = await send(1, "Сформулируй цель короче");
+  expect(response.statusCode).toBe(200);
+  expect(goalSetupTurn.parse(response.json<unknown>())).toMatchObject({
+    path: ["load_context", "interpret_message", "show_proposal"],
+  });
+  expect(await read()).toMatchObject({
+    draft: {
+      details,
+      current: { kind: "proposal", text: shorter, version: 2 },
+    },
+    history: [{ reply: original }, { reply: shorter }],
+  });
+});
+
 it("returns the saved turn for concurrent and later repeats while accepting a new turn with the same words", async () => {
   const { workspaceId, headers, read, send } = await openSetup();
   const started = deferred<void>();

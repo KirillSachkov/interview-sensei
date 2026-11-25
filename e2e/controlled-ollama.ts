@@ -38,6 +38,15 @@ const replies = new Map([
       reply: "Да, целевой рынок по-прежнему Россия.",
     },
   ],
+  [
+    "Вернёмся к middle",
+    {
+      changes: { level: "middle" },
+      replyKind: "proposal",
+      reply:
+        "Готовиться к собеседованиям на позицию Go-разработчика уровня middle на российском рынке.",
+    },
+  ],
 ]);
 
 const inputSchema = goalSetup.extend({

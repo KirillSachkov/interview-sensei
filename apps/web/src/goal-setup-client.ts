@@ -177,10 +177,16 @@ export function goalSetupClient(workspaceId: string, initial: Setup) {
         const { turnId, message, reply, draft } = goalSetupTurn.parse(
           await response.json(),
         );
-        finish({
+        const saved = {
           draft,
           history: [...setup.history, { turnId, message, reply }],
-        });
+        };
+        const current = pending
+          ? await readGoalSetup(workspaceId).catch(() => undefined)
+          : undefined;
+        finish(
+          current && current.draft.revision >= draft.revision ? current : saved,
+        );
       } catch {
         await reconcile(command, true);
       }

@@ -65,10 +65,12 @@ export function goalSetupGraph(model?: GoalSetupModel) {
     .addNode(showProposal, save(showProposal))
     .addEdge(START, loadContext)
     .addEdge(loadContext, interpretMessage)
-    .addConditionalEdges(interpretMessage, ({ decision }) => decision.kind, [
-      continueConversation,
-      showProposal,
-    ])
+    .addConditionalEdges(
+      interpretMessage,
+      ({ decision }) =>
+        decision.kind === "new_proposal" ? showProposal : continueConversation,
+      [continueConversation, showProposal],
+    )
     .addEdge(continueConversation, END)
     .addEdge(showProposal, END)
     .compile();
