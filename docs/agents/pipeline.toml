@@ -45,12 +45,12 @@ attempts = 2
 then = "delivery"
 
 [[task]]
-name = "ship"
+name = "merge"
 agent = "codex"
 model = "gpt-6.2-sol"
 effort = "high"
 when = "delivery"
-run = "Ship the committed work on this branch for ticket {ticket}."
+run = "Deliver the committed work on this branch for ticket {ticket}."
 check = """gh pr view --json state -q .state | grep -q OPEN && gh pr checks >/dev/null"""
 attempts = 2
 then = "needs-owner"

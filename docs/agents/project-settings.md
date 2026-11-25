@@ -4,7 +4,7 @@
 
 - Workplace: worktree: implementation never starts on the base branch of the main checkout. The branch name carries the issue number.
 
-## Read by `ship`
+## Read by `merge`
 
 - Delivery route: pr, into `main`; a spec delivers its tickets through one integration PR
 - Delivery checks: `git diff --check main...HEAD`, and `pnpm check`
