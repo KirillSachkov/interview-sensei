@@ -48,12 +48,24 @@ try {
   const src = "apps/server/src/modules/goals-and-scenarios";
   put(src + "/internal.ts", "export type Id = string;");
   put(src + "/index.ts", 'export type { Id } from "./internal";');
+  const agent = "apps/server/src/modules/agent-execution";
+  put(agent + "/index.ts", 'export type { Id } from "../goals-and-scenarios";');
   put(
     "apps/server/src/api.ts",
     'export type { Id } from "./modules/goals-and-scenarios";',
   );
   const cruise = resolve("node_modules/.bin/depcruise");
   verify(cruise, ["apps"]);
+  put(agent + "/index.ts", 'import "../goals-and-scenarios";');
+  put(
+    agent + "/private.ts",
+    'export type { Id } from "../goals-and-scenarios/internal";',
+  );
+  verify(
+    cruise,
+    ["apps"],
+    ["goal-setup-type-only", "agent-execution-isolation"],
+  );
   put(
     "apps/server/src/api.ts",
     'export type { Id } from "./modules/goals-and-scenarios/internal";',

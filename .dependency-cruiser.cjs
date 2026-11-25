@@ -1,4 +1,7 @@
 const modules = "^apps/server/src/modules/";
+const agent = modules + "agent-execution/";
+const goals = modules + "goals-and-scenarios/index\\.ts$";
+const agentPackages = "(?:zod|@langchain/(?:core|langgraph|ollama))/";
 module.exports = {
   forbidden: [
     { name: "no-cycles", from: {}, to: { circular: true } },
@@ -15,11 +18,29 @@ module.exports = {
     },
     {
       name: "domain-isolation",
-      from: { path: modules + "([^/]+)/" },
+      from: { path: modules + "([^/]+)/", pathNot: agent },
       to: {
         path: "^(apps/|packages/|node_modules/)",
         pathNot: modules + "$1/",
       },
+    },
+    {
+      name: "agent-execution-isolation",
+      from: { path: agent },
+      to: {
+        path: "^(apps/|packages/|node_modules/)",
+        pathNot: [
+          agent,
+          goals,
+          "^node_modules/" + agentPackages,
+          "^node_modules/\\.pnpm/[^/]+/node_modules/" + agentPackages,
+        ],
+      },
+    },
+    {
+      name: "goal-setup-type-only",
+      from: { path: agent },
+      to: { path: goals, dependencyTypesNot: ["type-only"] },
     },
     {
       name: "public-module-entry",
@@ -28,7 +49,7 @@ module.exports = {
     },
   ].map((rule) => ({ ...rule, severity: "error" })),
   options: {
-    exclude: { path: "/dist/" },
+    exclude: { path: "^apps/[^/]+/dist/" },
     tsConfig: { fileName: "tsconfig.json" },
     tsPreCompilationDeps: true,
     doNotFollow: { path: "node_modules" },

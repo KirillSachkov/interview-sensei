@@ -10,7 +10,12 @@
       ]
     },
     "apps/server": {
-      "entry": ["src/api.ts", "src/worker.ts", "src/modules/*/index.ts"],
+      "entry": [
+        "src/api.ts",
+        "src/worker.ts",
+        "src/goal-setup-map.ts",
+        "src/modules/*/index.ts"
+      ],
       "project": ["src/**/*.ts"]
     },
     "apps/web": { "project": ["src/**/*.tsx"] }
