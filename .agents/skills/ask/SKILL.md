@@ -34,20 +34,21 @@ The route most work travels. You have an idea and want it built.
    - **Yes** → **`/to-spec`** turns the thread into a spec, then **`/to-tickets`** splits it into tracer-bullet tickets, each declaring its **blocking edges**.
    - **No** → one short ticket, or none, and straight to the build.
 4. **Build and deliver.** Two ways, with the same skills and settings underneath, so a project can mix them ticket by ticket:
-   - **By hand**, to take part in the work: **`/implement`** for one ticket, or **`/implement-spec`** for a whole spec, which runs implementer subagents across the ready **frontier** and lands everything on one **integration branch**. Then **`/merge`** takes the committed work to a PR, gets its checks green and stops where the owner gate says.
+   - **By hand**, to take part in the work: **`/implement`** for one ticket, or **`/implement-spec`** for a whole spec, which runs implementer subagents across the ready **frontier** and lands everything on one **integration branch**. Then **`/merge`** takes the committed work to a PR, gets its checks green and stops where the owner gate says; called again on the owner's approval, it merges and clears what the work left.
    - **Whole**, to receive a finished PR: **`/deliver`**, when the project has a pipeline. See Working with `/deliver`.
 
    Either way the code is built with **`/tdd`** at the seams the testing strategy names and closes with **`/code-review`**, a two-axis review (Standards and Spec): `/implement` reviews each ticket, `/implement-spec` reviews the integration branch once. When the settings call for verification, the project's `verify-<app>` skill runs on the reviewed work before delivery, and a `FAIL` or `BLOCKED` verdict keeps delivery open. **`/pr`** writes the PR body, and **`/owner-gate`** judges the change when the project gates delivery by conditions.
-5. **The owner decides.** Feedback on the result goes on the PR; a change to what was asked goes on the ticket.
+5. **The owner decides.** Feedback on the result goes on the PR; a change to what was asked goes on the ticket. Approval goes to the session, which merges and clears.
 6. **`/retro`** closes the loop. After a build, and especially one that went sideways, it suggests changes to the agent's environment, not the code: mechanical mistakes become checks, judgement calls become coding standards.
 
 ## Working with `/deliver`
 
-`/deliver <ticket>` starts an orchestrator that leads the ticket through the tasks in `docs/agents/pipeline.toml`, each in a run of its own, in a worktree of the ticket's own. It keeps going when the session that started it closes.
+`/deliver <ticket>` starts an orchestrator that leads the ticket through the tasks in `docs/agents/pipeline.toml`, each in a run of its own, in a worktree of the ticket's own. The session that started it stays and reports each attempt; the run itself keeps going when that session closes.
 
 - **Where it is:** ask the session, or run the orchestrator's `status`: the stage, the running task and the last result of each ticket.
-- **It stopped at `blocked`:** the status line names the task and the reason. Deal with the reason, then `/deliver` the same ticket: it continues from that task.
-- **It reached `needs-owner`:** the PR waits. To ask for changes, comment on the PR and tell the session; the ticket goes through rework and delivery again.
+- **It stopped at `blocked`:** the session names the task, the cause and whether the work or the environment failed; the failed check's output lies in the ticket's folder under `.factory/`. Deal with the cause, then `/deliver` the same ticket: it continues from that task.
+- **It reached `needs-owner`:** the PR waits. To ask for changes, tell the session; it records your words on the PR and the ticket goes through rework, verification and delivery again. To accept, tell the session: it merges through `/merge`, which clears the stands, worktree and branches.
+- **It found something the ticket does not cover:** the session files it in the issue tracker and gives the link. It is fixed within this ticket only on your word.
 - **Stop it:** tell the session, or run the orchestrator's `stop`. The stage is kept.
 
 The skill's own `SKILL.md` has the commands. A project with no pipeline file builds by hand.
