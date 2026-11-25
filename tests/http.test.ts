@@ -24,13 +24,6 @@ import {
 
 const origin = "https://example.test";
 const model = vi.fn<GoalSetupModel>();
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((deliver) => {
-    resolve = deliver;
-  });
-  return { promise, resolve };
-}
 async function openSetup() {
   const response = await app.api.inject({
     method: "POST",
@@ -357,8 +350,8 @@ it("keeps an open proposal on an ambiguous reply and withdraws it when the marke
 
 it("returns the saved turn for concurrent and later repeats while accepting a new turn with the same words", async () => {
   const { workspaceId, headers, read, send } = await openSetup();
-  const started = deferred<void>();
-  const reply = deferred<unknown>();
+  const started = Promise.withResolvers<void>();
+  const reply = Promise.withResolvers<unknown>();
   const question = {
     changes: {},
     replyKind: "conversation",
@@ -386,16 +379,28 @@ it("returns the saved turn for concurrent and later repeats while accepting a ne
   expect((await send(0, "Другой текст", id)).statusCode).toBe(409);
   expect((await send(1, "Привет")).statusCode).toBe(200);
   expect(model).toHaveBeenCalledTimes(2);
-  const lost = await app.api.inject({
-    method: "GET",
-    url: goalSetupTurnPath(workspaceId, id),
-    headers,
-  });
-  expect(lost.statusCode).toBe(200);
-  expect(goalSetupTurn.parse(lost.json<unknown>())).toEqual(accepted);
-  expect(
-    goalSetupTurn.parse((await send(0, "Привет", id)).json<unknown>()),
-  ).toEqual(accepted);
+  const restarted = await makeApi(
+    origin,
+    app.store,
+    goalSetups(goalSetupStore(app.pool)),
+    goalSetupAgent(model),
+  );
+  const url = goalSetupTurnPath(workspaceId, id);
+  try {
+    const lost = await restarted.inject({ method: "GET", url, headers });
+    expect(lost.statusCode).toBe(200);
+    expect(goalSetupTurn.parse(lost.json<unknown>())).toEqual(accepted);
+    const replayed = await restarted.inject({
+      method: "PUT",
+      url,
+      headers,
+      payload: { revision: 0, message: "Привет" },
+    });
+    expect(replayed.statusCode).toBe(200);
+    expect(goalSetupTurn.parse(replayed.json<unknown>())).toEqual(accepted);
+  } finally {
+    await restarted.close();
+  }
   expect(model).toHaveBeenCalledTimes(2);
   expect((await read()).history.map(({ message }) => message)).toEqual([
     "Привет",
@@ -405,8 +410,8 @@ it("returns the saved turn for concurrent and later repeats while accepting a ne
 
 it("rejects a late result and leaves the last draft intact after a model failure", async () => {
   const { read, send } = await openSetup();
-  const started = deferred<void>();
-  const lateReply = deferred<unknown>();
+  const started = Promise.withResolvers<void>();
+  const lateReply = Promise.withResolvers<unknown>();
   const newer = {
     changes: { role: "Go-разработчик", level: "senior" },
     replyKind: "conversation",
@@ -463,4 +468,15 @@ it("rejects a late result and leaves the last draft intact after a model failure
     current: { kind: "proposal", version: 1 },
   });
   expect(model).toHaveBeenCalledTimes(5);
+
+  const beforeCorrection = await read();
+  const proposal = beforeCorrection.draft.current;
+  if (proposal?.kind !== "proposal") throw new Error("Missing proposal");
+  model.mockResolvedValueOnce({
+    changes: { level: "middle" },
+    replyKind: "proposal",
+    reply: proposal.text,
+  });
+  expect((await send(2, "Нет, всё-таки middle")).statusCode).toBe(503);
+  expect(await read()).toEqual(beforeCorrection);
 });

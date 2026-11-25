@@ -14,9 +14,13 @@ export function GoalSetup({
   const { history, draft } = setup;
   const proposal =
     draft.current?.kind === "proposal" ? draft.current : undefined;
+  const latestTurn = history.at(-1);
   const replyShownAsProposal =
-    proposal?.turnId !== undefined &&
-    history.at(-1)?.turnId === proposal.turnId;
+    proposal &&
+    latestTurn &&
+    (proposal.turnId === undefined
+      ? latestTurn.reply === proposal.text
+      : latestTurn.turnId === proposal.turnId);
   const retrying = pending && !waiting;
   const stale = pending !== undefined && pending.revision !== draft.revision;
   const text = pending?.message ?? message;
@@ -30,10 +34,10 @@ export function GoalSetup({
         <div role="log" aria-label="Диалог настройки">
           {history.length > 0 && (
             <ol className="dialogue">
-              {history.map((turn, index) => (
+              {history.map((turn) => (
                 <li key={turn.turnId}>
                   <p className="candidate-message">{turn.message}</p>
-                  {(!replyShownAsProposal || index !== history.length - 1) && (
+                  {(!replyShownAsProposal || turn !== latestTurn) && (
                     <p className="assistant-message">{turn.reply}</p>
                   )}
                 </li>

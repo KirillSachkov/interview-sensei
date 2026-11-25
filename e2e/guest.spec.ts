@@ -10,14 +10,6 @@ import {
 } from "@sensei/contracts";
 import { startControlledOllama } from "./controlled-ollama.js";
 
-function pauseReply() {
-  let release!: () => void;
-  const promise = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  return { promise, release };
-}
-
 test("guest corrects and resumes a goal setup after closing Chromium and restarting the API", async ({
   playwright,
 }, info) => {
@@ -33,8 +25,8 @@ test("guest corrects and resumes a goal setup after closing Chromium and restart
   const project = "sensei-" + randomUUID();
   const firstMessage = "Хочу готовиться на middle Go";
   const correction = "Да, только senior";
-  const firstReply = pauseReply();
-  const correctionReply = pauseReply();
+  const firstReply = Promise.withResolvers<void>();
+  const correctionReply = Promise.withResolvers<void>();
   const pausedReplies = new Map([
     [firstMessage, firstReply.promise],
     [correction, correctionReply.promise],
@@ -121,7 +113,7 @@ test("guest corrects and resumes a goal setup after closing Chromium and restart
       await send(page, firstMessage);
       await expect.poll(() => model.calls).toEqual([firstMessage]);
       await compose("kill", "-s", "SIGKILL", "api");
-      firstReply.release();
+      firstReply.resolve();
       await expect(page.getByText("Ответ пока не получен.")).toBeVisible();
       await compose("start", "api");
       await ready();
@@ -141,28 +133,30 @@ test("guest corrects and resumes a goal setup after closing Chromium and restart
 
       await send(page, "В России");
       await expect(page.getByText("Предложение цели · версия 1")).toBeVisible();
+      const readBeforeCommit = page.waitForResponse(
+        (response) =>
+          response.request().method() === "GET" &&
+          response.url().endsWith("/goal-setup"),
+      );
       await page.route(
         "**/turns/*",
         async (route) => {
           const forwarded = route.fetch();
-          const readBeforeCommit = page.waitForResponse(
-            (response) =>
-              response.request().method() === "GET" &&
-              response.url().endsWith("/goal-setup"),
-          );
           await expect.poll(() => model.calls.at(-1)).toBe(correction);
           await route.abort("connectionreset");
-          const { draft } = goalSetup.parse(
-            await (await readBeforeCommit).json(),
-          );
-          expect(draft.current).toMatchObject({ kind: "proposal", version: 1 });
-          correctionReply.release();
           expect((await forwarded).status()).toBe(200);
         },
         { times: 1 },
       );
       await send(page, correction);
+      const { draft } = goalSetup.parse(await (await readBeforeCommit).json());
+      expect(draft.current).toMatchObject({ kind: "proposal", version: 1 });
+      await page.getByRole("button", { name: "Изменить сообщение" }).click();
+      const nextMessage = "Черновик следующей реплики";
+      await textBox(page).fill(nextMessage);
+      correctionReply.resolve();
       await expect(page.getByText("Предложение цели · версия 2")).toBeVisible();
+      await expect(textBox(page)).toHaveValue(nextMessage);
       await expect(
         page.getByText(/уровня senior на российском рынке/),
       ).toBeVisible();
@@ -193,8 +187,8 @@ test("guest corrects and resumes a goal setup after closing Chromium and restart
     });
     expect(separate).not.toBe(first);
   } finally {
-    firstReply.release();
-    correctionReply.release();
+    firstReply.resolve();
+    correctionReply.resolve();
     try {
       await compose("down", "-v", "--rmi", "local");
     } finally {

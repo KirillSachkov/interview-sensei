@@ -110,12 +110,14 @@ function decide(
     details.role !== draft.details.role ||
     details.level !== draft.details.level ||
     details.market !== draft.details.market;
-  const proposal =
-    draft.current?.kind === "proposal" && !changed ? draft.current : undefined;
+  const previousProposal =
+    draft.current?.kind === "proposal" ? draft.current : undefined;
+  const proposal = changed ? undefined : previousProposal;
   const proposalReply = replyKind === "proposal";
+  if (changed && previousProposal?.text === reply) return undefined;
   if (proposalReply ? !complete : complete && !proposal) return undefined;
 
-  const showProposal = proposalReply && proposal?.text !== reply;
+  const showProposal = proposalReply && !proposal;
   const version = showProposal ? lastProposalVersion + 1 : lastProposalVersion;
   const current: GoalSetupDraft["current"] = showProposal
     ? { kind: "proposal", text: reply, version, turnId }

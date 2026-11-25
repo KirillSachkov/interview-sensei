@@ -8,12 +8,15 @@ import {
 
 type Setup = ReturnType<typeof goalSetup.parse>;
 type Command = ReturnType<typeof goalSetupCommand.parse>;
+const readTimeoutMs = 5_000;
+const turnTimeoutMs = 100_000;
+const recoveryPollIntervalMs = 1_500;
 
 export async function readGoalSetup(
   workspaceId: string,
   recovery?: AbortSignal,
 ): Promise<Setup> {
-  const deadline = AbortSignal.timeout(5000);
+  const deadline = AbortSignal.timeout(readTimeoutMs);
   const response = await fetch(goalSetupPath(workspaceId), {
     signal: recovery ? AbortSignal.any([deadline, recovery]) : deadline,
   });
@@ -72,38 +75,49 @@ export function goalSetupClient(workspaceId: string, initial: Setup) {
     publish({ setup, pending: undefined, waiting: false });
   }
 
-  async function reconcile(command: Command, retry: boolean) {
+  async function reconcile(
+    command: Command | undefined,
+    pollForSavedTurn: boolean,
+  ) {
     recovery?.abort();
-    recovery = new AbortController();
-    const { signal } = recovery;
-    const until = Date.now() + 95000;
-    do {
-      const readback = await readGoalSetup(workspaceId, signal).catch(
-        () => undefined,
-      );
-      if (signal.aborted) return;
-      const setup = readback ?? snapshot.setup;
-      if (containsTurn(setup, command)) {
-        finish(setup);
-        return;
-      }
-      if (
-        snapshot.waiting ||
-        setup.draft.revision !== snapshot.setup.draft.revision
-      )
-        publish({ setup, pending: command, waiting: false });
-      if (
-        !retry ||
-        setup.draft.revision !== command.revision ||
-        Date.now() >= until
-      )
-        return;
-      await new Promise<void>((resolve) => window.setTimeout(resolve, 1500));
-    } while (!signal.aborted);
+    const controller = new AbortController();
+    recovery = controller;
+    const { signal } = controller;
+    const until = Date.now() + turnTimeoutMs;
+    try {
+      do {
+        const readback = await readGoalSetup(workspaceId, signal).catch(
+          () => undefined,
+        );
+        if (signal.aborted) return;
+        const setup = readback ?? snapshot.setup;
+        if (command && containsTurn(setup, command)) {
+          finish(setup);
+          return;
+        }
+        if (
+          snapshot.waiting ||
+          setup.draft.revision !== snapshot.setup.draft.revision
+        )
+          publish({ ...snapshot, setup, waiting: false });
+        if (
+          !pollForSavedTurn ||
+          !command ||
+          setup.draft.revision !== command.revision ||
+          Date.now() >= until
+        )
+          return;
+        await new Promise<void>((resolve) =>
+          window.setTimeout(resolve, recoveryPollIntervalMs),
+        );
+      } while (!signal.aborted);
+    } finally {
+      if (recovery === controller) recovery = undefined;
+    }
   }
 
   function reconnect() {
-    if (!snapshot.pending || snapshot.waiting) return;
+    if (snapshot.waiting || (recovery && !recovery.signal.aborted)) return;
     void reconcile(snapshot.pending, true);
   }
 
@@ -112,7 +126,7 @@ export function goalSetupClient(workspaceId: string, initial: Setup) {
       listeners.add(listener);
       if (listeners.size === 1) {
         window.addEventListener("online", reconnect);
-        reconnect();
+        if (snapshot.pending) reconnect();
       }
       return () => {
         listeners.delete(listener);
@@ -124,7 +138,9 @@ export function goalSetupClient(workspaceId: string, initial: Setup) {
     },
     snapshot: () => snapshot,
     edit() {
-      if (!snapshot.waiting) finish(snapshot.setup);
+      if (snapshot.waiting) return;
+      rememberPending(storageKey);
+      publish({ ...snapshot, pending: undefined });
     },
     async send(message: string) {
       if (snapshot.waiting) return;
@@ -146,7 +162,7 @@ export function goalSetupClient(workspaceId: string, initial: Setup) {
           goalSetupTurnPath(workspaceId, command.turnId),
           {
             method: "PUT",
-            signal: AbortSignal.timeout(100000),
+            signal: AbortSignal.timeout(turnTimeoutMs),
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               revision: command.revision,

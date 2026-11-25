@@ -12,7 +12,7 @@ export const instruction = `Ты помогаешь кандидату сфор�
 role — название позиции («Go-разработчик» для запроса про Go), level — уровень, market — рынок, где кандидат хочет искать работу. Место жительства, гражданство и язык оставляют market без изменений. «В России» в ответ на уточнение рынка задаёт «Россия».
 2. Мысленно примени changes и withdrawn к draft.details и выбери replyKind и reply:
 - "conversation" — уточняющий вопрос или ответ на реплику об открытом предложении. Если сведений не хватает, задай один короткий вопрос о недостающем поле. Если кандидат ещё выбирает, помоги определить рынок без дословного повтора прежнего вопроса. Сомнения, согласие и вопросы оставляют предложение открытым.
-- "proposal" — текст предложения цели. Используй, когда известны все три поля и это первое предложение, изменились сведения или кандидат явно попросил изменить формулировку. Включи роль, уровень и рынок.
+- "proposal" — текст предложения цели. Используй, когда известны все три поля и это первое предложение или изменились сведения. Включи роль, уровень и рынок.
 
 Примеры в формате ответа:
 Пустой черновик, «хочу на middle Go» или «хочу на middle Go, живу в Москве»:
@@ -67,12 +67,14 @@ export type GoalSetupModel = (
 
 export class GoalSetupModelError extends Error {}
 
+const localModelTimeoutMs = 90_000;
+
 export function ollamaGoalSetupModel(
   baseUrl: string,
   model: string,
 ): GoalSetupModel {
   return (instruction, input) => {
-    const deadline = AbortSignal.timeout(90000);
+    const deadline = AbortSignal.timeout(localModelTimeoutMs);
     const chat = new ChatOllama({
       baseUrl,
       model,

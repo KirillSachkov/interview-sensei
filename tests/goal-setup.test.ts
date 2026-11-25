@@ -5,7 +5,7 @@ import {
   type StoredGoalSetupTurn,
 } from "../apps/server/src/modules/goals-and-scenarios/index.js";
 
-it("versions new wording, keeps an open proposal during conversation, and keeps numbering after withdrawal", async () => {
+it("versions changed details, keeps an open proposal during conversation, and keeps numbering after withdrawal", async () => {
   const turns: StoredGoalSetupTurn[] = [];
   const setup = goalSetups({
     history: () => Promise.resolve(turns),
@@ -47,24 +47,36 @@ it("versions new wording, keeps an open proposal during conversation, and keeps 
   });
 
   const wording = "Подготовиться к интервью на middle Go в России.";
-  await send("Сформулируй короче", {
+  await send("Я подумаю", {
     changes: {},
     replyKind: "proposal",
     reply: wording,
   });
+  expect((await setup.read()).draft.current).toMatchObject({
+    kind: "proposal",
+    version: 1,
+    turnId: "turn-1",
+  });
+
+  const seniorWording = "Подготовиться к интервью на senior Go в России.";
+  await send("Да, только senior", {
+    changes: { level: "senior" },
+    replyKind: "proposal",
+    reply: seniorWording,
+  });
   const revised = await setup.read();
-  expect(revised.draft.details).toEqual(details);
+  expect(revised.draft.details).toEqual({ ...details, level: "senior" });
   expect(revised.draft.current).toEqual({
     kind: "proposal",
     version: 2,
-    text: wording,
-    turnId: "turn-2",
+    text: seniorWording,
+    turnId: "turn-3",
   });
 
   await send("Повтори формулировку", {
     changes: {},
     replyKind: "conversation",
-    reply: wording,
+    reply: seniorWording,
   });
   expect((await setup.read()).draft.current).toEqual(revised.draft.current);
 
@@ -74,18 +86,18 @@ it("versions new wording, keeps an open proposal during conversation, and keeps 
     reply: "Какие рынки рассматриваешь?",
   });
   expect((await setup.read()).draft).toMatchObject({
-    details: { ...details, market: null },
+    details: { ...details, level: "senior", market: null },
     current: { kind: "question", text: "Какие рынки рассматриваешь?" },
   });
 
   await send("В Германии", {
     changes: { market: "Германия" },
     replyKind: "proposal",
-    reply: "Готовиться к интервью на middle Go на рынке Германии.",
+    reply: "Готовиться к интервью на senior Go на рынке Германии.",
   });
   expect((await setup.read()).draft.current).toMatchObject({
     kind: "proposal",
     version: 3,
-    turnId: "turn-5",
+    turnId: "turn-6",
   });
 });
