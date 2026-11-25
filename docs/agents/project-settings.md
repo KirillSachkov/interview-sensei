@@ -9,7 +9,11 @@
 - Delivery route: pr, into `main`; a spec delivers its tickets through one integration PR
 - Delivery checks: `git diff --check main...HEAD`, and `pnpm check`
 - Required CI: the `harness-check` job on the PR head must be green
-- After a merge: stop the Docker Compose stands started from the work's worktree with `docker compose -p <project> down -v`, stop the processes the work started by their PID, then remove the worktree and the local branch. `/deliver` does this with `orchestrator.py finish <ticket>`.
+- After a merge, clear, unless the owner asked to keep a stand for testing:
+  - the Compose stands started from the work's worktree, with their volumes: find them with `docker compose ls -a --format json` by a config path inside the worktree, stop each with `docker compose -p <name> down -v`
+  - the processes started from the worktree: find them by a working directory inside it, stop each by its PID
+  - the worktree, with `git worktree remove`, once it holds no uncommitted work
+  - the work's branch, locally and on GitHub
 - Owner gate: owner: every delivery waits for the owner and the agent never merges on its own judgement
 
 ## Read at the verify step

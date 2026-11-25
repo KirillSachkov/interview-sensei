@@ -19,4 +19,4 @@ When the project settings call for verification and no verification report cover
 
 5. Close the task the way the issue tracker closes work.
 
-6. After a merge, clear what the work left the way the project settings say: the stands and processes it started, its worktree and its branch. Leave anything you cannot tie to this work, and say what you left. Before a merge there is nothing to clear: the owner may still want the stand.
+6. After a merge, clear what the work left, as the project settings list it: typically the stands and processes it started, its worktree and its branches. Keep what the owner asked to keep. Stop a process by its PID and a stand by its exact name, never by a name pattern; leave anything you cannot tie to this work. Then check each item is gone and report what was cleared and what stays, with the command that clears it later. Before a merge clear nothing: the owner may still want the stand.

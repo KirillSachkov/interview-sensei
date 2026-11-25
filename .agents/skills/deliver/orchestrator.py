@@ -327,36 +327,13 @@ def lead(pipeline, tasks, ticket, timeout, prepare_stage=None):
         held.close()
 
 
-def finish(pipeline, ticket):
-    """After the merge: clear what the ticket's work left and mark it done."""
+def finish(ticket):
+    """The ticket's work is merged or dropped and cleared: stop leading it."""
     held = ticket.lock()
     if held is None:
         raise FactoryError(f"{ticket.name} is still running")
     try:
-        state = ticket.state()
-        work = Path(state["worktree"]) if state.get("worktree") else None
-        if work and work.is_dir():
-            if git(work, "status", "--porcelain").stdout.strip():
-                raise FactoryError(f"{work} has uncommitted changes; nothing was removed")
-            branch = git(work, "branch", "--show-current").stdout.strip()
-            if git(work, "config", "--get", f"branch.{branch}.merge").returncode:
-                raise FactoryError(f"{branch} was never pushed; nothing was removed")
-            # A merge may have deleted the remote branch; while it exists, it must hold every commit.
-            if not git(work, "rev-parse", "@{u}").returncode and git(work, "log", "@{u}..", "--oneline").stdout.strip():
-                raise FactoryError(f"{work} has commits its remote branch lacks; nothing was removed")
-            if pipeline.get("cleanup"):
-                env = os.environ | {"FACTORY_TICKET": ticket.ref, "FACTORY_TICKET_NAME": ticket.name}
-                done = subprocess.run(pipeline["cleanup"], shell=True, cwd=work, env=env, capture_output=True, text=True)
-                if done.returncode:
-                    reason = ((done.stdout + done.stderr).strip().splitlines() or ["no output"])[-1]
-                    raise FactoryError(f"The cleanup command failed: {reason}")
-            if work != ticket.project:  # a worktree the orchestrator made; the owner's own checkout stays
-                removed = git(ticket.project, "worktree", "remove", str(work))
-                if removed.returncode:
-                    raise FactoryError(f"Cannot remove {work}: {removed.stderr.strip()}")
-                if state.get("branch"):
-                    git(ticket.project, "branch", "-D", state["branch"])
-        ticket.update(worktree=None, blocked_at=None)
+        ticket.update(worktree=None, branch=None, blocked_at=None)
         ticket.set_stage(DONE)
     finally:
         held.close()
@@ -459,7 +436,7 @@ def main(argv=None):
             print(f"Stopped {ticket.name}; run it again to continue from {ticket.stage()}")
             return 0
         if args.command == "finish":
-            finish(pipeline, ticket)
+            finish(ticket)
             print(status_line(ticket))
             return 0
         if args.command == "wait":
