@@ -31,6 +31,13 @@ Not verified: <what was left unchecked and why>
 **Door:** <one-way or two-way>. **Blast Radius:** <one-word description>
 
 <details>
+<summary>How it works</summary>
+
+<a diagram of the calls, then the key places in the code>
+
+</details>
+
+<details>
 <summary>Details</summary>
 
 <for agents: base and head, check runs with links, review reports>
@@ -181,11 +188,19 @@ Execution-based evidence is A-tier. Test results, console output. Show the exact
 
 Store evidence files the way the project says. On GitHub with no project rule, attach them with `gh pr create --attach` or `gh pr edit --attach` and reference each as `![what it shows](./file.png)`. An attachment is public and permanent: attach test data only, and when in doubt describe the result in words.
 
+The host rewrites a relative reference only in the command that uploads the file. When you rewrite a body later, keep the uploaded URLs it already has. After every write, read the body back from the host: an image whose link is not an absolute URL is broken for the owner.
+
 ### Merge Danger
 
 Describe whether it's a one-way or two-way door. You can walk back through two-way doors, but not one-way doors. A PR that is cheap to roll back is lower risk. Changes that involve destructive actions or hard-to-reverse decisions are one-way doors.
 
 The blast radius is the potential impact or scope of the changes introduced by this PR. Consider all possibilities. Examples are layout shift, breakages for consumers, mobile responsiveness, etc.
+
+### How it works
+
+Include it when the change adds or alters behaviour; omit it for a change of settings, text or dependencies. It stays collapsed, below Merge Danger, for an owner who wants the mechanism.
+
+Start with a Mermaid diagram of one request or action from the entry point to the stored result: what calls what, where the decision is made, what is saved. Under it list the three to six places in the code that carry the behaviour, each a link to the line at the PR head with one sentence on what it does. Name no helper that only passes data on.
 
 ### Details
 

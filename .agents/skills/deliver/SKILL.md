@@ -16,7 +16,12 @@ Call it by its path with Python 3.11 or newer, from the project root.
 - **Status:** when asked, run `python3 orchestrator.py status` and say each ticket's stage, the running task and the last result.
 - **Stop:** `python3 orchestrator.py stop <ticket>`. It returns when the run has ended.
 - **Feedback on the result:** post the owner's words as a comment on the ticket's PR, then start the ticket with `--stage rework`.
+- **Approval:** when the owner approves the result, merge the PR at the head they checked, the way the project settings say. Then `python3 orchestrator.py finish <ticket>`: it runs the pipeline's cleanup, removes the ticket's worktree and branch, and marks the ticket done. It refuses a worktree with unsaved work; say so and stop. Before the merge clear nothing: the owner may still want the stand.
 - **A changed ticket:** stop it, let the owner change the ticket in the tracker, then start it again.
+
+## Findings outside the ticket
+
+A defect or gap that you or a run found, and that the ticket's acceptance criteria do not cover, belongs in the issue tracker, not only in the chat. Tell the owner what you found, then file each one the way the tracker settings say, with how it was found and how to reproduce it, and give the links. Fix it within this ticket only when the owner says so: then it goes through `rework` like any other feedback.
 
 ## Report
 

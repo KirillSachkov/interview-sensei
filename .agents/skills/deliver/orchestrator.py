@@ -30,6 +30,7 @@ except ImportError:
 STAGE = re.compile(r"^\*\*Stage:\*\* *(\S+) *$", re.M)
 SESSION = re.compile(r'"(?:session_id|thread_id|sessionID)"\s*:\s*"([^"]+)"')
 BLOCKED = "blocked"
+DONE = "done"
 # How to start one run in a client, the sign that invokes a skill in it, and how it takes a
 # reasoning effort. A pipeline adds or replaces clients in its [agents.<name>] tables.
 CLIENTS = {
@@ -326,6 +327,41 @@ def lead(pipeline, tasks, ticket, timeout, prepare_stage=None):
         held.close()
 
 
+def finish(pipeline, ticket):
+    """After the merge: clear what the ticket's work left and mark it done."""
+    held = ticket.lock()
+    if held is None:
+        raise FactoryError(f"{ticket.name} is still running")
+    try:
+        state = ticket.state()
+        work = Path(state["worktree"]) if state.get("worktree") else None
+        if work and work.is_dir():
+            if git(work, "status", "--porcelain").stdout.strip():
+                raise FactoryError(f"{work} has uncommitted changes; nothing was removed")
+            branch = git(work, "branch", "--show-current").stdout.strip()
+            if git(work, "config", "--get", f"branch.{branch}.merge").returncode:
+                raise FactoryError(f"{branch} was never pushed; nothing was removed")
+            # A merge may have deleted the remote branch; while it exists, it must hold every commit.
+            if not git(work, "rev-parse", "@{u}").returncode and git(work, "log", "@{u}..", "--oneline").stdout.strip():
+                raise FactoryError(f"{work} has commits its remote branch lacks; nothing was removed")
+            if pipeline.get("cleanup"):
+                env = os.environ | {"FACTORY_TICKET": ticket.ref, "FACTORY_TICKET_NAME": ticket.name}
+                done = subprocess.run(pipeline["cleanup"], shell=True, cwd=work, env=env, capture_output=True, text=True)
+                if done.returncode:
+                    reason = ((done.stdout + done.stderr).strip().splitlines() or ["no output"])[-1]
+                    raise FactoryError(f"The cleanup command failed: {reason}")
+            if work != ticket.project:  # a worktree the orchestrator made; the owner's own checkout stays
+                removed = git(ticket.project, "worktree", "remove", str(work))
+                if removed.returncode:
+                    raise FactoryError(f"Cannot remove {work}: {removed.stderr.strip()}")
+                if state.get("branch"):
+                    git(ticket.project, "branch", "-D", state["branch"])
+        ticket.update(worktree=None, blocked_at=None)
+        ticket.set_stage(DONE)
+    finally:
+        held.close()
+
+
 def tickets_in(project, pattern):
     found = set(project.glob(pattern)) | set(project.glob(".scratch/*/issues/*.md"))
     files = {path for path in found if path.is_file() and STAGE.search(path.read_text())}
@@ -386,7 +422,7 @@ def status_line(ticket):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0], allow_abbrev=False)
-    parser.add_argument("command", choices=("run", "status", "stop", "wait"))
+    parser.add_argument("command", choices=("run", "status", "stop", "wait", "finish"))
     parser.add_argument("ticket", nargs="?", help="ticket or spec file relative to the project, or a tracker reference; "
                                                 "run and status take every staged ticket without it")
     parser.add_argument("--project", type=Path, default=Path.cwd())
@@ -421,6 +457,10 @@ def main(argv=None):
                     break
                 time.sleep(0.2)
             print(f"Stopped {ticket.name}; run it again to continue from {ticket.stage()}")
+            return 0
+        if args.command == "finish":
+            finish(pipeline, ticket)
+            print(status_line(ticket))
             return 0
         if args.command == "wait":
             while not report(ticket) and ticket.running():  # return at each finished attempt and at the end

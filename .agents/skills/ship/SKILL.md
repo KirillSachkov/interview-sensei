@@ -18,3 +18,5 @@ When the project settings call for verification and no verification report cover
 4. On a local route, run the project's required checks. Merge the branch into its target only when the project lets you, and confirm the target points at the commit you checked.
 
 5. Close the task the way the issue tracker closes work.
+
+6. After a merge, clear what the work left the way the project settings say: the stands and processes it started, its worktree and its branch. Leave anything you cannot tie to this work, and say what you left. Before a merge there is nothing to clear: the owner may still want the stand.

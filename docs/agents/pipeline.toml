@@ -8,6 +8,10 @@ base = "main"               # a ticket started on this branch gets a worktree of
 worktrees = "~/Worktrees/{project}"
 branch = "issue-{name}"
 setup = "pnpm install --frozen-lockfile"   # run once in a new worktree
+# Run in the worktree by `finish`, after the merge: stop every Compose stand started from it.
+cleanup = """docker compose ls -a --format json \\
+  | jq -r --arg dir "$PWD/" '.[] | select(.ConfigFiles | startswith($dir)) | .Name' \\
+  | while read -r stand; do docker compose -p "$stand" down -v; done"""
 checks = "pnpm check"       # the project's one command for all its checks; a task's check names it as {checks}
 
 [[task]]
