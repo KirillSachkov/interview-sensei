@@ -57,7 +57,7 @@ Name no person in a heading or in the body: write "Decision needed", not "<name>
 
 ### Decision needed
 
-Start with the owner-gate status and reason when one was given. Then one concrete question or action per line, with what the answer decides. Omit the section when the owner has nothing to do.
+Start with the owner-gate status and reason when one was given. Then one concrete question or action per line, with what the answer decides. When the change adds, alters or removes a rule in the coding standards, give it a line of its own here with the rule quoted: the owner accepts each rule the reviewer will hold code to. Omit the section when the owner has nothing to do.
 
 ### What changed
 
