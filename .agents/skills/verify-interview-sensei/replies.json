@@ -1,0 +1,38 @@
+{
+  "хочу на middle Go": {
+    "changes": { "role": "Go-разработчик", "level": "middle" },
+    "replyKind": "conversation",
+    "reply": "На каком рынке хочешь искать работу?"
+  },
+  "Хочу готовиться на middle Go": {
+    "changes": { "role": "Go-разработчик", "level": "middle" },
+    "replyKind": "conversation",
+    "reply": "На каком рынке хочешь искать работу?"
+  },
+  "в России": {
+    "changes": { "market": "Россия" },
+    "replyKind": "proposal",
+    "reply": "Готовиться к собеседованиям на позицию Go-разработчика уровня middle на российском рынке."
+  },
+  "да, только senior": {
+    "changes": { "level": "senior" },
+    "replyKind": "proposal",
+    "reply": "Готовиться к собеседованиям на позицию Go-разработчика уровня senior на российском рынке."
+  },
+  "А рынок остался тот же?": {
+    "changes": {},
+    "replyKind": "conversation",
+    "reply": "Да, целевой рынок по-прежнему Россия."
+  },
+  "Сформулируй цель короче": {
+    "changes": {},
+    "replyKind": "reword_proposal",
+    "reply": "Подготовиться к собеседованиям на senior Go в России."
+  },
+  "Россию больше не рассматриваю, пока не решил куда": {
+    "changes": {},
+    "withdrawn": ["market"],
+    "replyKind": "conversation",
+    "reply": "Какие рынки тебе было бы удобно рассмотреть?"
+  }
+}
