@@ -33,14 +33,12 @@ export function GoalSetup({
       <div className="setup">
         <div role="log" aria-label="Диалог настройки">
           <ol className="dialogue">
-            {history.length === 0 && (
-              <li>
-                <p className="assistant-message">
-                  Привет! Какая роль тебе интересна? Например, можешь написать
-                  «Хочу готовиться на middle Go».
-                </p>
-              </li>
-            )}
+            <li>
+              <p className="assistant-message">
+                Привет! Какая роль тебе интересна? Например, можешь написать
+                «Хочу готовиться на middle Go».
+              </p>
+            </li>
             {history.map((turn) => (
               <li key={turn.turnId}>
                 <p className="candidate-message">{turn.message}</p>

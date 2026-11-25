@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:net";
 import { promisify } from "node:util";
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page, type Request } from "@playwright/test";
 import {
   goalSetup,
   goalSetupPath,
@@ -29,6 +29,10 @@ test("guest corrects and resumes a goal setup after closing Chromium and restart
   const project = "sensei-" + randomUUID();
   const firstMessage = "Хочу готовиться на middle Go";
   const greeting = /^Привет!/;
+  const dialogue = (page: Page) =>
+    page.getByRole("log", { name: "Диалог настройки" });
+  const isTurnRequest = (request: Request) =>
+    request.method() === "PUT" && request.url().includes("/goal-setup/turns/");
   const correction = "Да, только senior";
   const firstReply = deferred<void>();
   const correctionReply = deferred<void>();
@@ -84,6 +88,8 @@ test("guest corrects and resumes a goal setup after closing Chromium and restart
         }),
       ).toBeVisible();
       await expect(textBox(page)).toBeVisible();
+      const turnRequests = (await page.requests()).filter(isTurnRequest);
+      expect(turnRequests.map((request) => request.url())).toEqual([]);
       await exercise(page);
       return workspaceId;
     } finally {
@@ -109,19 +115,14 @@ test("guest corrects and resumes a goal setup after closing Chromium and restart
       ),
     ).toContain("worker");
     const first = await visit("profile-a", 1280, async (page) => {
-      const dialogue = page.getByRole("log", { name: "Диалог настройки" });
-      await expect(dialogue.getByRole("listitem")).toHaveCount(1);
-      await expect(dialogue.getByText(greeting)).toBeVisible();
-      await expect(dialogue).toContainText("Какая роль тебе интересна?");
-      await expect(dialogue).toContainText(`«${firstMessage}»`);
+      const opening = dialogue(page).getByRole("listitem");
+      await expect(opening).toHaveCount(1);
+      await expect(opening.getByText(greeting)).toBeVisible();
+      await expect(opening).toContainText("Какая роль тебе интересна?");
+      await expect(opening).toContainText(`«${firstMessage}»`);
       await expect(textBox(page)).toHaveValue("");
       expect(model.calls).toEqual([]);
-      const waitForTurnRequest = () =>
-        page.waitForRequest(
-          (request) =>
-            request.method() === "PUT" && request.url().includes("/turns/"),
-        );
-      const firstDelivery = waitForTurnRequest();
+      const firstDelivery = page.waitForRequest(isTurnRequest);
       await send(page, firstMessage);
       await expect.poll(() => model.calls).toEqual([firstMessage]);
       await compose("kill", "-s", "SIGKILL", "api");
@@ -131,12 +132,13 @@ test("guest corrects and resumes a goal setup after closing Chromium and restart
       await ready();
       await page.reload();
       await expect(textBox(page)).toHaveValue(firstMessage);
-      const repeatedDelivery = waitForTurnRequest();
+      const repeatedDelivery = page.waitForRequest(isTurnRequest);
       await page.getByRole("button", { name: "Повторить отправку" }).click();
       expect((await repeatedDelivery).url()).toBe((await firstDelivery).url());
       await expect(
         page.getByText("На каком рынке ищешь работу?"),
       ).toBeVisible();
+      await expect(dialogue(page).getByText(greeting)).toBeVisible();
       await page.reload();
       await expect(
         page.getByText("На каком рынке ищешь работу?"),
@@ -177,9 +179,15 @@ test("guest corrects and resumes a goal setup after closing Chromium and restart
     await compose("restart", "api");
     await ready();
     const restored = await visit("profile-a", 1280, async (page) => {
-      await expect(page.getByText(firstMessage)).toBeVisible();
+      const transcript = dialogue(page);
+      await expect(transcript.getByText(greeting)).toHaveCount(1);
+      await expect(transcript.getByRole("listitem").first()).toHaveText(
+        greeting,
+      );
+      await expect(
+        transcript.getByText(firstMessage, { exact: true }),
+      ).toBeVisible();
       await expect(page.getByText("Предложение цели · версия 2")).toBeVisible();
-      await expect(page.getByText(greeting)).toHaveCount(0);
       expect(model.calls).toEqual([
         firstMessage,
         firstMessage,
