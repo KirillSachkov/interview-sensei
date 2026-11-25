@@ -4,7 +4,7 @@
 
 - Workplace: <worktree: implementation never starts on the base branch of the main checkout | current checkout>
 
-## Read by `ship`
+## Read by `merge`
 
 - Delivery route: <local, main, pr, or the project's own rule>
 - Delivery checks: <commands that must pass before delivery>
