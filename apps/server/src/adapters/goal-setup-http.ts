@@ -14,8 +14,9 @@ import {
   type RunGoalSetup,
 } from "../modules/goals-and-scenarios/index.js";
 
-const workspaceParams = z.object({ workspaceId: z.uuid() });
-const turnParams = workspaceParams.extend({ turnId: z.uuid() });
+const routeId = z.uuid().transform((uuid) => uuid.toLowerCase());
+const workspaceParams = z.object({ workspaceId: routeId });
+const turnParams = workspaceParams.extend({ turnId: routeId });
 const turnPath = goalSetupTurnPath(":workspaceId", ":turnId");
 
 export function registerGoalSetup(

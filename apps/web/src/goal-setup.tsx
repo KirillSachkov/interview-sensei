@@ -15,13 +15,17 @@ export function GoalSetup({
   const proposal =
     draft.current?.kind === "proposal" ? draft.current : undefined;
   const replyShownAsProposal =
-    proposal && history.at(-1)?.reply === proposal.text;
+    proposal?.turnId !== undefined &&
+    history.at(-1)?.turnId === proposal.turnId;
   const retrying = pending && !waiting;
+  const stale = pending !== undefined && pending.revision !== draft.revision;
   const text = pending?.message ?? message;
 
   return (
     <>
-      <h1>К какому собеседованию хочешь подготовиться?</h1>
+      <h1 className={history.length ? "goal-setup-heading" : undefined}>
+        К какому собеседованию хочешь подготовиться?
+      </h1>
       <div className="setup">
         <div role="log" aria-label="Диалог настройки">
           {history.length > 0 && (
@@ -48,7 +52,7 @@ export function GoalSetup({
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            if (!text.trim() || waiting) return;
+            if (!text.trim() || waiting || stale) return;
             setMessage("");
             void client.send(text);
           }}
@@ -70,15 +74,17 @@ export function GoalSetup({
           {waiting && <p role="status">Ждём ответа…</p>}
           {retrying && (
             <p role="alert">
-              {pending.revision === draft.revision
-                ? "Ответ пока не получен. Можно повторить отправку."
-                : "Черновик обновился. Проверь его перед повторной отправкой."}
+              {stale
+                ? "Черновик обновился. Проверь его и подготовь новую реплику."
+                : "Ответ пока не получен. Можно повторить отправку."}
             </p>
           )}
           <div className="form-actions">
-            <button type="submit" disabled={waiting || !text.trim()}>
-              {retrying ? "Повторить отправку" : "Отправить"}
-            </button>
+            {!stale && (
+              <button type="submit" disabled={waiting || !text.trim()}>
+                {retrying ? "Повторить отправку" : "Отправить"}
+              </button>
+            )}
             {retrying && (
               <button
                 type="button"
@@ -88,7 +94,7 @@ export function GoalSetup({
                   client.edit();
                 }}
               >
-                Изменить сообщение
+                {stale ? "Вернуть текст в поле" : "Изменить сообщение"}
               </button>
             )}
           </div>

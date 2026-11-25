@@ -9,7 +9,12 @@ export interface GoalSetupDraft {
   details: GoalDetails;
   current:
     | { kind: "question"; text: string }
-    | { kind: "proposal"; text: string; version: number }
+    | {
+        kind: "proposal";
+        text: string;
+        version: number;
+        turnId?: string | undefined;
+      }
     | null;
 }
 
@@ -52,6 +57,7 @@ interface GoalSetupCommand {
 export interface GoalSetupInterpretation {
   changes: { [Key in keyof GoalDetails]?: GoalDetails[Key] | undefined };
   reply: string;
+  replyKind: "conversation" | "proposal";
 }
 
 export interface GoalSetupContext extends GoalSetup {
@@ -71,7 +77,7 @@ export interface GoalSetupExecution {
   decide(
     context: GoalSetupContext,
     interpretation: GoalSetupInterpretation,
-  ): GoalSetupDecision;
+  ): GoalSetupDecision | undefined;
   save(decision: GoalSetupDecision, path: string[]): Promise<GoalSetupTurn>;
 }
 
@@ -89,8 +95,9 @@ const emptyDraft: GoalSetupDraft = {
 
 function decide(
   { draft, lastProposalVersion }: GoalSetupContext,
-  { changes, reply }: GoalSetupInterpretation,
-): GoalSetupDecision {
+  { changes, reply, replyKind }: GoalSetupInterpretation,
+  turnId: string,
+): GoalSetupDecision | undefined {
   const details: GoalDetails = {
     role: changes.role === undefined ? draft.details.role : changes.role,
     level: changes.level === undefined ? draft.details.level : changes.level,
@@ -104,12 +111,15 @@ function decide(
     details.level !== draft.details.level ||
     details.market !== draft.details.market;
   const proposal =
-    draft.current?.kind === "proposal" ? draft.current : undefined;
-  const showProposal = complete && (!proposal || changed);
+    draft.current?.kind === "proposal" && !changed ? draft.current : undefined;
+  const proposalReply = replyKind === "proposal";
+  if (proposalReply ? !complete : complete && !proposal) return undefined;
+
+  const showProposal = proposalReply && proposal?.text !== reply;
   const version = showProposal ? lastProposalVersion + 1 : lastProposalVersion;
   const current: GoalSetupDraft["current"] = showProposal
-    ? { kind: "proposal", text: reply, version }
-    : (complete && proposal) || { kind: "question", text: reply };
+    ? { kind: "proposal", text: reply, version, turnId }
+    : (proposal ?? { kind: "question", text: reply });
   return {
     kind: showProposal ? "show_proposal" : "continue_conversation",
     draft: { revision: draft.revision + 1, details, current },
@@ -176,7 +186,8 @@ export function goalSetups(store: GoalSetupStore) {
                 throw new GoalSetupConflict();
               return context;
             },
-            decide,
+            decide: (context, interpretation) =>
+              decide(context, interpretation, command.turnId),
             async save(decision, path) {
               const result = {
                 turnId: command.turnId,

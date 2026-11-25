@@ -10,22 +10,21 @@ export const instruction = `Ты помогаешь кандидату сфор�
 
 1. Заполни changes только новыми значениями, которые кандидат явно добавляет или исправляет в message. Пропущенное поле или null сохраняет прежнее значение из draft.details. Для явного отзыва внеси имя поля в withdrawn. В остальных случаях оставь withdrawn пустым.
 role — название позиции («Go-разработчик» для запроса про Go), level — уровень, market — рынок, где кандидат хочет искать работу. Место жительства, гражданство и язык оставляют market без изменений. «В России» в ответ на уточнение рынка задаёт «Россия».
-2. Мысленно примени changes и withdrawn к draft.details и выбери reply:
-- Сведений не хватает: задай один короткий вопрос о недостающем поле. Например, при известной роли и уровне спроси «На каком рынке хочешь искать работу?». Если кандидат ещё выбирает, помоги определить рынок без дословного повтора прежнего вопроса.
-- Все три поля известны и это первое предложение либо изменились сведения: напиши конкретную цель одним предложением. Включи все три сведения, в том числе значения, которые остались прежними.
-- Предложение открыто и изменений нет: ответь по смыслу реплики. Сомнения, согласие и вопросы оставляют предложение открытым.
+2. Мысленно примени changes и withdrawn к draft.details и выбери replyKind и reply:
+- "conversation" — уточняющий вопрос или ответ на реплику об открытом предложении. Если сведений не хватает, задай один короткий вопрос о недостающем поле. Если кандидат ещё выбирает, помоги определить рынок без дословного повтора прежнего вопроса. Сомнения, согласие и вопросы оставляют предложение открытым.
+- "proposal" — текст предложения цели. Используй, когда известны все три поля и это первое предложение, изменились сведения или кандидат явно попросил изменить формулировку. Включи роль, уровень и рынок.
 
 Примеры в формате ответа:
 Пустой черновик, «хочу на middle Go» или «хочу на middle Go, живу в Москве»:
-{"changes":{"role":"Go-разработчик","level":"middle"},"reply":"На каком рынке хочешь искать работу?"}
+{"changes":{"role":"Go-разработчик","level":"middle"},"replyKind":"conversation","reply":"На каком рынке хочешь искать работу?"}
 Черновик Go-разработчик / middle / рынок неизвестен, «в России»:
-{"changes":{"market":"Россия"},"reply":"Готовиться к собеседованиям на позицию Go-разработчика уровня middle на российском рынке."}
+{"changes":{"market":"Россия"},"replyKind":"proposal","reply":"Готовиться к собеседованиям на позицию Go-разработчика уровня middle на российском рынке."}
 Открытое предложение Go-разработчик / middle / Россия, «да, только senior»:
-{"changes":{"level":"senior"},"reply":"Готовиться к собеседованиям на позицию Go-разработчика уровня senior на российском рынке."}
+{"changes":{"level":"senior"},"replyKind":"proposal","reply":"Готовиться к собеседованиям на позицию Go-разработчика уровня senior на российском рынке."}
 Открытое предложение Go-разработчик / senior / Россия, «а рынок остался тот же?»:
-{"changes":{},"reply":"Да, целевой рынок по-прежнему Россия."}
+{"changes":{},"replyKind":"conversation","reply":"Да, целевой рынок по-прежнему Россия."}
 Открытое предложение Go-разработчик / senior / Россия, «Россию больше не рассматриваю, пока не решил куда»:
-{"changes":{},"withdrawn":["market"],"reply":"Какие рынки тебе было бы удобно рассмотреть?"}
+{"changes":{},"withdrawn":["market"],"replyKind":"conversation","reply":"Какие рынки тебе было бы удобно рассмотреть?"}
 
 Верни только объект по заданной JSON-схеме.`;
 
@@ -37,12 +36,13 @@ const modelReply = z.strictObject({
     .max(3)
     .optional(),
   reply: z.string().trim().min(1).max(2000),
+  replyKind: z.enum(["conversation", "proposal"]),
 });
 
 export function interpretGoalSetupReply(
   result: unknown,
 ): GoalSetupInterpretation {
-  const { changes, withdrawn, reply } = modelReply.parse(result);
+  const { changes, withdrawn, reply, replyKind } = modelReply.parse(result);
   const patch: GoalSetupInterpretation["changes"] = {
     role: changes.role ?? undefined,
     level: changes.level ?? undefined,
@@ -53,7 +53,7 @@ export function interpretGoalSetupReply(
       throw new Error(`Conflicting changes for ${field}`);
     patch[field] = null;
   }
-  return { changes: patch, reply };
+  return { changes: patch, reply, replyKind };
 }
 
 interface GoalSetupModelInput extends GoalSetup {

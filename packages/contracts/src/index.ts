@@ -13,6 +13,7 @@ const proposal = z.strictObject({
   kind: z.literal("proposal"),
   text: z.string(),
   version: z.int().positive(),
+  turnId: z.uuid().optional(),
 });
 const goalSetupDraft = z.strictObject({
   revision: z.int().nonnegative(),

@@ -49,7 +49,7 @@ async function openSetup() {
       expect(response.statusCode).toBe(200);
       return goalSetup.parse(response.json<unknown>());
     },
-    send: (revision: number, message: string, turnId = randomUUID()) =>
+    send: (revision: number, message: string, turnId: string = randomUUID()) =>
       app.api.inject({
         method: "PUT",
         url: goalSetupTurnPath(workspaceId, turnId),
@@ -144,6 +144,7 @@ it("opens an empty goal setup only for the workspace in the guest session", asyn
   ).toBe(404);
   model.mockReset().mockResolvedValueOnce({
     changes: { role: "Go-разработчик" },
+    replyKind: "conversation",
     reply: "Какой уровень позиции рассматриваешь?",
   });
   const turnId = randomUUID();
@@ -188,6 +189,7 @@ it("shows the actual correction path and keeps known details apart from the dial
   const { read, send } = await openSetup();
   const correction = {
     changes: { level: "senior" },
+    replyKind: "proposal",
     reply:
       "Готовиться к собеседованиям на позицию Go-разработчика уровня senior на российском рынке.",
   };
@@ -195,10 +197,12 @@ it("shows the actual correction path and keeps known details apart from the dial
     .mockReset()
     .mockResolvedValueOnce({
       changes: { role: "Go-разработчик", level: "middle" },
+      replyKind: "conversation",
       reply: "На каком рынке ищешь работу?",
     })
     .mockResolvedValueOnce({
       changes: { market: "Россия" },
+      replyKind: "proposal",
       reply:
         "Готовиться к собеседованиям на позицию Go-разработчика уровня middle на российском рынке.",
     })
@@ -276,29 +280,35 @@ it("keeps an open proposal on an ambiguous reply and withdraws it when the marke
   const replies = [
     {
       changes: { role: "Go-разработчик", level: "middle" },
+      replyKind: "conversation",
       reply: "На каком рынке ищешь работу?",
     },
     {
       changes: {},
+      replyKind: "conversation",
       reply:
         "Можем начать с рынков, где тебе удобно проходить собеседования. Какие рассматриваешь?",
     },
     {
       changes: { market: "Россия" },
+      replyKind: "proposal",
       reply:
         "Готовиться к собеседованиям на позицию Go-разработчика уровня middle на российском рынке.",
     },
     {
       changes: { market: null },
+      replyKind: "conversation",
       reply: "Хорошо, можешь вернуться к предложению позже.",
     },
     {
       changes: {},
       withdrawn: ["market"],
+      replyKind: "conversation",
       reply: "Какой рынок хочешь рассмотреть вместо российского?",
     },
     {
       changes: { market: "Германия" },
+      replyKind: "proposal",
       reply:
         "Готовиться к собеседованиям на позицию Go-разработчика уровня middle на рынке Германии.",
     },
@@ -338,7 +348,7 @@ it("keeps an open proposal on an ambiguous reply and withdraws it when the marke
   });
   expect(withdrawn.history[2]?.reply).toBe(replies[2]?.reply);
   expect((await send(5, "В Германии")).statusCode).toBe(200);
-  expect((await read()).draft.current).toEqual({
+  expect((await read()).draft.current).toMatchObject({
     kind: "proposal",
     version: 2,
     text: replies[5]?.reply,
@@ -351,6 +361,7 @@ it("returns the saved turn for concurrent and later repeats while accepting a ne
   const reply = deferred<unknown>();
   const question = {
     changes: {},
+    replyKind: "conversation",
     reply: "На какую позицию хочешь готовиться?",
   };
   model
@@ -360,10 +371,10 @@ it("returns the saved turn for concurrent and later repeats while accepting a ne
       return reply.promise;
     })
     .mockResolvedValueOnce(question);
-  const id = randomUUID();
+  const id = "aaaa0000-0000-4000-8000-000000000000";
   const first = send(0, "Привет", id);
   await started.promise;
-  const concurrent = send(0, "Привет", id);
+  const concurrent = send(0, "Привет", id.toUpperCase());
   reply.resolve(question);
   const results = await Promise.all([first, concurrent]);
   for (const response of results) expect(response.statusCode).toBe(200);
@@ -398,6 +409,7 @@ it("rejects a late result and leaves the last draft intact after a model failure
   const lateReply = deferred<unknown>();
   const newer = {
     changes: { role: "Go-разработчик", level: "senior" },
+    replyKind: "conversation",
     reply: "На какой рынок ориентируешься?",
   };
   model
@@ -407,9 +419,19 @@ it("rejects a late result and leaves the last draft intact after a model failure
       return lateReply.promise;
     })
     .mockResolvedValueOnce(newer)
-    .mockResolvedValueOnce({ changes: { market: "Россия" }, reply: "" })
     .mockResolvedValueOnce({
       changes: { market: "Россия" },
+      replyKind: "proposal",
+      reply: "",
+    })
+    .mockResolvedValueOnce({
+      changes: { market: "Россия" },
+      replyKind: "conversation",
+      reply: "Уже выбрал город?",
+    })
+    .mockResolvedValueOnce({
+      changes: { market: "Россия" },
+      replyKind: "proposal",
       reply:
         "Готовиться к позиции Go-разработчика уровня senior на российском рынке.",
     });
@@ -418,6 +440,7 @@ it("rejects a late result and leaves the last draft intact after a model failure
   const saved = await send(0, "Хочу на senior Go");
   lateReply.resolve({
     changes: { role: "Go-разработчик", level: "middle" },
+    replyKind: "conversation",
     reply: "Какой рынок?",
   });
   expect(saved.statusCode).toBe(200);
@@ -431,11 +454,13 @@ it("rejects a late result and leaves the last draft intact after a model failure
   const id = randomUUID();
   expect((await send(1, "В России", id)).statusCode).toBe(503);
   expect(await read()).toEqual(beforeFailure);
+  expect((await send(1, "В России", id)).statusCode).toBe(503);
+  expect(await read()).toEqual(beforeFailure);
   expect((await send(1, "В России", id)).statusCode).toBe(200);
   expect((await read()).draft).toMatchObject({
     revision: 2,
     details: { level: "senior", market: "Россия" },
     current: { kind: "proposal", version: 1 },
   });
-  expect(model).toHaveBeenCalledTimes(4);
+  expect(model).toHaveBeenCalledTimes(5);
 });

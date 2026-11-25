@@ -8,6 +8,7 @@ const replies = new Map([
     "Хочу готовиться на middle Go",
     {
       changes: { role: "Go-разработчик", level: "middle" },
+      replyKind: "conversation",
       reply: "На каком рынке ищешь работу?",
     },
   ],
@@ -15,6 +16,7 @@ const replies = new Map([
     "В России",
     {
       changes: { market: "Россия" },
+      replyKind: "proposal",
       reply:
         "Готовиться к собеседованиям на позицию Go-разработчика уровня middle на российском рынке.",
     },
@@ -23,6 +25,7 @@ const replies = new Map([
     "Да, только senior",
     {
       changes: { level: "senior" },
+      replyKind: "proposal",
       reply:
         "Готовиться к собеседованиям на позицию Go-разработчика уровня senior на российском рынке.",
     },
@@ -31,6 +34,7 @@ const replies = new Map([
     "А рынок остался тот же?",
     {
       changes: { market: null },
+      replyKind: "conversation",
       reply: "Да, целевой рынок по-прежнему Россия.",
     },
   ],
@@ -40,7 +44,9 @@ const inputSchema = goalSetup.extend({
   message: goalSetupMessage.shape.message,
 });
 
-export async function startControlledOllama() {
+export async function startControlledOllama(
+  beforeReply: (message: string) => Promise<void>,
+) {
   const calls: string[] = [];
   const server = createServer(async (request, response) => {
     try {
@@ -65,6 +71,7 @@ export async function startControlledOllama() {
       calls.push(input.message);
       const reply = replies.get(input.message);
       if (!reply) throw new Error("Unexpected candidate message");
+      await beforeReply(input.message);
       response.setHeader("Content-Type", "application/x-ndjson");
       response.end(
         JSON.stringify({

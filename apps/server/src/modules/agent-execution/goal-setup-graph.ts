@@ -13,7 +13,7 @@ import {
 const State = Annotation.Root({
   execution: Annotation<GoalSetupExecution>(),
   context: Annotation<Awaited<ReturnType<GoalSetupExecution["load"]>>>(),
-  decision: Annotation<ReturnType<GoalSetupExecution["decide"]>>(),
+  decision: Annotation<NonNullable<ReturnType<GoalSetupExecution["decide"]>>>(),
   path: Annotation<string[]>(),
   turn: Annotation<GoalSetupTurn>(),
 });
@@ -54,10 +54,12 @@ export function goalSetupGraph(model?: GoalSetupModel) {
           { cause: error },
         );
       }
-      return {
-        decision: execution.decide(context, interpretation),
-        path: [...path, interpretMessage],
-      };
+      const decision = execution.decide(context, interpretation);
+      if (!decision)
+        throw new GoalSetupModelError(
+          "Ответ модели не согласуется с черновиком.",
+        );
+      return { decision, path: [...path, interpretMessage] };
     })
     .addNode(continueConversation, save(continueConversation))
     .addNode(showProposal, save(showProposal))
