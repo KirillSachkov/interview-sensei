@@ -8,6 +8,7 @@ import {
   guestWorkspace,
   guestWorkspacePath,
 } from "@sensei/contracts";
+import { deferred } from "../tests/deferred.js";
 import { startControlledOllama } from "./controlled-ollama.js";
 
 test("guest corrects and resumes a goal setup after closing Chromium and restarting the API", async ({
@@ -25,8 +26,8 @@ test("guest corrects and resumes a goal setup after closing Chromium and restart
   const project = "sensei-" + randomUUID();
   const firstMessage = "Хочу готовиться на middle Go";
   const correction = "Да, только senior";
-  const firstReply = Promise.withResolvers<void>();
-  const correctionReply = Promise.withResolvers<void>();
+  const firstReply = deferred<void>();
+  const correctionReply = deferred<void>();
   const pausedReplies = new Map([
     [firstMessage, firstReply.promise],
     [correction, correctionReply.promise],

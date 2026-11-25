@@ -21,6 +21,7 @@ import {
   goalSetupAgent,
   type GoalSetupModel,
 } from "../apps/server/src/modules/agent-execution/index.js";
+import { deferred } from "./deferred.js";
 
 const origin = "https://example.test";
 const model = vi.fn<GoalSetupModel>();
@@ -350,8 +351,8 @@ it("keeps an open proposal on an ambiguous reply and withdraws it when the marke
 
 it("returns the saved turn for concurrent and later repeats while accepting a new turn with the same words", async () => {
   const { workspaceId, headers, read, send } = await openSetup();
-  const started = Promise.withResolvers<void>();
-  const reply = Promise.withResolvers<unknown>();
+  const started = deferred<void>();
+  const reply = deferred<unknown>();
   const question = {
     changes: {},
     replyKind: "conversation",
@@ -410,8 +411,8 @@ it("returns the saved turn for concurrent and later repeats while accepting a ne
 
 it("rejects a late result and leaves the last draft intact after a model failure", async () => {
   const { read, send } = await openSetup();
-  const started = Promise.withResolvers<void>();
-  const lateReply = Promise.withResolvers<unknown>();
+  const started = deferred<void>();
+  const lateReply = deferred<unknown>();
   const newer = {
     changes: { role: "Go-разработчик", level: "senior" },
     replyKind: "conversation",
