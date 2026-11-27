@@ -1,0 +1,8 @@
+services:
+  model:
+    image: ${COMPOSE_PROJECT_NAME}-app
+    command: ["node", "/model.mjs", "--port", "11434", "--replies", "/replies.json", "--calls", "/evidence/model-calls.jsonl"]
+    volumes:
+      - ./.agents/skills/verify-interview-sensei/controlled-model.mjs:/model.mjs:ro
+      - ./.scratch/verify-stand/replies.json:/replies.json:ro
+      - ./.evidence:/evidence

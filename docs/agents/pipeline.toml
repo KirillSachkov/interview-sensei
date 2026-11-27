@@ -16,7 +16,7 @@ agent = "codex"
 model = "gpt-6.2-sol"
 effort = "high"
 when = "ready"
-run = "/implement {ticket}"
+run = "/implement {ticket}. Use the agreed test seam and review. The verify stage owns browser acceptance; run extra scenarios here only for a distinct implementation question."
 run_spec = "/implement-spec {ticket}"
 check = """test -n "$(git log main..HEAD --oneline)" \
   && test -z "$(git status --porcelain)" \
@@ -28,14 +28,15 @@ then = "verify"
 # Behaviour is verified by a fresh run with the verify-interview-sensei skill; its report lands in .evidence/.
 [[task]]
 name = "verify"
+verification = true
 agent = "codex"
 model = "gpt-6.2-sol"
 effort = "high"
 when = "verify"
 run = "Verify the behaviour of ticket {ticket} at the current commit with this project's verify skill. Check every acceptance criterion."
-check = """v=$(sed -n 's/^Verdict: //p' .evidence/report.md 2>/dev/null | head -1)
-c=$(sed -n 's/^Commit: //p' .evidence/report.md 2>/dev/null | head -1)
-case "$(git rev-parse HEAD)" in "${c:-none}"*) ;; *) echo "no verification report for this commit"; exit 1 ;; esac
+check = """v=$(sed -n 's/^Verdict: //p' "$FACTORY_REPORT" 2>/dev/null | head -1)
+c=$(sed -n 's/^Commit: //p' "$FACTORY_REPORT" 2>/dev/null | head -1)
+test "$c" = "$(git rev-parse HEAD)" || { echo "no verification report for this commit"; exit 1; }
 case "$v" in
   PASS|PASS+NOTES) exit 0 ;;
   FAIL|BLOCKED) echo "verification verdict: $v"; exit 3 ;;
@@ -50,8 +51,14 @@ agent = "codex"
 model = "gpt-6.2-sol"
 effort = "high"
 when = "delivery"
-run = "Deliver the committed work on this branch for ticket {ticket}."
-check = """gh pr view --json state -q .state | grep -q OPEN && gh pr checks >/dev/null"""
+run = "Deliver the verified commit on this branch for ticket {ticket}. Include the handoff findings in the owner decision. If CI requires a code change, report the blocker for rework and fresh verification."
+check = """test "$(git rev-parse HEAD)" = "$FACTORY_VERIFIED_HEAD" &&
+pr=$(gh pr view --json state,baseRefName,headRefOid,statusCheckRollup) &&
+printf '%s\\n' "$pr" |
+  jq -e --arg sha "$FACTORY_VERIFIED_HEAD" '
+    .state == "OPEN" and .baseRefName == "main" and .headRefOid == $sha and
+    ([.statusCheckRollup[] | select(.name == "harness-check" and .workflowName == "Harness checks")] |
+      length > 0 and all(.status == "COMPLETED" and .conclusion == "SUCCESS"))'"""
 attempts = 2
 then = "needs-owner"
 

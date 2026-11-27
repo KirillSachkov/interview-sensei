@@ -22,7 +22,7 @@ $S up --model live       # a local Ollama this run starts; add --pull to downloa
 
 `$S env` prints the stand's values: `PUBLIC_ORIGIN` is the address to open, `PROJECT` the Compose project.
 
-**Isolation.** Each worktree gets one stand: the Compose project `sensei-verify-<folder>-<hash of the worktree path>`, a free port for the page and another for the model. Stands in different worktrees run side by side. A second `up` in the same worktree refuses; share the running stand through `$S env` or stop it with `$S down`.
+**Isolation.** Each worktree gets one stand: the Compose project `sensei-verify-<folder>-<hash of the worktree path>`, a free host port for the page, and a private Compose address for the controlled model or a separate host port for live Ollama. Stands in different worktrees run side by side. A second `up` in the same worktree refuses; share the running stand through `$S env` or stop it with `$S down`.
 
 ### Which model
 
@@ -37,7 +37,7 @@ The app reaches its model at `OLLAMA_BASE_URL`, and the stand puts one of two th
 $S doctor
 ```
 
-Read-only, one `ok` or `FAIL` line per check: the three services run in this project, the port is published by this project's `api`, the page answers 200, `PUBLIC_ORIGIN` matches, the worker is ready, the image was built from the current `HEAD`, tracked files are committed, the model process is the one this run started, and the `api` container reaches it. Run it whenever something looks off. On `FAIL  image was built from the current HEAD`, run `$S down` and `$S up` again.
+Read-only, one `ok` or `FAIL` line per check: the three services run in this project, the port is published by this project's `api`, the page answers 200, `PUBLIC_ORIGIN` matches, the worker is ready, the image was built from the current `HEAD`, tracked files are committed, the live model PID matches when using Ollama, and the `api` container reaches it. Run it whenever something looks off. On `FAIL  image was built from the current HEAD`, run `$S down` and `$S up` again.
 
 ## Drive
 
@@ -107,7 +107,7 @@ Proof standards:
 
 ## Report
 
-Write `.evidence/report.md` before cleanup, in Russian except for the two fixed lines, which the pipeline reads by their exact prefixes:
+Before cleanup, write the report in Russian to `.evidence/report.md`. For a pipeline attempt, also write this new report to `$FACTORY_REPORT`. Keep the two machine-readable lines in English:
 
 ```markdown
 # Проверка: <what was verified>
@@ -134,7 +134,7 @@ docker compose ls -a                    # this stand's project is absent; others
 ls .evidence                            # the report and the evidence are still there
 ```
 
-`down` saves the services' logs to `.evidence/stand-logs.txt`, removes this project's containers, volume and image, stops the model by the PID it recorded, and deletes `.scratch/verify-stand/`. It is safe to repeat and runs after a failed attempt too. The next `up` moves an earlier run's `.evidence/` to `.scratch/previous-evidence/`.
+`down` saves the services' logs to `.evidence/stand-logs.txt`, removes this project's containers, volume and image, removes the controlled model service or stops the live model by its recorded PID, and deletes `.scratch/verify-stand/`. It is safe to repeat and runs after a failed attempt too. The next `up` moves an earlier run's `.evidence/` to `.scratch/previous-evidence/`.
 
 ## Helpers
 

@@ -28,7 +28,9 @@ blocked() {
   exit 3
 }
 compose() {
-  docker compose -p "$PROJECT" --project-directory "$root" -f "$root/compose.yaml" "$@"
+  local files=(-f "$root/compose.yaml")
+  if [ -f "$scratch/replies.json" ]; then files+=(-f "$here/controlled.compose.yaml"); fi
+  docker compose -p "$PROJECT" --project-directory "$root" "${files[@]}" "$@"
 }
 free_port() {
   node -e 'const s=require("node:net").createServer();s.listen(0,"127.0.0.1",()=>{console.log(s.address().port);s.close()})'
@@ -80,20 +82,8 @@ teardown() {
 }
 
 start_controlled_model() {
-  MODEL_PORT="$(free_port)"
-  MODEL_MARK="controlled-model.mjs --port $MODEL_PORT"
-  nohup node "$here/controlled-model.mjs" --port "$MODEL_PORT" --replies "$replies" \
-    --calls "$evidence/model-calls.jsonl" >"$scratch/model.log" 2>&1 &
-  MODEL_PID=$!
-  remember MODEL_PID "$MODEL_PID"
-  remember MODEL_MARK "\"$MODEL_MARK\""
-  local probe="http://127.0.0.1:$MODEL_PORT/health"
-  for _ in $(seq 1 50); do
-    curl -fsS -m 2 "$probe" >/dev/null 2>&1 && break
-    sleep 0.2
-  done
-  curl -fsS -m 2 "$probe" >/dev/null || die "the controlled model did not start; see $scratch/model.log"
-  OLLAMA_BASE_URL="http://host.docker.internal:$MODEL_PORT"
+  cp "$replies" "$scratch/replies.json"
+  OLLAMA_BASE_URL="http://model:11434"
   OLLAMA_MODEL="controlled-goal-setup"
 }
 
@@ -231,7 +221,9 @@ doctor() {
   check "worker logged 'Worker ready'" worker_ready
   check "image was built from the current HEAD ($(git -C "$root" rev-parse --short HEAD))" build_is_head
   check "tracked files have no uncommitted changes" tree_is_committed
-  check "$MODEL_MODE model process $MODEL_PID is the one this run started" model_alive
+  if [ -n "${MODEL_PID:-}" ]; then
+    check "$MODEL_MODE model process $MODEL_PID is the one this run started" model_alive
+  fi
   check "api container reaches the model at $OLLAMA_BASE_URL" model_reachable_from_api
   return $failed
 }
