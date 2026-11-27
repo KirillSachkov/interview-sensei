@@ -16,15 +16,15 @@ Call it by its path with Python 3.11 or newer, from the project root.
 - **Status:** when asked, run `python3 orchestrator.py status` and say each ticket's stage, the running task and the last result.
 - **Stop:** `python3 orchestrator.py stop <ticket>`. It returns when the run has ended.
 - **Feedback on the result:** post the owner's words as a comment on the ticket's PR, then start the ticket with `--stage rework`.
-- **Approval:** when the owner approves the result, call the Skill tool with "merge" for the ticket's PR: it merges at the head the owner checked and clears what the work left, as the project settings say. Then `python3 orchestrator.py finish <ticket>` records completion. For an active checkout or other deferred cleanup, pass `--defer-cleanup "reason"`, report the retained path and branch, and repeat finish from the primary checkout after clearing them. Do the same when the owner drops the ticket instead: close its PR, clear by the same settings, then `finish`.
+- **Approval:** when the owner approves the result, run `python3 orchestrator.py preserve <ticket>` before cleanup so older worktree-local records survive. Then call the Skill tool with "merge" for the ticket's PR: it merges at the head the owner checked and clears what the work left, as the project settings say. Then `python3 orchestrator.py finish <ticket>` records completion. For an active checkout or other deferred cleanup, pass `--defer-cleanup "reason"`, report the retained path and branch, and repeat finish from the primary checkout after clearing them. Do the same when the owner drops the ticket instead: close its PR, clear by the same settings, then `finish`.
 - **A changed ticket:** stop it, let the owner change the ticket in the tracker, then start it again.
 
 ## Findings outside the ticket
 
-A defect or gap that you or a run found, and that the ticket's acceptance criteria do not cover, belongs in the issue tracker, not only in the chat. Tell the owner what you found, then file each one the way the tracker settings say, with how it was found and how to reproduce it, and give the links. Fix it within this ticket only when the owner says so: then it goes through `rework` like any other feedback.
+A defect or gap that you or a run found, and that the ticket's acceptance criteria do not cover, belongs in the issue tracker, not only in the chat. Tell the owner what you found, then file each one the way the tracker settings say, with how it was found and how to reproduce it, and give the links. Fix it within this ticket only when the owner says so: append the owner’s decision to handoff.md. Resume the blocked stage with `run <ticket>` if there is no PR yet. With a PR, take the change through rework.
 
 ## Report
 
-When the run ends, say the stage the ticket ended in. For a stage that waits for the owner, give the PR link and what the owner decides. Read the ticket’s handoff.md when present. Account for each limitation, follow-up and approved scope change in the PR and owner summary.
+When the run ends, say the stage the ticket ended in. For a stage that waits for the owner, give the PR link and what the owner decides. Read handoff.md in the records directory printed by status or wait when present. Account for each limitation, follow-up and approved scope change in the PR and owner summary.
 
-For `blocked`, read the check output the failed attempt names, in the ticket's folder under `.factory/`. Say the task, the cause in plain words, whether the work or the environment failed, and what you would change. Change the project, the pipeline or the orchestrator only on the user's word.
+For `blocked`, read the check output the failed attempt names, in the records directory printed by status or wait. Say the task, the cause in plain words, whether the work or the environment failed, and what you would change. Change the project, the pipeline or the orchestrator only on the user's word.

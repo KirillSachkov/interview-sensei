@@ -53,7 +53,8 @@ effort = "high"
 when = "delivery"
 run = "Deliver the verified commit on this branch for ticket {ticket}. Include the handoff findings in the owner decision. If CI requires a code change, report the blocker for rework and fresh verification."
 check = """test "$(git rev-parse HEAD)" = "$FACTORY_VERIFIED_HEAD" &&
-gh pr view --json state,baseRefName,headRefOid,statusCheckRollup |
+pr=$(gh pr view --json state,baseRefName,headRefOid,statusCheckRollup) &&
+printf '%s\\n' "$pr" |
   jq -e --arg sha "$FACTORY_VERIFIED_HEAD" '
     .state == "OPEN" and .baseRefName == "main" and .headRefOid == $sha and
     ([.statusCheckRollup[] | select(.name == "harness-check" and .workflowName == "Harness checks")] |
