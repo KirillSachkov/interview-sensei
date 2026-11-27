@@ -134,7 +134,7 @@ docker compose ls -a                    # this stand's project is absent; others
 ls .evidence                            # the report and the evidence are still there
 ```
 
-`down` saves the services' logs to `.evidence/stand-logs.txt`, removes this project's containers, volume and image, stops the model by the PID it recorded, and deletes `.scratch/verify-stand/`. It is safe to repeat and runs after a failed attempt too. The next `up` moves an earlier run's `.evidence/` to `.scratch/previous-evidence/`.
+`down` saves the services' logs to `.evidence/stand-logs.txt`, removes this project's containers, volume and image, removes the controlled model service or stops the live model by its recorded PID, and deletes `.scratch/verify-stand/`. It is safe to repeat and runs after a failed attempt too. The next `up` moves an earlier run's `.evidence/` to `.scratch/previous-evidence/`.
 
 ## Helpers
 
