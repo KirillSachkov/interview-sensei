@@ -32,7 +32,7 @@ function openSetup() {
       },
     );
   };
-  return { send, read: setup.read };
+  return { send, read: () => setup.read() };
 }
 
 it("asks about the role when the candidate has supplied no details", async () => {
