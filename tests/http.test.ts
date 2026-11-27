@@ -179,6 +179,68 @@ it("opens an empty goal setup only for the workspace in the guest session", asyn
   expect((await second.read()).draft.revision).toBe(0);
 });
 
+it("asks for the role when the model copies the greeting example into the draft", async () => {
+  const { read, send } = await openSetup();
+  const modelReply = {
+    changes: { role: "Go-разработчик", level: "middle" },
+    replyKind: "conversation",
+    reply: "На каком рынке ищешь работу?",
+  };
+  model.mockReset().mockResolvedValue(modelReply);
+
+  const response = await send(
+    0,
+    "Привет! Помоги выбрать цель подготовки. С чего начнём?",
+  );
+  expect(response.statusCode).toBe(200);
+  const turn = goalSetupTurn.parse(response.json<unknown>());
+  expect(turn).toMatchObject({
+    draft: {
+      revision: 1,
+      details: { role: null, level: null, market: null },
+      current: { kind: "question", text: "Какая роль тебе интересна?" },
+    },
+    reply: "Какая роль тебе интересна?",
+    path: ["load_context", "interpret_message", "continue_conversation"],
+  });
+  expect((await read()).draft).toEqual(turn.draft);
+
+  expect((await send(1, "Хочу готовиться на middle Go")).statusCode).toBe(200);
+  expect((await read()).draft).toMatchObject({
+    details: { role: "Go-разработчик", level: "middle", market: null },
+    current: { kind: "question", text: "На каком рынке ищешь работу?" },
+  });
+});
+
+it("keeps the named role when the model invents a level and market for a proposal", async () => {
+  const { read, send } = await openSetup();
+  model.mockReset().mockResolvedValueOnce({
+    changes: {
+      role: "Frontend-разработчик",
+      level: "middle",
+      market: "Россия",
+    },
+    replyKind: "proposal",
+    reply: "Подготовиться к собеседованиям на middle frontend в России.",
+  });
+
+  const response = await send(
+    0,
+    "Хочу на frontend-разработчик: работаю с middleware",
+  );
+  expect(response.statusCode).toBe(200);
+  const turn = goalSetupTurn.parse(response.json<unknown>());
+  expect(turn).toMatchObject({
+    draft: {
+      details: { role: "Frontend-разработчик", level: null, market: null },
+      current: { kind: "question", text: "Какой уровень рассматриваешь?" },
+    },
+    reply: "Какой уровень рассматриваешь?",
+    path: ["load_context", "interpret_message", "continue_conversation"],
+  });
+  expect((await read()).draft).toEqual(turn.draft);
+});
+
 it("shows the actual correction path and keeps known details apart from the dialogue", async () => {
   const { read, send } = await openSetup();
   const correction = {

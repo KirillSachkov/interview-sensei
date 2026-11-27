@@ -58,6 +58,7 @@ export interface GoalSetupInterpretation {
   changes: { [Key in keyof GoalDetails]?: GoalDetails[Key] | undefined };
   reply: string;
   replyKind: "conversation" | "proposal" | "reword_proposal";
+  unsupportedChanges?: boolean;
 }
 
 export interface GoalSetupContext extends GoalSetup {
@@ -95,7 +96,7 @@ const emptyDraft: GoalSetupDraft = {
 
 function decide(
   { draft, lastProposalVersion }: GoalSetupContext,
-  { changes, reply, replyKind }: GoalSetupInterpretation,
+  { changes, reply, replyKind, unsupportedChanges }: GoalSetupInterpretation,
   turnId: string,
 ): GoalSetupDecision | undefined {
   const details: GoalDetails = {
@@ -113,6 +114,17 @@ function decide(
   const previousProposal =
     draft.current?.kind === "proposal" ? draft.current : undefined;
   const proposal = changed ? undefined : previousProposal;
+  if (unsupportedChanges) {
+    replyKind = "conversation";
+    if (details.role === null) reply = "Какая роль тебе интересна?";
+    else if (details.level === null) reply = "Какой уровень рассматриваешь?";
+    else if (details.market === null) reply = "На каком рынке ищешь работу?";
+    else if (proposal) reply = "Что хочешь уточнить в цели подготовки?";
+    else {
+      replyKind = "proposal";
+      reply = `Подготовиться к собеседованиям. Роль — ${details.role}, уровень — ${details.level}, рынок — ${details.market}.`;
+    }
+  }
   const proposalReply = replyKind !== "conversation";
   const reword = replyKind === "reword_proposal";
   if (reword && !proposal) return undefined;
