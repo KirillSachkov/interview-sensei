@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 Lead the ticket or spec the user named through the tasks in `docs/agents/pipeline.toml`, from its current stage to a stage no task starts from. If the pipeline file is missing, say so and stop.
 
-`orchestrator.py`, beside this file, does the leading: it gives the ticket a worktree, starts one run per task in a fresh session of the client, runs each task's check and records the stage. You start it, answer for it and pass the owner's words on. Do none of the tasks yourself.
+`orchestrator.py`, beside this file, does the leading: it gives the ticket a worktree, starts one run per task in a fresh session of the client, runs each task's check and records the stage. Before starting from an existing task checkout, settle its branch name under the project rules. While a worker is running, leave its branch to the worker. You start it, answer for it and pass the owner's words on. Do none of the tasks yourself.
 
 Call it by its path with Python 3.11 or newer, from the project root.
 
@@ -16,7 +16,7 @@ Call it by its path with Python 3.11 or newer, from the project root.
 - **Status:** when asked, run `python3 orchestrator.py status` and say each ticket's stage, the running task and the last result.
 - **Stop:** `python3 orchestrator.py stop <ticket>`. It returns when the run has ended.
 - **Feedback on the result:** post the owner's words as a comment on the ticket's PR, then start the ticket with `--stage rework`.
-- **Approval:** when the owner approves the result, call the Skill tool with "merge" for the ticket's PR: it merges at the head the owner checked and clears what the work left, as the project settings say. Then `python3 orchestrator.py finish <ticket>` marks the ticket done. Do the same when the owner drops the ticket instead: close its PR, clear by the same settings, then `finish`.
+- **Approval:** when the owner approves the result, call the Skill tool with "merge" for the ticket's PR: it merges at the head the owner checked and clears what the work left, as the project settings say. Then `python3 orchestrator.py finish <ticket>` records completion. For an active checkout or other deferred cleanup, pass `--defer-cleanup "reason"`, report the retained path and branch, and repeat finish from the primary checkout after clearing them. Do the same when the owner drops the ticket instead: close its PR, clear by the same settings, then `finish`.
 - **A changed ticket:** stop it, let the owner change the ticket in the tracker, then start it again.
 
 ## Findings outside the ticket
@@ -25,6 +25,6 @@ A defect or gap that you or a run found, and that the ticket's acceptance criter
 
 ## Report
 
-When the run ends, say the stage the ticket ended in. For a stage that waits for the owner, give the PR link and what the owner decides.
+When the run ends, say the stage the ticket ended in. For a stage that waits for the owner, give the PR link and what the owner decides. Read the ticket’s handoff.md when present. Account for each limitation, follow-up and approved scope change in the PR and owner summary.
 
 For `blocked`, read the check output the failed attempt names, in the ticket's folder under `.factory/`. Say the task, the cause in plain words, whether the work or the environment failed, and what you would change. Change the project, the pipeline or the orchestrator only on the user's word.

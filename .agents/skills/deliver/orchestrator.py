@@ -22,6 +22,7 @@ import signal
 import subprocess
 import sys
 import time
+import tempfile
 try:
     import tomllib
 except ImportError:
@@ -76,6 +77,13 @@ def git(folder, *args):
     return subprocess.run(["git", "-C", str(folder), *args], capture_output=True, text=True)
 
 
+def host_runs(project):
+    """Keep tracker runs readable from the primary checkout after a linked worktree is removed."""
+    tree = git(project, "worktree", "list", "--porcelain", "-z").stdout
+    primary = tree.split("\0", 1)[0].removeprefix("worktree ")
+    return (Path(primary) if primary else project) / ".factory"
+
+
 class Ticket:
     """A ticket or spec file of the local tracker, or a reference the host tracker understands."""
 
@@ -95,6 +103,8 @@ class Ticket:
         if not self.name:
             raise FactoryError(f"Cannot name the ticket: {ref}")
         self.folder = project / ".factory" / self.name
+        if not self.file and not (self.folder / "state.json").exists():
+            self.folder = host_runs(project) / self.name
         known = self.state().get("ref", self.ref)
         if known != self.ref:
             raise FactoryError(f"{self.ref} and {known} share the name {self.name}; rename one of them")
@@ -108,7 +118,7 @@ class Ticket:
         """Only the process that leads the ticket writes its state; a whole file replaces the old one."""
         state = self.state() | {"ref": self.ref} | changes
         self.folder.mkdir(parents=True, exist_ok=True)
-        ignore = self.project / ".factory/.gitignore"
+        ignore = self.folder.parent / ".gitignore"
         if not ignore.exists():
             ignore.write_text("*\n")
         fresh = self.folder / "state.json.new"
@@ -259,11 +269,25 @@ def run_task(pipeline, tasks, ticket, timeout):
     agent = chosen(pipeline, task, ticket, "agent") or "claude"
     model, effort = chosen(pipeline, task, ticket, "model"), chosen(pipeline, task, ticket, "effort")
     instruction = task.get("run_spec", task["run"]) if ticket.spec else task["run"]
-    argv = agent_argv(pipeline, agent, model, instruction.format(ticket=ref, name=ticket.name), effort)
+    prompt = instruction.format(ticket=ref, name=ticket.name) + (
+        "\nStay within the agreed ticket. Record unrelated findings and remaining limitations in "
+        "$FACTORY_HANDOFF. If an unrelated defect blocks a required check, write its cause to "
+        "$FACTORY_BLOCKER and stop before fixing it. Read existing handoff notes on entry. "
+        "Carry every unresolved limitation and approved scope change into the PR and owner summary."
+    )
+    env["FACTORY_HANDOFF"] = str(ticket.folder / "handoff.md")
+    env["FACTORY_VERIFIED_HEAD"] = ticket.state().get("verified_head") or ""
+    if task.get("verification"):
+        prompt += " Write this attempt's new verification report to $FACTORY_REPORT with the full commit SHA."
+    argv = agent_argv(pipeline, agent, model, prompt, effort)
     reason = "the task's check did not pass"
     limit = int(task.get("timeout", timeout))
     for _ in range(int(task.get("attempts", 1))):
         attempt = len(list(ticket.folder.glob(f"{task['name']}-*.jsonl"))) + 1  # counted across starts; each keeps its log
+        attempt_dir = Path(tempfile.mkdtemp(prefix=f"{task['name']}-{attempt}-", dir=ticket.folder))
+        env["FACTORY_BLOCKER"] = str(attempt_dir / "blocker.txt")
+        env["FACTORY_REPORT"] = str(attempt_dir / "report.md")
+        start_head = git(work, "rev-parse", "HEAD").stdout.strip()
         log = ticket.folder / f"{task['name']}-{attempt}.jsonl"
         running = dict(task=task["name"], attempt=attempt, started=int(time.time()), log=log.name)
         ticket.update(running=running)
@@ -275,7 +299,15 @@ def run_task(pipeline, tasks, ticket, timeout):
                 ticket.journal(task=task["name"], attempt=attempt, stopped=True, session=session_id(log), log=log.name)
                 raise
             ticket.update(running=running | {"checking": True})
-            check = subprocess.run(task["check"], shell=True, cwd=work, env=env, capture_output=True, text=True)
+            blocker = attempt_dir / "blocker.txt"
+            if blocker.is_file():
+                check = subprocess.CompletedProcess([], 3, blocker.read_text(), "")
+            elif code:
+                check = subprocess.CompletedProcess([], 1, f"agent exited {code}", "")
+            elif task.get("verification") and git(work, "rev-parse", "HEAD").stdout.strip() != start_head:
+                check = subprocess.CompletedProcess([], 1, "HEAD changed during verification", "")
+            else:
+                check = subprocess.run(task["check"], shell=True, cwd=work, env=env, capture_output=True, text=True)
         finally:
             ticket.update(running=None)
         output = (check.stdout + check.stderr).strip()
@@ -287,10 +319,12 @@ def run_task(pipeline, tasks, ticket, timeout):
                 reason = f"the run hit its limit of {limit // 60} min; then: {reason}"
         ticket.journal(task=task["name"], attempt=attempt, agent=agent, model=model, effort=effort, agent_exit=code,
                      check_exit=check.returncode, seconds=round(time.monotonic() - started, 1),
-                     session=session_id(log), log=log.name, **({} if passed else {"reason": reason}))
+                     session=session_id(log), log=log.name, artifacts=attempt_dir.name, **({} if passed else {"reason": reason}))
         # The skill may have moved the work to a branch of its own; later tasks and attempts follow it.
         ticket.update(branch=git(work, "branch", "--show-current").stdout.strip() or branch)
         if passed:
+            if task.get("verification"):
+                ticket.update(verified_head=start_head, verification_report=env["FACTORY_REPORT"])
             ticket.update(blocked_at=None)
             ticket.set_stage(task["then"])
             return task["then"]
@@ -327,13 +361,19 @@ def lead(pipeline, tasks, ticket, timeout, prepare_stage=None):
         held.close()
 
 
-def finish(ticket):
+def finish(ticket, deferred=None):
     """The ticket's work is merged or dropped and cleared: stop leading it."""
     held = ticket.lock()
     if held is None:
         raise FactoryError(f"{ticket.name} is still running")
     try:
-        ticket.update(worktree=None, branch=None, blocked_at=None)
+        state = ticket.state()
+        work, branch = state.get("worktree"), state.get("branch")
+        remains = (work and Path(work).exists()) or (
+            branch and git(ticket.project, "show-ref", "--verify", "--quiet", "refs/heads/" + branch).returncode == 0)
+        reason = (deferred or state.get("cleanup_pending") or "worktree or local branch remains") if remains else deferred
+        ticket.update(worktree=work if reason else None, branch=branch if reason else None,
+                      cleanup_pending=reason, blocked_at=None)
         ticket.set_stage(DONE)
     finally:
         held.close()
@@ -343,7 +383,8 @@ def tickets_in(project, pattern):
     found = set(project.glob(pattern)) | set(project.glob(".scratch/*/issues/*.md"))
     files = {path for path in found if path.is_file() and STAGE.search(path.read_text())}
     tickets = {ticket.name: ticket for ticket in (Ticket(project, str(path.relative_to(project))) for path in sorted(files))}
-    for state in sorted(project.glob(".factory/*/state.json")):  # tickets of a host tracker have no file
+    states = set(project.glob(".factory/*/state.json")) | set(host_runs(project).glob("*/state.json"))
+    for state in sorted(states):  # tickets of a host tracker have no file
         saved = json.loads(state.read_text())
         if state.parent.name not in tickets and "stage" in saved:
             tickets[state.parent.name] = Ticket(project, saved.get("ref", state.parent.name))
@@ -394,6 +435,8 @@ def status_line(ticket):
             parts.append(f"session {last['session']}")
     if state.get("worktree"):
         parts.append(f"in {state['worktree']} on {state.get('branch')}")
+    if state.get("cleanup_pending"):
+        parts.append(f"cleanup pending: {state['cleanup_pending']}")
     return "\t".join(parts)
 
 
@@ -411,6 +454,7 @@ def main(argv=None):
                             help=f"run: the {key} for this ticket's runs, for every task or for the named one")
     parser.add_argument("--detach", action="store_true", help="run: return at once and leave the run in the background")
     parser.add_argument("--timeout", type=int, default=5400, help="seconds for one run")
+    parser.add_argument("--defer-cleanup", metavar="REASON", help="finish: why cleanup must wait")
     args = parser.parse_args(argv)
     try:
         project = args.project.resolve()
@@ -436,7 +480,7 @@ def main(argv=None):
             print(f"Stopped {ticket.name}; run it again to continue from {ticket.stage()}")
             return 0
         if args.command == "finish":
-            finish(ticket)
+            finish(ticket, args.defer_cleanup)
             print(status_line(ticket))
             return 0
         if args.command == "wait":

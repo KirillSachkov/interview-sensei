@@ -107,7 +107,7 @@ Proof standards:
 
 ## Report
 
-Write `.evidence/report.md` before cleanup, in Russian except for the two fixed lines, which the pipeline reads by their exact prefixes:
+Write the new report to `$FACTORY_REPORT` when set and keep a copy in `.evidence/report.md`. Otherwise write `.evidence/report.md` before cleanup, in Russian except for the two fixed lines, which the pipeline reads by their exact prefixes:
 
 ```markdown
 # Проверка: <what was verified>
