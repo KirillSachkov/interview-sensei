@@ -128,14 +128,30 @@ function mentionsGoRole(messageWords: string[]): boolean {
   });
 }
 
+function matchesDetailWord(
+  candidateWord: string | undefined,
+  detailWord: string,
+  field: keyof GoalDetails,
+): boolean {
+  if (candidateWord === detailWord) return true;
+  if (field === "role" && detailWord.endsWith("разработчик"))
+    return ["а", "у", "ом", "е"].some(
+      (ending) => candidateWord === detailWord + ending,
+    );
+  if (field === "market" && detailWord.endsWith("ия"))
+    return ["и", "ю", "ей"].some(
+      (ending) => candidateWord === detailWord.slice(0, -1) + ending,
+    );
+  return false;
+}
+
 function mentionsDetail(
   messageWords: string[],
   field: keyof GoalDetails,
   value: string,
 ): boolean {
   const detailWords = words(value);
-  const lastWord = detailWords.pop();
-  if (!lastWord) return false;
+  if (detailWords.length === 0) return false;
 
   if (
     field === "role" &&
@@ -144,21 +160,10 @@ function mentionsDetail(
   )
     return true;
 
-  const lastWordForms = [lastWord];
-  if (field === "role" && lastWord.endsWith("разработчик")) {
-    for (const ending of ["а", "у", "ом", "е"])
-      lastWordForms.push(lastWord + ending);
-  }
-  if (field === "market" && lastWord.endsWith("ия")) {
-    for (const ending of ["и", "ю", "ей"])
-      lastWordForms.push(lastWord.slice(0, -1) + ending);
-  }
-  return messageWords.some(
-    (_, start) =>
-      detailWords.every(
-        (word, offset) => messageWords[start + offset] === word,
-      ) &&
-      lastWordForms.includes(messageWords[start + detailWords.length] ?? ""),
+  return messageWords.some((_, start) =>
+    detailWords.every((word, offset) =>
+      matchesDetailWord(messageWords[start + offset], word, field),
+    ),
   );
 }
 

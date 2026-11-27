@@ -232,7 +232,7 @@ it("keeps the named role when the model invents a level and market for a proposa
   const { read, send } = await openSetup();
   model.mockReset().mockResolvedValueOnce({
     changes: {
-      role: "Frontend-разработчик",
+      role: "Разработчик интерфейсов",
       level: "middle",
       market: "Россия",
     },
@@ -242,13 +242,13 @@ it("keeps the named role when the model invents a level and market for a proposa
 
   const response = await send(
     0,
-    "Хочу готовиться на frontend-разработчика. Работал с middleware.",
+    "Хочу готовиться на разработчика интерфейсов. Работал с middleware.",
   );
   expect(response.statusCode).toBe(200);
   const turn = goalSetupTurn.parse(response.json<unknown>());
   expect(turn).toMatchObject({
     draft: {
-      details: { role: "Frontend-разработчик", level: null, market: null },
+      details: { role: "Разработчик интерфейсов", level: null, market: null },
       current: { kind: "question", text: "Какой уровень рассматриваешь?" },
     },
     reply: "Какой уровень рассматриваешь?",
