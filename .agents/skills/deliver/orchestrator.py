@@ -349,8 +349,8 @@ def run_task(pipeline, tasks, ticket, timeout):
             blocker = attempt_dir / "blocker.txt"
             if blocker.is_file():
                 check = subprocess.CompletedProcess([], 3, blocker.read_text(), "")
-            elif not ticket.spec and git(work, "branch", "--show-current").stdout.strip() != current:
-                check = subprocess.CompletedProcess([], 3, f"worker changed the assigned branch {current}", "")
+            elif not ticket.spec and git(work, "branch", "--show-current").stdout.strip() != branch:
+                check = subprocess.CompletedProcess([], 3, f"worker changed the assigned branch {branch}", "")
             elif code:
                 check = subprocess.CompletedProcess([], 1, f"agent exited {code}", "")
             elif task.get("verification") and git(work, "rev-parse", "HEAD").stdout.strip() != start_head:
