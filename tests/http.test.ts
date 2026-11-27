@@ -186,7 +186,10 @@ it("asks for the role when the model copies the greeting example into the draft"
     replyKind: "conversation",
     reply: "На каком рынке ищешь работу?",
   };
-  model.mockReset().mockResolvedValue(modelReply);
+  model
+    .mockReset()
+    .mockResolvedValueOnce({ ...modelReply, changes: {} })
+    .mockResolvedValue(modelReply);
 
   const response = await send(
     0,
@@ -205,7 +208,20 @@ it("asks for the role when the model copies the greeting example into the draft"
   });
   expect((await read()).draft).toEqual(turn.draft);
 
-  expect((await send(1, "Хочу готовиться на middle Go")).statusCode).toBe(200);
+  const invented = await send(
+    1,
+    "Привет! Помоги выбрать цель подготовки. С чего начнём?",
+  );
+  expect(invented.statusCode).toBe(200);
+  expect(goalSetupTurn.parse(invented.json<unknown>())).toMatchObject({
+    draft: { ...turn.draft, revision: 2 },
+    reply: turn.reply,
+  });
+
+  expect((await send(2, "Знаю Go, но пока выбираю роль")).statusCode).toBe(200);
+  expect((await read()).draft.details).toEqual(turn.draft.details);
+
+  expect((await send(3, "Хочу готовиться на middle Go")).statusCode).toBe(200);
   expect((await read()).draft).toMatchObject({
     details: { role: "Go-разработчик", level: "middle", market: null },
     current: { kind: "question", text: "На каком рынке ищешь работу?" },
@@ -226,7 +242,7 @@ it("keeps the named role when the model invents a level and market for a proposa
 
   const response = await send(
     0,
-    "Хочу на frontend-разработчик: работаю с middleware",
+    "Хочу готовиться на frontend-разработчика. Работал с middleware.",
   );
   expect(response.statusCode).toBe(200);
   const turn = goalSetupTurn.parse(response.json<unknown>());

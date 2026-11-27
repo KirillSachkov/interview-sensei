@@ -58,7 +58,6 @@ export interface GoalSetupInterpretation {
   changes: { [Key in keyof GoalDetails]?: GoalDetails[Key] | undefined };
   reply: string;
   replyKind: "conversation" | "proposal" | "reword_proposal";
-  unsupportedChanges?: boolean;
 }
 
 export interface GoalSetupContext extends GoalSetup {
@@ -94,37 +93,115 @@ const emptyDraft: GoalSetupDraft = {
   current: null,
 };
 
+const detailFields = ["role", "level", "market"] as const;
+const detailQuestions = {
+  role: "Какая роль тебе интересна?",
+  level: "Какой уровень рассматриваешь?",
+  market: "На каком рынке ищешь работу?",
+};
+
+function words(text: string): string[] {
+  return text.toLowerCase().match(/[\p{L}\p{M}\p{N}+#]+/gu) ?? [];
+}
+
+function mentionsGoRole(messageWords: string[]): boolean {
+  const levels = ["junior", "middle", "senior", "lead"];
+  const rolePrefixes = ["роль", "позиция", "позицию", "ищу", "интересует"];
+  const intention = [
+    "хочу",
+    "готовлюсь",
+    "готовиться",
+    "собеседование",
+    "собеседования",
+  ];
+  return messageWords.some((word, index) => {
+    if (word !== "go") return false;
+    const previous = messageWords[index - 1] ?? "";
+    const next = messageWords[index + 1] ?? "";
+    return (
+      messageWords.length === 1 ||
+      levels.includes(previous) ||
+      levels.includes(next) ||
+      rolePrefixes.includes(previous) ||
+      (previous === "на" && intention.includes(messageWords[index - 2] ?? ""))
+    );
+  });
+}
+
+function mentionsDetail(
+  messageWords: string[],
+  field: keyof GoalDetails,
+  value: string,
+): boolean {
+  const detailWords = words(value);
+  const lastWord = detailWords.pop();
+  if (!lastWord) return false;
+
+  if (
+    field === "role" &&
+    value.toLowerCase() === "go-разработчик" &&
+    mentionsGoRole(messageWords)
+  )
+    return true;
+
+  const lastWordForms = [lastWord];
+  if (field === "role" && lastWord.endsWith("разработчик")) {
+    for (const ending of ["а", "у", "ом", "е"])
+      lastWordForms.push(lastWord + ending);
+  }
+  if (field === "market" && lastWord.endsWith("ия")) {
+    for (const ending of ["и", "ю", "ей"])
+      lastWordForms.push(lastWord.slice(0, -1) + ending);
+  }
+  return messageWords.some(
+    (_, start) =>
+      detailWords.every(
+        (word, offset) => messageWords[start + offset] === word,
+      ) &&
+      lastWordForms.includes(messageWords[start + detailWords.length] ?? ""),
+  );
+}
+
 function decide(
   { draft, lastProposalVersion }: GoalSetupContext,
-  { changes, reply, replyKind, unsupportedChanges }: GoalSetupInterpretation,
-  turnId: string,
+  interpretation: GoalSetupInterpretation,
+  { message, turnId }: GoalSetupCommand,
 ): GoalSetupDecision | undefined {
-  const details: GoalDetails = {
-    role: changes.role === undefined ? draft.details.role : changes.role,
-    level: changes.level === undefined ? draft.details.level : changes.level,
-    market:
-      changes.market === undefined ? draft.details.market : changes.market,
-  };
-  const complete =
-    details.role !== null && details.level !== null && details.market !== null;
-  const changed =
-    details.role !== draft.details.role ||
-    details.level !== draft.details.level ||
-    details.market !== draft.details.market;
+  const details = { ...draft.details };
+  const messageWords = words(message);
+  let ignoredChange = false;
+  for (const field of detailFields) {
+    const value = interpretation.changes[field];
+    if (value === undefined || value === details[field]) continue;
+    if (value === null || mentionsDetail(messageWords, field, value))
+      details[field] = value;
+    else ignoredChange = true;
+  }
+
+  const missing = detailFields.find((field) => details[field] === null);
+  const complete = missing === undefined;
+  const changed = detailFields.some(
+    (field) => details[field] !== draft.details[field],
+  );
   const previousProposal =
     draft.current?.kind === "proposal" ? draft.current : undefined;
   const proposal = changed ? undefined : previousProposal;
-  if (unsupportedChanges) {
-    replyKind = "conversation";
-    if (details.role === null) reply = "Какая роль тебе интересна?";
-    else if (details.level === null) reply = "Какой уровень рассматриваешь?";
-    else if (details.market === null) reply = "На каком рынке ищешь работу?";
-    else if (proposal) reply = "Что хочешь уточнить в цели подготовки?";
-    else {
-      replyKind = "proposal";
-      reply = `Подготовиться к собеседованиям. Роль — ${details.role}, уровень — ${details.level}, рынок — ${details.market}.`;
-    }
+  let response: Pick<GoalSetupInterpretation, "reply" | "replyKind"> =
+    interpretation;
+  if (missing === "role" || (ignoredChange && missing !== undefined)) {
+    response = { replyKind: "conversation", reply: detailQuestions[missing] };
+  } else if (ignoredChange && proposal) {
+    response = {
+      replyKind: "conversation",
+      reply: "Что хочешь уточнить в цели подготовки?",
+    };
+  } else if (ignoredChange) {
+    response = {
+      replyKind: "proposal",
+      reply: `Подготовиться к собеседованиям. Роль — ${details.role}, уровень — ${details.level}, рынок — ${details.market}.`,
+    };
   }
+  const { reply, replyKind } = response;
   const proposalReply = replyKind !== "conversation";
   const reword = replyKind === "reword_proposal";
   if (reword && !proposal) return undefined;
@@ -204,7 +281,7 @@ export function goalSetups(store: GoalSetupStore) {
               return context;
             },
             decide: (context, interpretation) =>
-              decide(context, interpretation, command.turnId),
+              decide(context, interpretation, command),
             async save(decision, path) {
               const result = {
                 turnId: command.turnId,

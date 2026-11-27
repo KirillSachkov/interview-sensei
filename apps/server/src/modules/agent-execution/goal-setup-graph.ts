@@ -47,7 +47,6 @@ export function goalSetupGraph(model?: GoalSetupModel) {
             history,
             message: execution.message,
           }),
-          execution.message,
         );
       } catch (error) {
         throw new GoalSetupModelError(

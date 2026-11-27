@@ -100,4 +100,15 @@ it("versions changed details, keeps an open proposal during conversation, and ke
     version: 3,
     turnId: "turn-6",
   });
+
+  const beforeUnstatedRole = (await setup.read()).draft;
+  await send("Можно уточнить цель?", {
+    changes: { role: "Аналитик" },
+    replyKind: "proposal",
+    reply: "Подготовиться к интервью на аналитика.",
+  });
+  expect((await setup.read()).draft).toEqual({
+    ...beforeUnstatedRole,
+    revision: 7,
+  });
 });
